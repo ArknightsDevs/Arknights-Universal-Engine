@@ -1,7 +1,7 @@
 // The skeleton's rules on the tiny level (docs/spec: deploy, enemies, combat). Test names cite the clauses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createWorld, step, rangeCell, deployProblem, damage, status } from '../src/index.js';
+import { createWorld, step, rangeCell, deployProblem, damage, status, attrs } from '../src/index.js';
 import { tinyContent } from '@aue/testkit';
 
 const c = tinyContent();
@@ -196,3 +196,18 @@ test('[属性-1] [属性-3] units take their base attributes from the content; w
   assert.deepEqual([op.hp, op.maxHp, op.born, op.bornN, op.blockedBy], [1000, 1000, 0, 1, -1]);
 });
 
+
+test('[部署-4] [属性-4] an operator with always-on talents is deployed with them as one buff without an end, its HP full', () => {
+  const cc = tinyContent();
+  cc.operators.guard = { ...cc.operators.guard, talentBb: { atk: 0.2, max_hp: 0.2, attack_speed: 6, magic_resistance: 10 } };
+  const w = createWorld(cc, { seed: 1, players: 1 });
+  step(w, cc, [[0, deploy({})]]);
+  const op = w.units[0], s = attrs.statsOf(op);
+  assert.deepEqual(op.buffs.map((b) => [b.key, b.left, b.mods]), [['talent', -1, { atkPct: 0.2, hpPct: 0.2, aspd: 6, resFlat: 10 }]]);
+  assert.deepEqual([s.atk, s.maxHp, s.aspd, s.res, op.hp, op.maxHp], [60, 1200, 106, 10, 1200, 1200]);
+  for (let f = 0; f < 300; f++) step(w, cc);
+  assert.equal(op.buffs.length, 1, 'it does not run out');
+  const plain = fresh(1);
+  step(plain, c, [[0, deploy({})]]);
+  assert.deepEqual(plain.units[0].buffs, [], 'none without talents');
+});

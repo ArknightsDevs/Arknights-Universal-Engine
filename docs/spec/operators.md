@@ -47,3 +47,17 @@ blackboard 里的数值条目记作 `{ 键: 值 }`；带 `valueStr` 的条目是
 这里只记录数据，模组怎样改变干员由使用方决定。`DISPLAY` 部件只有展示用的特性说明，`TRAIT` 和 `TRAIT_DATA_ONLY` 覆盖特性数据，`TALENT` 和 `TALENT_DATA_ONLY` 增加或覆盖天赋数据，`OVERWRITE_BATTLE_DATA` 的 blackboard 全是文本条目；这些含义是按目标名字做的推断，没有逐一核对。阿米娅的转职形态（char_1001_amiya2、char_1037_amiya3）不在 character_table 的干员里，它们的模组不记录。
 
 - 来源：数据：uniequip_table 的 charEquip、equipDict[]（uniEquipName、typeName1、typeName2、unlockEvolvePhase、unlockLevel、charId）；battle_equip_table[].phases[]（equipLevel、attributeBlackboard、tokenAttributeBlackboard、parts[].target/isToken/validInGameTag/validInMapTag/overrideTraitDataBundle.candidates[]/addOrOverrideTalentDataBundle.candidates[]）；键的对应关系和 `maxDeckStackCnt`、`maxDeployCount` 两个名字是设计决定
+
+### 干员-6 天赋的练度与常驻天赋
+
+每个天赋在一个练度下取它最后一个已解锁的候选，解锁条件同特性（干员-3）；没有已解锁候选的天赋不生效。
+
+其中描述只写自身属性加成的候选是**常驻天赋**，从部署起一直生效：
+
+- 描述去掉富文本标签和全角括号里的潜能差值后，按「，」分成的每一句都是「（自身/自身的）属性（和/、属性）（各）带符号的数值（%、秒、/秒）」；
+- 属性词和 blackboard 键的对应：攻击力 `atk`，防御力 `def`，生命上限、最大生命值、生命值 `max_hp`，攻击速度、攻速 `attack_speed`，法术抗性 `magic_resistance`，技力自然回复速度 `sp_recovery_per_sec`，再部署时间 `respawn_time`，部署费用 `cost`；
+- 描述提到的键都在 blackboard 里，blackboard 里其他键的值都是 0；隐藏候选（干员-4）不算。
+
+常驻天赋的 blackboard 按键相加（值为 0 的键略去）：`cost` 加到部署费用、`respawn_time` 加到再部署时间（都不低于 0），其余的键作为干员的 `talentBb`，部署时成为 Buff（部署-4）。其他天赋（有条件的、影响别的单位的、带行为的）还没有实现。
+
+- 来源：数据：character_table 的 talents（干员-4）；按描述判定常驻天赋、和技能的属性加成同样换算为推断 INF-0088；部署费用的增减在费用倍率之前：[PRTS「部署费用」oldid=434779](https://prts.wiki/index.php?title=%E9%83%A8%E7%BD%B2%E8%B4%B9%E7%94%A8&oldid=434779)「部署费用（属性）=(初始部署费用+基础费用增减)×费用倍率+实时费用增减」

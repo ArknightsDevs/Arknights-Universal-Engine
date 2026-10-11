@@ -1,10 +1,11 @@
-// Creating units from content (spec 部署-1, 出怪-1, 属性-1): the base attributes come from the content, the buffs start
-// empty, the HP and the element values full.
+// Creating units from content (spec 部署-1, 部署-4, 出怪-1, 属性-1): the base attributes come from the content, the buffs
+// start empty but for an operator's always-on talents, the HP and the element values full.
 import { KIND, ANIM } from '@aue/schema';
 import { tileAt } from './level.js';
 import { dirOfCode, DEFAULT_DIR } from './dir.js';
 import { statsOf } from './attrs.js';
-import { makeSkillState } from './skills.js';
+import { makeSkillState, statMods } from './skills.js';
+import { makeBuff } from './buffs.js';
 import { LEADER_MAX_EP } from './elements.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Base} Base */
@@ -41,12 +42,21 @@ export function baseOf(d) {
 }
 
 /**
- * The fields every unit starts with: full HP, no buffs, ready to attack, not blocked, created now.
- * @param {World} w @param {Base} base
+ * The fields every unit starts with: full HP, the buffs given (none by default), ready to attack, not blocked, created now.
+ * @param {World} w @param {Base} base @param {import('./types.js').Buff[]} [buffs]
  */
-function fresh(w, base) {
-  const maxHp = statsOf({ base, buffs: [] }).maxHp;
-  return { base, buffs: [], hp: maxHp, maxHp, atkCd: 0, blockedBy: -1, blockedAt: -1, born: w.frame, bornN: ++w.bornThisFrame, path: [], pt: 0, wait: -1, hidden: false, skill: null, ep: {}, swing: null };
+function fresh(w, base, buffs = []) {
+  const maxHp = statsOf({ base, buffs }).maxHp;
+  return { base, buffs, hp: maxHp, maxHp, atkCd: 0, blockedBy: -1, blockedAt: -1, born: w.frame, bornN: ++w.bornThisFrame, path: [], pt: 0, wait: -1, hidden: false, skill: null, ep: {}, swing: null };
+}
+
+/**
+ * The buffs an operator is deployed with (部署-4): its always-on talents' attribute keys as one buff without an end.
+ * @param {OperatorDef} d
+ */
+function talentBuffs(d) {
+  const mods = statMods(d.talentBb ?? {});
+  return Object.keys(mods).length ? [makeBuff({ key: 'talent', mods })] : [];
 }
 
 /**
@@ -56,7 +66,7 @@ function fresh(w, base) {
 export function makeOperator(w, c, o) {
   return {
     id: w.nextId++, kind: KIND.OPERATOR, key: o.key, owner: o.owner, x: o.col, y: o.row, z: heightLevel(tileAt(c.level, o.row, o.col)),
-    dir: dirOfCode(o.dir), ...fresh(w, baseOf(c.operators[o.key])), route: -1, leg: 0, frag: 0, wave: -1, ab: {}, anim: ANIM.IDLE, paid: o.paid ?? c.operators[o.key].cost,
+    dir: dirOfCode(o.dir), ...fresh(w, baseOf(c.operators[o.key]), talentBuffs(c.operators[o.key])), route: -1, leg: 0, frag: 0, wave: -1, ab: {}, anim: ANIM.IDLE, paid: o.paid ?? c.operators[o.key].cost,
     skill: c.operators[o.key].skill ? makeSkillState(/** @type {import('./types.js').SkillDef} */ (c.operators[o.key].skill)) : null,
   };
 }
