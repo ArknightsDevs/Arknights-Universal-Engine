@@ -126,7 +126,10 @@ test('[职业-4] lasting modifiers and flags while deployed; a status on each hi
   assert.equal(statsOf(sn).taunt, -1);
   assert.deepEqual(sn.buffs.map((b) => b.key), ['trait']);
   const e = foe(1, 3, { maxHp: 1e6 });
-  run(w, c, 1);
+  const ev = run(w, c, 4);
+  assert.deepEqual(ev.filter((x) => x.type === 'shot').map((x) => x.f), [1], 'a ranged attack launches a projectile (攻击-3)');
+  const hitAt = ev.find((x) => x.type === 'hit')?.f;
+  assert.equal(hitAt, 4, '√2 tiles at 12 tiles/s: 0.4 a frame, it arrives in the fourth frame');
   assert.equal(e.buffs.find((b) => b.key === 'sluggish')?.left, 24);
   assert.equal(statsOf(e).moveSpeed, 0.2);
 });

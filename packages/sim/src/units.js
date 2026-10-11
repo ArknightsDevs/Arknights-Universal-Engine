@@ -45,7 +45,7 @@ export function baseOf(d) {
  */
 function fresh(w, base) {
   const maxHp = statsOf({ base, buffs: [] }).maxHp;
-  return { base, buffs: [], hp: maxHp, maxHp, atkCd: 0, blockedBy: -1, blockedAt: -1, born: w.frame, bornN: ++w.bornThisFrame, path: [], pt: 0, wait: -1, hidden: false, skill: null, ep: {} };
+  return { base, buffs: [], hp: maxHp, maxHp, atkCd: 0, blockedBy: -1, blockedAt: -1, born: w.frame, bornN: ++w.bornThisFrame, path: [], pt: 0, wait: -1, hidden: false, skill: null, ep: {}, swing: null };
 }
 
 /**

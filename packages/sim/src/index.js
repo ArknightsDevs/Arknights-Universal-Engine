@@ -21,6 +21,7 @@ export * as sp from './sp.js';
 export * as elements from './elements.js';
 export * as traits from './traits.js';
 export * as deck from './deck.js';
+export * as swing from './swing.js';
 export { nextUint32, seedState } from './rng.js';
 export { BEHAVIOR_API_VERSION, CONTEXT_MEMBERS, SKILL_CONTEXT_MEMBERS } from './api.js';
 export { hashNumbers, HASH_START } from './hash.js';

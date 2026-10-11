@@ -1,0 +1,36 @@
+{
+  "source": {
+    "operators": "HX0922/ArknightsSpine@dc788e38019646f2e530cbb5a95f7bedec61eb5e BattleFront",
+    "enemies": "isHarryh/Ark-Models@8a3857c250a5c271429aefa82c660ff35803166e"
+  },
+  "units": {
+    "char_500_noirc": {
+      "clip": "Attack",
+      "duration": 1.1666666269302368,
+      "hit": 0.46666666865348816
+    },
+    "char_502_nblade": {
+      "clip": "Attack",
+      "duration": 1,
+      "hit": 0.2666666805744171
+    },
+    "char_503_rang": {
+      "clip": "Attack",
+      "duration": 1,
+      "hit": 0.5
+    },
+    "char_122_beagle": {
+      "clip": "Attack",
+      "duration": 1,
+      "hit": 0.5
+    },
+    "enemy_1404_msnip": {
+      "clip": "Attack",
+      "duration": 1.3666666746139526,
+      "hit": 0.6333333253860474
+    }
+  },
+  "none": [
+    "enemy_3001_upeopl"
+  ]
+}

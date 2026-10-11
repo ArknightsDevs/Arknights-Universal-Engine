@@ -264,7 +264,7 @@ test('[状态-8] 麻痹 interrupts an enemy\'s attack: a layer goes, 0.5 s of �
   const gap = 59 + PALSY_SHAKE_FRAMES;
   assert.deepEqual([cut[1] - cut[0], cut[2] - cut[1]], [gap, gap], 'the 2 s cooldown starts over, and it pauses while 麻痹震颤 lasts (敌人攻击-1)');
   assert.deepEqual(hits(ev, guard.id).map((e) => e.f), [cut[2] + gap], 'three interrupted, the fourth lands');
-  assert.equal(ev.filter((e) => e.type === 'attack' && e.id === slime.id).length, 1);
+  assert.equal(ev.filter((e) => e.type === 'attack' && e.id === slime.id).length, 4, 'every swing starts (攻击-2); three are cut at their hit');
   const e2 = makeEnemy(w, c, { key: 'slime', route: 0 });
   applyStatus(e2, 'palsy');
   assert.equal(palsyInterrupts(e2), true);

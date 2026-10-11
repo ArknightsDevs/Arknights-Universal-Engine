@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step, stateHash, attrs } from '@aue/sim';
-import { skeletonContent as c, skeletonSource } from '../src/index.js';
+import { skeletonContent as c, skeletonSource, timingSource } from '../src/index.js';
 
 test('[地图-1] tiles are in route coordinates: start tiles at the top, every route starts on one', () => {
   const { tiles, height, routes } = c.level;
@@ -43,4 +43,12 @@ test('[技能-3] [技能-5] the skeleton’s 米格鲁 starts 防御力强化·�
   const ev = step(w, quiet, [[0, { type: 'skill', unit: b.id }]]);
   assert.deepEqual(ev.filter((e) => e.type === 'skill'), [{ type: 'skill', id: b.id, active: 1 }]);
   assert.equal(attrs.statsOf(b).def, def * 1.3);
+});
+
+test('[攻击-2] the skeleton units carry their attack clip timing from data/timings.json; one without an attack clip has none', () => {
+  assert.deepEqual(c.operators.char_502_nblade.attack, { duration: 1, hit: Math.fround(0.26666668) });
+  assert.deepEqual(c.enemies.enemy_1404_msnip.attack, { duration: Math.fround(1.3666667), hit: Math.fround(0.6333333) });
+  assert.equal(c.enemies.enemy_3001_upeopl.attack, undefined);
+  assert.match(timingSource.operators, /^HX0922\/ArknightsSpine@[0-9a-f]{40}/);
+  assert.match(timingSource.enemies, /^isHarryh\/Ark-Models@[0-9a-f]{40}$/);
 });

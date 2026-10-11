@@ -8,6 +8,9 @@
   "exports": {
     ".": "./src/index.js"
   },
+  "dependencies": {
+    "@aue/spine": "workspace:*"
+  },
   "aue": {
     "node": true
   }

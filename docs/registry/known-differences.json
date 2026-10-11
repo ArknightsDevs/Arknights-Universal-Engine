@@ -230,5 +230,21 @@
     "stronghold": "server/sim/battle/queries.js injuredAlliesInKeys：生命小于最大生命 − 10⁻⁶ 才算受伤，按精确的生命比例、再按部署顺序排序。",
     "reason": "PRTS「仇恨」oldid=429076：「生命比例升序(满生命值除外)」，默认比对精度 0.001。",
     "status": "有效"
+  },
+  {
+    "id": "DIF-0030",
+    "clause": "攻击-2",
+    "ours": "干员和敌人的攻击都有前摇：冷却为 0 时开始攻击、锁定目标，在攻击动画的 OnAttack 时刻命中，前摇期间无法行动则取消。",
+    "stronghold": "server/sim/ai.js：只有敌人有前摇（attackWindup），且从冷却剩下前摇长度时开始挥击、冷却为 0 时命中，目标在命中那一刻才选；干员的前摇只在画面上处理。",
+    "reason": "ADR 0014（Q54）：所有单位按动画出伤害，冷却到 0 时开始攻击动画；PRTS「作战机制」：锁定人数的攻击「在抬手时选取」目标、「在攻击前摇结束时」造成伤害。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0031",
+    "clause": "攻击-2",
+    "ours": "未被阻挡的远程敌人只在前摇期间停下，命中后继续移动。",
+    "stronghold": "server/sim/ai.js attackStand：停下整个攻击动画（前摇和后摇），没有动画数据时命中后停 ATTACK_PAUSE。",
+    "reason": "PRTS 没有给出敌人攻击时停顿多久；我们只在已知的前摇期间停下（INF-0049 之外不作假设）。",
+    "status": "有效"
   }
 ]

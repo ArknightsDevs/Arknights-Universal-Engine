@@ -115,5 +115,20 @@
     "packages/sim/src/buffs.js"
   ],
   "tag": [],
-  "paid": []
+  "paid": [],
+  "swing": [
+    "packages/sim/src/combat.js"
+  ],
+  "wind": [
+    "packages/sim/src/combat.js"
+  ],
+  "since": [
+    "packages/sim/src/combat.js"
+  ],
+  "sx": [
+    "packages/sim/src/swing.js"
+  ],
+  "sy": [
+    "packages/sim/src/swing.js"
+  ]
 }

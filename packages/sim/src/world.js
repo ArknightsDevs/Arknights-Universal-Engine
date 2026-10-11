@@ -1,12 +1,12 @@
-// The world and one frame of it (spec 帧-1): commands, cost, spawns, buffs, enemy movement, operator attacks, removal
-// of the dead — in that order, every frame, on every peer.
+// The world and one frame of it (spec 帧-1): commands, cost, spawns, buffs, enemy movement, operator attacks,
+// projectiles, removal of the dead — in that order, every frame, on every peer.
 import { secondsToFrames } from '@aue/math';
 import { ANIM, KIND } from '@aue/schema';
 import { seedState } from './rng.js';
 import { hashNumbers, HASH_START } from './hash.js';
 import { spawnFrames, spawnDue, enemiesAct } from './enemies.js';
 import { releaseAll } from './blocking.js';
-import { operatorsAttack } from './combat.js';
+import { operatorsAttack, shotsFly } from './combat.js';
 import { applyCommand } from './commands.js';
 import { leaveField } from './deck.js';
 import { tickBuffs } from './buffs.js';
@@ -23,7 +23,7 @@ import { BURST_BEHAVIORS } from './elements.js';
 export function createWorld(c, o) {
   const { initialCost, maxLifePoint, costIncreaseTime } = c.level.options;
   return {
-    frame: 0, rng: seedState(o.seed), nextId: 1, nextSpawn: 0, spawnFrames: spawnFrames(c), bornThisFrame: 0, units: [], events: [],
+    frame: 0, rng: seedState(o.seed), nextId: 1, nextSpawn: 0, spawnFrames: spawnFrames(c), bornThisFrame: 0, units: [], shots: [], events: [],
     players: Array.from({ length: o.players }, () => ({ life: maxLifePoint, cost: initialCost, costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {} })),
   };
 }
@@ -75,6 +75,7 @@ export function step(w, c, commands = []) {
   tickBuffs(w, buffBehaviors(c));
   enemiesAct(w, c);
   operatorsAttack(w, c);
+  shotsFly(w, c);
   removeDead(w, c);
   w.frame++;
   return w.events;
@@ -106,14 +107,14 @@ function pushText(out, tag, s) {
 }
 
 /**
- * The state hash (spec 同步-1): the frame, the random state, the id and spawn counters, the players and the units, all
- * of their data.
+ * The state hash (spec 同步-1): the frame, the random state, the id and spawn counters, the players, the units and the
+ * projectiles, all of their data.
  * @param {World} w @returns {number}
  */
 export function stateHash(w) {
   /** @type {number[]} */
   const nums = [];
-  pushValue(nums, { frame: w.frame, rng: w.rng, nextId: w.nextId, nextSpawn: w.nextSpawn, players: w.players, units: w.units });
+  pushValue(nums, { frame: w.frame, rng: w.rng, nextId: w.nextId, nextSpawn: w.nextSpawn, players: w.players, units: w.units, shots: w.shots });
   return hashNumbers(HASH_START, nums);
 }
 

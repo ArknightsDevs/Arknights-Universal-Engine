@@ -43,7 +43,11 @@ importers:
         specifier: workspace:*
         version: link:../testkit
 
-  packages/data: {}
+  packages/data:
+    dependencies:
+      '@aue/spine':
+        specifier: workspace:*
+        version: link:../spine
 
   packages/lint:
     dependencies:

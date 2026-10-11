@@ -1,6 +1,6 @@
-// Attacks (spec 攻击-1, 敌人攻击-1, 索敌-1…索敌-5, 伤害-7, 职业-1…职业-5): when the cooldown is out, the first
-// candidates in the official order take hits of the attacker's attack — or a healer's heals — then the attacker waits its
-// attack interval.
+// Attacks (spec 攻击-1…攻击-3, 敌人攻击-1, 索敌-1…索敌-5, 伤害-7, 职业-1…职业-5): when the cooldown is out, the first
+// candidates in the official order are locked and a swing starts; at the end of its wind-up they take hits of the
+// attacker's attack — a healer's heals, a ranged attacker's projectiles — and the attacker waits out its interval.
 import { FPS } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { offsetTile } from './dir.js';
@@ -14,6 +14,7 @@ import { tickSkill, beforeAttack, afterAttack } from './skills.js';
 import { palsyInterrupts } from './status.js';
 import { dealEp, rampageAttack } from './elements.js';
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill } from './traits.js';
+import { timingOf, windupFrames, shoots, launch, flyShots, PALSY_CUT_FRAMES } from './swing.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell @typedef {import('./attrs.js').Stats} Stats */
@@ -48,71 +49,99 @@ export function targetsOf(w, c, op) {
 /** The enemy an operator attacks first (索敌-3). @param {World} w @param {Content} c @param {Unit} op @returns {Unit | null} */
 export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
 
-/** @typedef {{ scale: number, times: number, element?: string, ep?: number }} StrikeMods */
+/** @typedef {import('./skills.js').AttackMods} AttackMods @typedef {import('./types.js').Swing} Swing */
+/** @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number }} Load */
 
-/** Starts the cooldown of an attack (攻击-1, 敌人攻击-1); an attack during a 狂躁 burst counts once (元素-4). @param {Unit} a @param {Stats} s */
-function startAttack(a, s) {
-  a.atkCd = intervalFrames(s.bat, s.aspd) - 1;
+/**
+ * One target's hits of an attack that lands (伤害-6, 伤害-7, 元素-2, 职业-4, 职业-5): `times` hits of the amount, each
+ * followed by the attack's 元素损伤 if it carries one; an operator's hit that kills is credited to it, then its trait
+ * acts on the hit. The source may be gone (a projectile whose shooter left): then the hit has no source.
+ * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {Load} load
+ */
+function hitTarget(w, c, src, t, load) {
+  const el = /** @type {import('./elements.js').Element | ''} */ (load.element), op = src && src.kind === KIND.OPERATOR ? src : null;
+  for (let k = 0; k < load.times; k++) {
+    const alive = t.hp > 0;
+    dealDamage(w, src, t, { type: load.type, amount: load.amount });
+    if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
+    if (el && load.ep > 0) dealEp(w, t, el, load.ep);
+    if (op && alive) traitHit(w, c, op, t);
+  }
+}
+
+/** What an attack carries to each target (攻击-2): its type, the attack × 倍率, hits, 元素损伤. @param {Unit} a @param {AttackMods} mods @returns {Load} */
+const loadOf = (a, mods) => ({ type: a.base.dmgType, amount: statsOf(a).atk * mods.scale, times: mods.times, element: mods.element ?? '', ep: mods.ep ?? 0 });
+
+/**
+ * An attack lands at the end of its wind-up (攻击-2, 攻击-3): 麻痹 may interrupt an enemy's (状态-8); the locked
+ * targets still on the field and alive take it — out of range or not — as hits, a healer's heals (职业-2), or the
+ * projectiles a ranged attacker launches; then an operator's skill counts the attack (技能-2, 技能-4).
+ * @param {World} w @param {Content} c @param {Unit} a
+ */
+function land(w, c, a) {
+  const sw = /** @type {Swing} */ (a.swing);
+  a.swing = null;
+  if (palsyInterrupts(a)) { a.anim = ANIM.IDLE; return; }
+  const op = a.kind === KIND.OPERATOR, heals = op && traitOf(c, a).heal, load = loadOf(a, sw.mods);
+  for (const id of sw.targets) {
+    const t = w.units.find((u) => u.id === id);
+    if (!t || t.hp <= 0 || t.hidden) continue;
+    if (heals) for (let k = 0; k < load.times; k++) w.events.push({ type: 'heal', id: a.id, target: t.id, amount: heal(a, t, load.amount) });
+    else if (shoots(c, a, heals)) launch(w, a, t, load);
+    else hitTarget(w, c, a, t, load);
+  }
+  if (op) afterAttack(w, c, a, sw.mods);
+}
+
+/**
+ * Starts an attack (攻击-2): the cooldown starts — the next attack may start an attack interval from now —, the
+ * targets are locked and the swing waits its wind-up; it lands at once without one. An attack during a 狂躁 burst
+ * counts once (元素-4).
+ * @param {World} w @param {Content} c @param {Unit} a @param {Unit[]} targets @param {AttackMods} mods
+ */
+function startSwing(w, c, a, targets, mods) {
+  const s = statsOf(a), interval = intervalFrames(s.bat, s.aspd);
+  a.atkCd = interval - 1;
   a.anim = ANIM.ATTACK;
   rampageAttack(a);
+  for (const t of targets) w.events.push({ type: 'attack', id: a.id, target: t.id });
+  a.swing = { wind: windupFrames(timingOf(c, a), interval), since: 0, targets: targets.map((t) => t.id), mods };
+  if (a.swing.wind === 0) land(w, c, a);
 }
 
 /**
- * Starts the cooldown and hits the targets (伤害-6, 伤害-7, 技能-5, 元素-2, 职业-4, 职业-5): each target takes `times`
- * hits of the attack × the 攻击力倍率, of the attacker's damage type; after each, the attack's 元素损伤 if it carries
- * one. An operator's hit that kills is credited to it, then its trait acts on the hit.
- * @param {World} w @param {Content | null} c the content, for an operator's trait; null for an enemy @param {Unit} a
- * @param {Unit[]} targets @param {StrikeMods} [mods]
+ * One frame of a swing (攻击-2): it lands when its wind-up is over; 麻痹 cuts an enemy's 2 s into it at the latest
+ * (状态-8).
+ * @param {World} w @param {Content} c @param {Unit} a
  */
-function strike(w, c, a, targets, mods = { scale: 1, times: 1 }) {
-  const s = statsOf(a);
-  startAttack(a, s);
-  const el = /** @type {import('./elements.js').Element | undefined} */ (mods.element), ep = mods.ep ?? 0;
-  for (const t of targets) {
-    w.events.push({ type: 'attack', id: a.id, target: t.id });
-    for (let k = 0; k < mods.times; k++) {
-      const alive = t.hp > 0;
-      dealDamage(w, a, t, { type: a.base.dmgType, amount: s.atk * mods.scale });
-      if (c && alive && t.hp <= 0) traitKill(w, c, a, t);
-      if (el && ep > 0) dealEp(w, t, el, ep);
-      if (c && alive) traitHit(w, c, a, t);
-    }
-  }
+function advanceSwing(w, c, a) {
+  const sw = /** @type {Swing} */ (a.swing);
+  sw.wind--;
+  sw.since++;
+  if (sw.wind <= 0) { land(w, c, a); return; }
+  if (sw.since >= PALSY_CUT_FRAMES && palsyInterrupts(a)) { a.swing = null; a.anim = ANIM.IDLE; }
 }
 
 /**
- * A healer's attack (职业-2): the cooldown starts; each target is healed `times` times by the attack × the 攻击力倍率
- * (伤害-11), each a `heal` event.
- * @param {World} w @param {Unit} a @param {Stats} s @param {Unit[]} targets @param {StrikeMods} mods
- */
-function healStrike(w, a, s, targets, mods) {
-  startAttack(a, s);
-  for (const t of targets) {
-    w.events.push({ type: 'attack', id: a.id, target: t.id });
-    for (let k = 0; k < mods.times; k++) w.events.push({ type: 'heal', id: a.id, target: t.id, amount: heal(a, t, s.atk * mods.scale) });
-  }
-}
-
-/**
- * One operator's attack (攻击-1, 技能-3…技能-5, 职业-2, 职业-3): with a target and the cooldown out, its skill may start
- * or end, then it hits — or heals — the first targets: as many as the skill's mods or the trait allow, whichever is more;
- * the trait's hits multiply the skill's.
+ * One operator's attack (攻击-1, 攻击-2, 技能-3…技能-5, 职业-2, 职业-3): a swing under way goes on; with the cooldown
+ * out, no swing and a target, its skill may start or end, the first targets are locked — as many as the skill's mods or
+ * the trait allow, whichever is more; the trait's hits multiply the skill's — and a new swing starts.
  * @param {World} w @param {Content} c @param {Unit} op
  */
 function operatorAttack(w, c, op) {
+  if (op.swing) advanceSwing(w, c, op);
   if (op.atkCd > 0) { op.atkCd--; return; }
+  if (op.swing) return;
   if (targetsOf(w, c, op).length === 0) { op.anim = ANIM.IDLE; return; }
   const mods = beforeAttack(w, c, op), t = traitOf(c, op);
-  const targets = firstN(targetsOf(w, c, op), Math.max(mods.targets, traitTargets(t, op))), all = { ...mods, times: mods.times * t.hits };
-  if (t.heal) healStrike(w, op, statsOf(op), targets, all);
-  else strike(w, c, op, targets, all);
-  afterAttack(w, c, op, mods);
+  const targets = firstN(targetsOf(w, c, op), Math.max(mods.targets, traitTargets(t, op)));
+  startSwing(w, c, op, targets, { ...mods, times: mods.times * t.hits });
 }
 
 /**
  * Every operator's turn this frame (攻击-1). It lets go of what its block count no longer holds (阻挡-3); its skill runs
  * (技能-2…技能-4); then, if it can act (not 晕眩, 冻结 …), its attack — one that cannot act neither attacks nor counts
- * its cooldown down.
+ * its cooldown down, and loses the swing it was in (攻击-2).
  * @param {World} w @param {Content} c
  */
 export function operatorsAttack(w, c) {
@@ -121,7 +150,17 @@ export function operatorsAttack(w, c) {
     enforceCapacity(w, op);
     tickSkill(w, c, op);
     if (!statsOf(op).disabled) operatorAttack(w, c, op);
+    else op.swing = null;
   }
+}
+
+/**
+ * Every projectile's frame (攻击-3): one that reaches its target hits it with what it carries, its shooter as the
+ * source while that is still on the field.
+ * @param {World} w @param {Content} c
+ */
+export function shotsFly(w, c) {
+  flyShots(w, (s, t) => { hitTarget(w, c, w.units.find((u) => u.id === s.src && u.hp > 0) ?? null, t, s); });
 }
 
 /**
@@ -141,22 +180,21 @@ export function enemyTargets(w, e) {
 }
 
 /**
- * An enemy's attack this frame (敌人攻击-1): like an operator's — the cooldown counts down while it can act; when it
- * is out and there is a target, the first in the official order (索敌-5) takes the hit. 麻痹 interrupts it: no hit,
- * the cooldown starts over (状态-8). An enemy without attack does not attack. Returns whether it attacked.
- * @param {World} w @param {Content} _c @param {Unit} e
+ * An enemy's attack this frame (敌人攻击-1, 攻击-2): like an operator's — a swing under way goes on; the cooldown counts
+ * down while it can act; when it is out and there is a target, the first in the official order (索敌-5) is locked and a
+ * swing starts. One that cannot act, has no attack or has disappeared loses its swing. Returns whether it is attacking
+ * this frame (it does not walk).
+ * @param {World} w @param {Content} c @param {Unit} e
  */
-export function enemyAttack(w, _c, e) {
+export function enemyAttack(w, c, e) {
   const s = statsOf(e);
-  if (s.disabled || s.atk <= 0 || e.hidden) return false;
-  if (e.atkCd > 0) { e.atkCd--; return false; }
+  if (s.disabled || s.atk <= 0 || e.hidden) { e.swing = null; return false; }
+  const swinging = e.swing !== null;
+  if (e.swing) advanceSwing(w, c, e);
+  if (e.atkCd > 0) { e.atkCd--; return swinging; }
+  if (e.swing) return true;
   const t = sortAllies(e, enemyTargets(w, e), FPS)[0];
-  if (!t) return false;
-  if (palsyInterrupts(e)) {
-    e.atkCd = intervalFrames(s.bat, s.aspd) - 1;
-    e.anim = ANIM.IDLE;
-    return true;
-  }
-  strike(w, null, e, [t]);
+  if (!t) return swinging;
+  startSwing(w, c, e, [t], { scale: 1, times: 1, targets: 1, skill: false });
   return true;
 }

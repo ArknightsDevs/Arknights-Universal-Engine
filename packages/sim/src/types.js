@@ -15,6 +15,11 @@
 /** @typedef {'phys' | 'arts' | 'true' | 'elemental'} DamageType */
 
 /**
+ * A unit's attack clip as its Spine skeleton gives it (攻击-2): the clip's length and its OnAttack time, in seconds.
+ * @typedef {{ duration: number, hit: number }} AttackTiming
+ */
+
+/**
  * What enemies and operators may give besides their required stats; each defaults as in attrs.js ATTRS.
  * @typedef {object} OptionalStats
  * @property {number} [aspd] attack speed (default 100)
@@ -26,6 +31,7 @@
  * @property {DamageType} [dmgType] the type of its normal attack (default phys)
  * @property {number} [maxEp] maximum element value (default by 元素-1)
  * @property {string} [levelType] NORMAL, ELITE or BOSS (领袖)
+ * @property {AttackTiming} [attack] its attack clip's timing (攻击-2); none: the attack lands as it starts
  */
 
 /**
@@ -157,7 +163,19 @@
  * @property {SkillState | null} skill its skill, null when it has none (技能-1)
  * @property {Record<string, number>} ep element values below their maximum, by element (元素-1); none recorded is at its maximum
  * @property {number} paid the cost its deployment took, 0 for enemies (撤退-1)
+ * @property {Swing | null} swing the attack it is in the wind-up of, null for none (攻击-2)
  * @property {number} anim schema ANIM
+ */
+
+/**
+ * An attack under way (攻击-2): frames until it lands, frames since it began, the ids of its locked targets, its mods.
+ * @typedef {{ wind: number, since: number, targets: number[], mods: import('./skills.js').AttackMods }} Swing
+ */
+
+/**
+ * A projectile in flight (攻击-3): its shooter's and its target's ids, where it is (tile coordinates), its speed in
+ * tiles per second, and what it carries — the damage type and amount, hits, 元素损伤 ('' and 0 for none).
+ * @typedef {{ src: number, target: number, sx: number, sy: number, speed: number, type: DamageType, amount: number, times: number, element: string, ep: number }} Shot
  */
 
 /**
@@ -193,6 +211,7 @@
  * @property {number} nextSpawn index of the next spawn in the level's list
  * @property {number[]} spawnFrames the frame of each spawn
  * @property {number} bornThisFrame units created so far in this frame
+ * @property {Shot[]} shots projectiles in flight, in launch order (攻击-3)
  * @property {Record<string, string | number>[]} events this frame's presentation events (not part of the state)
  */
 
