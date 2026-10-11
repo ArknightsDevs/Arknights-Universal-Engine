@@ -19,8 +19,9 @@ test('the skeleton plays out the same way twice', () => {
     const w = createWorld(c, { seed: 42, players: 2 }), out = [];
     for (let f = 0; f < 4000; f++) {
       /** @type {[number, import('@aue/sim').Command][]} */
-      const cmds = f === 0 ? [[0, { type: 'deploy', op: 'char_503_rang', row: 3, col: 4, dir: 1 }], [1, { type: 'deploy', op: 'char_502_nblade', row: 4, col: 5, dir: 2 }]] : [];
+      const cmds = f === 0 ? [[0, { type: 'deploy', op: 'char_503_rang', row: 3, col: 2, dir: 0 }], [1, { type: 'deploy', op: 'char_502_nblade', row: 4, col: 5, dir: 2 }]] : [];
       step(w, c, cmds);
+      if (f === 0) assert.equal(w.units.filter((u) => u.kind === 0).length, 2, 'both deploys succeed');
       if (f % 100 === 0) out.push(stateHash(w));
     }
     return out;
