@@ -40,12 +40,13 @@ export function createBattleRenderer(o) {
   return {
     resize,
     /**
-     * @param {import('@aue/schema').View} view @param {Record<string, string>} keys content keys of the units new in this view
+     * @param {import('@aue/schema').View} view @param {Record<string, string>} keys content keys of units (at least of those
+     *   not given before)
      * @param {Record<string, string | number>[]} [events] the frame's presentation events
      */
     update(view, keys, events = []) {
       units.update(view, keys, o.level, performance.now(), events);
-      overlays.update(view, keys, o.level);
+      overlays.update(view, keys, o.level, units.shows);
     },
     render() {
       units.pose(camera);

@@ -1,6 +1,7 @@
-// Overlays (docs/spec/render.md 渲染-5; ADR 0027): each unit's HP bar under its model — blue for operators, orange for
-// enemies, red for leaders — and an operator's SP bar under it; drawn after the scene with the depth cleared, so they
-// are always on top. Bars are the battle UI's white slider fill tinted; without that texture no bar is drawn.
+// Overlays (docs/spec/render.md 渲染-5; ADR 0027): each drawn unit's HP bar under its model — blue for operators,
+// orange for enemies, red for leaders — and an operator's SP bar under it; drawn after the scene with the depth
+// cleared, so they are always on top. Bars are the battle UI's white slider fill tinted; without that texture no bar
+// is drawn, and a unit that is not drawn has none.
 import * as THREE from 'three';
 import { KIND, SKILL_STATE } from '@aue/schema';
 import { toThree, tileWorld } from './camera.js';
@@ -60,12 +61,16 @@ export function createOverlays(textures, leaders = new Set()) {
 
   return {
     scene,
-    /** @param {import('@aue/schema').View} view @param {Record<string, string>} newKeys @param {{ width: number, height: number }} level */
-    update(view, newKeys, level) {
+    /**
+     * @param {import('@aue/schema').View} view @param {Record<string, string>} newKeys @param {{ width: number, height: number }} level
+     * @param {(id: number) => boolean} [shows] whether a unit is drawn
+     */
+    update(view, newKeys, level, shows = () => true) {
       for (const [id, k] of Object.entries(newKeys)) keys.set(Number(id), k);
       if (!map) return;
       const seen = new Set();
       for (const u of view.units) {
+        if (!shows(u.id)) continue;
         seen.add(u.id);
         const x = units.get(u.id) ?? { at: new THREE.Vector3(), bars: [], sprites: [], run: 0 };
         units.set(u.id, x);

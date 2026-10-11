@@ -99,6 +99,8 @@ export function createUnits(textures, models = new Map()) {
       for (const f of figures.values()) poseFigure(f, frame, camera);
     },
     count: () => cards.size + figures.size,
+    /** Whether a unit is drawn (as a living figure or a card). @param {number} id */
+    shows: (id) => cards.has(id) || (figures.has(id) && !figures.get(id)?.dying),
     dispose() {
       for (const s of cards.values()) s.material.dispose();
       for (const f of figures.values()) disposeFigure(f);

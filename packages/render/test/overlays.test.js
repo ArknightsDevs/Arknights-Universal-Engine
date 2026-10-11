@@ -35,6 +35,8 @@ test('[渲染-5] overlays: two sprites a bar, under the feet, drawn without dept
   assert.ok(Math.abs(sprites[1].scale.x - BAR.width / 2) < 1e-12, 'half the HP');
   o.update({ ...view, units: [] }, {}, level);
   assert.equal(o.scene.children.length, 0);
+  o.update(view, { 1: 'x' }, level, () => false);
+  assert.equal(o.scene.children.length, 0, 'a unit not drawn has no bars');
   const none = createOverlays(new Map());
   none.update(view, { 1: 'x' }, level);
   assert.equal(none.scene.children.length, 0);
