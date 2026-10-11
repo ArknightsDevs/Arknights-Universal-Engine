@@ -1,7 +1,8 @@
 // Poses against the official Spine 3.8 runtime on real skeletons, run where the maintainer has them (the same
 // AUE_SPINE_MODELS and AUE_SPINE_RUNTIME as models.test.js; model files also carry the atlas text at spine.atlas).
-// Every animation is sampled at 7 times; each bone's world matrix, each slot's attachment, color and world vertices,
-// and the draw order must agree within a relative 1e-4. Skipped when either is not set.
+// Every animation is sampled at 7 times; each bone's world matrix (within a relative 1e-4) and position, each slot's
+// attachment, color and world vertices (positions within 1/1000 of a skeleton unit), and the draw order must agree.
+// The reference keeps its keys in 32-bit floats, so positions differ by float noise. Skipped when either is not set.
 //
 // The reference reads region sizes from textures, so its region attachments get plain region data from our atlas and
 // their corner offsets computed after reading (its loader leaves that to its renderer). Its path constraint nests the
@@ -16,7 +17,7 @@ import * as sp from '../src/index.js';
 
 const MODELS = process.env.AUE_SPINE_MODELS, RUNTIME = process.env.AUE_SPINE_RUNTIME;
 const skip = MODELS && RUNTIME ? false : 'AUE_SPINE_MODELS and AUE_SPINE_RUNTIME are not set';
-const TOLERANCE = 1e-4;
+const RELATIVE = 1e-4, UNIT = 1e-3;
 
 /** The reference runtime, set up for comparison (y up, the chain branch corrected). @returns {{ r: any, base: any }} */
 function reference() {
@@ -97,19 +98,21 @@ function oursAt(m, anim, t) {
   return { bones: p.bones.map((b) => [b.a, b.b, b.c, b.d, b.worldX, b.worldY]), slots, order: p.drawOrder };
 }
 
-/** Whether two lists of numbers agree within the tolerance, relative to 1 + |theirs|. @param {number[]} a @param {number[]} b */
-const agree = (a, b) => a.length === b.length && a.every((v, k) => Math.abs(v - b[k]) <= TOLERANCE * (1 + Math.abs(b[k])));
+/** Whether two lists of numbers agree within a relative 1e-4 (of 1 + |theirs|). @param {number[]} a @param {number[]} b */
+const agree = (a, b) => a.length === b.length && a.every((v, k) => Math.abs(v - b[k]) <= RELATIVE * (1 + Math.abs(b[k])));
+/** Whether two lists of positions agree within 1/1000 of a skeleton unit. @param {number[]} a @param {number[]} b */
+const near = (a, b) => a.length === b.length && a.every((v, k) => Math.abs(v - b[k]) <= UNIT);
 
 /** What differs between our pose and the reference's, as messages. @param {ReturnType<typeof oursAt>} ours @param {ReturnType<typeof theirsAt>} theirs @param {string} at */
 function differences(ours, theirs, at) {
   const out = [];
-  ours.bones.forEach((b, i) => { if (!agree(b, theirs.bones[i])) out.push(`${at} bone ${i}`); });
+  ours.bones.forEach((b, i) => { if (!agree(b.slice(0, 4), theirs.bones[i].slice(0, 4)) || !near(b.slice(4), theirs.bones[i].slice(4))) out.push(`${at} bone ${i}`); });
   if (ours.order.join() !== theirs.order.join()) out.push(`${at} draw order`);
   ours.slots.forEach((sl, i) => {
     const th = theirs.slots[i];
     if (sl.name !== th.name) out.push(`${at} slot ${i} attachment ${sl.name} ≠ ${th.name}`);
     else if (!agree(sl.color, th.color)) out.push(`${at} slot ${i} color`);
-    else if (sl.verts && th.verts && !agree(sl.verts, th.verts)) out.push(`${at} slot ${i} vertices`);
+    else if (sl.verts && th.verts && !near(sl.verts, th.verts)) out.push(`${at} slot ${i} vertices`);
   });
   return out;
 }
