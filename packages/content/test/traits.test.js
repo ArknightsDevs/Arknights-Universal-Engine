@@ -11,10 +11,10 @@ import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, oper
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
 
-test('[职业-7] the covered branches are 57 of the 72 official ones', () => {
+test('[职业-7] the covered branches are 58 of the 72 official ones', () => {
   assert.equal(Object.keys(ALL).length, 72);
   for (const b of Object.keys(BRANCHES)) assert.ok(Object.hasOwn(ALL, b), b);
-  assert.equal(Object.keys(BRANCHES).length, 57);
+  assert.equal(Object.keys(BRANCHES).length, 58);
   assert.ok(coveredBranch('fastshot') && !coveredBranch('funnel') && !coveredBranch('toString'));
 });
 
@@ -120,4 +120,9 @@ test('[职业-7] [职业-12] attack modes from the real data: 解放者, 护佑�
   assert.deepEqual([lib.attackInSkill, lib.idleMods, lib.charge], [true, { blockCntMul: 0 }, { atk: 2, steps: 40 }]);
   assert.deepEqual([bless.skillHeal, hunter.bullets, mystic.store, wander.heal, wander.epHeal], [0.75, { max: 4, scale: 1.2 }, 3, true, 0.5], '冰酿 at elite 0: 4 bullets');
   assert.deepEqual([merc.blockedFirst, merc.antiAir], [true, false], '佣兵: the melee defaults');
+});
+
+test('[职业-7] [职业-13] 吟游者 from the real data: no attacks, outside the deploy limit, a regen aura of 10 % of its attack', async () => {
+  const [sora, heidi] = await Promise.all(['char_101_sora', 'char_4045_heidi'].map(async (id) => /** @type {any} */ (traits.traitOfDef(await real(id)))));
+  assert.deepEqual([sora.noAttack, sora.free, sora.regenAura, heidi.regenAura], [true, true, 0.1, 0.1]);
 });

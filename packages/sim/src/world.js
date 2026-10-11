@@ -18,6 +18,8 @@ import { STATUS_BEHAVIORS } from './status.js';
 import { BURST_BEHAVIORS } from './elements.js';
 import { upkeepBehaviors } from './upkeep.js';
 import { chargeBehavior } from './modes.js';
+import { auras } from './aura.js';
+import { regenAll } from './damage.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -86,7 +88,9 @@ export function step(w, c, commands = []) {
   tickStage(w, c);
   tickWaves(w, c);
   tickBuffs(w, buffBehaviors(c));
+  regenAll(w);
   enemiesAct(w, c);
+  auras(w, c);
   operatorsAttack(w, c);
   shotsFly(w, c);
   foeEffects(w, c);

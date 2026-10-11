@@ -1,6 +1,6 @@
 // Damage and healing (docs/spec/damage.md): the official formulas, then the source's damage multipliers, then the
 // target's 伤判 effects one buff at a time in event priority and acquisition order, then the HP.
-import { powi } from '@aue/math';
+import { powi, FPS } from '@aue/math';
 import { statsOf, activeBuffs } from './attrs.js';
 import { removeBuff } from './buffs.js';
 import { draw } from './rng.js';
@@ -128,6 +128,19 @@ function loseHpNow(w, src, t, amount) {
   if (t.hp <= 0) t.hp = 0;
   w.events.push({ type: 'hit', id: src ? src.id : -1, target: t.id, damage: amount });
   return amount;
+}
+
+/**
+ * Every unit's 生命回复 this frame (属性-6): one on the field with HP below its maximum regains its 生命回复速度 ÷ 30,
+ * up to the maximum. It is not a heal: no event, no healing multipliers, 禁疗 does not stop it.
+ * @param {World} w
+ */
+export function regenAll(w) {
+  for (const u of w.units) {
+    if (u.hp <= 0) continue;
+    const s = statsOf(u);
+    if (s.hpRecoveryPerSec > 0 && u.hp < s.maxHp) u.hp = Math.min(s.maxHp, u.hp + s.hpRecoveryPerSec / FPS);
+  }
 }
 
 /**

@@ -92,6 +92,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   incantationmedic: { dmgType: ARTS, trait: (bb) => ({ healOnHit: bb.scale ?? 0.5 }) },
   // 辅助
   slower: { dmgType: ARTS, trait: (bb) => ({ hitStatus: { key: 'sluggish', seconds: bb.sluggish ?? 0.8 } }) },
+  // no attacks, outside the deploy limit; the operators in its range regenerate a share of its attack a second (职业-13)
+  bard: { trait: (bb) => ({ noAttack: true, free: true, regenAura: bb['attack@atk_to_hp_recovery_ratio'] ?? bb.atk_to_hp_recovery_ratio ?? 0.1 }) },
   // arts; while its skill runs, its attacks heal at heal_scale (职业-12)
   blessing: { dmgType: ARTS, trait: (bb) => ({ skillHeal: bb.heal_scale ?? 0.75 }) },
   summoner: { dmgType: ARTS },

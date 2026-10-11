@@ -33,7 +33,7 @@ export function deployProblem(w, c, seat, cmd) {
   if (c.decks && !c.decks[seat]?.includes(cmd.op)) return 'not in the deck';
   if (isDown(p)) return 'player down';
   if (p.deployed.includes(cmd.op)) return 'already deployed';
-  if (p.deployed.length >= c.level.options.characterLimit) return 'deploy limit reached';
+  if (!traitOfDef(d).free && p.deployed.filter((k) => !traitOfDef(c.operators[k]).free).length >= c.level.options.characterLimit) return 'deploy limit reached';
   if (w.frame < cardOf(p, cmd.op).ready) return 'redeploying';
   if (p.cost < deployCost(c, p, cmd.op)) return 'not enough cost';
   if (!fits(c, d, cmd.row, cmd.col)) return 'tile not buildable for this operator';

@@ -19,8 +19,15 @@ const held = (u, key) => u.buffs.find((b) => b.key === key) ?? null;
 /** Whether an operator's skill runs. @param {Unit} op */
 const inSkill = (op) => !!op.skill && op.skill.active;
 
-/** Whether an operator may make a normal attack now (职业-12): not one that attacks only while its skill runs, while it does not. @param {Content} c @param {Unit} op */
-export const mayAttack = (c, op) => !traitOf(c, op).attackInSkill || inSkill(op);
+/**
+ * Whether an operator may make a normal attack now (职业-12, 职业-13): never one that makes none; not one that attacks
+ * only while its skill runs, while it does not.
+ * @param {Content} c @param {Unit} op
+ */
+export function mayAttack(c, op) {
+  const t = traitOf(c, op);
+  return !t.noAttack && (!t.attackInSkill || inSkill(op));
+}
 
 /** Whether an operator's normal attacks heal now (职业-2, 职业-12): a healer's always, a skill healer's while the skill runs. @param {Content} c @param {Unit} op */
 export function healsNow(c, op) {

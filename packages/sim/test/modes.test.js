@@ -1,5 +1,6 @@
-// Attack modes (docs/spec/traits.md 职业-12) on the tiny level without spawns: attacks only in the skill with idle
-// modifiers and a charge, heals in the skill, bullets, stored energy, element restoring heals.
+// Attack modes (docs/spec/traits.md 职业-12, 职业-13) on the tiny level without spawns: attacks only in the skill with
+// idle modifiers and a charge, heals in the skill, bullets, stored energy, element restoring heals; HP regeneration
+// (属性-6) and regen auras.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
@@ -7,6 +8,8 @@ import { createWorld, step } from '../src/index.js';
 import { makeEnemy } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
 import { statsOf } from '../src/attrs.js';
+import { makeBuff, addBuff } from '../src/buffs.js';
+import { deployProblem } from '../src/commands.js';
 
 /** @typedef {import('../src/types.js').Unit} Unit */
 
@@ -106,4 +109,39 @@ test('[职业-12] heals that restore element values: a full-HP operator with ele
   mate.ep = { FIRE: 990 };
   run(45);
   assert.deepEqual(mate.ep, {}, 'up to the maximum');
+});
+
+test('[属性-6] 生命回复: its rate ÷ 30 a frame up to the maximum; not a heal, so 禁疗 does not stop it', () => {
+  const { put, run } = arena(() => {});
+  const guard = put('guard', 1, 1);
+  guard.hp = 500;
+  addBuff(guard, makeBuff({ key: 'r', mods: { hpRegen: 30 } }));
+  applyStatus(guard, 'healFree', {});
+  const ev = run(30);
+  assert.ok(Math.abs(guard.hp - 530) < 1e-9, String(guard.hp));
+  assert.equal(ev.filter((e) => e.type === 'heal').length, 0);
+  guard.hp = 999.5;
+  run(1);
+  assert.equal(guard.hp, 1000);
+});
+
+test('[职业-13] [部署-2] 吟游者: no attacks, outside the deploy limit; the operators in its range regenerate, until it leaves', () => {
+  const { w, c, foe, put, run } = arena((cc) => {
+    cc.level.options.characterLimit = 1;
+    cc.operators.sniper = { ...cc.operators.sniper, atk: 300, trait: { noAttack: true, free: true, regenAura: 0.1 } };
+    cc.operators.g2 = { ...cc.operators.guard };
+  });
+  const guard = put('guard', 1, 2);
+  assert.equal(deployProblem(w, c, 0, { type: 'deploy', op: 'g2', row: 1, col: 1, dir: 0 }), 'deploy limit reached');
+  const bard = put('sniper', 2, 2);
+  assert.equal(w.units.includes(bard), true, 'deployed past the limit');
+  assert.equal(deployProblem(w, c, 0, { type: 'deploy', op: 'g2', row: 1, col: 1, dir: 0 }), 'deploy limit reached', 'and it takes no place');
+  guard.hp = 500;
+  foe(1, 3);
+  const ev = run(30);
+  assert.equal(ev.filter((e) => e.type === 'shot' && e.id === bard.id).length, 0);
+  assert.ok(Math.abs(guard.hp - 530) < 1e-6, String(guard.hp));
+  assert.deepEqual([guard.buffs.map((b) => [b.key, b.mods.hpRegen]), bard.buffs.map((b) => b.key)], [[[`aura:${bard.id}`, 30]], [`aura:${bard.id}`]]);
+  run(1, [{ type: 'retreat', unit: bard.id }]);
+  assert.deepEqual(guard.buffs, [], 'its source gone, the aura goes');
 });

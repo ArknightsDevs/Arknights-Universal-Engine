@@ -82,3 +82,9 @@
 - 比如 T₀ = 1.6、S = 130：T = 1.2307… 秒，36.92 帧，取 37 帧。
 
 - 来源：[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「攻速公式」；帧的取整见 时间-2（INF-0002 已证实）
+
+### 属性-6 生命回复
+
+每帧的 Buff 阶段之后（帧-1 第 5 步），每个在场、生命低于最大生命值的单位回复 生命回复速度 ÷ 30 点生命，不超过最大生命值。生命回复不是治疗：不产生表现事件，不受治疗倍率影响，禁疗不阻止它。
+
+- 来源：[PRTS「数值范围」oldid=439605](https://prts.wiki/index.php?title=%E6%95%B0%E5%80%BC%E8%8C%83%E5%9B%B4&oldid=439605)：HP_RECOVERY_PER_SEC 生命回复速度，下限 0，未给出时 0；[PRTS「异常效果」oldid=440606](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=440606) 禁疗：「增减生命回复速度或生命回复速度（百分比）属性的效果不会被识别为治疗类能力」；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 重伤在禁疗之外另把生命回复速度归零；每帧按 1/30 回复、禁疗不阻止为推断 INF-0093
