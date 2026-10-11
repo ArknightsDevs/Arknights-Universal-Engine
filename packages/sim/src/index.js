@@ -15,6 +15,7 @@ export * as damage from './damage.js';
 export * as targeting from './targeting.js';
 export * as blocking from './blocking.js';
 export * as routes from './routes.js';
+export * as paths from './paths.js';
 export { nextUint32, seedState } from './rng.js';
 export { hashNumbers, HASH_START } from './hash.js';
 
