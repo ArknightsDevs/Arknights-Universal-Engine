@@ -57,6 +57,7 @@ export const STATUS = Object.freeze({
   mute: status({ flags: { mute: true } }),
   noSp: status({ flags: { noSp: true } }),
   elementFree: status({ flags: { epImmune: true } }),
+  sidelined: status({ flags: { sidelined: true } }),
 });
 
 /** @typedef {keyof typeof STATUS} StatusKey */

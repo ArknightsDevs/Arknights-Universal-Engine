@@ -178,11 +178,6 @@ export function followRoute(w, c, e, speed) {
   return false;
 }
 
-/** The player an objective tile belongs to: the left half to player 0, the right half to player 1 (目标-1). */
-export function goalOwner(/** @type {Content} */ c, /** @type {number} */ players, /** @type {Cell} */ end) {
-  return players > 1 && end.col * 2 >= c.level.width ? 1 : 0;
-}
-
 /**
  * The 终点距离 from tile k through the move legs from leg i on (索敌-6): the flow-field distances — tile steps — from
  * each point to the next; after an appear the next distance starts where the enemy appears; a leg no field reaches

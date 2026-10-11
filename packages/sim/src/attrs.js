@@ -143,7 +143,7 @@ function flagsOf(base, raw) {
   const flags = {};
   for (const k of Object.keys(raw)) if (!immune.has(k)) flags[k] = true;
   const flying = flags.levitate ? true : flags.groundbind ? false : base.motion === 'FLY';
-  const disabled = !!(flags.stun || flags.freeze || flags.sleep || flags.levitate || flags.palsyShake);
+  const disabled = !!(flags.stun || flags.freeze || flags.sleep || flags.levitate || flags.palsyShake || flags.sidelined);
   return { flags, flying, invincible: !!(flags.invincible || flags.sleep), disabled, immobile: disabled || !!(flags.root || flags.groundbind) };
 }
 

@@ -2,7 +2,10 @@
 import { asArray, asInt, asNumber, asObject, asPos, asString, field } from './validate.js';
 
 /** @typedef {{ row: number, col: number }} Pos */
-/** @typedef {{ key: string, height: string, buildable: string, passable: string, side: string }} Tile */
+/** @typedef {{ key: string, height: string, buildable: string, passable: string, side: string, goal?: string }} Tile */
+
+/** A co-op goal tile's side (合作-1): its blackboard `side`, Side_A → 'A', Side_B → 'B', Shared → 'Shared'. */
+const GOAL_SIDES = Object.freeze({ Side_A: 'A', Side_B: 'B', Shared: 'Shared' });
 /** @typedef {{ type: string, row: number, col: number, time: number, dx: number, dy: number }} Checkpoint */
 /** @typedef {{ start: Pos, end: Pos, checkpoints: Checkpoint[], motion: string, allowDiagonal: boolean, spawnOffset: { x: number, y: number } }} Route */
 /** @typedef {{ at: number, enemy: string, route: number, fragment: number }} Spawn */
@@ -15,13 +18,19 @@ import { asArray, asInt, asNumber, asObject, asPos, asString, field } from './va
  */
 function readTileDef(raw, p) {
   const t = asObject(raw, p);
-  return {
-    key: asString(field(t, 'tileKey', p), `${p}.tileKey`),
+  const key = asString(field(t, 'tileKey', p), `${p}.tileKey`);
+  const tile = {
+    key,
     height: asString(field(t, 'heightType', p), `${p}.heightType`),
     buildable: asString(field(t, 'buildableType', p), `${p}.buildableType`),
     passable: asString(field(t, 'passableMask', p), `${p}.passableMask`),
     side: asString(field(t, 'playerSideMask', p), `${p}.playerSideMask`),
   };
+  if (!key.startsWith('tile_end')) return tile;
+  const bb = Array.isArray(t.blackboard) ? t.blackboard : [];
+  const side = bb.map((b, i) => asObject(b, `${p}.blackboard[${i}]`)).find((b) => b.key === 'side');
+  const goal = side ? /** @type {Record<string, string>} */ (GOAL_SIDES)[String(side.valueStr)] : undefined;
+  return goal ? { ...tile, goal } : tile;
 }
 
 /**

@@ -3,7 +3,8 @@
 import { secondsToFrames } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { makeEnemy } from './units.js';
-import { followRoute, speedOf, goalOwner } from './routes.js';
+import { followRoute, speedOf } from './routes.js';
+import { enemyAtGoal, goalSeats } from './coop.js';
 import { tryBlock, keepOrRelease } from './blocking.js';
 import { enemyAttack } from './combat.js';
 
@@ -24,14 +25,14 @@ export function spawnDue(w, c) {
 }
 
 /**
- * An enemy at the end of its route leaves and costs a life of the player whose objective it reached (目标-1).
+ * An enemy at the end of its route leaves and costs lives by the co-op rules (目标-1, 合作-1…合作-3).
  * @param {World} w @param {Content} c @param {Unit} e
  */
 function reachGoal(w, c, e) {
-  const owner = goalOwner(c, w.players.length, c.level.routes[e.route].end);
-  w.players[owner].life = Math.max(0, w.players[owner].life - 1);
+  const seats = goalSeats(c, w.players.length, c.level.routes[e.route].end);
+  enemyAtGoal(w, c, e);
   e.hp = 0;
-  w.events.push({ type: 'goal', id: e.id, owner });
+  w.events.push({ type: 'goal', id: e.id, owner: seats[0] });
 }
 
 /**

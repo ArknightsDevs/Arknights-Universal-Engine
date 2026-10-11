@@ -42,7 +42,7 @@ export const inKeys = (u, keys, grid) => bodyKeys(u, grid).some((k) => keys.has(
 export function selectable(u, sel = {}) {
   if (u.hp <= 0 || u.hidden) return false;
   const s = statsOf(u), f = s.flags;
-  if (f.untargetable || f.stealth || f.sleep) return false;
+  if (f.untargetable || f.stealth || f.sleep || f.sidelined) return false;
   if (f.camou && !sel.ignoreCamou) return false;
   return !s.flying || !!sel.canHitFly;
 }

@@ -35,7 +35,7 @@ export function baseOf(d) {
     maxHp: d.maxHp, atk: d.atk, def: d.def, res: d.res, aspd: opt('aspd'), bat: d.baseAttackTime ?? 1, blockCnt: opt('blockCnt'),
     moveSpeed: opt('moveSpeed'), tauntLevel: opt('tauntLevel'), massLevel: opt('massLevel'), epDamageResistance: opt('epDamageResistance'),
     epResistance: opt('epResistance'), motion: opt('motion'), immune: [...(d.immune ?? [])], dmgType: opt('dmgType'),
-    rangeRadius: opt('rangeRadius'), applyWay: opt('applyWay'), maxEp: maxEpOf(r),
+    rangeRadius: opt('rangeRadius'), applyWay: opt('applyWay'), maxEp: maxEpOf(r), shared: r.shared === true,
   };
 }
 

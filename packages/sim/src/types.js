@@ -32,6 +32,7 @@
  * @property {number} [maxEp] maximum element value (default by 元素-1)
  * @property {string} [levelType] NORMAL, ELITE or BOSS (领袖)
  * @property {AttackTiming} [attack] its attack clip's timing (攻击-2); none: the attack lands as it starts
+ * @property {boolean} [shared] a 共同敌手: it costs every player a life at any goal (合作-2)
  */
 
 /**
@@ -106,6 +107,7 @@
  * @property {number} rangeRadius an enemy's attack radius in tiles, 0 for melee
  * @property {string} applyWay MELEE or RANGED
  * @property {number} maxEp maximum element value (元素-1)
+ * @property {boolean} shared a 共同敌手 (合作-2)
  */
 
 /**
@@ -199,7 +201,11 @@
  * again from.
  * @typedef {{ penalty: number, ready: number }} Card
  */
-/** @typedef {{ life: number, cost: number, costTimer: number, deployed: string[], cards: Record<string, Card> }} Player */
+/**
+ * A player: life, cost and its timer, the operators on the field, the deck's cards; `revive` is the frames left until a
+ * down player comes back (−1 when not down), `downs` how often they went down (合作-4).
+ * @typedef {{ life: number, cost: number, costTimer: number, deployed: string[], cards: Record<string, Card>, revive: number, downs: number }} Player
+ */
 
 /**
  * @typedef {object} World

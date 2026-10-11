@@ -7,6 +7,7 @@ import { releaseAll } from './blocking.js';
 import { onDeploy, commandSkill } from './skills.js';
 import { traitDeploy } from './traits.js';
 import { cardOf, deployCost, leaveField } from './deck.js';
+import { isDown } from './coop.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -19,6 +20,7 @@ import { cardOf, deployCost, leaveField } from './deck.js';
 export function deployProblem(w, c, seat, cmd) {
   const d = Object.hasOwn(c.operators, cmd.op) ? c.operators[cmd.op] : null, p = w.players[seat];
   if (!d || !p) return 'unknown operator or seat';
+  if (isDown(p)) return 'player down';
   if (p.deployed.includes(cmd.op)) return 'already deployed';
   if (p.deployed.length >= c.level.options.characterLimit) return 'deploy limit reached';
   if (w.frame < cardOf(p, cmd.op).ready) return 'redeploying';

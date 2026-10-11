@@ -10,7 +10,7 @@ import { BLOCK_RADIUS_SQ } from './constants.js';
 /** @typedef {import('./attrs.js').Stats} Stats */
 
 /** Whether a unit can block now (阻挡-2): not 晕眩, not 沉睡. @param {Stats} s */
-export const canBlock = (s) => !(s.flags.stun || s.flags.sleep);
+export const canBlock = (s) => !(s.flags.stun || s.flags.sleep || s.flags.sidelined);
 
 /** Whether an enemy can be blocked now (阻挡-1): not 无法被阻挡, 恐惧, 浮空 or 沉睡. @param {Stats} s */
 export const blockable = (s) => !(s.flags.unblockable || s.flags.fear || s.flags.levitate || s.flags.sleep);

@@ -83,6 +83,24 @@ function readEnemy(entry, key) {
 }
 
 /**
+ * The 共同敌手 of a level (合作-2): the enemy keys its rune `env_gbuff_new_with_verify` with key
+ * `cooperate_enemy_side_shared` lists (`|`-separated in its `enemy` entry).
+ * @param {unknown} runesRaw level.runes @returns {Set<string>}
+ */
+export function sharedEnemies(runesRaw) {
+  /** @type {Set<string>} */
+  const out = new Set();
+  if (!Array.isArray(runesRaw)) return out;
+  runesRaw.forEach((r, i) => {
+    const rp = `level.runes[${i}]`, rune = asObject(r, rp);
+    if (rune.key !== 'env_gbuff_new_with_verify' || !Array.isArray(rune.blackboard)) return;
+    const bb = Object.fromEntries(rune.blackboard.map((b, k) => { const o = asObject(b, `${rp}.blackboard[${k}]`); return [String(o.key), o.valueStr]; }));
+    if (bb.key === 'cooperate_enemy_side_shared') for (const k of String(bb.enemy ?? '').split('|')) if (k) out.add(k);
+  });
+  return out;
+}
+
+/**
  * The enemies used, level 0 of their enemy_database entry.
  * @param {unknown} dbRaw enemy_database.json
  * @param {string[]} keys
@@ -211,7 +229,8 @@ export function extractSkeleton({ level, enemyDb, characters, ranges, skills, co
       routes,
       spawns,
     },
-    enemies: extractEnemies(enemyDb, [...new Set(spawns.map((s) => s.enemy))]),
+    enemies: Object.fromEntries(Object.entries(extractEnemies(enemyDb, [...new Set(spawns.map((s) => s.enemy))]))
+      .map(([k, e]) => [k, sharedEnemies(lv.runes ?? null).has(k) ? { ...e, shared: true } : e])),
     operators: Object.fromEntries(SKELETON_OPERATORS.map((id) => [id, extractOperator(field(chars, id, 'characters'), id, ranges, skills)])),
   };
 }

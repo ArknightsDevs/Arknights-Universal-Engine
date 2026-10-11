@@ -230,14 +230,16 @@
           "height": "LOWLAND",
           "buildable": "NONE",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "goal": "B"
         },
         {
           "key": "tile_end_cooperate",
           "height": "LOWLAND",
           "buildable": "NONE",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "goal": "A"
         },
         {
           "key": "tile_wall",
@@ -1048,7 +1050,8 @@
       "applyWay": "RANGED",
       "motion": "WALK",
       "massLevel": 1,
-      "levelType": "NORMAL"
+      "levelType": "NORMAL",
+      "shared": true
     },
     "enemy_3001_upeopl": {
       "name": "乌萨斯平民",

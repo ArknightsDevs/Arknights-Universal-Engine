@@ -1,4 +1,4 @@
-// The world and one frame of it (spec 帧-1): commands, cost, spawns, buffs, enemy movement, operator attacks,
+// The world and one frame of it (spec 帧-1): commands, cost, revivals, spawns, buffs, enemy movement, operator attacks,
 // projectiles, removal of the dead — in that order, every frame, on every peer.
 import { secondsToFrames } from '@aue/math';
 import { ANIM, KIND } from '@aue/schema';
@@ -9,6 +9,7 @@ import { releaseAll } from './blocking.js';
 import { operatorsAttack, shotsFly } from './combat.js';
 import { applyCommand } from './commands.js';
 import { leaveField } from './deck.js';
+import { tickRevival } from './coop.js';
 import { tickBuffs } from './buffs.js';
 import { STATUS_BEHAVIORS } from './status.js';
 import { BURST_BEHAVIORS } from './elements.js';
@@ -24,7 +25,7 @@ export function createWorld(c, o) {
   const { initialCost, maxLifePoint, costIncreaseTime } = c.level.options;
   return {
     frame: 0, rng: seedState(o.seed), nextId: 1, nextSpawn: 0, spawnFrames: spawnFrames(c), bornThisFrame: 0, units: [], shots: [], events: [],
-    players: Array.from({ length: o.players }, () => ({ life: maxLifePoint, cost: initialCost, costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {} })),
+    players: Array.from({ length: o.players }, () => ({ life: maxLifePoint, cost: initialCost, costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {}, revive: -1, downs: 0 })),
   };
 }
 
@@ -71,6 +72,7 @@ export function step(w, c, commands = []) {
   w.bornThisFrame = 0;
   for (const [seat, cmd] of commands) applyCommand(w, c, seat, cmd);
   gainCost(w, c);
+  tickRevival(w, c);
   spawnDue(w, c);
   tickBuffs(w, buffBehaviors(c));
   enemiesAct(w, c);

@@ -1,6 +1,9 @@
 // The map of a level (spec 地图-1): tiles in route coordinates, row 0 the nearest row, col 0 the left column.
 
-/** @typedef {{ key: string, height: string, buildable: string, passable: string, side: string }} Tile */
+/**
+ * A tile: `goal` is the side a goal tile belongs to — 'A', 'B', 'Shared', or '' (合作-1).
+ * @typedef {{ key: string, height: string, buildable: string, passable: string, side: string, goal?: string }} Tile
+ */
 /** @typedef {{ width: number, height: number, tiles: Tile[][] }} LevelMap */
 
 /** @param {LevelMap} map @param {number} row @param {number} col @returns {Tile | null} */
