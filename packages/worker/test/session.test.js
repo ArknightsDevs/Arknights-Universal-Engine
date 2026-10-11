@@ -60,6 +60,7 @@ test('the session plays the server frames and posts a render state per frame tim
   const v = readView(frames.at(-1).view);
   assert.equal(v.frame, frames.at(-1).frame);
   assert.ok(Math.abs(v.frame - r.host.world.frame) <= 3, `client ${v.frame} vs server ${r.host.world.frame}`);
+  assert.deepEqual(frames.at(-1).status, { wave: 0, stage: -1, start: 0, stamps: 0, passed: 0, result: -1 }, 'the match status rides along');
 });
 
 test('a command reaches the field; the debug state matches the server at the same frame', () => {

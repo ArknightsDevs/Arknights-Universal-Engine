@@ -7,7 +7,8 @@ import { readView } from '@aue/schema';
  * @property {string} wsUrl the server's battle socket
  * @property {number} seat
  * @property {string} key the session key (reconnects reuse it)
- * @property {(view: import('@aue/schema').View, events: Record<string, string | number>[], keys: Record<string, string>) => void} onFrame `keys`: the content key of each unit not seen before
+ * @property {(view: import('@aue/schema').View, events: Record<string, string | number>[], keys: Record<string, string>, status: import('./session.js').Status) => void} onFrame
+ *   `keys`: the content key of each unit not seen before; `status`: the match's wave, stage, stamps and result
  * @property {(state: { state: string, reason?: string, match?: import('@aue/schema').Match }) => void} [onNet] the connection; `match` when a match's content is ready
  * @property {(c: { fast: number[], held: number, asker: number, resuming: number }) => void} [onControl] the speed and pause state (同步-7, 同步-8)
  */
@@ -19,7 +20,7 @@ export function startBattle(o) {
   const waiting = [];
   worker.onmessage = (e) => {
     const m = e.data;
-    if (m.type === 'frame') o.onFrame(readView(m.view), m.events, m.keys);
+    if (m.type === 'frame') o.onFrame(readView(m.view), m.events, m.keys, m.status);
     else if (m.type === 'net') o.onNet?.(m);
     else if (m.type === 'control') o.onControl?.(m);
     else if (m.type === 'debug') waiting.shift()?.(m);

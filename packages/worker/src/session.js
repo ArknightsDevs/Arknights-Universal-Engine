@@ -18,6 +18,15 @@ import { LockstepClient } from '@aue/net';
 
 const FRAME_MS = 1000 / 30, RECONNECT_MS = 1000;
 
+/**
+ * The match's state the page shows besides the view (合作-6, 波次-2, 结束-1): the current wave, the current stage, the
+ * frame its clock starts at, the stamps, the stages passed, the result.
+ * @typedef {{ wave: number, stage: number, start: number, stamps: number, passed: number, result: number }} Status
+ */
+
+/** @param {import('@aue/sim').World} w @returns {Status} */
+const statusOf = (w) => ({ wave: w.sched.wave, stage: w.stage.index, start: w.stage.start, stamps: w.stage.stamps, passed: w.stage.passed, result: w.result });
+
 export class BattleSession {
   /** @param {import('@aue/sim').Content} content @param {SessionIO} io */
   constructor(content, io) {
@@ -133,7 +142,7 @@ export class BattleSession {
     const played = this.client.pump(), w = this.client.world;
     if (played > 0 && w) {
       const view = toView(w);
-      this.io.post({ type: 'frame', frame: w.frame, view, events: this.events, keys: this.newKeys(w) }, [view.buffer]);
+      this.io.post({ type: 'frame', frame: w.frame, view, events: this.events, keys: this.newKeys(w), status: statusOf(w) }, [view.buffer]);
       this.events = [];
     }
     this.ticks++;
