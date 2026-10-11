@@ -19,6 +19,8 @@ const blockTargets = { trait: () => ({ targets: 'blockCnt' }) };
 export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // 先锋
   pioneer: {},
+  agent: { trait: () => ({ antiAir: true, blockedFirst: false }) },
+  bearer: {},
   charger: { trait: (bb) => ({ killCost: bb.cost ?? 1, refund: 1 }) },
   // 近卫
   fearless: {},
@@ -27,9 +29,11 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   sword: { trait: () => ({ hits: 2 }) },
   centurion: blockTargets,
   crusher: blockTargets,
+  primguard: {},
   // 重装
   protector: {},
   guardian: {},
+  primprotector: {},
   shotprotector: { trait: () => ({ antiAir: true }) },
   // 狙击
   fastshot: { trait: () => ({ secondary: 'FLY_FIRST' }) },
@@ -39,6 +43,7 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // 术师
   corecaster: { dmgType: ARTS },
   blastcaster: { dmgType: ARTS, trait: () => ({ filter: 'ALL', targets: 'all' }) },
+  primcaster: { dmgType: ARTS },
   // 医疗
   physician: healer(1),
   ringhealer: healer(3),
@@ -47,8 +52,11 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   slower: { dmgType: ARTS, trait: (bb) => ({ hitStatus: { key: 'sluggish', seconds: bb.sluggish ?? 0.8 } }) },
   summoner: { dmgType: ARTS },
   underminer: { dmgType: ARTS },
+  ritualist: { dmgType: ARTS },
   // 特种
   executor: {},
+  // every enemy in range; half of the physical and arts hits dodged (blackboard prob)
+  stalker: { trait: (bb) => ({ filter: 'ALL', targets: 'all', blockedFirst: false, mods: { dodgePhys: bb.prob ?? 0.5, dodgeArts: bb.prob ?? 0.5 } }) },
 }));
 
 /** Whether a branch's trait is covered (职业-7). @param {string} branch */

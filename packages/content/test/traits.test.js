@@ -6,15 +6,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createWorld, step, traits, attrs } from '@aue/sim';
 import { tinyContent } from '@aue/testkit';
-import { BRANCHES, coveredBranch, withTrait, skeletonContent } from '../src/index.js';
+import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, operatorAt } from '../src/index.js';
 
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
 
-test('[职业-7] the covered branches are 24 of the 72 official ones', () => {
+test('[职业-7] the covered branches are 31 of the 72 official ones', () => {
   assert.equal(Object.keys(ALL).length, 72);
   for (const b of Object.keys(BRANCHES)) assert.ok(Object.hasOwn(ALL, b), b);
-  assert.equal(Object.keys(BRANCHES).length, 24);
+  assert.equal(Object.keys(BRANCHES).length, 31);
   assert.ok(coveredBranch('fastshot') && !coveredBranch('mystic') && !coveredBranch('toString'));
 });
 
@@ -49,4 +49,24 @@ test('[职业-2] [职业-7] a 医师 from the table heals the wounded guard in t
   assert.deepEqual(ev.filter((e) => e.type === 'heal').map((e) => [e.target, e.amount]), [[guard.id, 200]]);
   assert.equal(guard.hp, 700);
   assert.equal(attrs.statsOf(guard).maxHp, 1000);
+});
+
+/** A real operator of the branch at elite 0, level 1. @param {string} id */
+const real = async (id) => operatorAt(await loadTraining(id), { elite: 0, level: 1, potential: 1, trust: 0, skill: 0, skillLevel: 1 });
+
+test('[职业-7] 情报官 and 伏击客 from the real data: 可对空 / all enemies in range, no priority for the blocked, half dodged', async () => {
+  const agent = traits.traitOfDef(await real('char_4017_puzzle'));
+  assert.deepEqual([agent.antiAir, agent.blockedFirst, agent.targets], [true, false, 1]);
+  const stalker = await real('char_215_mantic'), t = traits.traitOfDef(stalker);
+  assert.deepEqual([t.filter, t.targets, t.blockedFirst, t.mods], ['ALL', 'all', false, { dodgePhys: 0.5, dodgeArts: 0.5 }]);
+  assert.equal(stalker.tauntLevel, -1, '嘲讽等级 -1 is in the operator data, not added by the trait');
+});
+
+test('[职业-7] 本源术师 and 巫役 from the real data deal arts damage; the 本源 melee and 执旗手 take the defaults', async () => {
+  for (const id of ['char_1040_blaze2', 'char_1042_phatm2']) assert.equal((await real(id)).dmgType, 'arts', id);
+  for (const id of ['char_4187_graceb', 'char_2026_yu', 'char_151_myrtle']) {
+    const op = await real(id);
+    assert.equal(op.dmgType, undefined, id);
+    assert.deepEqual(traits.traitOfDef(op), { ...traits.defaultTrait('MELEE'), bb: op.trait?.bb ?? {} }, id);
+  }
 });

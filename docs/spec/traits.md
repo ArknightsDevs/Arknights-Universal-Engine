@@ -64,13 +64,14 @@
 
 ### 职业-7 官方分支
 
-`@aue/content` 用分支表把干员数据的分支和特性 blackboard 换成伤害类型和特性数据。表里有 24 个分支（共 72 个），特性能完全用 职业-1…职业-5 的数据表达：
+`@aue/content` 用分支表把干员数据的分支和特性 blackboard 换成伤害类型和特性数据。表里有 31 个分支（共 72 个），特性能完全用 职业-1…职业-5 的数据表达：
 
 | 分支 | 特性数据 |
 |---|---|
-| 尖兵、无畏者、斗士、铁卫、守护者、重射手、处决者 | 默认值（阻挡数、再部署时间来自干员数据） |
+| 尖兵、执旗手、无畏者、斗士、本源近卫、铁卫、守护者、本源铁卫、重射手、处决者 | 默认值（阻挡数、再部署时间来自干员数据；执旗手技能期间阻挡数变为 0 在技能数据里） |
+| 情报官 | 可对空，不优先攻击阻挡的单位（INF-0085） |
 | 冲锋手 | `killCost` = blackboard `cost`，`refund` 1 |
-| 术战者、中坚术师、召唤师、削弱者 | 法术伤害 |
+| 术战者、中坚术师、本源术师、召唤师、削弱者、巫役 | 法术伤害 |
 | 剑豪 | `hits` 2 |
 | 强攻手、重剑手 | `targets` 阻挡数 |
 | 哨戒铁卫 | 可对空 |
@@ -81,7 +82,8 @@
 | 医师、守望者 | 治疗，目标 1 |
 | 群愈师 | 治疗，目标 3 |
 | 凝滞师 | 法术伤害，`hitStatus` 停顿，时间 = blackboard `sluggish` |
+| 伏击客 | 仇恨过滤器 全部，`targets` 全部，不优先攻击阻挡的单位（INF-0085），`mods` 物理闪避、法术闪避 = blackboard `prob`（嘲讽等级 -1 在干员数据里） |
 
-其余分支（溅射、跳跃、召唤物、起飞、弹药式子弹、费用消耗等）还没有覆盖，取位置的默认值，随干员内容（M4）补齐。
+其余 41 个分支（溅射、跳跃、召唤物、起飞、子弹和能量储存、费用消耗、禁疗与自我回复、按目标或按距离变化的攻击倍率、在远程位部署等）还没有覆盖，取位置的默认值，随干员内容（M4）补齐。
 
-- 来源：[PRTS「分支特性信息/data」oldid=427899](https://prts.wiki/index.php?title=%E5%88%86%E6%94%AF%E7%89%B9%E6%80%A7%E4%BF%A1%E6%81%AF/data&oldid=427899)（可对空、优先攻击阻挡单位、最大目标数等于阻挡数、同时攻击范围内的所有敌人、治疗规则、停顿时间、击杀来源）；[PRTS「选择器」oldid=428553](https://prts.wiki/index.php?title=%E9%80%89%E6%8B%A9%E5%99%A8&oldid=428553)：二次过滤器「FLY_FIRST 飞行单位优先 速射手特性」；[PRTS「仇恨」oldid=429076](https://prts.wiki/index.php?title=%E4%BB%87%E6%81%A8&oldid=429076)：「防御升序 典型使用者：神射手」，「重量降序 典型使用者：攻城手」；[PRTS「部署费用」oldid=434779](https://prts.wiki/index.php?title=%E9%83%A8%E7%BD%B2%E8%B4%B9%E7%94%A8&oldid=434779)：返还倍率「先锋-冲锋手为100%」；数据：character_table 各分支特性文字（法术伤害、两次伤害、恢复三个友方单位）与 blackboard
+- 来源：[PRTS「分支特性信息/data」oldid=427899](https://prts.wiki/index.php?title=%E5%88%86%E6%94%AF%E7%89%B9%E6%80%A7%E4%BF%A1%E6%81%AF/data&oldid=427899)（可对空、优先攻击阻挡单位、最大目标数等于阻挡数、同时攻击范围内的所有敌人、治疗规则、停顿时间、击杀来源）；[PRTS「选择器」oldid=428553](https://prts.wiki/index.php?title=%E9%80%89%E6%8B%A9%E5%99%A8&oldid=428553)：二次过滤器「FLY_FIRST 飞行单位优先 速射手特性」；[PRTS「仇恨」oldid=429076](https://prts.wiki/index.php?title=%E4%BB%87%E6%81%A8&oldid=429076)：「防御升序 典型使用者：神射手」，「重量降序 典型使用者：攻城手」；[PRTS「部署费用」oldid=434779](https://prts.wiki/index.php?title=%E9%83%A8%E7%BD%B2%E8%B4%B9%E7%94%A8&oldid=434779)：返还倍率「先锋-冲锋手为100%」；数据：character_table 各分支特性文字（法术伤害、两次伤害、恢复三个友方单位）与 blackboard；[PRTS「谜图」oldid=435066](https://prts.wiki/index.php?title=%E8%B0%9C%E5%9B%BE&oldid=435066)、[PRTS「桃金娘」oldid=435164](https://prts.wiki/index.php?title=%E6%A1%83%E9%87%91%E5%A8%98&oldid=435164)、[PRTS「聆音」oldid=435037](https://prts.wiki/index.php?title=%E8%81%86%E9%9F%B3&oldid=435037)、[PRTS「余」oldid=435251](https://prts.wiki/index.php?title=%E4%BD%99&oldid=435251)、[PRTS「烛煌」oldid=435287](https://prts.wiki/index.php?title=%E7%83%9B%E7%85%8C&oldid=435287)、[PRTS「酒神」oldid=440179](https://prts.wiki/index.php?title=%E9%85%92%E7%A5%9E&oldid=440179)、[PRTS「狮蝎」oldid=435138](https://prts.wiki/index.php?title=%E7%8B%AE%E8%9D%8E&oldid=435138) 的特性文字（情报官、执旗手、本源近卫、本源铁卫、本源术师、巫役、伏击客；本源术师、巫役「攻击造成法术伤害」，伏击客「对攻击范围内所有敌人造成伤害」「拥有50%的物理和法术闪避」）；「分支特性信息/data」同版：情报官「可对空」，伏击客「嘲讽等级为-1」，其余分支的特性行；没有「优先攻击阻挡的单位」一行的分支不设该项为推断 INF-0085
