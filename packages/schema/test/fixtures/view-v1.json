@@ -1,0 +1,17 @@
+{
+  "$comment": "Render state version 1, written by hand from the layout in ADR 0053. A layout change must bump VIEW_VERSION and replace this file.",
+  "view": {
+    "frame": 42,
+    "players": [{ "life": 8, "cost": 10 }, { "life": 7, "cost": 3 }],
+    "units": [
+      { "id": 1, "kind": 0, "owner": 0, "x": -1.5, "y": 2, "z": 0, "dir": 0, "hp": 1450, "maxHp": 1450, "anim": 2 },
+      { "id": 2, "kind": 1, "owner": -1, "x": 0.25, "y": 3.125, "z": -0.4, "dir": 2, "hp": 300.5, "maxHp": 1050, "anim": 1 }
+    ]
+  },
+  "numbers": [
+    1, 42, 2, 2,
+    8, 10, 7, 3,
+    1, 0, 0, -1.5, 2, 0, 0, 1450, 1450, 2,
+    2, 1, -1, 0.25, 3.125, -0.4, 2, 300.5, 1050, 1
+  ]
+}

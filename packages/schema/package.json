@@ -1,0 +1,14 @@
+{
+  "name": "@aue/schema",
+  "version": "0.0.0",
+  "private": true,
+  "description": "the interface formats between the simulation, the renderer and the network (versioned)",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "devDependencies": {
+    "fast-check": "^4.10.2"
+  }
+}

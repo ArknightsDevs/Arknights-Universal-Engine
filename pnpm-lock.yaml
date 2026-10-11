@@ -33,7 +33,11 @@ importers:
         specifier: 6.0.3
         version: 6.0.3
 
-  packages/content: {}
+  packages/content:
+    dependencies:
+      '@aue/sim':
+        specifier: workspace:*
+        version: link:../sim
 
   packages/data: {}
 
@@ -59,7 +63,24 @@ importers:
 
   packages/render: {}
 
-  packages/sim: {}
+  packages/schema:
+    devDependencies:
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
+
+  packages/sim:
+    dependencies:
+      '@aue/math':
+        specifier: workspace:*
+        version: link:../math
+      '@aue/schema':
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
 
   packages/simcheck: {}
 

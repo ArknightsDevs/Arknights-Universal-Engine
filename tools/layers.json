@@ -1,19 +1,98 @@
 {
   "$comment": "Which package may depend on which (ADR 0006, 0008). Each package's package.json declares what it actually uses; `aue-check deps` (@aue/testkit) checks the declarations stay inside these lists and the graph has no cycle. Changing a line here is an architecture change: it needs an ADR.",
   "scope": "@aue",
-  "devPackages": ["@aue/testkit", "@aue/lint"],
+  "devPackages": [
+    "@aue/testkit",
+    "@aue/lint"
+  ],
   "packages": {
-    "math": { "allow": [], "role": "exact arithmetic, deterministic math, the official rounding rules" },
-    "sim": { "allow": ["@aue/math"], "role": "the battle core" },
-    "content": { "allow": ["@aue/math", "@aue/sim"], "role": "official content (the built-in mod), the Stronghold-compatible content interface, the registry" },
-    "spine": { "allow": ["@aue/math"], "role": "Spine 3.8: reading, animation, meshes (no GPU)" },
-    "data": { "allow": ["@aue/math", "@aue/spine"], "node": true, "role": "the data pipeline and the generated data" },
-    "render": { "allow": ["@aue/math", "@aue/spine", "three"], "role": "the three.js battle renderer" },
-    "ui": { "allow": [], "role": "the Unity UI prefab engine for the battle HUD" },
-    "net": { "allow": ["@aue/math", "@aue/sim"], "role": "lockstep: client (worker) and server sides, protocol" },
-    "worker": { "allow": ["@aue/math", "@aue/sim", "@aue/content", "@aue/net"], "role": "the worker entry and its build" },
-    "simcheck": { "allow": [], "node": true, "role": "the cross-engine check (shared with Duel Channel and Stronghold Protocol)" },
-    "testkit": { "allow": ["fast-check"], "node": true, "role": "repository checks, Stronghold oracle, generators (dev only)" },
-    "lint": { "allow": ["@eslint/js", "globals", "eslint"], "node": true, "role": "the shared ESLint setup" }
+    "math": {
+      "allow": [],
+      "role": "exact arithmetic, deterministic math, the official rounding rules"
+    },
+    "schema": {
+      "allow": [],
+      "role": "the interface formats between the simulation, the renderer and the network (versioned)"
+    },
+    "sim": {
+      "allow": [
+        "@aue/math",
+        "@aue/schema"
+      ],
+      "role": "the battle core"
+    },
+    "content": {
+      "allow": [
+        "@aue/math",
+        "@aue/sim"
+      ],
+      "role": "official content (the built-in mod), the Stronghold-compatible content interface, the registry"
+    },
+    "spine": {
+      "allow": [
+        "@aue/math"
+      ],
+      "role": "Spine 3.8: reading, animation, meshes (no GPU)"
+    },
+    "data": {
+      "allow": [
+        "@aue/math",
+        "@aue/spine"
+      ],
+      "node": true,
+      "role": "the data pipeline and the generated data"
+    },
+    "render": {
+      "allow": [
+        "@aue/math",
+        "@aue/spine",
+        "@aue/schema",
+        "three"
+      ],
+      "role": "the three.js battle renderer"
+    },
+    "ui": {
+      "allow": [],
+      "role": "the Unity UI prefab engine for the battle HUD"
+    },
+    "net": {
+      "allow": [
+        "@aue/math",
+        "@aue/sim",
+        "@aue/schema"
+      ],
+      "role": "lockstep: client (worker) and server sides, protocol"
+    },
+    "worker": {
+      "allow": [
+        "@aue/math",
+        "@aue/sim",
+        "@aue/content",
+        "@aue/net",
+        "@aue/schema"
+      ],
+      "role": "the worker entry and its build"
+    },
+    "simcheck": {
+      "allow": [],
+      "node": true,
+      "role": "the cross-engine check (shared with Duel Channel and Stronghold Protocol)"
+    },
+    "testkit": {
+      "allow": [
+        "fast-check"
+      ],
+      "node": true,
+      "role": "repository checks, Stronghold oracle, generators (dev only)"
+    },
+    "lint": {
+      "allow": [
+        "@eslint/js",
+        "globals",
+        "eslint"
+      ],
+      "node": true,
+      "role": "the shared ESLint setup"
+    }
   }
 }

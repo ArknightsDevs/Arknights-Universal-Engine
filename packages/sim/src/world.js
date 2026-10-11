@@ -1,0 +1,77 @@
+// The world and one frame of it (spec 帧-1): commands, cost, spawns, enemy movement, operator attacks, removal of the
+// dead — in that order, every frame, on every peer.
+import { secondsToFrames } from '@aue/math';
+import { ANIM } from '@aue/schema';
+import { seedState } from './rng.js';
+import { hashNumbers, HASH_START } from './hash.js';
+import { spawnFrames, spawnDue, moveEnemies } from './enemies.js';
+import { operatorsAttack } from './combat.js';
+import { applyCommand } from './commands.js';
+
+/** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
+/** @typedef {import('@aue/schema').Command} Command */
+
+/**
+ * A new world at frame 0 (spec 费用-1: each player starts with the level's initial cost and life).
+ * @param {Content} c @param {{ seed: number, players: number }} o @returns {World}
+ */
+export function createWorld(c, o) {
+  const { initialCost, maxLifePoint, costIncreaseTime } = c.level.options;
+  return {
+    frame: 0, rng: seedState(o.seed), nextId: 1, nextSpawn: 0, spawnFrames: spawnFrames(c), units: [], events: [],
+    players: Array.from({ length: o.players }, () => ({ life: maxLifePoint, cost: initialCost, costTimer: secondsToFrames(costIncreaseTime), deployed: [] })),
+  };
+}
+
+/** Each player gains 1 cost every costIncreaseTime, up to maxCost (spec 费用-1). @param {World} w @param {Content} c */
+function gainCost(w, c) {
+  const { maxCost, costIncreaseTime } = c.level.options;
+  for (const p of w.players) {
+    if (--p.costTimer > 0) continue;
+    p.costTimer = secondsToFrames(costIncreaseTime);
+    p.cost = Math.min(maxCost, p.cost + 1);
+  }
+}
+
+/** Removes units with no HP left; enemies killed by attacks die, enemies at the goal leave quietly. @param {World} w */
+function removeDead(w) {
+  const reachedGoal = new Set(w.events.filter((e) => e.type === 'goal').map((e) => e.id));
+  for (const u of w.units) {
+    if (u.hp > 0) continue;
+    u.anim = ANIM.DIE;
+    if (!reachedGoal.has(u.id)) w.events.push({ type: 'death', id: u.id });
+  }
+  w.units = w.units.filter((u) => u.hp > 0);
+}
+
+/**
+ * Runs frame `w.frame` with the commands executed in it ([seat, command] in the order the server sealed them) and
+ * advances to the next frame. Returns the frame's presentation events.
+ * @param {World} w @param {Content} c @param {[number, Command][]} commands
+ */
+export function step(w, c, commands = []) {
+  w.events = [];
+  for (const [seat, cmd] of commands) applyCommand(w, c, seat, cmd);
+  gainCost(w, c);
+  spawnDue(w, c);
+  moveEnemies(w, c);
+  operatorsAttack(w, c);
+  removeDead(w);
+  w.frame++;
+  return w.events;
+}
+
+/** The state hash (spec 同步-1): frame, random state, players, then every unit's fields. @param {World} w @returns {number} */
+export function stateHash(w) {
+  /** @type {number[]} */
+  const nums = [w.frame, w.rng, w.nextId, w.nextSpawn, w.players.length];
+  /** @param {string} s */
+  const text = (s) => { nums.push(s.length); for (let i = 0; i < s.length; i++) nums.push(s.charCodeAt(i)); };
+  for (const p of w.players) { nums.push(p.life, p.cost, p.costTimer, p.deployed.length); p.deployed.forEach(text); }
+  for (const u of w.units) {
+    text(u.key);
+    nums.push(u.id, u.kind, u.owner, u.x, u.y, u.z, u.dir, u.hp, u.maxHp, u.atk, u.def, u.atkInterval, u.atkCd, u.route, u.leg, u.speed, u.anim);
+  }
+  return hashNumbers(HASH_START, nums);
+}
+
