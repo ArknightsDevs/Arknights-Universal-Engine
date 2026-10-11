@@ -81,10 +81,19 @@ function routeTable(routesRaw) {
 }
 
 /**
- * A whole level (关卡-1, 关卡-2): `id` names it in the content.
- * @param {{ id: string, level: unknown, enemyDb: unknown, handbook?: unknown, commit: string }} input @returns {Record<string, unknown>}
+ * A camera view vector (关卡-3): three finite numbers.
+ * @param {unknown} v @returns {number[]}
  */
-export function extractLevel({ id, level, enemyDb, handbook, commit }) {
+function viewOf(v) {
+  if (!Array.isArray(v) || v.length !== 3 || !v.every((x) => typeof x === 'number' && Number.isFinite(x))) throw new TypeError('level view: not three finite numbers');
+  return [...v];
+}
+
+/**
+ * A whole level (关卡-1, 关卡-2): `id` names it in the content.
+ * @param {{ id: string, level: unknown, enemyDb: unknown, handbook?: unknown, commit: string, view?: { vector: unknown, source: string } }} input @returns {Record<string, unknown>}
+ */
+export function extractLevel({ id, level, enemyDb, handbook, commit, view }) {
   const lv = asObject(level, 'level');
   const { width, height, tiles } = extractTiles(field(lv, 'mapData', 'level'));
   const { routes, routeOf } = routeTable(field(lv, 'routes', 'level'));
@@ -98,8 +107,9 @@ export function extractLevel({ id, level, enemyDb, handbook, commit }) {
   }));
   const shared = sharedEnemies(runes);
   return {
-    source: { repo: 'Kengxxiao/ArknightsGameData', commit, server: 'zh_CN' },
-    level: { id, width, height, options: extractOptions(field(lv, 'options', 'level')), tiles, routes, waves, predefines: predefinesOf(lv.predefines), stages: stagesOf(lv.predefines) },
+    source: { repo: 'Kengxxiao/ArknightsGameData', commit, server: 'zh_CN', ...(view ? { view: view.source } : {}) },
+    level: { id, width, height, options: extractOptions(field(lv, 'options', 'level')), tiles, routes, waves, predefines: predefinesOf(lv.predefines), stages: stagesOf(lv.predefines),
+      ...(view ? { view: viewOf(view.vector) } : {}) },
     difficulties,
     enemies: Object.fromEntries(keys.map((k) => [k, { ...enemyOf(enemyDb, k, refs.get(k)), ...damageTypeOf(handbook, k), ...(shared.has(k) ? { shared: true } : {}) }])),
   };

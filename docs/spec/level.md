@@ -30,3 +30,9 @@
 其他符文还不支持：提取时记下它们的名字（`unsupported`），所用的关卡在测试里保证没有。
 
 - 来源：[PRTS「FD-7 背离法则」oldid=364740](https://prts.wiki/index.php?title=FD-7%20%E8%83%8C%E7%A6%BB%E6%B3%95%E5%88%99&oldid=364740) 突袭「情报=敌方单位的生命值、攻击力和防御力都提升至120%」与「global_lifepoint: value: 1.0」「enemy_attribute_mul: atk: 1.2, def: 1.2, max_hp: 1.2」；[PRTS「CF-EX-1 山地的震颤」oldid=356910](https://prts.wiki/index.php?title=CF-EX-1%20%E5%B1%B1%E5%9C%B0%E7%9A%84%E9%9C%87%E9%A2%A4&oldid=356910) 突袭「情报=敌方单位的生命值和攻击力提升至120%」与「enemy_attribute_mul: atk: 1.2, max_hp: 1.2」；[PRTS「KR-1 玉门：沙丘狂欢」oldid=312721](https://prts.wiki/index.php?title=KR-1%20%E7%8E%89%E9%97%A8%EF%BC%9A%E6%B2%99%E4%B8%98%E7%8B%82%E6%AC%A2&oldid=312721) 突袭「level_enemy_replace: key: 0.0 (enemy_1039_breakr), value: 0.0 (enemy_1039_breakr_2)」；数据：level.runes；`level_hidden_group_disable`、倍率乘在基础值上、`enemy`/`enemy_exclude` 的含义为推断 INF-0067
+
+### 关卡-3 镜头视向量
+
+关卡数据带镜头的视向量（`view`，三个数），即 ADR 0026 镜头模型里镜头相对关卡的位置。视向量取自按关卡路径（`levels/` 下去掉 `.json` 的相对路径）索引的视向量表中该关卡的第一个向量，并记下表的出处。没有给视向量表时关卡不带视向量，渲染用默认视向量。
+
+- 来源：yuanyan3060/ArknightsGameResource 的 `map.json`（固定提交，见关卡数据的 `source.view`），act1multi_01 为 [0, −6.1, −9.76]；镜头模型见 [ADR 0026](../adr/0026-camera-model.md)

@@ -77,7 +77,18 @@ test('[关卡-2] a difficulty\'s runes: hidden groups enabled and disabled, the 
   assert.deepEqual(difficultyOf(null, 'NORMAL'), { hiddenGroups: [], enemyMul: [], replace: {}, unsupported: [] });
 });
 
-test('[关卡-1] [关卡-2] the committed act1multi_01 is a fresh extraction of the pinned data', { skip: process.env.AUE_GAMEDATA ? false : 'AUE_GAMEDATA is not set' }, () => {
-  const fresh = `${JSON.stringify(extractLevelFromCheckout(/** @type {string} */ (process.env.AUE_GAMEDATA), 'act1multi_01'), null, 2)}\n`;
-  assert.equal(fresh, readFileSync(new URL('../../content/data/levels/act1multi_01.json', import.meta.url), 'utf8'));
+test('[关卡-1] [关卡-2] [关卡-3] the committed act1multi_01 is a fresh extraction of the pinned data (AUE_GAMEDATA, AUE_LEVEL_MAP)', {
+  skip: process.env.AUE_GAMEDATA && process.env.AUE_LEVEL_MAP ? false : 'AUE_GAMEDATA or AUE_LEVEL_MAP is not set',
+}, () => {
+  const committed = readFileSync(new URL('../../content/data/levels/act1multi_01.json', import.meta.url), 'utf8');
+  const map = { file: /** @type {string} */ (process.env.AUE_LEVEL_MAP), source: JSON.parse(committed).source.view };
+  const fresh = `${JSON.stringify(extractLevelFromCheckout(/** @type {string} */ (process.env.AUE_GAMEDATA), 'act1multi_01', map), null, 2)}\n`;
+  assert.equal(fresh, committed);
+});
+
+test('[关卡-3] a camera view vector: three finite numbers, kept with its source; anything else refused', () => {
+  const out = /** @type {any} */ (extractLevel({ id: 'x', level: makeLevel(), enemyDb: db(), commit: 'c', view: { vector: [0, -6.1, -9.76], source: 'repo@sha:map.json' } }));
+  assert.deepEqual([out.level.view, out.source.view], [[0, -6.1, -9.76], 'repo@sha:map.json']);
+  assert.throws(() => extractLevel({ id: 'x', level: makeLevel(), enemyDb: db(), commit: 'c', view: { vector: [0, 1], source: 's' } }), /three finite numbers/);
+  assert.equal(/** @type {any} */ (extractLevel({ id: 'x', level: makeLevel(), enemyDb: db(), commit: 'c' })).level.view, undefined);
 });

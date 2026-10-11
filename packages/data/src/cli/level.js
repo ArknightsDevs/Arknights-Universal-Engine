@@ -1,9 +1,10 @@
 // Extract a whole level from a local ArknightsGameData checkout (docs/spec/level.md).
-// Usage: node packages/data/src/cli/level.js --gamedata <dir> --level act1multi_01   (or set AUE_GAMEDATA)
+// Usage: node packages/data/src/cli/level.js --gamedata <dir> --level act1multi_01 [--map <map.json> --map-source <repo@commit>]
+//   (or set AUE_GAMEDATA). --map takes the camera view vectors by level path (关卡-3), e.g. ArknightsGameResource's map.json.
 // Writes packages/content/data/levels/<id>.json (deterministic: the same input gives byte-identical output).
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { extractLevel } from '../level.js';
 
@@ -33,16 +34,21 @@ function gitCommit(dir) {
 }
 
 /**
- * Extract level `id` from a checkout.
- * @param {string} root the checkout directory @param {string} id @returns {Record<string, unknown>}
+ * Extract level `id` from a checkout, with its camera view from a map file when given (the first vector of its path).
+ * @param {string} root the checkout directory @param {string} id @param {{ file: string, source: string }} [map]
+ * @returns {Record<string, unknown>}
  */
-export function extractLevelFromCheckout(root, id) {
+export function extractLevelFromCheckout(root, id, map) {
   const data = join(root, 'zh_CN', 'gamedata');
   const file = findLevel(join(data, 'levels'), `level_${id}.json`);
   if (file === null) throw new Error(`level_${id}.json not found under ${data}`);
+  const path = relative(join(data, 'levels'), file).replaceAll('\\', '/').replace(/\.json$/, '');
+  const vectors = map ? /** @type {Record<string, unknown[]>} */ (readJson(map.file))[path] : undefined;
+  if (map && !vectors) throw new Error(`no camera view for ${path} in ${map.file}`);
   return extractLevel({
     id, level: readJson(file), enemyDb: readJson(join(data, 'levels', 'enemydata', 'enemy_database.json')),
     handbook: readJson(join(data, 'excel', 'enemy_handbook_table.json')), commit: gitCommit(root),
+    view: map && vectors ? { vector: vectors[0], source: map.source } : undefined,
   });
 }
 
@@ -51,7 +57,7 @@ const arg = (argv, name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] 
 
 /** @param {string[]} argv */
 function main(argv) {
-  const dir = arg(argv, '--gamedata') ?? process.env.AUE_GAMEDATA, id = arg(argv, '--level');
+  const dir = arg(argv, '--gamedata') ?? process.env.AUE_GAMEDATA, id = arg(argv, '--level'), mapFile = arg(argv, '--map'), mapSource = arg(argv, '--map-source');
   if (!dir || !id) {
     console.error('usage: node packages/data/src/cli/level.js --gamedata <dir> --level <id>   (or set AUE_GAMEDATA)');
     process.exitCode = 2;
@@ -59,7 +65,8 @@ function main(argv) {
   }
   mkdirSync(OUT, { recursive: true });
   const out = join(OUT, `${id}.json`);
-  writeFileSync(out, `${JSON.stringify(extractLevelFromCheckout(resolve(dir), id), null, 2)}\n`);
+  const map = mapFile ? { file: resolve(mapFile), source: mapSource ?? 'unknown' } : undefined;
+  writeFileSync(out, `${JSON.stringify(extractLevelFromCheckout(resolve(dir), id, map), null, 2)}\n`);
   console.log(`wrote ${out}`);
 }
 

@@ -34,7 +34,7 @@
  * A level: its map, options, routes, waves (波次-1), the hidden groups enabled (波次-4), its predefined units (波次-6) and
  * its co-op stages (合作-6).
  * @typedef {import('./level.js').LevelMap & { id: string, options: LevelOptions, routes: Route[], waves: Wave[], hiddenGroups?: string[],
- *   predefines?: Predefine[], stages?: Stage[] }} Level
+ *   predefines?: Predefine[], stages?: Stage[], view?: number[] }} Level
  */
 
 /** @typedef {'phys' | 'arts' | 'true' | 'elemental'} DamageType */

@@ -2,7 +2,8 @@
   "source": {
     "repo": "Kengxxiao/ArknightsGameData",
     "commit": "17759cc8cdf37388414145d16262a3a06f3ab25e",
-    "server": "zh_CN"
+    "server": "zh_CN",
+    "view": "yuanyan3060/ArknightsGameResource@9bf239661e37766fba585806fb9fa67e79bb679e:map.json"
   },
   "level": {
     "id": "act1multi_01",
@@ -7891,6 +7892,11 @@
         "time": 210,
         "rest": 10
       }
+    ],
+    "view": [
+      0,
+      -6.1,
+      -9.76
     ]
   },
   "difficulties": {
