@@ -9,6 +9,7 @@ import { mitigate, penetration, dealtMul, takenMul, takeDamage, dealDamage, heal
 import { makeBuff } from '../src/buffs.js';
 import { applyStatus } from '../src/status.js';
 import { seedState } from '../src/rng.js';
+import { newSchedule } from '../src/waves.js';
 
 const SEED = 20261011;
 /** @type {any} */
@@ -24,10 +25,10 @@ function mk(id, base = {}) {
   const b = /** @type {any} */ ({ maxHp: 1000, atk: 100, def: 0, res: 0, aspd: 100, bat: 1, blockCnt: 0, moveSpeed: 1, tauntLevel: 0,
     massLevel: 0, epDamageResistance: 0, epResistance: 0, motion: 'WALK', immune: [], dmgType: 'phys', ...base });
   return { id, kind: 1, key: 'u', owner: -1, x: 0, y: 0, z: 0, dir: 'RIGHT', base: b, buffs: [], hp: b.maxHp, maxHp: b.maxHp,
-    atkCd: 0, blockedBy: -1, blockedAt: -1, born: 0, bornN: id, route: -1, leg: 0, path: [], pt: 0, wait: -1, hidden: false, frag: 0, skill: null, ep: {}, paid: 0, swing: null, anim: 0 };
+    atkCd: 0, blockedBy: -1, blockedAt: -1, born: 0, bornN: id, route: -1, leg: 0, path: [], pt: 0, wait: -1, hidden: false, frag: 0, wave: -1, skill: null, ep: {}, paid: 0, swing: null, anim: 0 };
 }
 /** @param {number} [seed] @returns {World} */
-const world = (seed = 1) => ({ frame: 0, rng: seedState(seed), nextId: 9, players: [], units: [], nextSpawn: 0, spawnFrames: [], bornThisFrame: 0, shots: [], events: [] });
+const world = (seed = 1) => ({ frame: 0, rng: seedState(seed), nextId: 9, players: [], units: [], sched: newSchedule(), predefined: [], result: -1, bornThisFrame: 0, shots: [], events: [] });
 
 const amount = fc.double({ min: 0, max: 1e5, noNaN: true });
 const defence = fc.double({ min: 0, max: 5000, noNaN: true });

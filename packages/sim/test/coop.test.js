@@ -2,7 +2,7 @@
 // coming back after 30 s without an enemy entering — with operators out of play meanwhile.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tinyContent } from '@aue/testkit';
+import { tinyContent, oneWave, spawnAt } from '@aue/testkit';
 import { KIND } from '@aue/schema';
 import { createWorld, step, deployProblem, stateHash, takeSnapshot, restoreSnapshot } from '../src/index.js';
 import { goalSeats, enemyAtGoal, isDown, REVIVE_FRAMES, ASK_FRAMES, DEFAULT_COST_TRANSFER, askProblem, answerCost } from '../src/coop.js';
@@ -14,7 +14,7 @@ import { canBlock } from '../src/blocking.js';
 /** The tiny level for two players; its goal (1, 5) on side `goal`. @param {string} goal */
 function arena(goal) {
   const c = tinyContent();
-  c.level.spawns = [];
+  c.level.waves = [];
   c.level.tiles[1][5] = { ...c.level.tiles[1][5], goal };
   const w = createWorld(c, { seed: 1, players: 2 });
   return { w, c };
@@ -50,7 +50,7 @@ test('[合作-1] [合作-2] an enemy at a goal costs its side a life; a 共同�
 
 test('[合作-2] [目标-1] a walking enemy reaches the goal: its side loses a life and a goal event names it', () => {
   const { c } = arena('A');
-  c.level.spawns = [{ at: 0, enemy: 'slime', route: 0 }];
+  c.level.waves = [oneWave([spawnAt(0, 'slime')])];
   c.enemies.slime.moveSpeed = 4;
   const w = createWorld(c, { seed: 1, players: 2 });
   /** @type {any[]} */
@@ -154,7 +154,7 @@ test('[合作-5] refused, ignored, out of turn: nothing moves', () => {
 
 test('[合作-5] no request without a mate, from a down player, or to a down mate', () => {
   const c = tinyContent();
-  c.level.spawns = [];
+  c.level.waves = [];
   const solo = createWorld(c, { seed: 1, players: 1 });
   assert.equal(askProblem(solo, c, 0), 'no mate');
   answerCost(solo, c, 0, true);

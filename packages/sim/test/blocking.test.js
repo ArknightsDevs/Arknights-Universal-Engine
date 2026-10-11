@@ -31,7 +31,7 @@ function field(a = 2, b = 2) {
   const op = (/** @type {number} */ n) => ({ name: 'g', position: 'MELEE', cost: 1, blockCnt: n, baseAttackTime: 1, maxHp: 1000, atk: 0, def: 0, res: 0, range: [] });
   const foe = (/** @type {number} */ n) => ({ name: 'e', maxHp: 1e8, atk: 0, def: 0, res: 0, moveSpeed: 0, blockCnt: n });
   return {
-    level: { id: 'f', width: 21, height: 6, tiles, spawns: [],
+    level: { id: 'f', width: 21, height: 6, tiles, waves: [],
       options: { maxLifePoint: 3, initialCost: 10, maxCost: 99, costIncreaseTime: 1, characterLimit: 9, moveMultiplier: 0.5 },
       routes: [{ start: { row: 3, col: 9 }, end: { row: 3, col: 20 }, checkpoints: [], motion: 'WALK' }] },
     enemies: { e1: foe(1), e2: foe(2) }, operators: { gA: op(a), gB: op(b) },

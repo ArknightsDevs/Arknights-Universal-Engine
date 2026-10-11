@@ -2,9 +2,9 @@
 
 ### 出怪-1 出怪
 
-关卡的出怪列表给出每个敌人的出现时间（秒）、种类和路线。出现时间按 时间-2 换算成帧，到那一帧时，敌人出现在路线起点格的中心、再加上路线的出生偏移（spawnOffset），生命为满。同一帧出现的按列表顺序。出生的随机范围（spawnRandomRange）还没有实现。
+敌人由波次的 SPAWN 动作产生（波次-1、波次-2），给出种类和路线。敌人出现在路线起点格的中心、再加上路线的出生偏移（spawnOffset），生命为满。出生的随机范围（spawnRandomRange）还没有实现。
 
-- 来源：[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)：「敌人在起点坐标出现时，位于方格正中心」；数据：level.waves[].fragments[].actions[]、level.routes[].spawnOffset（时间的展开方式为推断 INF-0007）
+- 来源：[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)：「敌人在起点坐标出现时，位于方格正中心」；数据：level.waves[].fragments[].actions[]、level.routes[].spawnOffset
 
 ### 移动-1 移动
 

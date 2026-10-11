@@ -2,7 +2,8 @@
 // skill) and the enemies of a few spawns, as one compact object (written to packages/content/data/skeleton.json by
 // cli/skeleton.js). Pure functions over parsed game data.
 import { asArray, asNumber, asObject, asString, field, wrapped, wrappedNumber } from './validate.js';
-import { extractRoutesAndSpawns, extractTiles } from './skeleton-world.js';
+import { extractRoutesAndWaves, extractTiles } from './skeleton-world.js';
+import { hiddenGroupsOf } from './waves.js';
 
 export const SKELETON_OPERATORS = Object.freeze(['char_500_noirc', 'char_502_nblade', 'char_503_rang', 'char_122_beagle']);
 /** The skill level an operator reaches at elite 0 (技能-1): level 4, levels[3]. */
@@ -213,7 +214,7 @@ function extractOperator(raw, id, rangesRaw, skillsRaw) {
 export function extractSkeleton({ level, enemyDb, characters, ranges, skills, commit }) {
   const lv = asObject(level, 'level');
   const { width, height, tiles } = extractTiles(field(lv, 'mapData', 'level'));
-  const { routes, spawns } = extractRoutesAndSpawns(field(lv, 'waves', 'level'), field(lv, 'routes', 'level'));
+  const { routes, waves } = extractRoutesAndWaves(field(lv, 'waves', 'level'), field(lv, 'routes', 'level'));
   for (const [i, r] of routes.entries()) {
     if (r.start.row >= height || r.start.col >= width) throw new Error(`routes[${i}].start lies outside the ${width}x${height} map`);
   }
@@ -227,9 +228,10 @@ export function extractSkeleton({ level, enemyDb, characters, ranges, skills, co
       options: extractOptions(field(lv, 'options', 'level')),
       tiles,
       routes,
-      spawns,
+      waves,
+      hiddenGroups: hiddenGroupsOf(lv.runes ?? null, 'NORMAL'),
     },
-    enemies: Object.fromEntries(Object.entries(extractEnemies(enemyDb, [...new Set(spawns.map((s) => s.enemy))]))
+    enemies: Object.fromEntries(Object.entries(extractEnemies(enemyDb, [...new Set(waves.flatMap((w) => w.fragments.flatMap((f) => f.actions.map((a) => a.key))))].toSorted()))
       .map(([k, e]) => [k, sharedEnemies(lv.runes ?? null).has(k) ? { ...e, shared: true } : e])),
     operators: Object.fromEntries(SKELETON_OPERATORS.map((id) => [id, extractOperator(field(chars, id, 'characters'), id, ranges, skills)])),
   };

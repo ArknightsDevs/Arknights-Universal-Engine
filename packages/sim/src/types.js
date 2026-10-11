@@ -8,12 +8,26 @@
  * `spawnOffset` moves the spawn point off the start tile's centre (出怪-1).
  * @typedef {{ start: Cell, end: Cell, checkpoints: Checkpoint[], motion: string, allowDiagonal?: boolean, spawnOffset?: { x: number, y: number } }} Route
  */
-/** A spawn; `fragment` is when its fragment began, in seconds (路线-1; default: its own time). @typedef {{ at: number, enemy: string, route: number, fragment?: number }} Spawn */
+/**
+ * One action of a fragment (波次-1): SPAWN an enemy `key` on `route`; ACTIVATE or WITHDRAW the predefined unit whose
+ * alias is `key`; NONE does nothing. Its i-th of `count` times comes `preDelay + i × interval` seconds after its
+ * fragment starts (波次-2). `dontBlockWave`: its enemies need not be handled for the wave to end (波次-3); `hidden`:
+ * its hidden group (波次-4); `group`, `pack`, `weight`: random alternatives (波次-5).
+ * @typedef {{ type: 'SPAWN' | 'ACTIVATE' | 'WITHDRAW' | 'NONE', key: string, route: number, count: number, preDelay: number, interval: number,
+ *   dontBlockWave?: boolean, hidden?: string, group?: string, pack?: string, weight?: number }} WaveAction
+ */
+/** A fragment (波次-1, 波次-2). @typedef {{ preDelay: number, actions: WaveAction[] }} Fragment */
+/** A wave (波次-1…波次-3); `maxWait` is maxTimeWaitingForNextWave, −1 for none. @typedef {{ preDelay: number, postDelay: number, maxWait: number, fragments: Fragment[] }} Wave */
+/** A predefined unit (波次-6). @typedef {{ alias: string, key: string, hidden: boolean }} Predefine */
 /**
  * A level's options; `costTransfer` is the most a cost request moves (合作-5; default 15).
  * @typedef {{ maxLifePoint: number, initialCost: number, maxCost: number, costIncreaseTime: number, characterLimit: number, moveMultiplier: number, costTransfer?: number }} LevelOptions
  */
-/** @typedef {import('./level.js').LevelMap & { id: string, options: LevelOptions, routes: Route[], spawns: Spawn[] }} Level */
+/**
+ * A level: its map, options, routes, waves (波次-1), the hidden groups enabled (波次-4) and its predefined units (波次-6).
+ * @typedef {import('./level.js').LevelMap & { id: string, options: LevelOptions, routes: Route[], waves: Wave[], hiddenGroups?: string[],
+ *   predefines?: Predefine[] }} Level
+ */
 
 /** @typedef {'phys' | 'arts' | 'true' | 'elemental'} DamageType */
 
@@ -166,6 +180,7 @@
  * @property {number} wait frames left in its current wait, −1 when not waiting
  * @property {boolean} hidden it has disappeared (路线-4)
  * @property {number} frag the frame its spawn's fragment began
+ * @property {number} wave the wave that must wait for it to be handled (波次-3), −1 for none
  * @property {SkillState | null} skill its skill, null when it has none (技能-1)
  * @property {Record<string, number>} ep element values below their maximum, by element (元素-1); none recorded is at its maximum
  * @property {number} paid the cost its deployment took, 0 for enemies (撤退-1)
@@ -214,14 +229,24 @@
  */
 
 /**
+ * The waves' progress (波次-2, 波次-3): the current wave (−1 before the first), its step — `pre` its preDelay, `frags`
+ * its fragments, `hold` waiting for its enemies, `post` its postDelay, `done` all waves over — and the frame the step's
+ * timing counts from; the current fragment, the frame it started (−1 while its preDelay runs) and how often each of its
+ * actions has acted; the random alternatives chosen for the wave, as indices into its actions in order (波次-5).
+ * @typedef {{ wave: number, step: 'pre' | 'frags' | 'hold' | 'post' | 'done', at: number, frag: number, fragAt: number, fired: number[],
+ *   chosen: number[] }} Schedule
+ */
+
+/**
  * @typedef {object} World
  * @property {number} frame frames done
  * @property {number} rng uint32 state (rng.js)
  * @property {number} nextId the next unit id
  * @property {Player[]} players
  * @property {Unit[]} units in creation order
- * @property {number} nextSpawn index of the next spawn in the level's list
- * @property {number[]} spawnFrames the frame of each spawn
+ * @property {Schedule} sched where the waves are (波次-2)
+ * @property {string[]} predefined the aliases of the predefined units in effect (波次-6)
+ * @property {number} result the battle's result (结束-1): −1 going on, 0 lost, 1 won
  * @property {number} bornThisFrame units created so far in this frame
  * @property {Shot[]} shots projectiles in flight, in launch order (攻击-3)
  * @property {Record<string, string | number>[]} events this frame's presentation events (not part of the state)

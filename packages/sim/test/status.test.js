@@ -6,6 +6,7 @@ import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadOracle } from '@aue/testkit';
 import { KIND } from '@aue/schema';
+import { newSchedule } from '../src/waves.js';
 import { makeBuff, addBuff, removeBuff, tickUnitBuffs, tickBuffs, decayRate } from '../src/buffs.js';
 import { STATUS, applyStatus, statusBuff } from '../src/status.js';
 import { statsOf, activeBuffs } from '../src/attrs.js';
@@ -22,10 +23,10 @@ function mk(id, base = {}, kind = KIND.ENEMY) {
   const b = /** @type {any} */ ({ maxHp: 1000, atk: 100, def: 0, res: 20, aspd: 100, bat: 1, blockCnt: 0, moveSpeed: 1, tauntLevel: 0,
     massLevel: 0, epDamageResistance: 0, epResistance: 0, motion: 'WALK', immune: [], dmgType: 'phys', ...base });
   return { id, kind, key: 'u', owner: -1, x: 0, y: 0, z: 0, dir: 'RIGHT', base: b, buffs: [], hp: b.maxHp, maxHp: b.maxHp,
-    atkCd: 0, blockedBy: -1, blockedAt: -1, born: 0, bornN: id, route: -1, leg: 0, path: [], pt: 0, wait: -1, hidden: false, frag: 0, skill: null, ep: {}, paid: 0, swing: null, anim: 0 };
+    atkCd: 0, blockedBy: -1, blockedAt: -1, born: 0, bornN: id, route: -1, leg: 0, path: [], pt: 0, wait: -1, hidden: false, frag: 0, wave: -1, skill: null, ep: {}, paid: 0, swing: null, anim: 0 };
 }
 /** @param {Unit[]} units @returns {World} */
-const world = (units) => ({ frame: 0, rng: 1, nextId: 9, players: [], units, nextSpawn: 0, spawnFrames: [], bornThisFrame: 0, shots: [], events: [] });
+const world = (units) => ({ frame: 0, rng: 1, nextId: 9, players: [], units, sched: newSchedule(), predefined: [], result: -1, bornThisFrame: 0, shots: [], events: [] });
 /** Frames until the unit has no buff of the key, at most `max`. @param {Unit} u @param {string} key @param {Record<string, Behavior>} [beh] */
 function framesUntilGone(u, key, beh = {}, max = 10000) {
   const w = world([u]);

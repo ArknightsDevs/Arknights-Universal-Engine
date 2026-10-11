@@ -99,35 +99,28 @@ test('route starts sit on start tiles of the top rows', () => {
   for (const r of s.level.routes) assert.equal(s.level.tiles[r.start.row][r.start.col].key, 'tile_start_cooperate');
 });
 
-test('spawn times add wave and fragment delays, action delay and count times interval; each knows its fragment start', () => {
-  const { spawns } = run().level;
-  // fragment start = 2 (wave) + 1 + 3 (fragments up to the second one) = 6; ties keep the action order
-  assert.deepEqual(spawns, [
-    { at: 6, enemy: 'e_a', route: 1, fragment: 6 },
-    { at: 6, enemy: 'e_a', route: 2, fragment: 6 },
-    { at: 7, enemy: 'e_b', route: 0, fragment: 6 },
-    { at: 9, enemy: 'e_b', route: 0, fragment: 6 },
-    { at: 11, enemy: 'e_b', route: 0, fragment: 6 },
-    { at: 11, enemy: 'e_a', route: 1, fragment: 6 },
-    { at: 15, enemy: 'e_b', route: 0, fragment: 6 },
-  ]);
+test('[波次-1] the skeleton has one wave of one fragment: the picked spawn actions, starting when their fragment did', () => {
+  const { waves } = run().level;
+  // fragment start = 2 (wave) + 1 + 3 (fragments up to the second one) = 6
+  const spawn = (/** @type {string} */ key, /** @type {number} */ route, /** @type {number} */ count, /** @type {number} */ preDelay, /** @type {number} */ interval) => ({ type: 'SPAWN', key, route, count, preDelay, interval });
+  assert.deepEqual(waves, [{ preDelay: 0, postDelay: 0, maxWait: -1, fragments: [{ preDelay: 6, actions: [
+    spawn('e_b', 0, 3, 1, 2), spawn('e_a', 1, 2, 0, 5), spawn('e_b', 0, 1, 9, 1), spawn('e_a', 2, 1, 0, 1),
+  ] }] }]);
 });
 
 test('the first fragment with at least four spawn actions is used, limited to six actions', () => {
   const level = makeLevel();
   const frag = level.waves[1].fragments[1];
   for (const preDelay of [50, 60, 70]) frag.actions.push({ actionType: 'SPAWN', key: 'e_b', count: 1, interval: 0, preDelay, routeIndex: 0 });
-  const ats = run({ level }).level.spawns.map((/** @type {any} */ s) => s.at);
-  assert.equal(ats.includes(66), true);
-  assert.equal(ats.includes(76), false);
+  const pre = run({ level }).level.waves[0].fragments[0].actions.map((/** @type {any} */ a) => a.preDelay);
+  assert.deepEqual(pre, [1, 0, 9, 0, 50, 60]);
 });
 
 test('routes are copied in first-use order and spawns refer to the new indices', () => {
-  const { routes, spawns } = run().level;
+  const { routes, waves } = run().level;
   assert.equal(routes.length, 3);
   assert.deepEqual(routes.map((/** @type {any} */ r) => r.start), [pos(3, 2), pos(3, 1), pos(3, 0)]);
-  const first = spawns.find((/** @type {any} */ s) => s.enemy === 'e_b' && s.at === 7);
-  assert.equal(first.route, 0);
+  assert.equal(waves[0].fragments[0].actions[0].route, 0);
   assert.deepEqual(routes[1].checkpoints, [{ type: 'MOVE', row: 2, col: 1, time: 0, dx: 0, dy: -0.25 }, { type: 'WAIT_FOR_SECONDS', row: 0, col: 0, time: 4, dx: 0, dy: 0 }]);
   assert.deepEqual(routes[0].checkpoints, [{ type: 'MOVE', row: 1, col: 2, time: 0, dx: 0, dy: 0 }]);
   assert.deepEqual(routes[2].checkpoints, []);
@@ -177,12 +170,12 @@ test('bad input is rejected with the path of the field', () => {
   assert.throws(() => run({ level: ragged }), /equal length/);
 
   const badCount = makeLevel();
-  badCount.waves[1].fragments[1].actions[0].count = 0;
+  badCount.waves[1].fragments[1].actions[0].count = -1;
   assert.throws(() => run({ level: badCount }), /count/);
 
   const badRoute = makeLevel();
   badRoute.waves[1].fragments[1].actions[0].routeIndex = 9;
-  assert.throws(() => run({ level: badRoute }), /route 9 does not exist/);
+  assert.throws(() => run({ level: badRoute }), /route 9, which does not exist/);
 
   const noWave = makeLevel();
   noWave.waves = [];
@@ -215,15 +208,16 @@ test('the real extraction satisfies the contract', { skip: process.env.AUE_GAMED
   const { level } = s;
   assert.equal(level.id, 'act1multi_01');
   assert.equal(level.tiles.length, level.height);
-  assert.equal(level.spawns.length > 0, true);
+  const actions = level.waves[0].fragments[0].actions;
+  assert.equal(actions.length > 0, true);
   for (const r of level.routes) assert.equal(level.tiles[r.start.row][r.start.col].key, 'tile_start_cooperate');
   const topRow = level.tiles[level.height - 1].map((/** @type {any} */ t) => t.key);
   assert.equal(topRow.includes('tile_start_cooperate'), true);
-  for (const sp of level.spawns) {
-    assert.equal(sp.route >= 0 && sp.route < level.routes.length, true);
-    assert.equal(sp.enemy in s.enemies, true);
+  for (const a of actions) {
+    assert.equal(a.type, 'SPAWN');
+    assert.equal(a.route >= 0 && a.route < level.routes.length, true);
+    assert.equal(a.key in s.enemies, true);
   }
-  assert.deepEqual(level.spawns.map((/** @type {any} */ x) => x.at), level.spawns.map((/** @type {any} */ x) => x.at).toSorted((/** @type {number} */ a, /** @type {number} */ b) => a - b));
   assert.deepEqual(Object.keys(s.operators), ['char_500_noirc', 'char_502_nblade', 'char_503_rang', 'char_122_beagle']);
   assert.deepEqual([s.operators.char_122_beagle.skillLevel.id, s.operators.char_122_beagle.skillLevel.skillType], ['skcom_def_up[1]', 'MANUAL']);
 });

@@ -18,14 +18,14 @@ import { statsOf } from '../src/attrs.js';
 const sk = (o) => ({ id: 'test', type: 'MANUAL', sp: 'time', cost: 5, init: 0, charges: 1, duration: 0, ammo: false, bb: {}, ...o });
 
 /**
- * The tiny level without spawns: the guard (atk 50, 1 s) deployed at (1, 1) facing right with the skill, and a rooted
+ * The tiny level without waves: the guard (atk 50, 1 s) deployed at (1, 1) facing right with the skill, and a rooted
  * dummy at (1, 2) in its range (def 0, a billion HP). Returns the world, content, guard and dummy.
  * @param {SkillDef} skill @param {number} [dummies]
  */
 function arena(skill, dummies = 1) {
   const c = tinyContent();
   c.operators.guard.skill = skill;
-  c.level.spawns = [];
+  c.level.waves = [];
   const w = createWorld(c, { seed: 1, players: 2 });
   step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 }]]);
   const guard = w.units[0];

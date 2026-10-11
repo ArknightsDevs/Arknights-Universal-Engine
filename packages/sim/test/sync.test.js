@@ -84,7 +84,7 @@ test('[帧-1] commands of a frame act in that frame: a deploy at frame 0 is on t
 
 test('[技能-2] [技能-4] the render state shows a skill: SP and cost, gathering, ready, running with its frames left', () => {
   const cc = tinyContent();
-  cc.level.spawns = [];
+  cc.level.waves = [];
   cc.operators.guard.skill = { id: 's', type: 'MANUAL', sp: 'time', cost: 2, init: 0, charges: 1, duration: 3, ammo: false, bb: {} };
   const w = createWorld(cc, { seed: 1, players: 1 });
   step(w, cc, [[0, { type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 }]]);

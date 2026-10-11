@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step } from '../src/index.js';
+import { oneWave, spawnAt } from '@aue/testkit';
 import { legsOf, nextLeg, planLeg, segmentClear, followRoute, pathDistance } from '../src/routes.js';
 import { makeEnemy, makeOperator } from '../src/units.js';
 import { selectable } from '../src/targeting.js';
@@ -20,7 +21,7 @@ const WALL = { key: 'tile_wall', height: 'HIGHLAND', buildable: 'RANGED', passab
  */
 function content(rows, routes) {
   return {
-    level: { id: 't', width: rows[0].length, height: rows.length, tiles: rows.map((s) => [...s].map((ch) => (ch === '#' ? WALL : ROAD))), spawns: [],
+    level: { id: 't', width: rows[0].length, height: rows.length, tiles: rows.map((s) => [...s].map((ch) => (ch === '#' ? WALL : ROAD))), waves: [],
       options: { maxLifePoint: 3, initialCost: 10, maxCost: 99, costIncreaseTime: 1, characterLimit: 9, moveMultiplier: 1 }, routes },
     enemies: { e: { name: 'e', maxHp: 1000, atk: 0, def: 0, res: 0, moveSpeed: 3 } },
     operators: { g: { name: 'g', position: 'MELEE', cost: 1, blockCnt: 1, baseAttackTime: 1, maxHp: 1000, atk: 0, def: 0, res: 0, range: [] } },
@@ -153,7 +154,7 @@ test('[路线-4] disappeared: not selectable, not blocked, takes no damage, does
 
 test('[出怪-1] an enemy appears at its start tile\'s centre moved by the spawn offset; it keeps its fragment\'s start', () => {
   const c = content(OPEN, [{ start: at(1, 2), end: at(1, 6), motion: 'WALK', checkpoints: [], spawnOffset: { x: 0.3, y: -0.2 } }]);
-  c.level.spawns = [{ at: 1, enemy: 'e', route: 0, fragment: 0.5 }];
+  c.level.waves = [oneWave([spawnAt(0.5, 'e')], 0.5)];
   const w = createWorld(c, { seed: 1, players: 1 });
   const placed = makeEnemy(w, c, { key: 'e', route: 0 });
   assert.deepEqual([placed.x, placed.y, placed.frag], [2.3, 0.8, 0]);

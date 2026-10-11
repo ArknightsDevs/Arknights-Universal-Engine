@@ -25,7 +25,7 @@ test('[技能-6] a content behaviour acts through the context: 生命回复 heal
   const c = /** @type {any} */ (tinyContent());
   c.operators.guard.skill = { ...def('skcom_heal_self[2]'), init: 20 };
   c.behaviors = { skills: skillBehaviors };
-  c.level.spawns = [];
+  c.level.waves = [];
   const w = createWorld(c, { seed: 1, players: 1 });
   step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 }]]);
   const g = w.units[0];

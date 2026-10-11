@@ -1,5 +1,6 @@
-// The level part of the skeleton: tiles, routes and spawns. Row convention of the output: row 0 is the BOTTOM row.
+// The level part of the skeleton: tiles, routes and waves. Row convention of the output: row 0 is the BOTTOM row.
 import { asArray, asInt, asNumber, asObject, asPos, asString, field } from './validate.js';
+import { readAction } from './waves.js';
 
 /** @typedef {{ row: number, col: number }} Pos */
 /** @typedef {{ key: string, height: string, buildable: string, passable: string, side: string, goal?: string }} Tile */
@@ -8,8 +9,7 @@ import { asArray, asInt, asNumber, asObject, asPos, asString, field } from './va
 const GOAL_SIDES = Object.freeze({ Side_A: 'A', Side_B: 'B', Shared: 'Shared' });
 /** @typedef {{ type: string, row: number, col: number, time: number, dx: number, dy: number }} Checkpoint */
 /** @typedef {{ start: Pos, end: Pos, checkpoints: Checkpoint[], motion: string, allowDiagonal: boolean, spawnOffset: { x: number, y: number } }} Route */
-/** @typedef {{ at: number, enemy: string, route: number, fragment: number }} Spawn */
-/** @typedef {{ key: string, count: number, interval: number, preDelay: number, routeIndex: number, start: number }} SpawnAction */
+/** @typedef {import('./waves.js').Wave} Wave */
 
 /**
  * @param {unknown} raw
@@ -97,28 +97,11 @@ function readRoute(raw, p) {
 }
 
 /**
- * @param {Record<string, unknown>} a
- * @param {string} p
- * @param {number} start
- * @returns {SpawnAction}
- */
-function readSpawnAction(a, p, start) {
-  return {
-    key: asString(field(a, 'key', p), `${p}.key`),
-    count: asInt(field(a, 'count', p), `${p}.count`, 1, 1000),
-    interval: asNumber(field(a, 'interval', p), `${p}.interval`, 0, 1e6),
-    preDelay: asNumber(field(a, 'preDelay', p), `${p}.preDelay`, 0, 1e6),
-    routeIndex: asInt(field(a, 'routeIndex', p), `${p}.routeIndex`, 0, 100000),
-    start,
-  };
-}
-
-/**
- * The first 6 SPAWN actions of the first fragment holding at least 4 of them.
- * Skeleton simplification: earlier waves are assumed to take no time, so a fragment starts at its wave's preDelay plus
- * the preDelays of the wave's fragments up to and including it. The simulation spec owns the real wave rules.
+ * The first 6 SPAWN actions of the first fragment holding at least 4 of them, with the time that fragment starts.
+ * Skeleton simplification: earlier waves are assumed to take no time, so the fragment starts at its wave's preDelay plus
+ * the preDelays of the wave's fragments up to and including it; it becomes the one fragment of the skeleton's one wave.
  * @param {unknown} wavesRaw
- * @returns {SpawnAction[]}
+ * @returns {{ start: number, actions: { a: unknown, p: string }[] }}
  */
 export function pickSpawnActions(wavesRaw) {
   for (const [wi, wRaw] of asArray(wavesRaw, 'level.waves').entries()) {
@@ -130,37 +113,36 @@ export function pickSpawnActions(wavesRaw) {
       const frag = asObject(fRaw, fp);
       start += asNumber(field(frag, 'preDelay', fp), `${fp}.preDelay`, 0, 1e6);
       const spawns = asArray(field(frag, 'actions', fp), `${fp}.actions`)
-        .map((a, ai) => ({ a: asObject(a, `${fp}.actions[${ai}]`), p: `${fp}.actions[${ai}]` }))
-        .filter(({ a }) => a.actionType === 'SPAWN');
-      if (spawns.length >= 4) return spawns.slice(0, 6).map(({ a, p }) => readSpawnAction(a, p, start));
+        .map((a, ai) => ({ a, p: `${fp}.actions[${ai}]` }))
+        .filter(({ a, p }) => asObject(a, p).actionType === 'SPAWN');
+      if (spawns.length >= 4) return { start, actions: spawns.slice(0, 6) };
     }
   }
   throw new Error('level.waves: no fragment with at least 4 SPAWN actions');
 }
 
 /**
- * Spawns (sorted by time, then action order) and the routes they use, renumbered in first-use order.
+ * The skeleton's waves (波次-1) and the routes they use, renumbered in first-use order: one wave of one fragment holding
+ * the picked spawn actions.
  * @param {unknown} wavesRaw
  * @param {unknown} routesRaw
- * @returns {{ routes: Route[], spawns: Spawn[] }}
+ * @returns {{ routes: Route[], waves: Wave[] }}
  */
-export function extractRoutesAndSpawns(wavesRaw, routesRaw) {
+export function extractRoutesAndWaves(wavesRaw, routesRaw) {
   const all = asArray(routesRaw, 'level.routes');
   /** @type {Map<number, number>} */
   const renumber = new Map();
   /** @type {Route[]} */
   const routes = [];
-  const spawns = pickSpawnActions(wavesRaw).flatMap((act, order) => {
-    if (act.routeIndex >= all.length) throw new Error(`spawn of ${act.key}: route ${act.routeIndex} does not exist`);
-    let route = renumber.get(act.routeIndex);
-    if (route === undefined) {
-      route = routes.length;
-      renumber.set(act.routeIndex, route);
-      routes.push(readRoute(all[act.routeIndex], `level.routes[${act.routeIndex}]`));
+  const routeOf = (/** @type {number} */ index) => {
+    if (index >= all.length) throw new Error(`a spawn uses route ${index}, which does not exist`);
+    if (!renumber.has(index)) {
+      renumber.set(index, routes.length);
+      routes.push(readRoute(all[index], `level.routes[${index}]`));
     }
-    const r = route;
-    return Array.from({ length: act.count }, (_, k) => ({ at: act.start + act.preDelay + k * act.interval, enemy: act.key, route: r, order, fragment: act.start }));
-  });
-  spawns.sort((x, y) => x.at - y.at || x.order - y.order);
-  return { routes, spawns: spawns.map(({ at, enemy, route, fragment }) => ({ at, enemy, route, fragment })) };
+    return /** @type {number} */ (renumber.get(index));
+  };
+  const { start, actions } = pickSpawnActions(wavesRaw);
+  const read = actions.map(({ a, p }) => /** @type {Wave['fragments'][number]['actions'][number]} */ (readAction(a, p, routeOf)));
+  return { routes, waves: [{ preDelay: 0, postDelay: 0, maxWait: -1, fragments: [{ preDelay: start, actions: read.filter(Boolean) }] }] };
 }

@@ -992,49 +992,79 @@
         }
       }
     ],
-    "spawns": [
+    "waves": [
       {
-        "at": 0,
-        "enemy": "enemy_1404_msnip",
-        "route": 5,
-        "fragment": 0
-      },
-      {
-        "at": 6,
-        "enemy": "enemy_3001_upeopl",
-        "route": 0,
-        "fragment": 0
-      },
-      {
-        "at": 42,
-        "enemy": "enemy_3001_upeopl",
-        "route": 1,
-        "fragment": 0
-      },
-      {
-        "at": 60,
-        "enemy": "enemy_3001_upeopl",
-        "route": 2,
-        "fragment": 0
-      },
-      {
-        "at": 70,
-        "enemy": "enemy_3001_upeopl",
-        "route": 3,
-        "fragment": 0
-      },
-      {
-        "at": 75,
-        "enemy": "enemy_3001_upeopl",
-        "route": 4,
-        "fragment": 0
-      },
-      {
-        "at": 94,
-        "enemy": "enemy_3001_upeopl",
-        "route": 3,
-        "fragment": 0
+        "preDelay": 0,
+        "postDelay": 0,
+        "maxWait": -1,
+        "fragments": [
+          {
+            "preDelay": 0,
+            "actions": [
+              {
+                "type": "SPAWN",
+                "key": "enemy_3001_upeopl",
+                "route": 0,
+                "count": 1,
+                "preDelay": 6,
+                "interval": 69,
+                "group": "g1",
+                "pack": "a1",
+                "weight": 33
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_3001_upeopl",
+                "route": 1,
+                "count": 1,
+                "preDelay": 42,
+                "interval": 30,
+                "pack": "a1"
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_3001_upeopl",
+                "route": 2,
+                "count": 1,
+                "preDelay": 60,
+                "interval": 2,
+                "pack": "a1"
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_3001_upeopl",
+                "route": 3,
+                "count": 2,
+                "preDelay": 70,
+                "interval": 24,
+                "pack": "a1"
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_3001_upeopl",
+                "route": 4,
+                "count": 1,
+                "preDelay": 75,
+                "interval": 30,
+                "hidden": "normal",
+                "pack": "a1"
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1404_msnip",
+                "route": 5,
+                "count": 1,
+                "preDelay": 0,
+                "interval": 1,
+                "pack": "a1"
+              }
+            ]
+          }
+        ]
       }
+    ],
+    "hiddenGroups": [
+      "normal"
     ]
   },
   "enemies": {

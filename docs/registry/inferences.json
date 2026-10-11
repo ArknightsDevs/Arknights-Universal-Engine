@@ -43,9 +43,9 @@
   },
   {
     "id": "INF-0007",
-    "clause": "出怪-1",
-    "statement": "骨架的出怪时间：同一波次内，片段开始时间为波次和此前各片段的 preDelay 之和，动作在片段开始后 preDelay + k×interval 出现；更早的波次视为不占时间。",
-    "basis": "由 @aue/data 的骨架提取器展开（packages/data/src/skeleton-world.js）。官方的波次与片段规则（含 blockFragment、等待上一波等）在 M4 实现。",
+    "clause": "波次-2",
+    "statement": "波次依次进行，波次结束后过 postDelay 秒开始下一个；波次开始 preDelay 秒后片段依次进行：每个片段在前一个片段结束（第一个在波次的 preDelay 之后）再过自己的 preDelay 秒开始，它的动作同时进行，第 i 次在片段开始后 preDelay + i × interval 秒，全部动作执行完时片段结束；不执行的动作不占时间。",
+    "basis": "PRTS「作战机制」只说小队「可通过参数每隔一段时间才开始行动」、兵团和波次分别「代表一定时间内」和「较长一段时间内的出兵」，路线指令 WAIT_CURRENT_FRAGMENT_TIME 以「当前兵团开始后」计时，说明同一时刻只有一个当前片段；数据里还有让片段等待的 blockFragment 字段。数据本身分不出片段的 preDelay 从哪里起算：用 DISPLAY_ENEMY_INFO 与首次出怪对齐、WAIT_CURRENT_WAVE_TIME 检查点两种方法检验，三种起算方式结果相同。促融共竞的常规项目每个波次几乎只有一个片段，受影响很小。可以逐帧计时一段 1-1 的录像来核对。",
     "status": "待查证"
   },
   {
@@ -389,6 +389,41 @@
     "clause": "技能-7",
     "statement": "技能能不能主动关闭，按技能说明里有没有「随时/主动/手动……停止/关闭」判断；关闭后技力从 0 开始重新积累。",
     "basis": "skill_table 没有表示可关闭的字段，PRTS「技能」说可关闭的技能在说明里写明，界面上叠加 STOP 图标；全部 1820 个技能里按这条规则识别出 65 个，人工核对都是可关闭的技能。关闭后技力从 0 开始按 PRTS「绝大多数技能结束时……技力将从0开始重新积累」。",
+    "status": "待查证"
+  },
+  {
+    "id": "INF-0057",
+    "clause": "波次-1",
+    "statement": "`isValid` 为 false 的动作是停用的，不执行；PREVIEW_CURSOR、STORY 等表现类动作不影响模拟，但照常占用片段的时间。",
+    "basis": "数据里 isValid 只出现 false（6434 处，都在活动关卡里，常与同一动作的有效副本并存），从不为 true；PRTS 的小队动作指令表里这些动作都是显示路线、播放剧情、显示敌人信息之类的表现。",
+    "status": "待查证"
+  },
+  {
+    "id": "INF-0058",
+    "clause": "波次-3",
+    "statement": "波次在片段全部结束后、它出的敌人（dontBlockWave 的除外）都处理完时结束；maxTimeWaitingForNextWave 不小于 0 时，从片段全部结束起最多等这么多秒。",
+    "basis": "PRTS「作战机制」说过早击杀关键敌人会让「下一波次提前来临」、敌人走完路线「视为已处理」。dontBlockWave 为 true 的动作多是召唤物和装饰性敌人；maxTimeWaitingForNextWave 在 93% 的波次里为 −1。字段的确切含义没有公开出处。",
+    "status": "待查证"
+  },
+  {
+    "id": "INF-0059",
+    "clause": "波次-4",
+    "statement": "符文的 difficultyMask 为 ALL 时普通和突袭都生效；为数字时按位：1 普通、2 突袭、4 EASY、8 SIX_STAR。",
+    "basis": "PRTS 的 FD-7、CF-EX-1 关卡页只给出 NORMAL 与 FOUR_STAR 的例子。数据里的数字掩码只有 1、2、3、7，与按位的解释一致。",
+    "status": "待查证"
+  },
+  {
+    "id": "INF-0060",
+    "clause": "波次-5",
+    "statement": "带 randomSpawnGroupKey 的动作是几选一的候选，randomSpawnGroupPackKey 相同、没有组的动作是它那一包的成员；每个组在波次开始时按候选的权重选一个，候选全部被隐藏组跳过时它们的包也不执行。",
+    "basis": "PRTS 没有解释这些字段。数据里候选的权重多为相等（如 33/33/33）或相加约 100（如 75/25），成员的权重另有取值（如 50）、看起来不用；同一包名的成员紧跟在候选之后，常带隐藏组。PRTS「促融共竞」说同一项目「敌人的配置也会出现随机性」。官方的随机数序列无法复现，这里用对局自己的随机数。",
+    "status": "待查证"
+  },
+  {
+    "id": "INF-0061",
+    "clause": "结束-1",
+    "statement": "双人对局中两名玩家同时失守即失败；单人时生命降到 0 即失败。",
+    "basis": "PRTS「促融共竞」写一方生命为 0 时进入死亡状态、30 秒后可复活，未达成阶段最低目标时「双方玩家将被立即扣除所有生命值，比赛将提前结束」；没有直接写两人同时失守时的处理。",
     "status": "待查证"
   }
 ]

@@ -3,7 +3,7 @@
 import { powi } from '@aue/math';
 import { statsOf, activeBuffs } from './attrs.js';
 import { removeBuff } from './buffs.js';
-import { nextUint32 } from './rng.js';
+import { draw } from './rng.js';
 import { MIN_DAMAGE_RATIO } from './constants.js';
 import { hurtSp } from './sp.js';
 
@@ -76,13 +76,6 @@ const absorbs = (b, type) => b.shieldType === '' || b.shieldType === type;
 function dropIfSpent(u, b) {
   const empty = b.shield <= 0 && b.shieldHits <= 0 && Object.keys(b.mods).length === 0 && Object.keys(b.flags).length === 0;
   if (empty) removeBuff(u, b);
-}
-
-/** A uniform draw in [0, 1) from the battle's generator (随机-1). @param {World} w */
-function draw(w) {
-  const [v, next] = nextUint32(w.rng);
-  w.rng = next;
-  return v / 4294967296;
 }
 
 /**

@@ -22,7 +22,7 @@ import { BEHAVIOR_API_VERSION, CONTEXT_MEMBERS, SKILL_CONTEXT_MEMBERS } from '..
  */
 function arena(tweak) {
   const c = tinyContent();
-  c.level.spawns = [];
+  c.level.waves = [];
   tweak?.(c);
   const w = createWorld(c, { seed: 1, players: 2 });
   /** A rooted enemy at (row, col) with HP and over. @param {number} row @param {number} col @param {Record<string, any>} [over] */

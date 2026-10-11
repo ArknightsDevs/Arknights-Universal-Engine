@@ -9,6 +9,19 @@ const t = (key, height, buildable) => ({ key, height, buildable, passable: 'ALL'
 const F = t('tile_floor', 'LOWLAND', 'NONE'), R = t('tile_road', 'LOWLAND', 'MELEE'), W = t('tile_wall', 'HIGHLAND', 'RANGED');
 const S = t('tile_start', 'LOWLAND', 'NONE'), E = t('tile_end', 'LOWLAND', 'NONE');
 
+/**
+ * A SPAWN action of `key` on `route`, acting at `preDelay` seconds (and `count` times, `interval` apart) after its
+ * fragment starts; other fields of @aue/sim's WaveAction may be given in `more`.
+ * @param {number} preDelay @param {string} key @param {Record<string, unknown>} [more] @returns {any}
+ */
+export const spawnAt = (preDelay, key, more = {}) => ({ type: 'SPAWN', key, route: 0, count: 1, preDelay, interval: 0, ...more });
+
+/**
+ * One wave of one fragment holding `actions` (no delays, no waiting cap); `fragment` gives the fragment's preDelay.
+ * @param {any[]} actions @param {number} [fragment] @returns {any}
+ */
+export const oneWave = (actions, fragment = 0) => ({ preDelay: 0, postDelay: 0, maxWait: -1, fragments: [{ preDelay: fragment, actions }] });
+
 /** A fresh copy each call (tests may change it). Shaped as @aue/sim's Content. @returns {any} */
 export function tinyContent() {
   return {
@@ -18,7 +31,7 @@ export function tinyContent() {
       tiles: [[F, F, W, W, F, F], [R, R, R, R, R, E], [S, F, W, W, F, F]],
       routes: [{ start: { row: 2, col: 0 }, end: { row: 1, col: 5 }, motion: 'WALK',
         checkpoints: [{ type: 'MOVE', row: 1, col: 0, time: 0 }, { type: 'WAIT_FOR_SECONDS', row: 0, col: 0, time: 3 }] }],
-      spawns: [{ at: 0.5, enemy: 'slime', route: 0 }, { at: 2, enemy: 'slime', route: 0 }],
+      waves: [oneWave([spawnAt(0.5, 'slime'), spawnAt(2, 'slime')])],
     },
     enemies: { slime: { name: 'slime', maxHp: 100, atk: 0, def: 10, res: 0, moveSpeed: 1 } },
     operators: {

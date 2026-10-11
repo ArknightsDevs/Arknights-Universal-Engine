@@ -1,28 +1,12 @@
-// Enemies: spawning on schedule (spec 出怪-1) and each enemy's turn (帧-1): blocking (阻挡-1, 阻挡-3), its attack
-// (敌人攻击-1), walking its route (移动-1) and reaching the goal (目标-1).
-import { secondsToFrames } from '@aue/math';
+// Enemies: each enemy's turn (帧-1): blocking (阻挡-1, 阻挡-3), its attack (敌人攻击-1), walking its route (移动-1) and
+// reaching the goal (目标-1). They spawn by the waves (waves.js, 出怪-1).
 import { KIND, ANIM } from '@aue/schema';
-import { makeEnemy } from './units.js';
 import { followRoute, speedOf } from './routes.js';
 import { enemyAtGoal, goalSeats } from './coop.js';
 import { tryBlock, keepOrRelease } from './blocking.js';
 import { enemyAttack } from './combat.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
-
-/** @param {Content} c @returns {number[]} the frame of each spawn */
-export const spawnFrames = (c) => c.level.spawns.map((s) => secondsToFrames(s.at));
-
-/** Spawns every enemy due this frame, in list order. @param {World} w @param {Content} c */
-export function spawnDue(w, c) {
-  const list = c.level.spawns;
-  while (w.nextSpawn < list.length && w.spawnFrames[w.nextSpawn] <= w.frame) {
-    const s = list[w.nextSpawn++];
-    const u = makeEnemy(w, c, { key: s.enemy, route: s.route, frag: secondsToFrames(s.fragment ?? s.at) });
-    w.units.push(u);
-    w.events.push({ type: 'spawn', id: u.id, key: u.key });
-  }
-}
 
 /**
  * An enemy at the end of its route leaves and costs lives by the co-op rules (目标-1, 合作-1…合作-3).

@@ -1,10 +1,11 @@
-// The world and one frame of it (spec 帧-1): commands, cost, revivals and requests, spawns, buffs, enemy movement, operator attacks,
-// projectiles, removal of the dead — in that order, every frame, on every peer.
+// The world and one frame of it (spec 帧-1): commands, cost, revivals and requests, the waves, buffs, enemy movement,
+// operator attacks, projectiles, removal of the dead, the end of the battle — in that order, every frame, on every peer.
 import { secondsToFrames } from '@aue/math';
 import { ANIM, KIND } from '@aue/schema';
 import { seedState } from './rng.js';
 import { hashNumbers, HASH_START } from './hash.js';
-import { spawnFrames, spawnDue, enemiesAct } from './enemies.js';
+import { enemiesAct } from './enemies.js';
+import { newSchedule, visiblePredefines, tickWaves, checkEnd } from './waves.js';
 import { releaseAll } from './blocking.js';
 import { operatorsAttack, shotsFly } from './combat.js';
 import { applyCommand } from './commands.js';
@@ -24,7 +25,8 @@ import { BURST_BEHAVIORS } from './elements.js';
 export function createWorld(c, o) {
   const { initialCost, maxLifePoint, costIncreaseTime } = c.level.options;
   return {
-    frame: 0, rng: seedState(o.seed), nextId: 1, nextSpawn: 0, spawnFrames: spawnFrames(c), bornThisFrame: 0, units: [], shots: [], events: [],
+    frame: 0, rng: seedState(o.seed), nextId: 1, sched: newSchedule(), predefined: visiblePredefines(c), result: -1, bornThisFrame: 0, units: [], shots: [],
+    events: [],
     players: Array.from({ length: o.players }, () => ({ life: maxLifePoint, cost: initialCost, costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {}, revive: -1, downs: 0, ask: -1, askCd: 0 })),
   };
 }
@@ -74,12 +76,13 @@ export function step(w, c, commands = []) {
   gainCost(w, c);
   tickRevival(w, c);
   tickRequests(w);
-  spawnDue(w, c);
+  tickWaves(w, c);
   tickBuffs(w, buffBehaviors(c));
   enemiesAct(w, c);
   operatorsAttack(w, c);
   shotsFly(w, c);
   removeDead(w, c);
+  checkEnd(w, c);
   w.frame++;
   return w.events;
 }
@@ -110,14 +113,14 @@ function pushText(out, tag, s) {
 }
 
 /**
- * The state hash (spec 同步-1): the frame, the random state, the id and spawn counters, the players, the units and the
- * projectiles, all of their data.
+ * The state hash (spec 同步-1): the frame, the random state, the id counter, the waves' progress, the predefined units in
+ * effect, the result, the players, the units and the projectiles, all of their data.
  * @param {World} w @returns {number}
  */
 export function stateHash(w) {
   /** @type {number[]} */
   const nums = [];
-  pushValue(nums, { frame: w.frame, rng: w.rng, nextId: w.nextId, nextSpawn: w.nextSpawn, players: w.players, units: w.units, shots: w.shots });
+  pushValue(nums, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, players: w.players, units: w.units, shots: w.shots });
   return hashNumbers(HASH_START, nums);
 }
 

@@ -83,6 +83,7 @@
     "packages/sim/src/routes.js"
   ],
   "frag": [],
+  "wave": [],
   "skill": [],
   "sp": [
     "packages/sim/src/sp.js"

@@ -30,7 +30,7 @@ test('the skeleton plays out the same way twice', () => {
 });
 
 test('[技能-3] [技能-5] the skeleton’s 米格鲁 starts 防御力强化·α型 by command once she holds 45 SP: def × 1.3 for 30 s', () => {
-  const quiet = { ...c, level: { ...c.level, spawns: [] } }, w = createWorld(quiet, { seed: 1, players: 1 });
+  const quiet = { ...c, level: { ...c.level, waves: [] } }, w = createWorld(quiet, { seed: 1, players: 1 });
   const tile = c.level.tiles.flatMap((row, r) => row.map((t, col) => ({ t, r, col }))).find((x) => x.t.buildable === 'MELEE' || x.t.buildable === 'ALL');
   assert.ok(tile);
   assert.equal(c.operators.char_122_beagle.cost, 16);

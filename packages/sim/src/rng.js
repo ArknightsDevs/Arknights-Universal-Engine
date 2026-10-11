@@ -15,3 +15,28 @@ export function nextUint32(state) {
 
 /** The initial state from a seed (any integer). @param {number} seed */
 export const seedState = (seed) => seed >>> 0;
+
+/**
+ * A uniform draw in [0, 1) from the battle's generator (随机-1), advancing it.
+ * @param {{ rng: number }} w the world @returns {number}
+ */
+export function draw(w) {
+  const [v, next] = nextUint32(w.rng);
+  w.rng = next;
+  return v / 4294967296;
+}
+
+/**
+ * A weighted pick (随机-2): X uniform in [0, total) is reduced by each weight in order until it is at most 0; that one
+ * is chosen. A single choice is taken without a draw.
+ * @param {{ rng: number }} w the world @param {number[]} weights at least one @returns {number} the index chosen
+ */
+export function weightedPick(w, weights) {
+  if (weights.length === 1) return 0;
+  let x = draw(w) * weights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < weights.length - 1; i++) {
+    x -= weights[i];
+    if (x <= 0) return i;
+  }
+  return weights.length - 1;
+}

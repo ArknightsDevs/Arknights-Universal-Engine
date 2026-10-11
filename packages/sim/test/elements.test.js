@@ -3,7 +3,7 @@
 // an attack's 元素损伤 after its damage; 麻痹 interrupting enemy attacks and wearing off only under 抵抗.
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { tinyContent, loadOracle } from '@aue/testkit';
+import { tinyContent, loadOracle, oneWave, spawnAt } from '@aue/testkit';
 import { KIND } from '@aue/schema';
 import { createWorld, step, stateHash, takeSnapshot, restoreSnapshot } from '../src/index.js';
 import { dealEp, epOf, epTaken, currentElement, bursting, rampageDamage, ELEMENTS, LEADER_MAX_EP } from '../src/elements.js';
@@ -22,13 +22,13 @@ let shD;
 before(async () => { shK = await loadOracle('server/sim/constants.js'); shD = await loadOracle('server/sim/damage.js'); });
 
 /**
- * The tiny level without spawns: a guard (def 100, res 0, 1000 HP raised to a million) at (1, 1) facing right, and a
+ * The tiny level without waves: a guard (def 100, res 0, 1000 HP raised to a million) at (1, 1) facing right, and a
  * rooted slime (def 10, res 0, a million HP) at (1, 4), out of its range. Returns the world, content, guard and slime.
  * @param {(c: any) => void} [tweak]
  */
 function arena(tweak) {
   const c = tinyContent();
-  c.level.spawns = [];
+  c.level.waves = [];
   c.operators.guard.maxHp = 1e6;
   c.enemies.slime.maxHp = 1e6;
   tweak?.(c);
@@ -244,7 +244,7 @@ test('[元素-2] an attack\'s 元素损伤 comes after its damage: a 灼燃 atta
 test('[状态-8] 麻痹 interrupts an enemy\'s attack: a layer goes, 0.5 s of 麻痹震颤, no hit, the cooldown starts over', () => {
   const c = tinyContent();
   Object.assign(c.enemies.slime, { atk: 300, baseAttackTime: 2, maxHp: 1e6 });
-  c.level.spawns = [c.level.spawns[0]];
+  c.level.waves = [oneWave([spawnAt(0.5, 'slime')])];
   const w = createWorld(c, { seed: 1, players: 1 });
   step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 3, dir: 2 }]]);
   const guard = w.units[0];

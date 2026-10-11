@@ -39,7 +39,7 @@ test('[职业-7] the skeleton\'s operators carry their branches: 铁卫, 尖兵,
 
 test('[职业-2] [职业-7] a 医师 from the table heals the wounded guard in the simulation', () => {
   const c = tinyContent();
-  c.level.spawns = [];
+  c.level.waves = [];
   c.operators.medic = withTrait({ ...c.operators.sniper, branch: 'physician', atk: 200, range: [{ row: 0, col: 0 }, { row: -1, col: 0 }] });
   const w = createWorld(c, { seed: 1, players: 1 });
   step(w, c, [[0, { type: 'deploy', op: 'medic', row: 2, col: 2, dir: 0 }], [0, { type: 'deploy', op: 'guard', row: 1, col: 2, dir: 0 }]]);

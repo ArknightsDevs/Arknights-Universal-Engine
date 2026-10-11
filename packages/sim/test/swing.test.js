@@ -16,7 +16,7 @@ import { statsOf } from '../src/attrs.js';
 /** The tiny level without spawns; `tweak` changes the content first; `foe` adds a rooted enemy. @param {(c: any) => void} [tweak] */
 function arena(tweak) {
   const c = tinyContent();
-  c.level.spawns = [];
+  c.level.waves = [];
   tweak?.(c);
   const w = createWorld(c, { seed: 1, players: 1 });
   /** @param {number} row @param {number} col @param {Record<string, any>} [over] */
