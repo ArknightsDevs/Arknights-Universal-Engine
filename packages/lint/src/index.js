@@ -7,11 +7,12 @@ import globals from 'globals';
 import { SOURCE_LIMITS, TEST_LIMITS, limitRules } from './limits.js';
 import { determinismRules } from './determinism.js';
 import { packageBoundaries } from './boundaries.js';
+import { fieldOwnership } from './field-ownership.js';
 
-export { SOURCE_LIMITS, TEST_LIMITS, limitRules, determinismRules, packageBoundaries };
+export { SOURCE_LIMITS, TEST_LIMITS, limitRules, determinismRules, packageBoundaries, fieldOwnership };
 
 /** The plugin with AUE's own rules. */
-export const plugin = { meta: { name: '@aue/lint' }, rules: { 'package-boundaries': packageBoundaries } };
+export const plugin = { meta: { name: '@aue/lint' }, rules: { 'package-boundaries': packageBoundaries, 'field-ownership': fieldOwnership } };
 
 const TESTS = ['**/test/**/*.js', '**/test/**/*.mjs'];
 
@@ -19,6 +20,7 @@ const TESTS = ['**/test/**/*.js', '**/test/**/*.mjs'];
  * @typedef {object} Options
  * @property {string[]} [ignores] paths ESLint skips
  * @property {string[]} [deterministic] globs of code that must give the same bits on every engine
+ * @property {{ files: string[], fields: Record<string, string[]> }} [fieldOwnership] the unit-field ownership table (ADR 0045) for the files it governs; tests are exempt
  * @property {{ files: string[], rules: import('eslint').Linter.RulesRecord, reason: string }[]} [exempt] limit exemptions, each with a reason
  */
 
@@ -28,7 +30,7 @@ const TESTS = ['**/test/**/*.js', '**/test/**/*.mjs'];
  * @returns {import('eslint').Linter.Config[]}
  */
 export function aueConfig(opts = {}) {
-  const { ignores = [], deterministic = [], exempt = [] } = opts;
+  const { ignores = [], deterministic = [], exempt = [], fieldOwnership: owned } = opts;
   for (const e of exempt) if (!e.reason?.trim()) throw new Error(`@aue/lint: the exemption for ${e.files.join(', ')} needs a reason`);
   return [
     { ignores: ['**/node_modules/', '**/coverage/', '**/.cache/', ...ignores] },
@@ -49,6 +51,7 @@ export function aueConfig(opts = {}) {
     },
     { files: TESTS, rules: limitRules(TEST_LIMITS) },
     ...(deterministic.length ? [{ files: deterministic, ignores: TESTS, rules: determinismRules() }] : []),
+    ...(owned ? [{ files: owned.files, ignores: TESTS, rules: { 'aue/field-ownership': /** @type {['error', object]} */ (['error', { fields: owned.fields }]) } }] : []),
     ...exempt.map(({ files, rules }) => ({ files, rules })),
   ];
 }
