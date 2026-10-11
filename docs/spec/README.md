@@ -31,7 +31,7 @@
 
 ## 目录
 
-- [numbers.md](numbers.md)：数值的表示、确定性数学函数（hypot、整数次幂、sin、cos、atan2）
+- [numbers.md](numbers.md)：数值的表示、确定性数学函数（hypot、整数次幂、sin、cos、atan2）、四舍六入五成双
 - [time.md](time.md)：时间与帧
 - [battle.md](battle.md)：一帧内的顺序、随机数、状态哈希、快照
 - [field.md](field.md)：地图坐标、部署、撤退、费用
@@ -39,3 +39,4 @@
 - [combat.md](combat.md)：攻击、伤害
 - [lockstep.md](lockstep.md)：输入延迟、封口、追赶、哈希校验、重连、暂停
 - [direction.md](direction.md)：四个方向、偏移旋转、位移的方向、并列先后
+- [body.md](body.md)：点单位与巨型单位所在的格、距离

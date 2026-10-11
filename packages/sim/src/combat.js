@@ -2,6 +2,7 @@
 // earliest-spawned one for physical damage, then wait the attack interval.
 import { KIND, ANIM } from '@aue/schema';
 import { offsetTile } from './dir.js';
+import { tileOf } from './body.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell */
@@ -20,13 +21,15 @@ export function rangeCell(op, off) {
 export const physicalDamage = (atk, def) => Math.max(atk - def, atk * 0.05);
 
 /**
- * The enemy an operator attacks: the earliest-spawned living enemy whose tile (its position rounded) is in range.
+ * The enemy an operator attacks: the earliest-spawned living enemy whose tile (spec 体积-1) is in range.
  * @param {World} w @param {Unit} op @param {Cell[]} range @returns {Unit | null}
  */
 export function pickTarget(w, op, range) {
   const cells = new Set(range.map((off) => { const c = rangeCell(op, off); return `${c.row},${c.col}`; }));
   for (const u of w.units) {
-    if (u.kind === KIND.ENEMY && u.hp > 0 && cells.has(`${Math.round(u.y)},${Math.round(u.x)}`)) return u;
+    if (u.kind !== KIND.ENEMY || u.hp <= 0) continue;
+    const [r, c] = tileOf(u);
+    if (cells.has(`${r},${c}`)) return u;
   }
   return null;
 }

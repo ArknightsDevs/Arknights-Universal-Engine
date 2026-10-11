@@ -52,3 +52,9 @@
 - x 或 y 为 ±0、±∞ 时，结果是 ECMA-262 精确规定的值；有 NaN 时结果是 NaN。
 
 - 来源：[FreeBSD msun e_atan2.c](https://github.com/freebsd/freebsd-src/blob/main/lib/msun/src/e_atan2.c)、[s_atan.c](https://github.com/freebsd/freebsd-src/blob/main/lib/msun/src/s_atan.c)；[ECMAScript 规范：Math.atan2](https://tc39.es/ecma262/#sec-math.atan2)（特殊值）
+
+### 数值-6 四舍六入五成双
+
+`roundHalfEven(x)` 把 x 取整到最近的整数；正好在两个整数中间时取偶数，比如 0.5 → 0，1.5 → 2，2.5 → 2，−2.5 → −2。对所有双精度数精确，不返回 −0。注意 `Math.round` 不同：它在中间时取较大的那个（2.5 → 3）。
+
+- 来源：[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)：「受击方坐标经round函数取整(四舍六入五成双)得到其所属格坐标」

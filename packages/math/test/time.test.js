@@ -48,3 +48,14 @@ test('[数值-1] negative, infinite and NaN inputs are refused', () => {
   for (const x of [-1, -0.5, Infinity, -Infinity, NaN]) assert.throws(() => decimalOf(x), RangeError, String(x));
   assert.throws(() => secondsToFrames(-0.1), RangeError);
 });
+
+test('[数值-6] rounding half to even: ties go to the even integer, the rest to the nearest; never −0', async () => {
+  const { roundHalfEven: r } = await import('../src/index.js');
+  const cases = [[0.5, 0], [1.5, 2], [2.5, 2], [3.5, 4], [-0.5, 0], [-1.5, -2], [-2.5, -2], [2.4999999999999996, 2], [2.5000000000000004, 3],
+    [-0.4, 0], [-0, 0], [4503599627370495.5, 4503599627370496], [1e300, 1e300]];
+  for (const [x, want] of cases) assert.ok(Object.is(r(x), want), `${x} → ${r(x)}, want ${want}`);
+  fc.assert(fc.property(fc.double({ min: -1e9, max: 1e9, noNaN: true }), (x) => {
+    const v = r(x), d = Math.abs(x - v);
+    return Number.isInteger(v) && (d < 0.5 || (d === 0.5 && v % 2 === 0)) && !Object.is(v, -0);
+  }), { seed: SEED, numRuns: 5000 });
+});
