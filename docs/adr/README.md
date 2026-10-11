@@ -68,3 +68,4 @@
 | [0052](0052-engine-as-git-submodule.md) | 平台以 git 子模块引用引擎 | 已采纳 | 工程与包 |
 | [0053](0053-interface-schemas.md) | 接口模式集中在 @aue/schema | 已采纳 | 可维护性 |
 | [0054](0054-attributes-and-buffs-as-data.md) | 属性由 Buff 推导，Buff 是纯数据 | 已采纳 | 模拟内核 |
+| [0055](0055-sdk-prepared-now-built-after-mvp.md) | SDK：现在只做准备，MVP 之后再做 | 已采纳 | 定位与仓库 |

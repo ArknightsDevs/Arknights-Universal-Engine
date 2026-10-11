@@ -20,6 +20,7 @@ export class LockstepHost {
   /** @param {HostOptions} o */
   constructor(o) {
     this.o = o;
+    /** @type {import('@aue/sim').World} */
     this.world = createWorld(o.content, { seed: o.seed, players: o.seats });
     /** the last sealed frame */
     this.sealed = -1;

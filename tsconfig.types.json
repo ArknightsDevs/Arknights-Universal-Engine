@@ -1,0 +1,14 @@
+{
+  // The type declarations of every package's public surface (ADR 0055): emitted from the JSDoc into .cache/types, so CI
+  // shows when a public type cannot be declared. Nothing is published yet.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": false,
+    "outDir": ".cache/types",
+    "rootDir": "packages"
+  },
+  "include": ["packages/*/src/**/*.js"]
+}

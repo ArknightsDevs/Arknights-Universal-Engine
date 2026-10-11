@@ -12,10 +12,11 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
+    "types": "tsc -p tsconfig.types.json",
     "test": "node --test \"packages/*/test/**/*.test.js\"",
     "coverage": "aue-check coverage",
     "check": "aue-check",
-    "ci": "pnpm run oracle && pnpm run lint && pnpm run typecheck && pnpm run coverage && pnpm run check",
+    "ci": "pnpm run oracle && pnpm run lint && pnpm run typecheck && pnpm run types && pnpm run coverage && pnpm run check",
     "oracle": "aue-check oracle"
   },
   "devDependencies": {
