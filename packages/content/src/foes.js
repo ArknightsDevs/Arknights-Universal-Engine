@@ -164,3 +164,22 @@ const PowerHit = Object.freeze({
 
 /** Behaviours by talent or skill name. @type {Readonly<Record<string, FoeBehavior>>} */
 export const foeBehaviors = Object.freeze({ boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit });
+
+/**
+ * Talents with no behaviour of their own that are still covered (关卡-2): `dead` is the data's 生命 loss of a neutral
+ * unit (合作-9), `Light` is read by `Bomb`, `DmgUp` acts only on devices the engine does not have (敌能-11).
+ */
+export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp']);
+
+/**
+ * The abilities (talents and skills) of the given enemies that have no behaviour and are not covered otherwise
+ * (关卡-2), in order of first appearance.
+ * @param {Iterable<EnemyDef>} enemies @returns {string[]}
+ */
+export function uncoveredAbilities(enemies) {
+  const out = new Set();
+  for (const e of enemies) {
+    for (const k of [...Object.keys(e.talents ?? {}), ...(e.skills ?? []).map((s) => s.key)]) if (!Object.hasOwn(foeBehaviors, k) && !FOE_COVERED.includes(k)) out.add(k);
+  }
+  return [...out];
+}

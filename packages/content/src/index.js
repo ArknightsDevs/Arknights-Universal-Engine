@@ -4,7 +4,7 @@ import skeleton from '../data/skeleton.json' with { type: 'json' };
 import timings from '../data/timings.json' with { type: 'json' };
 import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
-import { levelAt } from './levels.js';
+import { levelAt, LEVELS } from './levels.js';
 import { foeBehaviors, withFoeExtras } from './foes.js';
 import { loadTraining, operatorAt } from './operators.js';
 import { skillBehaviors } from './skills.js';
@@ -52,10 +52,11 @@ export function levelContent(id, difficulty) {
  * The content of a match (同步-9): its level at its difficulty, and every seat's deck at its trainings — an operator's key
  * is "id#seat", it remembers its id (`char`) — with the official behaviours.
  * @param {{ level: string, difficulty: 'NORMAL' | 'FOUR_STAR', seed: number, decks: { id: string, build: import('./operators.js').Build }[][] }} match
+ * @param {Readonly<Record<string, any>>} [levels] the extracted levels (LEVELS)
  * @returns {Promise<import('@aue/sim').Content>}
  */
-export async function matchContent(match) {
-  const lv = levelAt(match.level, match.difficulty);
+export async function matchContent(match, levels = LEVELS) {
+  const lv = levelAt(match.level, match.difficulty, undefined, levels);
   /** @type {Record<string, import('@aue/sim').OperatorDef>} */
   const operators = {};
   const decks = await Promise.all(match.decks.map(async (deck, seat) => Promise.all(deck.map(async ({ id, build }) => {

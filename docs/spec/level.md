@@ -29,7 +29,7 @@
 | `cbuff_max_cost` | 费用上限改为 `max_cost`（`max_cost_ceil` 暂不使用） |
 | `char_blockcnt_add` | 所有干员的阻挡数加 `value`，不低于 0 |
 
-其他符文还不支持：提取时记下它们的名字（`unsupported`），所用的关卡在测试里保证没有。
+其他符文还不支持：提取时记下它们的名字（`unsupported`），有这些符文的难度拒绝组装。这个难度出场的敌人带着引擎还没有行为的能力（天赋或技能，敌能-5…）时，也拒绝组装，报出这些能力的名字；没有自己的行为但已由别处处理的天赋（中立单位的 `dead`、随掷弹生效的 `Light`、只对装置起作用的 `DmgUp`）不算。
 
 - 来源：[PRTS「FD-7 背离法则」oldid=364740](https://prts.wiki/index.php?title=FD-7%20%E8%83%8C%E7%A6%BB%E6%B3%95%E5%88%99&oldid=364740) 突袭「情报=敌方单位的生命值、攻击力和防御力都提升至120%」与「global_lifepoint: value: 1.0」「enemy_attribute_mul: atk: 1.2, def: 1.2, max_hp: 1.2」；[PRTS「CF-EX-1 山地的震颤」oldid=356910](https://prts.wiki/index.php?title=CF-EX-1%20%E5%B1%B1%E5%9C%B0%E7%9A%84%E9%9C%87%E9%A2%A4&oldid=356910) 突袭「情报=敌方单位的生命值和攻击力提升至120%」与「enemy_attribute_mul: atk: 1.2, max_hp: 1.2」；[PRTS「KR-1 玉门：沙丘狂欢」oldid=312721](https://prts.wiki/index.php?title=KR-1%20%E7%8E%89%E9%97%A8%EF%BC%9A%E6%B2%99%E4%B8%98%E7%8B%82%E6%AC%A2&oldid=312721) 突袭「level_enemy_replace: key: 0.0 (enemy_1039_breakr), value: 0.0 (enemy_1039_breakr_2)」；数据：level.runes；`level_hidden_group_disable`、倍率乘在基础值上、`enemy`/`enemy_exclude` 的含义为推断 INF-0067
 
