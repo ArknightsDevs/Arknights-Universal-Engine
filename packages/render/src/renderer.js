@@ -1,28 +1,32 @@
 // The battle renderer: a three.js scene of systems — terrain, units (Spine figures or cards) — under the official
-// camera. The page owns the loop: it calls update() with each render state from the worker and render() once per
-// animation frame.
+// camera, then the overlays (HP and SP bars) over it with the depth cleared (ADR 0027). The page owns the loop: it
+// calls update() with each render state from the worker and render() once per animation frame.
 import * as THREE from 'three';
 import { applyPose, DEFAULT_VIEW } from './camera.js';
 import { createTerrain } from './terrain.js';
 import { createUnits } from './units.js';
+import { createOverlays } from './overlays.js';
 import { spineModel } from './spine.js';
 
 /**
  * @typedef {object} RendererOptions
  * @property {HTMLCanvasElement} canvas
  * @property {import('./terrain.js').TerrainLevel} level
- * @property {Map<string, THREE.Texture>} textures keyed 'tile:<key>', 'avatar:<charId>', 'enemy:<enemyKey>'
+ * @property {Map<string, THREE.Texture>} textures keyed 'tile:<key>', 'avatar:<charId>', 'enemy:<enemyKey>', 'ui:bar'
  * @property {readonly number[]} [view] the level's camera view vector
  * @property {import('./units.js').Models} [models] Spine models by content key (operators by character id)
+ * @property {Set<string>} [leaders] content keys of leader enemies (red HP bars)
  */
 
 /** @param {RendererOptions} o */
 export function createBattleRenderer(o) {
   const renderer = new THREE.WebGLRenderer({ canvas: o.canvas, antialias: true });
+  renderer.autoClear = false;
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera();
   scene.background = new THREE.Color(0x404040);
   const terrain = createTerrain(o.level, o.textures), units = createUnits(o.textures, o.models);
   scene.add(terrain.object, units.object);
+  const overlays = createOverlays(o.textures, o.leaders);
   const ray = new THREE.Raycaster();
 
   const resize = () => {
@@ -39,10 +43,17 @@ export function createBattleRenderer(o) {
      * @param {import('@aue/schema').View} view @param {Record<string, string>} keys content keys of the units new in this view
      * @param {Record<string, string | number>[]} [events] the frame's presentation events
      */
-    update: (view, keys, events = []) => units.update(view, keys, o.level, performance.now(), events),
+    update(view, keys, events = []) {
+      units.update(view, keys, o.level, performance.now(), events);
+      overlays.update(view, keys, o.level);
+    },
     render() {
       units.pose(camera);
+      overlays.pose(camera);
+      renderer.clear();
       renderer.render(scene, camera);
+      renderer.clearDepth();
+      renderer.render(overlays.scene, camera);
     },
     /** The tile under a point of the canvas, or null. @param {number} x @param {number} y client coordinates */
     pick(x, y) {
@@ -51,7 +62,7 @@ export function createBattleRenderer(o) {
       const hit = ray.intersectObjects(terrain.object.children, false).find((/** @type {THREE.Intersection} */ h) => h.object.userData.col !== undefined);
       return hit ? { col: hit.object.userData.col, row: hit.object.userData.row } : null;
     },
-    dispose() { terrain.dispose(); units.dispose(); renderer.dispose(); },
+    dispose() { terrain.dispose(); units.dispose(); overlays.dispose(); renderer.dispose(); },
   };
 }
 
