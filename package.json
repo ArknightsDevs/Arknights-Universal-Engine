@@ -12,13 +12,14 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test \"packages/*/test/**/*.test.js\" \"tools/test/**/*.test.js\"",
-    "coverage": "node tools/coverage.mjs",
-    "check": "node tools/check.mjs",
+    "test": "node --test \"packages/*/test/**/*.test.js\"",
+    "coverage": "aue-check coverage",
+    "check": "aue-check",
     "ci": "pnpm run lint && pnpm run typecheck && pnpm run coverage && pnpm run check"
   },
   "devDependencies": {
     "@aue/lint": "workspace:*",
+    "@aue/testkit": "workspace:*",
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.18.0",
     "eslint": "^10.11.0",

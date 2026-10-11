@@ -1,7 +1,12 @@
 {
   "$comment": "The pure mechanics modules held to the coverage threshold (ADR 0042: branches ≥ 95 %). Add each pure module when it lands.",
-  "include": ["packages/math/src/**"],
+  "include": [
+    "packages/math/src/**"
+  ],
   "branches": 95,
   "lines": 95,
-  "functions": 95
+  "functions": 95,
+  "tests": [
+    "packages/*/test/**/*.test.js"
+  ]
 }

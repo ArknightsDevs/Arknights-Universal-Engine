@@ -1,6 +1,6 @@
 # 登记表
 
-这里登记两类条目。`node tools/registry-check.mjs` 会检查它们的格式和引用，`pnpm run check` 也会跑这项检查。
+这里登记两类条目。`aue-check registry`（`@aue/testkit`）会检查它们的格式和引用，`pnpm run check` 也会跑这项检查。
 
 - **[inferences.json](inferences.json)：推断**。官方出处还没找到、先按推断实现的规则。每条写明推断的内容、依据和状态。找到出处后，把状态改成「已证实」，同时把规范条款的来源换成真实出处；如果推断被推翻，改成「已推翻」，并修改实现。
 - **[known-differences.json](known-differences.json)：已知差异**。我们和 Stronghold Protocol（差分对照用的固定版本）结果不同的地方。每条写明双方的做法和原因。

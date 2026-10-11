@@ -1,3 +1,7 @@
-// @aue/testkit: Stronghold oracle, generators, spec tracing (dev only).
-// Empty until its milestone (docs/adr, plan §8); the package exists so the boundaries hold from the start.
-export {};
+// @aue/testkit: development tooling shared by AUE and the projects built on it — the repository checks (package
+// dependencies, spec tracing, the registry, coverage); later the Stronghold oracle and the test generators.
+export { checkDeps } from './deps.js';
+export { traceSpecs } from './spec-trace.js';
+export { checkRegistry } from './registry.js';
+export { coverageArgs, runCoverage } from './coverage.js';
+export { CLAUSE_ID, readClauses, readCitations, readRegistry } from './spec.js';

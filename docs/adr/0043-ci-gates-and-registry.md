@@ -19,8 +19,7 @@
 已知差异登记表：
 
 - Stronghold 的偏差、推断得来的官方数字、镜头和遮挡里的推断，都登记在这里，每条写明依据。
-- 登记成 JSON（`docs/registry/`，不引入 YAML 解析的依赖），每条有编号、对应条款、依据和状态，由 `tools/registry-check.mjs` 检查。
-- 检查脚本为 `tools/registry-check.mjs`，CI 检查这些引用都有效。
+- 登记成 JSON（`docs/registry/`，不引入 YAML 解析的依赖），每条有编号、对应条款、依据和状态，由 `aue-check registry`（`@aue/testkit`）检查。
 
 CI 还跑：lint、类型检查、测试和覆盖率、规范追溯、登记表、共享文件比对；在 ubuntu、windows、macOS 上，各跑 Node 22 和 24。
 

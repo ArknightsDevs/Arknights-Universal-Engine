@@ -22,7 +22,7 @@
 
 ## 检查
 
-`node tools/spec-trace.mjs` 检查以下几点，`pnpm run check` 也会跑这些检查：
+`aue-check spec`（`@aue/testkit`）检查以下几点，`pnpm run check` 也会跑这些检查：
 
 1. 编号不重复，格式正确；
 2. 每一条都写了来源，引用的推断在登记表里存在；

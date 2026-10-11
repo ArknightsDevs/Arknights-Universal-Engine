@@ -2,11 +2,14 @@
   "name": "@aue/testkit",
   "version": "0.0.0",
   "private": true,
-  "description": "Stronghold oracle, generators, spec tracing (dev only)",
+  "description": "repository checks, Stronghold oracle, generators (dev only)",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "exports": {
     ".": "./src/index.js"
+  },
+  "bin": {
+    "aue-check": "./src/cli.js"
   },
   "aue": {
     "node": true

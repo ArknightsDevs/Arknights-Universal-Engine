@@ -5,9 +5,9 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { traceSpecs } from '../spec-trace.mjs';
-import { checkRegistry } from '../registry-check.mjs';
-import { checkDeps } from '../deps-check.mjs';
+import { traceSpecs } from '../src/spec-trace.js';
+import { checkRegistry } from '../src/registry.js';
+import { checkDeps } from '../src/deps.js';
 
 /** @param {string} id */
 const cite = (id) => '[' + id + ']';
@@ -53,19 +53,21 @@ test('registry-check: ids, fields, statuses and clauses', () => {
 });
 
 test('deps-check: undeclared layers, cycles, names and the node flag', () => {
-  const layers = { packages: {
-    a: { aue: ['b'], external: [], node: false }, b: { aue: ['a'], external: ['x'], node: true }, c: { aue: [], external: [], node: false },
+  const layers = { scope: '@aue', devPackages: ['@aue/testkit'], packages: {
+    a: { allow: ['@aue/b'] }, b: { allow: ['@aue/a', 'x'], node: true }, c: { allow: [] }, testkit: { allow: [] },
   } };
   const root = tree({
     'tools/layers.json': JSON.stringify(layers),
-    'packages/a/package.json': JSON.stringify({ name: '@aue/a', dependencies: { '@aue/c': '*' } }),
+    'packages/a/package.json': JSON.stringify({ name: '@aue/a', dependencies: { '@aue/c': '*' }, devDependencies: { '@aue/testkit': '*', '@aue/b': '*' } }),
     'packages/b/package.json': JSON.stringify({ name: '@aue/bee', dependencies: { x: '*', y: '*' } }),
     'packages/d/package.json': JSON.stringify({ name: '@aue/d' }),
+    'packages/testkit/package.json': JSON.stringify({ name: '@aue/testkit' }),
   });
   try {
     const p = checkDeps(root).problems.join('\n');
-    const wants = ['cycle: a → b → a', 'a: depends on @aue/c', 'b: package.json name is "@aue/bee"', 'b: depends on y', 'b: "aue.node" must be true',
-      'd: not listed', 'c: listed in tools/layers.json but packages/c is missing'];
+    const wants = ['cycle: a → b → a', 'a: depends on @aue/c', 'a: @aue/b is a devDependency but not one of the devPackages', 'b: package.json name is "@aue/bee"',
+      'b: depends on y', 'b: "aue.node" must be true', 'd: not listed', 'c: listed in tools/layers.json but packages/c is missing'];
+    assert.ok(!p.includes('@aue/testkit is a devDependency'), 'devPackages are allowed as devDependencies');
     for (const want of wants) assert.ok(p.includes(want), want);
   } finally { rmSync(root, { recursive: true }); }
 });

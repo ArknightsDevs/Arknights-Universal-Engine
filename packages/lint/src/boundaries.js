@@ -3,7 +3,7 @@
 //   - packages its package.json declares (dependencies / peer / optional; devDependencies only from tests and from the
 //     repository root package);
 //   - Node built-ins only when its package.json says "aue": { "node": true }, or from tests.
-// Which @aue package may depend on which is checked separately against tools/layers.json (tools/deps-check.mjs), so the
+// Which @aue package may depend on which is checked separately against tools/layers.json (aue-check deps, @aue/testkit), so the
 // package.json files are the single list of what a package uses.
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve, relative, sep, isAbsolute } from 'node:path';

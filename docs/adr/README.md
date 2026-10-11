@@ -20,7 +20,7 @@
 | [0004](0004-naming-and-disclaimer.md) | 命名与免责声明 | 已采纳 | 许可与命名 |
 | [0005](0005-js-jsdoc-checkjs.md) | 语言：JS + JSDoc，tsc --checkJs strict | 已采纳 | 工程与包 |
 | [0006](0006-pnpm-workspace-packages.md) | 工程结构：pnpm 工作区，按功能分包，固定 pnpm 版本 | 已采纳 | 工程与包 |
-| [0007](0007-engine-consumed-by-git-tag.md) | 平台通过 git 标签 + 子目录引用引擎 | 已采纳 | 工程与包 |
+| [0007](0007-engine-consumed-by-git-tag.md) | 平台通过 git 标签 + 子目录引用引擎 | 已取代（见 0052） | 工程与包 |
 | [0008](0008-module-boundaries.md) | 模块边界由 lint 的导入规则强制 | 已采纳 | 工程与包 |
 | [0009](0009-worker-thread-architecture.md) | 模拟放在后台线程，主线程只负责画面 | 已采纳 | 工程与包 |
 | [0010](0010-import-mapping-table.md) | 导入路径映射表是唯一事实来源 | 已采纳 | 工程与包 |
@@ -65,3 +65,4 @@
 | [0049](0049-adr-process.md) | 决定记录为 ADR，改决定就新增一条 | 已采纳 | 可维护性 |
 | [0050](0050-end-to-end-skeleton-first.md) | 起步后先做端到端骨架 | 已采纳 | 里程碑 |
 | [0051](0051-mvp-scope-and-milestones.md) | MVP 范围与里程碑 | 已采纳 | 里程碑 |
+| [0052](0052-engine-as-git-submodule.md) | 平台以 git 子模块引用引擎 | 已采纳 | 工程与包 |
