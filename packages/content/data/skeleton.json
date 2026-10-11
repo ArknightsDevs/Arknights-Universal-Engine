@@ -1086,6 +1086,7 @@
       "motion": "WALK",
       "massLevel": 1,
       "levelType": "NORMAL",
+      "lifePointReduce": 1,
       "shared": true
     },
     "enemy_3001_upeopl": {
@@ -1101,6 +1102,7 @@
       "motion": "WALK",
       "massLevel": 1,
       "levelType": "NORMAL",
+      "lifePointReduce": 0,
       "neutral": true,
       "deathLife": 1
     }

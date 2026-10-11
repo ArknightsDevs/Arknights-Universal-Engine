@@ -1,0 +1,140 @@
+// Enemies (docs/spec/level.md 关卡-1, coop.md 合作-2, 合作-9): an enemy_database entry at the level a level asks for, with the
+// level's overrides, as the engine's enemy; the 共同敌手 and neutral enemies of a level.
+import { asArray, asNumber, asObject, asString, field, wrapped, wrappedNumber } from './validate.js';
+import { NEUTRAL_ENEMIES } from './neutral.js';
+
+/**
+ * { [key]: m_value } when the wrapper is defined (m_defined), else nothing: the attribute takes its default.
+ * @param {Record<string, unknown>} o @param {string} key @param {string} path path of o
+ * @returns {Record<string, number>}
+ */
+function definedNumber(o, key, path) {
+  const w = asObject(field(o, key, path), `${path}.${key}`);
+  return w.m_defined === true ? { [key]: wrappedNumber(o, key, path) } : {};
+}
+
+/** The enemy_database immunities and the status flags they stand for (状态-7). */
+const IMMUNE_FLAGS = Object.freeze({
+  stunImmune: 'stun', silenceImmune: 'silence', sleepImmune: 'sleep', frozenImmune: 'freeze', levitateImmune: 'levitate',
+  disarmedCombatImmune: 'disarmedCombat', fearedImmune: 'fear', palsyImmune: 'palsy', attractImmune: 'attract',
+  teleportImmune: 'teleport', groundBoundImmune: 'groundbind',
+});
+
+/**
+ * { immune: [flags] } for each immunity defined as true, else nothing.
+ * @param {Record<string, unknown>} at attributes @param {string} path path of at
+ * @returns {{ immune?: string[] }}
+ */
+function immunities(at, path) {
+  const out = Object.entries(IMMUNE_FLAGS).filter(([k]) => {
+    if (!Object.hasOwn(at, k)) return false;
+    const w = asObject(at[k], `${path}.${k}`);
+    return w.m_defined === true && w.m_value === true;
+  }).map(([, flag]) => flag);
+  return out.length > 0 ? { immune: out } : {};
+}
+
+/**
+ * One enemy from its (merged) enemyData (关卡-1).
+ * @param {Record<string, unknown>} data
+ * @param {string} key
+ * @param {string} dp path of data
+ * @returns {Record<string, string | number | boolean | string[]>}
+ */
+function readEnemy(data, key, dp) {
+  const ap = `${dp}.attributes`;
+  const at = asObject(field(data, 'attributes', dp), ap);
+  return {
+    name: asString(wrapped(data, 'name', dp), `${dp}.name.m_value`),
+    maxHp: wrappedNumber(at, 'maxHp', ap),
+    atk: wrappedNumber(at, 'atk', ap),
+    def: wrappedNumber(at, 'def', ap),
+    res: wrappedNumber(at, 'magicResistance', ap),
+    moveSpeed: wrappedNumber(at, 'moveSpeed', ap),
+    baseAttackTime: wrappedNumber(at, 'baseAttackTime', ap),
+    rangeRadius: wrappedNumber(data, 'rangeRadius', dp),
+    applyWay: asString(wrapped(data, 'applyWay', dp), `${dp}.applyWay.m_value`),
+    motion: asString(wrapped(data, 'motion', dp), `${dp}.motion.m_value`),
+    ...definedNumber(at, 'blockCnt', ap),
+    massLevel: wrappedNumber(at, 'massLevel', ap),
+    levelType: asString(wrapped(data, 'levelType', dp), `${dp}.levelType.m_value`),
+    lifePointReduce: wrappedNumber(data, 'lifePointReduce', dp),
+    ...definedNumber(at, 'epDamageResistance', ap),
+    ...definedNumber(at, 'epResistance', ap),
+    ...immunities(at, ap),
+    ...neutralOf(key, data, dp),
+  };
+}
+
+/**
+ * Whether an enemy is neutral, and the lives it costs when knocked down (合作-9): from the neutral enemies table and its
+ * talent `dead.value`.
+ * @param {string} key @param {Record<string, unknown>} data @param {string} dp @returns {{ neutral?: true, deathLife?: number }}
+ */
+function neutralOf(key, data, dp) {
+  if (!Object.hasOwn(NEUTRAL_ENEMIES, key)) return {};
+  const talents = Array.isArray(data.talentBlackboard) ? data.talentBlackboard : [];
+  const dead = talents.map((t, i) => asObject(t, `${dp}.talentBlackboard[${i}]`)).find((t) => t.key === 'dead.value');
+  const value = dead ? asNumber(dead.value, `${dp}.talentBlackboard.dead.value`, -1e6, 1e6) : 0;
+  return { neutral: true, ...(value < 0 ? { deathLife: -value } : {}) };
+}
+
+/**
+ * The 共同敌手 of a level (合作-2): the enemy keys its rune `env_gbuff_new_with_verify` with key
+ * `cooperate_enemy_side_shared` lists (`|`-separated in its `enemy` entry).
+ * @param {unknown} runesRaw level.runes @returns {Set<string>}
+ */
+export function sharedEnemies(runesRaw) {
+  /** @type {Set<string>} */
+  const out = new Set();
+  if (!Array.isArray(runesRaw)) return out;
+  runesRaw.forEach((r, i) => {
+    const rp = `level.runes[${i}]`, rune = asObject(r, rp);
+    if (rune.key !== 'env_gbuff_new_with_verify' || !Array.isArray(rune.blackboard)) return;
+    const bb = Object.fromEntries(rune.blackboard.map((b, k) => { const o = asObject(b, `${rp}.blackboard[${k}]`); return [String(o.key), o.valueStr]; }));
+    if (bb.key === 'cooperate_enemy_side_shared') for (const k of String(bb.enemy ?? '').split('|')) if (k) out.add(k);
+  });
+  return out;
+}
+
+/**
+ * enemyData `over` laid on `base` (关卡-1): each field `over` defines (m_defined) replaces base's; `attributes` field by
+ * field; a list given (talents, skills) replaces base's.
+ * @param {Record<string, unknown>} base @param {Record<string, unknown>} over @param {string} p path of over
+ * @returns {Record<string, unknown>}
+ */
+export function mergeEnemyData(base, over, p) {
+  /** @type {Record<string, unknown>} */
+  const out = { ...base };
+  for (const [k, v] of Object.entries(over)) {
+    if (k === 'attributes' && v !== null && v !== undefined) out[k] = mergeEnemyData(asObject(base[k] ?? {}, `${p}.${k}`), asObject(v, `${p}.${k}`), `${p}.${k}`);
+    else if (Array.isArray(v)) out[k] = v;
+    else if (v !== null && typeof v === 'object' && /** @type {Record<string, unknown>} */ (v).m_defined === true) out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * One enemy of the database (关卡-1): level 0, overlaid with the level `ref` asks for and its overwrittenData; with
+ * useDb false, its overwrittenData alone.
+ * @param {unknown} dbRaw enemy_database.json @param {string} key
+ * @param {{ level?: number, useDb?: boolean, overwrittenData?: unknown }} [ref] the level's enemyDbRefs entry
+ */
+export function enemyOf(dbRaw, key, ref) {
+  const p = `enemyDb[${key}]`, over = ref?.overwrittenData ? asObject(ref.overwrittenData, `${p}.overwrittenData`) : null;
+  if (ref && ref.useDb === false) return readEnemy(/** @type {Record<string, unknown>} */ (over), key, `${p}.overwrittenData`);
+  const list = asArray(field(asObject(dbRaw, 'enemyDb'), 'enemies', 'enemyDb'), 'enemyDb.enemies');
+  const entry = list.find((e) => asObject(e, 'enemyDb.enemies[]').Key === key);
+  if (entry === undefined) throw new Error(`enemyDb: no enemy ${key}`);
+  const values = asArray(field(asObject(entry, p), 'Value', p), `${p}.Value`).map((v, i) => asObject(v, `${p}.Value[${i}]`));
+  const dataOf = (/** @type {Record<string, unknown>} */ v, /** @type {number} */ i) => asObject(field(v, 'enemyData', `${p}.Value[${i}]`), `${p}.Value[${i}].enemyData`);
+  let data = dataOf(values[0], 0);
+  const lv = ref?.level ?? 0;
+  if (lv > 0) {
+    const i = values.findIndex((v) => v.level === lv);
+    if (i < 0) throw new Error(`${p}: no level ${lv}`);
+    data = mergeEnemyData(data, dataOf(values[i], i), `${p}.Value[${i}].enemyData`);
+  }
+  if (over) data = mergeEnemyData(data, over, `${p}.overwrittenData`);
+  return readEnemy(data, key, `${p}.Value[0].enemyData`);
+}

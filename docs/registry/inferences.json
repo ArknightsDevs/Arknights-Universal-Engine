@@ -453,5 +453,19 @@
     "statement": "中立敌人被击倒时，扣它路线终点所属玩家的生命（按合作-1 的归属），扣 −dead.value 点。",
     "basis": "PRTS「乌萨斯平民」写「死亡时扣除1目标生命值」，数据里只有天赋 dead.value = −1，没有写扣哪一方的生命。",
     "status": "待查证"
+  },
+  {
+    "id": "INF-0066",
+    "clause": "关卡-1",
+    "statement": "敌人数据按「级别 0 → 关卡指定的级别 → 关卡的 overwrittenData」依次覆盖，只覆盖写明（m_defined）的字段；给出的列表（天赋、技能）整体替换；useDb 为 false 时只用 overwrittenData。",
+    "basis": "数据里每个字段都带 m_defined，较高级别和 overwrittenData 只把改动的字段标为写明；PRTS 的敌人页按级别分列数值，没有写覆盖规则。",
+    "status": "待查证"
+  },
+  {
+    "id": "INF-0067",
+    "clause": "关卡-2",
+    "statement": "enemy_attribute_mul 的倍率乘在敌人的基础值上；写了 enemy 时只对列出的敌人、写了 enemy_exclude 时不对列出的敌人；level_hidden_group_disable 停用隐藏组，优先于启用。",
+    "basis": "PRTS 关卡页的突袭「情报」把倍率写成「提升至120%」，与符文 enemy_attribute_mul 的 1.2 对应；enemy、enemy_exclude、level_hidden_group_disable 只见于数据，没有说明。",
+    "status": "待查证"
   }
 ]

@@ -83,7 +83,7 @@ function readOffset(raw, p) {
  * @param {string} p
  * @returns {Route}
  */
-function readRoute(raw, p) {
+export function readRoute(raw, p) {
   const r = asObject(raw, p);
   const cps = r.checkpoints === null || r.checkpoints === undefined ? [] : asArray(r.checkpoints, `${p}.checkpoints`);
   return {

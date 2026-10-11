@@ -1,10 +1,12 @@
 // The walking-skeleton extractor: one co-op stage, four operators (three reserve operators and 米格鲁 with her first
 // skill) and the enemies of a few spawns, as one compact object (written to packages/content/data/skeleton.json by
 // cli/skeleton.js). Pure functions over parsed game data.
-import { asArray, asNumber, asObject, asString, field, wrapped, wrappedNumber } from './validate.js';
+import { asArray, asNumber, asObject, asString, field } from './validate.js';
 import { extractRoutesAndWaves, extractTiles } from './skeleton-world.js';
 import { hiddenGroupsOf } from './waves.js';
-import { NEUTRAL_ENEMIES } from './neutral.js';
+import { enemyOf, sharedEnemies } from './enemies.js';
+
+export { sharedEnemies };
 
 export const SKELETON_OPERATORS = Object.freeze(['char_500_noirc', 'char_502_nblade', 'char_503_rang', 'char_122_beagle']);
 /** The skill level an operator reaches at elite 0 (技能-1): level 4, levels[3]. */
@@ -15,122 +17,19 @@ const OPTION_KEYS = ['maxLifePoint', 'initialCost', 'maxCost', 'costIncreaseTime
  * @param {unknown} raw level.options
  * @returns {Record<string, number>}
  */
-function extractOptions(raw) {
+export function extractOptions(raw) {
   const o = asObject(raw, 'level.options');
   return Object.fromEntries(OPTION_KEYS.map((k) => [k, asNumber(field(o, k, 'level.options'), `level.options.${k}`, 0, 1e6)]));
 }
 
 /**
- * { [key]: m_value } when the wrapper is defined (m_defined), else nothing: the attribute takes its default.
- * @param {Record<string, unknown>} o @param {string} key @param {string} path path of o
- * @returns {Record<string, number>}
- */
-function definedNumber(o, key, path) {
-  const w = asObject(field(o, key, path), `${path}.${key}`);
-  return w.m_defined === true ? { [key]: wrappedNumber(o, key, path) } : {};
-}
-
-/** The enemy_database immunities and the status flags they stand for (状态-7). */
-const IMMUNE_FLAGS = Object.freeze({
-  stunImmune: 'stun', silenceImmune: 'silence', sleepImmune: 'sleep', frozenImmune: 'freeze', levitateImmune: 'levitate',
-  disarmedCombatImmune: 'disarmedCombat', fearedImmune: 'fear', palsyImmune: 'palsy', attractImmune: 'attract',
-  teleportImmune: 'teleport', groundBoundImmune: 'groundbind',
-});
-
-/**
- * { immune: [flags] } for each immunity defined as true, else nothing.
- * @param {Record<string, unknown>} at attributes @param {string} path path of at
- * @returns {{ immune?: string[] }}
- */
-function immunities(at, path) {
-  const out = Object.entries(IMMUNE_FLAGS).filter(([k]) => {
-    if (!Object.hasOwn(at, k)) return false;
-    const w = asObject(at[k], `${path}.${k}`);
-    return w.m_defined === true && w.m_value === true;
-  }).map(([, flag]) => flag);
-  return out.length > 0 ? { immune: out } : {};
-}
-
-/**
- * One enemy at level 0.
- * @param {unknown} entry enemy_database entry
- * @param {string} key
- * @returns {Record<string, string | number | boolean | string[]>}
- */
-function readEnemy(entry, key) {
-  const p = `enemyDb[${key}]`;
-  const values = asArray(field(asObject(entry, p), 'Value', p), `${p}.Value`);
-  const dp = `${p}.Value[0].enemyData`;
-  const data = asObject(field(asObject(values[0], `${p}.Value[0]`), 'enemyData', `${p}.Value[0]`), dp);
-  const ap = `${dp}.attributes`;
-  const at = asObject(field(data, 'attributes', dp), ap);
-  return {
-    name: asString(wrapped(data, 'name', dp), `${dp}.name.m_value`),
-    maxHp: wrappedNumber(at, 'maxHp', ap),
-    atk: wrappedNumber(at, 'atk', ap),
-    def: wrappedNumber(at, 'def', ap),
-    res: wrappedNumber(at, 'magicResistance', ap),
-    moveSpeed: wrappedNumber(at, 'moveSpeed', ap),
-    baseAttackTime: wrappedNumber(at, 'baseAttackTime', ap),
-    rangeRadius: wrappedNumber(data, 'rangeRadius', dp),
-    applyWay: asString(wrapped(data, 'applyWay', dp), `${dp}.applyWay.m_value`),
-    motion: asString(wrapped(data, 'motion', dp), `${dp}.motion.m_value`),
-    ...definedNumber(at, 'blockCnt', ap),
-    massLevel: wrappedNumber(at, 'massLevel', ap),
-    levelType: asString(wrapped(data, 'levelType', dp), `${dp}.levelType.m_value`),
-    ...definedNumber(at, 'epDamageResistance', ap),
-    ...definedNumber(at, 'epResistance', ap),
-    ...immunities(at, ap),
-    ...neutralOf(key, data, dp),
-  };
-}
-
-/**
- * Whether an enemy is neutral, and the lives it costs when knocked down (合作-9): from the neutral enemies table and its
- * talent `dead.value`.
- * @param {string} key @param {Record<string, unknown>} data @param {string} dp @returns {{ neutral?: true, deathLife?: number }}
- */
-function neutralOf(key, data, dp) {
-  if (!Object.hasOwn(NEUTRAL_ENEMIES, key)) return {};
-  const talents = Array.isArray(data.talentBlackboard) ? data.talentBlackboard : [];
-  const dead = talents.map((t, i) => asObject(t, `${dp}.talentBlackboard[${i}]`)).find((t) => t.key === 'dead.value');
-  const value = dead ? asNumber(dead.value, `${dp}.talentBlackboard.dead.value`, -1e6, 1e6) : 0;
-  return { neutral: true, ...(value < 0 ? { deathLife: -value } : {}) };
-}
-
-/**
- * The 共同敌手 of a level (合作-2): the enemy keys its rune `env_gbuff_new_with_verify` with key
- * `cooperate_enemy_side_shared` lists (`|`-separated in its `enemy` entry).
- * @param {unknown} runesRaw level.runes @returns {Set<string>}
- */
-export function sharedEnemies(runesRaw) {
-  /** @type {Set<string>} */
-  const out = new Set();
-  if (!Array.isArray(runesRaw)) return out;
-  runesRaw.forEach((r, i) => {
-    const rp = `level.runes[${i}]`, rune = asObject(r, rp);
-    if (rune.key !== 'env_gbuff_new_with_verify' || !Array.isArray(rune.blackboard)) return;
-    const bb = Object.fromEntries(rune.blackboard.map((b, k) => { const o = asObject(b, `${rp}.blackboard[${k}]`); return [String(o.key), o.valueStr]; }));
-    if (bb.key === 'cooperate_enemy_side_shared') for (const k of String(bb.enemy ?? '').split('|')) if (k) out.add(k);
-  });
-  return out;
-}
-
-/**
- * The enemies used, level 0 of their enemy_database entry.
+ * The enemies used, level 0 of their enemy_database entry (关卡-1).
  * @param {unknown} dbRaw enemy_database.json
  * @param {string[]} keys
  * @returns {Record<string, Record<string, string | number | boolean | string[]>>}
  */
 function extractEnemies(dbRaw, keys) {
-  const list = asArray(field(asObject(dbRaw, 'enemyDb'), 'enemies', 'enemyDb'), 'enemyDb.enemies');
-  return Object.fromEntries(
-    keys.map((key) => {
-      const entry = list.find((e) => asObject(e, 'enemyDb.enemies[]').Key === key);
-      if (entry === undefined) throw new Error(`enemyDb: no enemy ${key}`);
-      return [key, readEnemy(entry, key)];
-    }),
-  );
+  return Object.fromEntries(keys.map((key) => [key, enemyOf(dbRaw, key)]));
 }
 
 /**

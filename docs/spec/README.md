@@ -36,6 +36,7 @@
 - [battle.md](battle.md)：一帧内的顺序、随机数、权重随机、状态哈希、快照
 - [field.md](field.md)：地图坐标、部署、撤退、费用
 - [enemies.md](enemies.md)：出怪、移动、到达目标点、敌人的普通攻击
+- [level.md](level.md)：关卡内容：敌人数据的级别与覆写、难度与符文
 - [waves.md](waves.md)：波次、片段与动作的时间，波次的结束，隐藏组，随机组，预部署单位，战斗结束
 - [combat.md](combat.md)：干员攻击
 - [attributes.md](attributes.md)：属性公式、修饰器、数值范围、攻击间隔

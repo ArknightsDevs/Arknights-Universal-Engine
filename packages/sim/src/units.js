@@ -36,7 +36,7 @@ export function baseOf(d) {
     moveSpeed: opt('moveSpeed'), tauntLevel: opt('tauntLevel'), massLevel: opt('massLevel'), epDamageResistance: opt('epDamageResistance'),
     epResistance: opt('epResistance'), motion: opt('motion'), immune: [...(d.immune ?? [])], dmgType: opt('dmgType'),
     rangeRadius: opt('rangeRadius'), applyWay: opt('applyWay'), maxEp: maxEpOf(r), shared: r.shared === true,
-    levelType: r.levelType ?? 'NORMAL', neutral: r.neutral === true, deathLife: r.deathLife ?? 0,
+    levelType: r.levelType ?? 'NORMAL', neutral: r.neutral === true, deathLife: r.deathLife ?? 0, lifeCost: r.lifePointReduce ?? 1,
   };
 }
 

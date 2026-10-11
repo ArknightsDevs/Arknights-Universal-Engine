@@ -4,6 +4,7 @@ import skeleton from '../data/skeleton.json' with { type: 'json' };
 import timings from '../data/timings.json' with { type: 'json' };
 import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
+import { levelAt } from './levels.js';
 
 /** A unit's attack timing from data/timings.json (攻击-2), when its skeleton gave one. @param {string} key */
 function attackOf(key) {
@@ -28,6 +29,14 @@ export const skeletonContent = /** @type {any} */ ({
   enemies: Object.fromEntries(Object.entries(skeleton.enemies).map(([k, e]) => [k, { ...e, ...attackOf(k) }])),
 });
 
+/**
+ * A whole level at a difficulty (关卡-2) as @aue/sim's Content, with the skeleton's operators.
+ * @param {string} id @param {import('./levels.js').Difficulty} difficulty @returns {import('@aue/sim').Content}
+ */
+export function levelContent(id, difficulty) {
+  return /** @type {any} */ ({ ...levelAt(id, difficulty, attackOf), operators: skeletonContent.operators });
+}
+
 /** Where the attack timings come from: the skeletons' sources (攻击-2). */
 export const timingSource = timings.source;
 
@@ -36,3 +45,4 @@ export const skeletonSource = skeleton.source;
 
 export { skillDefOf, skillBehaviors } from './skills.js';
 export { BRANCHES, coveredBranch, withTrait } from './traits.js';
+export { LEVELS, levelAt } from './levels.js';

@@ -14,9 +14,9 @@
 
 ### 目标-1 到达目标点
 
-敌人到达路线终点后离场（不算阵亡），按 合作-1 至 合作-3 扣生命，产生表现事件 `goal`（owner 为终点所属的第一个座位）。出它的动作标着 `isUnharmfulAndAlwaysCountAsKilled` 的敌人不扣生命，只算已处理。
+敌人到达路线终点后离场（不算阵亡），按 合作-1 至 合作-3 扣生命，扣敌人数据的 `lifePointReduce` 点（没有时 1 点，可以是 0），产生表现事件 `goal`（owner 为终点所属的第一个座位）。出它的动作标着 `isUnharmfulAndAlwaysCountAsKilled` 的敌人不扣生命，只算已处理。
 
-- 来源：数据：level.routes[].endPosition、level.waves[].fragments[].actions[].isUnharmfulAndAlwaysCountAsKilled；扣生命的规则见 coop.md；[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)「isUnharmfulAndAlwaysCountAsKilled，会使得目标在自然行动完成后不触发生命值扣除和警报，仅判定为已处理（敌人计数+1）」
+- 来源：数据：level.routes[].endPosition、enemy_database 的 lifePointReduce、level.waves[].fragments[].actions[].isUnharmfulAndAlwaysCountAsKilled；扣生命的规则见 coop.md；[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)「对于赞助无人机这类扣除0生命值的敌人，依旧扣除生命值并触发音效」；[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)「isUnharmfulAndAlwaysCountAsKilled，会使得目标在自然行动完成后不触发生命值扣除和警报，仅判定为已处理（敌人计数+1）」
 
 ### 敌人攻击-1 敌人的普通攻击
 

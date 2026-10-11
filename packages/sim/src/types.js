@@ -60,6 +60,7 @@
  * @property {boolean} [shared] a 共同敌手: it costs every player a life at any goal (合作-2)
  * @property {boolean} [neutral] a neutral unit (合作-9)
  * @property {number} [deathLife] the lives a neutral unit costs when knocked down (合作-9)
+ * @property {number} [lifePointReduce] the lives it costs at the goal (目标-1; default 1)
  */
 
 /**
@@ -139,6 +140,7 @@
  * @property {string} levelType NORMAL, ELITE or BOSS (领袖, 合作-7)
  * @property {boolean} neutral a neutral unit (合作-9)
  * @property {number} deathLife the lives a neutral unit costs when knocked down (合作-9)
+ * @property {number} lifeCost the lives an enemy costs at the goal (目标-1: lifePointReduce, default 1)
  */
 
 /**

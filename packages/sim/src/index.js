@@ -37,5 +37,6 @@ export { hashNumbers, HASH_START } from './hash.js';
 /** @typedef {import('./skills.js').SkillBehavior} SkillBehavior */
 /** @typedef {import('./types.js').TraitDef} TraitDef */
 /** @typedef {import('./types.js').OperatorDef} OperatorDef */
+/** @typedef {import('./types.js').EnemyDef} EnemyDef */
 /** @typedef {import('./traits.js').TraitBehavior} TraitBehavior */
 /** @typedef {import('@aue/schema').Command} Command */

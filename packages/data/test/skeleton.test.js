@@ -44,7 +44,7 @@ function makeLevel() {
 const enemy = (/** @type {string} */ key, /** @type {string} */ name) => ({
   Key: key,
   Value: [{ level: 0, enemyData: {
-    name: wrap(name), levelType: wrap('NORMAL'), rangeRadius: wrap(0), applyWay: wrap('MELEE'), motion: wrap('WALK'),
+    name: wrap(name), levelType: wrap('NORMAL'), rangeRadius: wrap(0), applyWay: wrap('MELEE'), motion: wrap('WALK'), lifePointReduce: wrap(1),
     attributes: { maxHp: wrap(100.5), atk: wrap(10), def: wrap(5), magicResistance: wrap(0), moveSpeed: wrap(0.65), baseAttackTime: wrap(1.2), massLevel: wrap(1),
       blockCnt: key === 'e_b' ? wrap(2) : { m_defined: false, m_value: 0 },
       epResistance: key === 'e_b' ? wrap(15) : { m_defined: false, m_value: 0 }, epDamageResistance: { m_defined: false, m_value: 0 },

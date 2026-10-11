@@ -88,8 +88,9 @@ export function comeBack(w, c, seat) {
 
 /**
  * An enemy reaches the goal at the end of its route (合作-1…合作-3, 目标-1): one that is unharmful costs nothing; a
- * 共同敌手 costs every player a life; otherwise each seat the goal belongs to loses one — but a seat already down passes
- * it to the mate, and its countdown starts over. Returns the seats that lost a life.
+ * 共同敌手 costs every player its lives; otherwise each seat the goal belongs to loses them — but a seat already down
+ * passes them to the mate, and its countdown starts over. Returns the seats that lost lives (an enemy costing 0 lives
+ * still counts).
  * @param {World} w @param {Content} c @param {Unit} e @returns {number[]}
  */
 export function enemyAtGoal(w, c, e) {
@@ -108,7 +109,7 @@ export function enemyAtGoal(w, c, e) {
       if (mate >= 0 && !isDown(w.players[mate])) hit.push(mate);
     }
   }
-  for (const s of new Set(hit)) loseLife(w, s, 1);
+  for (const s of new Set(hit)) loseLife(w, s, e.base.lifeCost);
   return [...new Set(hit)];
 }
 
