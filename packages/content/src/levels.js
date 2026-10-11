@@ -1,12 +1,15 @@
 // Whole levels (docs/spec/level.md 关卡-2): a level extracted by @aue/data (data/levels/<id>.json) assembled at a
 // difficulty — its hidden groups, life point, enemy replacements and enemy multipliers applied.
 import act1multi01 from '../data/levels/act1multi_01.json' with { type: 'json' };
+import act1multi02 from '../data/levels/act1multi_02.json' with { type: 'json' };
+import act1multi06 from '../data/levels/act1multi_06.json' with { type: 'json' };
+import act1multiRm07 from '../data/levels/act1multi_rm07.json' with { type: 'json' };
 
 /** @typedef {'NORMAL' | 'FOUR_STAR'} Difficulty */
 /** @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
 /** The extracted levels, by id. @type {Readonly<Record<string, any>>} */
-export const LEVELS = Object.freeze({ act1multi_01: act1multi01 });
+export const LEVELS = Object.freeze({ act1multi_01: act1multi01, act1multi_02: act1multi02, act1multi_06: act1multi06, act1multi_rm07: act1multiRm07 });
 
 /** enemy_attribute_mul's keys and the enemy fields they multiply, with each field's value when the enemy has none. */
 const MUL_FIELDS = Object.freeze({
@@ -34,7 +37,7 @@ function multiplied(key, e, muls) {
  * A level at a difficulty (关卡-2), as @aue/sim's level and enemies; `attack` adds each enemy's attack timing.
  * Throws for a level with runes not supported at that difficulty.
  * @param {string} id @param {Difficulty} difficulty @param {(key: string) => object} [attack]
- * @returns {{ level: import('@aue/sim').Content['level'], enemies: Record<string, EnemyDef> }}
+ * @returns {{ level: import('@aue/sim').Content['level'], enemies: Record<string, EnemyDef>, blockAdd: number }}
  */
 export function levelAt(id, difficulty, attack = () => ({})) {
   const raw = LEVELS[id];
@@ -48,7 +51,8 @@ export function levelAt(id, difficulty, attack = () => ({})) {
   }));
   const used = new Set(waves.flatMap((/** @type {any} */ w) => w.fragments.flatMap((/** @type {any} */ f) => f.actions.filter((/** @type {any} */ a) => a.type === 'SPAWN').map((/** @type {any} */ a) => a.key))));
   return {
-    level: { ...raw.level, waves, hiddenGroups: d.hiddenGroups, options: { ...raw.level.options, ...(d.lifePoint !== undefined ? { maxLifePoint: d.lifePoint } : {}) } },
+    level: { ...raw.level, waves, hiddenGroups: d.hiddenGroups, options: { ...raw.level.options, ...(d.lifePoint !== undefined ? { maxLifePoint: d.lifePoint } : {}), ...(d.maxCost !== undefined ? { maxCost: d.maxCost } : {}) } },
     enemies: Object.fromEntries(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([k, e]) => [k, { ...multiplied(k, /** @type {EnemyDef} */ (e), d.enemyMul), ...attack(k) }])),
+    blockAdd: d.blockAdd ?? 0,
   };
 }

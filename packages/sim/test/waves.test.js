@@ -99,12 +99,19 @@ test('[波次-5] each group picks one candidate by weight when its wave begins; 
   assert.ok(seen.a > 5 && seen.b > 5, JSON.stringify(seen));
 });
 
-test('[波次-5] [随机-2] a single candidate is taken without a draw; hidden candidates are not candidates', () => {
-  const c = arena([wave([[0, [spawnAt(0, 'slime', { group: 'g', pack: 'p', weight: 5 }), spawnAt(0, 'slime', { group: 'g', pack: 'q', hidden: 'raid' }), spawnAt(1, 'slime', { pack: 'q' })]]])]);
-  const w = createWorld(c, { seed: 7, players: 1 });
-  run(w, c, 60);
-  assert.equal(w.rng, seedState(7), 'no draw');
-  assert.equal(w.units.length, 1, 'q\'s member stays out: q is a candidate\'s pack, and that candidate is hidden');
+test('[波次-5] [随机-2] a single candidate is taken without a draw; a hidden candidate is still drawn, and its pack\'s enabled members act', () => {
+  const one = arena([wave([[0, [spawnAt(0, 'slime', { group: 'g', pack: 'p', weight: 5 }), spawnAt(1, 'slime', { pack: 'p' })]]])]);
+  const w1 = createWorld(one, { seed: 7, players: 1 });
+  run(w1, one, 60);
+  assert.equal(w1.rng, seedState(7), 'no draw');
+  assert.equal(w1.units.length, 2);
+  // the only candidate is hidden (raid, not enabled); its pack's members: one in the enabled group, one in none, one hidden
+  const hidden = arena([wave([[0, [spawnAt(0, 'slime', { group: 'g', pack: 'q', hidden: 'raid' }), spawnAt(1, 'slime', { pack: 'q', hidden: 'normal' }),
+    spawnAt(1, 'slime', { pack: 'q' }), spawnAt(1, 'slime', { pack: 'q', hidden: 'raid' })]]])]);
+  hidden.level.hiddenGroups = ['normal'];
+  const w2 = createWorld(hidden, { seed: 7, players: 1 });
+  run(w2, hidden, 60);
+  assert.equal(w2.units.length, 2, 'the candidate and the raid member stay out; the normal and the plain member act');
 });
 
 test('[随机-2] the weighted pick subtracts the weights in order from X in [0, total)', () => {

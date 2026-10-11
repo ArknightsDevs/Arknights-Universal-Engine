@@ -11,11 +11,11 @@ import { enemyOf, sharedEnemies, damageTypeOf } from './enemies.js';
 /**
  * What a difficulty changes (关卡-2): hidden groups enabled, the life point, enemy multipliers, enemy replacements, and
  * the runes not supported yet.
- * @typedef {{ hiddenGroups: string[], lifePoint?: number, enemyMul: EnemyMul[], replace: Record<string, string>, unsupported: string[] }} DifficultyRules
+ * @typedef {{ hiddenGroups: string[], lifePoint?: number, maxCost?: number, blockAdd?: number, enemyMul: EnemyMul[], replace: Record<string, string>, unsupported: string[] }} DifficultyRules
  */
 
 /** The runes 关卡-2 applies or that other clauses read (共同敌手, 合作-2). */
-const KNOWN_RUNES = Object.freeze(['level_hidden_group_enable', 'level_hidden_group_disable', 'global_lifepoint', 'enemy_attribute_mul', 'level_enemy_replace']);
+const KNOWN_RUNES = Object.freeze(['level_hidden_group_enable', 'level_hidden_group_disable', 'global_lifepoint', 'enemy_attribute_mul', 'level_enemy_replace', 'cooperate_enemy_side_shared']);
 /** enemy_attribute_mul's keys (关卡-2). */
 const MUL_KEYS = Object.freeze(['atk', 'def', 'max_hp', 'magic_resistance', 'move_speed', 'attack_speed', 'mass_level']);
 
@@ -49,6 +49,8 @@ export function difficultyOf(runesRaw, difficulty) {
     if (key === 'level_hidden_group_enable') out.hiddenGroups.push(String(field(bb, 'key', `${rp}.blackboard`)));
     else if (key === 'level_hidden_group_disable') disabled.push(String(field(bb, 'key', `${rp}.blackboard`)));
     else if (key === 'global_lifepoint') out.lifePoint = num('value');
+    else if (key === 'cbuff_max_cost') out.maxCost = num('max_cost');
+    else if (key === 'char_blockcnt_add') out.blockAdd = asNumber(field(bb, 'value', `${rp}.blackboard`), `${rp}.blackboard.value`, -10, 10);
     else if (key === 'level_enemy_replace') out.replace[String(field(bb, 'key', `${rp}.blackboard`))] = String(field(bb, 'value', `${rp}.blackboard`));
     else if (key === 'enemy_attribute_mul') {
       out.enemyMul.push({

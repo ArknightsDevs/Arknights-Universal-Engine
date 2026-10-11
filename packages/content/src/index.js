@@ -60,7 +60,8 @@ export async function matchContent(match) {
   const operators = {};
   const decks = await Promise.all(match.decks.map(async (deck, seat) => Promise.all(deck.map(async ({ id, build }) => {
     const key = `${id}#${seat}`;
-    operators[key] = { ...operatorAt(await loadTraining(id), build), char: id, ...attackOf(id) };
+    const op = operatorAt(await loadTraining(id), build);
+    operators[key] = { ...op, blockCnt: Math.max(0, op.blockCnt + lv.blockAdd), char: id, ...attackOf(id) };
     return key;
   }))));
   return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), operators, decks, behaviors: BEHAVIORS });

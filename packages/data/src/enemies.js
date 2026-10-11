@@ -87,7 +87,7 @@ function abilitiesOf(data, dp) {
       const e = asObject(b, `${sp}.blackboard[${j}]`);
       return [asString(e.key, `${sp}.blackboard[${j}].key`), asNumber(e.value, `${sp}.blackboard[${j}].value`, -1e9, 1e9)];
     }));
-    return { key: asString(field(o, 'prefabKey', sp), `${sp}.prefabKey`), cooldown: asNumber(field(o, 'cooldown', sp), `${sp}.cooldown`, 0, 1e6), initCooldown: asNumber(field(o, 'initCooldown', sp), `${sp}.initCooldown`, 0, 1e6), bb };
+    return { key: asString(field(o, 'prefabKey', sp), `${sp}.prefabKey`), cooldown: asNumber(field(o, 'cooldown', sp), `${sp}.cooldown`, -1, 1e6), initCooldown: asNumber(field(o, 'initCooldown', sp), `${sp}.initCooldown`, -1, 1e6), bb };
   });
   return { ...(Object.keys(talents).length > 0 ? { talents } : {}), ...(skills.length > 0 ? { skills } : {}) };
 }
@@ -121,8 +121,8 @@ function neutralOf(key, data, dp) {
 }
 
 /**
- * The 共同敌手 of a level (合作-2): the enemy keys its rune `env_gbuff_new_with_verify` with key
- * `cooperate_enemy_side_shared` lists (`|`-separated in its `enemy` entry).
+ * The 共同敌手 of a level (合作-2): the enemy keys its rune `cooperate_enemy_side_shared`, or `env_gbuff_new_with_verify`
+ * with key `cooperate_enemy_side_shared`, lists (`|`-separated in its `enemy` entry).
  * @param {unknown} runesRaw level.runes @returns {Set<string>}
  */
 export function sharedEnemies(runesRaw) {
@@ -131,9 +131,9 @@ export function sharedEnemies(runesRaw) {
   if (!Array.isArray(runesRaw)) return out;
   runesRaw.forEach((r, i) => {
     const rp = `level.runes[${i}]`, rune = asObject(r, rp);
-    if (rune.key !== 'env_gbuff_new_with_verify' || !Array.isArray(rune.blackboard)) return;
+    if ((rune.key !== 'env_gbuff_new_with_verify' && rune.key !== 'cooperate_enemy_side_shared') || !Array.isArray(rune.blackboard)) return;
     const bb = Object.fromEntries(rune.blackboard.map((b, k) => { const o = asObject(b, `${rp}.blackboard[${k}]`); return [String(o.key), o.valueStr]; }));
-    if (bb.key === 'cooperate_enemy_side_shared') for (const k of String(bb.enemy ?? '').split('|')) if (k) out.add(k);
+    if (rune.key === 'cooperate_enemy_side_shared' || bb.key === 'cooperate_enemy_side_shared') for (const k of String(bb.enemy ?? '').split('|')) if (k) out.add(k);
   });
   return out;
 }

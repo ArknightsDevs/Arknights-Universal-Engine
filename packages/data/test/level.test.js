@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { extractLevel, difficultyOf, mergeEnemyData } from '../src/index.js';
+import { sharedEnemies } from '../src/enemies.js';
 import { extractLevelFromCheckout } from '../src/cli/level.js';
 
 const wrap = (/** @type {unknown} */ m_value) => ({ m_defined: true, m_value });
@@ -45,7 +46,7 @@ function makeLevel() {
       rune('global_lifepoint', 'FOUR_STAR', { value: 5 }), rune('enemy_attribute_mul', 'FOUR_STAR', { atk: 1.4, def: 1.2, max_hp: 1.2 }),
       rune('enemy_attribute_mul', 'FOUR_STAR', { move_speed: 1.5, enemy: 'e_a|e_b' }), rune('enemy_attribute_mul', 'NORMAL', { atk: 2, enemy_exclude: 'e_a' }),
       rune('level_enemy_replace', 'FOUR_STAR', { key: 'e_b', value: 'e_d' }),
-      rune('env_gbuff_new_with_verify', 'ALL', { enemy: 'e_b', key: 'cooperate_enemy_side_shared' }), rune('char_blockcnt_add', 'FOUR_STAR', { value: 1 }),
+      rune('env_gbuff_new_with_verify', 'ALL', { enemy: 'e_b', key: 'cooperate_enemy_side_shared' }), rune('env_system_new', 'FOUR_STAR', { value: 1 }),
     ],
     predefines: { characterInsts: [], tokenInsts: [] },
   };
@@ -71,7 +72,7 @@ test('[关卡-2] a difficulty\'s runes: hidden groups enabled and disabled, the 
   const runes = makeLevel().runes;
   assert.deepEqual(difficultyOf(runes, 'NORMAL'), { hiddenGroups: ['normal', 'both'], enemyMul: [{ mods: { atk: 2 }, exclude: ['e_a'] }], replace: {}, unsupported: [] });
   assert.deepEqual(difficultyOf(runes, 'FOUR_STAR'), {
-    hiddenGroups: ['raid'], lifePoint: 5, replace: { e_b: 'e_d' }, unsupported: ['char_blockcnt_add'],
+    hiddenGroups: ['raid'], lifePoint: 5, replace: { e_b: 'e_d' }, unsupported: ['env_system_new'],
     enemyMul: [{ mods: { atk: 1.4, def: 1.2, max_hp: 1.2 } }, { mods: { move_speed: 1.5 }, enemy: ['e_a', 'e_b'] }],
   });
   assert.deepEqual(difficultyOf(null, 'NORMAL'), { hiddenGroups: [], enemyMul: [], replace: {}, unsupported: [] });
@@ -91,4 +92,12 @@ test('[关卡-3] a camera view vector: three finite numbers, kept with its sourc
   assert.deepEqual([out.level.view, out.source.view], [[0, -6.1, -9.76], 'repo@sha:map.json']);
   assert.throws(() => extractLevel({ id: 'x', level: makeLevel(), enemyDb: db(), commit: 'c', view: { vector: [0, 1], source: 's' } }), /three finite numbers/);
   assert.equal(/** @type {any} */ (extractLevel({ id: 'x', level: makeLevel(), enemyDb: db(), commit: 'c' })).level.view, undefined);
+});
+
+test('[关卡-2] runes: the max cost, the operators\' block count, shared enemies written as their own rune', () => {
+  const rune = (/** @type {string} */ key, /** @type {Record<string, number | string>} */ bb, mask = 'ALL') => ({ key, difficultyMask: mask, blackboard: Object.entries(bb).map(([k, v]) => (typeof v === 'string' ? { key: k, value: 0, valueStr: v } : { key: k, value: v, valueStr: null })) });
+  const runes = [rune('cbuff_max_cost', { max_cost: 30, max_cost_ceil: 99 }), rune('char_blockcnt_add', { value: -1 }, 'FOUR_STAR'), rune('cooperate_enemy_side_shared', { enemy: 'e_a|e_b' }, 'NORMAL')];
+  assert.deepEqual(difficultyOf(runes, 'NORMAL'), { hiddenGroups: [], maxCost: 30, enemyMul: [], replace: {}, unsupported: [] });
+  assert.deepEqual(difficultyOf(runes, 'FOUR_STAR'), { hiddenGroups: [], maxCost: 30, blockAdd: -1, enemyMul: [], replace: {}, unsupported: [] });
+  assert.deepEqual([...sharedEnemies(runes)], ['e_a', 'e_b']);
 });

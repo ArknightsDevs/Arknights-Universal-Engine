@@ -27,21 +27,21 @@ const groupEnabled = (c, a) => !a.hidden || (c.level.hiddenGroups ?? []).include
 
 /**
  * The random alternatives of a wave (波次-5): for each group in order of first appearance, the indices (into the wave's
- * actions) of its candidates that their hidden group lets act.
- * @param {Content} c @param {Wave} wave @returns {number[][]}
+ * actions) of its candidates — all of them, whatever their hidden groups.
+ * @param {Wave} wave @returns {number[][]}
  */
-function groupsOf(c, wave) {
+function groupsOf(wave) {
   /** @type {Map<string, number[]>} */
   const groups = new Map();
   actionsOf(wave).forEach((a, i) => {
-    if (a.group && groupEnabled(c, a)) groups.set(a.group, [...(groups.get(a.group) ?? []), i]);
+    if (a.group) groups.set(a.group, [...(groups.get(a.group) ?? []), i]);
   });
   return [...groups.values()];
 }
 
 /**
- * Which of the current wave's actions act (波次-4, 波次-5): those whose hidden group is enabled and that are not left
- * out by the draw — a candidate must be chosen, and a member of a candidate's pack acts only with that candidate.
+ * Which of the current wave's actions act (波次-4, 波次-5): those whose own hidden group is enabled and that are not
+ * left out by the draw — a candidate must be chosen, and a member of a candidate's pack acts only with that candidate.
  * @param {Content} c @param {Wave} wave @param {Schedule} s @returns {boolean[]} by index into the wave's actions
  */
 function acting(c, wave, s) {
@@ -66,7 +66,7 @@ function beginWave(w, c, at) {
   const s = w.sched, next = s.wave + 1, wave = c.level.waves[next];
   if (!wave) { w.sched = { ...s, wave: next, step: 'done', at }; return; }
   const all = actionsOf(wave);
-  const chosen = groupsOf(c, wave).map((ids) => ids[weightedPick(w, ids.map((i) => all[i].weight ?? 1))]);
+  const chosen = groupsOf(wave).map((ids) => ids[weightedPick(w, ids.map((i) => all[i].weight ?? 1))]);
   w.sched = { wave: next, step: 'pre', at, frag: 0, fragAt: -1, fired: [], chosen };
   w.events.push({ type: 'wave', index: next });
 }

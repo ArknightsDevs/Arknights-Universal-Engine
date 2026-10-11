@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step, stateHash } from '@aue/sim';
-import { levelContent, levelAt, LEVELS } from '../src/index.js';
+import { levelContent, levelAt, LEVELS, matchContent } from '../src/index.js';
 
 const raw = LEVELS.act1multi_01;
 
@@ -73,4 +73,15 @@ test('[同步-9] [部署-2] a match\'s content: its level, each seat\'s deck at 
   assert.equal(deployProblem(w, c, 0, at('char_122_beagle#0')), null);
   run(w, c, [[0, at('char_122_beagle#0')]]);
   assert.equal(w.units.filter((u) => u.owner === 0).length, 1);
+});
+
+test('[关卡-2] more co-op levels: act1multi_06 and act1multi_rm07 load; act1multi_06 at 突袭 takes one off every operator\'s block count; act1multi_02 waits for its sight system', async () => {
+  assert.deepEqual(['act1multi_01', 'act1multi_02', 'act1multi_06', 'act1multi_rm07'].every((id) => id in LEVELS), true);
+  assert.equal(levelAt('act1multi_06', 'NORMAL').level.stages?.length, 2);
+  assert.equal(levelAt('act1multi_rm07', 'NORMAL').level.stages?.[0]?.objective, 'survive');
+  assert.deepEqual([levelAt('act1multi_06', 'NORMAL').blockAdd, levelAt('act1multi_06', 'FOUR_STAR').blockAdd], [0, -1]);
+  const deck = [{ id: 'char_122_beagle', build: { elite: 0, level: 30, potential: 1, trust: 0, skill: 0, skillLevel: 4 } }];
+  const easy = await matchContent({ level: 'act1multi_06', difficulty: 'NORMAL', seed: 1, decks: [deck] }), hard = await matchContent({ level: 'act1multi_06', difficulty: 'FOUR_STAR', seed: 1, decks: [deck] });
+  assert.equal(hard.operators['char_122_beagle#0'].blockCnt, easy.operators['char_122_beagle#0'].blockCnt - 1);
+  assert.throws(() => levelAt('act1multi_02', 'NORMAL'), /env_system_new/);
 });

@@ -94,12 +94,13 @@ export function wrappedNumber(o, key, path) {
 }
 
 /**
- * A { row, col } position with row/col in 0..255.
+ * A { row, col } position with row/col in 0..255 (from `min` when given: a position nothing walks to may lie off the map).
  * @param {unknown} v
  * @param {string} path
+ * @param {number} [min]
  * @returns {{ row: number, col: number }}
  */
-export function asPos(v, path) {
+export function asPos(v, path, min = 0) {
   const o = asObject(v, path);
-  return { row: asInt(field(o, 'row', path), `${path}.row`, 0, 255), col: asInt(field(o, 'col', path), `${path}.col`, 0, 255) };
+  return { row: asInt(field(o, 'row', path), `${path}.row`, min, 255), col: asInt(field(o, 'col', path), `${path}.col`, min, 255) };
 }

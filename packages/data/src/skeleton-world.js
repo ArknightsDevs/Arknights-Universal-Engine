@@ -60,10 +60,11 @@ export function extractTiles(mapDataRaw) {
  */
 function readCheckpoint(raw, p) {
   const c = asObject(raw, p);
-  const time = c.time === undefined ? 0 : asNumber(c.time, `${p}.time`, 0, 1e6);
-  const { row, col } = asPos(field(c, 'position', p), `${p}.position`);
+  const time = c.time === undefined ? 0 : asNumber(c.time, `${p}.time`, 0, 1e6), type = asString(field(c, 'type', p), `${p}.type`);
+  // a waiting checkpoint does not use its position, which may lie off the map
+  const { row, col } = asPos(field(c, 'position', p), `${p}.position`, /^WAIT_/.test(type) ? -255 : 0);
   const off = readOffset(c.reachOffset, `${p}.reachOffset`);
-  return { type: asString(field(c, 'type', p), `${p}.type`), row, col, time, dx: off.x, dy: off.y };
+  return { type, row, col, time, dx: off.x, dy: off.y };
 }
 
 /**

@@ -25,7 +25,9 @@
 | `global_lifepoint` | 生命上限改为 `value` |
 | `enemy_attribute_mul` | 敌人的属性乘以倍率：`atk`、`def`、`max_hp`、`magic_resistance`、`move_speed`、`attack_speed`、`mass_level`；写了 `enemy` 时只对列出的敌人，写了 `enemy_exclude` 时不对列出的敌人（`\|` 分隔） |
 | `level_enemy_replace` | 出怪时敌人 `key` 换成 `value` |
-| `env_gbuff_new_with_verify`（`key` 为 `cooperate_enemy_side_shared`） | 共同敌手（合作-2） |
+| `cooperate_enemy_side_shared`，或 `env_gbuff_new_with_verify`（`key` 为 `cooperate_enemy_side_shared`） | 共同敌手（合作-2） |
+| `cbuff_max_cost` | 费用上限改为 `max_cost`（`max_cost_ceil` 暂不使用） |
+| `char_blockcnt_add` | 所有干员的阻挡数加 `value`，不低于 0 |
 
 其他符文还不支持：提取时记下它们的名字（`unsupported`），所用的关卡在测试里保证没有。
 
