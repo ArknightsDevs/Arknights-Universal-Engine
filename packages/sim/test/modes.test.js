@@ -145,3 +145,18 @@ test('[职业-13] [部署-2] 吟游者: no attacks, outside the deploy limit; th
   run(1, [{ type: 'retreat', unit: bard.id }]);
   assert.deepEqual(guard.buffs, [], 'its source gone, the aura goes');
 });
+
+test('[部署-5] an on-field team talent: every operator of its profession on the field, while its source is', () => {
+  const { put, run } = arena((cc) => {
+    cc.operators.guard = { ...cc.operators.guard, profession: 'WARRIOR' };
+    cc.operators.g2 = { ...cc.operators.guard, profession: 'TANK' };
+    cc.operators.sniper = { ...cc.operators.sniper, profession: 'SNIPER', fieldTalents: [{ profession: 'WARRIOR', bb: { atk: 0.2 } }] };
+  });
+  const guard = put('guard', 1, 1), tank = put('g2', 1, 2);
+  assert.equal(statsOf(guard).atk, 50);
+  const src = put('sniper', 2, 2);
+  assert.deepEqual([guard.buffs.map((b) => [b.key, b.mods]), tank.buffs, src.buffs], [[[`field:${src.id}:0`, { atkPct: 0.2 }]], [], []]);
+  assert.equal(statsOf(guard).atk, 60);
+  run(1, [{ type: 'retreat', unit: src.id }]);
+  assert.deepEqual(guard.buffs, [], 'gone with its source');
+});

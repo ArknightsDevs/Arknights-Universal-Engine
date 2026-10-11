@@ -6,7 +6,7 @@ import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
 import { levelAt, LEVELS } from './levels.js';
 import { foeBehaviors, withFoeExtras } from './foes.js';
-import { loadTraining, operatorAt } from './operators.js';
+import { loadTraining, operatorAt, teamTalentsAt } from './operators.js';
 import { skillBehaviors } from './skills.js';
 
 /** The official behaviours: skills (技能-6) and enemy abilities (敌能-2). */
@@ -59,13 +59,41 @@ export async function matchContent(match, levels = LEVELS) {
   const lv = levelAt(match.level, match.difficulty, undefined, levels);
   /** @type {Record<string, import('@aue/sim').OperatorDef>} */
   const operators = {};
-  const decks = await Promise.all(match.decks.map(async (deck, seat) => Promise.all(deck.map(async ({ id, build }) => {
-    const key = `${id}#${seat}`;
-    const op = operatorAt(await loadTraining(id), build);
-    operators[key] = { ...op, blockCnt: Math.max(0, op.blockCnt + lv.blockAdd), char: id, ...attackOf(id) };
-    return key;
-  }))));
+  const decks = await Promise.all(match.decks.map(async (deck, seat) => {
+    const built = await Promise.all(deck.map(async ({ id, build }) => {
+      const t = await loadTraining(id);
+      return { id, key: `${id}#${seat}`, op: operatorAt(t, build), team: teamTalentsAt(t, build).deck };
+    }));
+    const team = built.flatMap((x) => x.team);
+    for (const { id, key, op } of built) {
+      const withTeam = withDeckTalents(op, team);
+      operators[key] = { ...withTeam, blockCnt: Math.max(0, withTeam.blockCnt + lv.blockAdd), char: id, ...attackOf(id) };
+    }
+    return built.map((x) => x.key);
+  }));
   return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), operators, decks, behaviors: BEHAVIORS });
+}
+
+/**
+ * An operator with its deck's team talents (干员-9): each one for its profession adds its 部署费用 (not below 0), its
+ * 初始技力 to the skill's initial SP, and its other keys to `talentBb`.
+ * @param {import('@aue/sim').OperatorDef} op @param {{ profession: string, bb: Record<string, number> }[]} team
+ * @returns {import('@aue/sim').OperatorDef}
+ */
+function withDeckTalents(op, team) {
+  const mine = team.filter((p) => p.profession === op.profession);
+  if (mine.length === 0) return op;
+  /** @type {Record<string, number>} */
+  const bb = { ...op.talentBb };
+  let cost = op.cost, sp = 0;
+  for (const p of mine) {
+    for (const [k, v] of Object.entries(p.bb)) {
+      if (k === 'cost') cost += v;
+      else if (k === 'sp') sp += v;
+      else bb[k] = (bb[k] ?? 0) + v;
+    }
+  }
+  return { ...op, cost: Math.max(0, cost), ...(Object.keys(bb).length ? { talentBb: bb } : {}), ...(op.skill && sp ? { skill: { ...op.skill, init: op.skill.init + sp } } : {}) };
 }
 
 /** Where the attack timings come from: the skeletons' sources (攻击-2). */

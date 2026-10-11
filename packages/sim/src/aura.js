@@ -1,15 +1,18 @@
-// Auras (docs/spec/traits.md 职业-13): an operator that raises the 生命回复速度 of every operator in its attack range by a
-// share of its attack — a buff per aura on each of them, kept in step every frame, gone with the aura's source.
+// Auras (docs/spec/traits.md 职业-13, docs/spec/field.md 部署-5): an operator that raises the 生命回复速度 of every
+// operator in its attack range by a share of its attack, and an operator's talents for every operator of a profession
+// while it is on the field — a buff per aura on each of them, kept in step every frame, gone with the aura's source.
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune } from './buffs.js';
 import { rangeKeys, inKeys } from './targeting.js';
 import { traitOf } from './traits.js';
+import { statMods } from './skills.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
+/** What an aura gives one unit: its source, its strength (to see a change) and its modifiers. @typedef {{ src: number, value: number, mods: Record<string, number> }} Want */
 
-/** The buff key of an aura's source. @param {number} id */
-const keyOf = (id) => `aura:${id}`;
+/** Whether a buff is an aura's. @param {{ key: string }} b */
+const isAura = (b) => b.key.startsWith('aura:') || b.key.startsWith('field:');
 
 /**
  * An aura's share of its source's attack now (职业-13): its skill's `attack@atk_to_hp_recovery_ratio` (or the same key
@@ -22,33 +25,53 @@ function shareOf(c, op, base) {
 }
 
 /**
- * Every aura this frame, before the operators' turns (职业-13): each operator on the field with a regen aura gives
- * every operator with a tile in its attack range (itself too) a buff `aura:<its id>` with 生命回复速度 + share × its
- * attack; one out of range, or whose source left, loses it.
+ * The regen aura of one source (职业-13): every operator with a tile in its attack range (itself too).
+ * @param {Content} c @param {Unit} src @param {Unit[]} ops @param {Map<Unit, Map<string, Want>>} want
+ */
+function regenAura(c, src, ops, want) {
+  const share = traitOf(c, src).regenAura;
+  if (!(share > 0)) return;
+  const grid = { rows: c.level.height, cols: c.level.width }, keys = rangeKeys(grid, src, c.operators[src.key].range, statsOf(src).rangeExtend);
+  const amount = shareOf(c, src, share) * statsOf(src).atk;
+  for (const u of ops) if (inKeys(u, keys, grid)) want.get(u)?.set(`aura:${src.id}`, { src: src.id, value: amount, mods: { hpRegen: amount } });
+}
+
+/**
+ * The on-field team talents of one source (部署-5): every operator on the field of the talent's profession, any player's.
+ * @param {Content} c @param {Unit} src @param {Unit[]} ops @param {Map<Unit, Map<string, Want>>} want
+ */
+function fieldTalents(c, src, ops, want) {
+  (c.operators[src.key].fieldTalents ?? []).forEach((t, i) => {
+    const mods = statMods(t.bb);
+    for (const u of ops) if (c.operators[u.key].profession === t.profession) want.get(u)?.set(`field:${src.id}:${i}`, { src: src.id, value: 0, mods });
+  });
+}
+
+/**
+ * Every aura this frame, before the operators' turns (职业-13, 部署-5): each operator on the field gives its regen aura
+ * and its on-field team talents as buffs; a unit out of an aura's reach, or whose source left, loses its buff.
  * @param {World} w @param {Content} c
  */
 export function auras(w, c) {
-  const grid = { rows: c.level.height, cols: c.level.width }, ops = w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0);
-  /** @type {Map<Unit, Map<string, number>>} */
+  const ops = w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0);
+  /** @type {Map<Unit, Map<string, Want>>} */
   const want = new Map(ops.map((u) => [u, new Map()]));
   for (const src of ops) {
-    const share = traitOf(c, src).regenAura;
-    if (!(share > 0)) continue;
-    const keys = rangeKeys(grid, src, c.operators[src.key].range, statsOf(src).rangeExtend), amount = shareOf(c, src, share) * statsOf(src).atk;
-    for (const u of ops) if (inKeys(u, keys, grid)) want.get(u)?.set(keyOf(src.id), amount);
+    regenAura(c, src, ops, want);
+    fieldTalents(c, src, ops, want);
   }
   for (const u of w.units) sync(u, want.get(u) ?? new Map());
 }
 
 /**
- * A unit's aura buffs as they should be (职业-13): the ones it should have added or retuned, the others removed.
- * @param {Unit} u @param {Map<string, number>} want key → 生命回复速度
+ * A unit's aura buffs as they should be: the ones it should have added or retuned, the others removed.
+ * @param {Unit} u @param {Map<string, Want>} want by buff key
  */
 function sync(u, want) {
-  for (const b of u.buffs.filter((x) => x.key.startsWith('aura:') && !want.has(x.key))) removeBuff(u, b);
-  for (const [key, amount] of want) {
-    const b = u.buffs.find((x) => x.key === key);
-    if (!b) addBuff(u, makeBuff({ key, src: Number(key.slice(5)), value: amount, mods: { hpRegen: amount } }));
-    else if (b.value !== amount) retune(u, b, amount, { hpRegen: amount });
+  for (const b of u.buffs.filter((x) => isAura(x) && !want.has(x.key))) removeBuff(u, b);
+  for (const [key, x] of want) {
+    const b = u.buffs.find((y) => y.key === key);
+    if (!b) addBuff(u, makeBuff({ key, src: x.src, value: x.value, mods: x.mods }));
+    else if (b.value !== x.value) retune(u, b, x.value, x.mods);
   }
 }

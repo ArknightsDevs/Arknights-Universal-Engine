@@ -3,8 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadTraining, operatorAt, skeletonContent, ROSTER } from '../src/index.js';
-import { traitAt } from '../src/operators.js';
-import { talentsAt, alwaysOn } from '../src/talents.js';
+import { traitAt, teamTalentsAt } from '../src/operators.js';
+import { talentsAt, alwaysOn, teamPart } from '../src/talents.js';
+import { matchContent } from '../src/index.js';
 
 /** @typedef {import('../src/operators.js').Build} Build */
 const build = (/** @type {Partial<Build>} */ b = {}) => ({ elite: 0, level: 1, potential: 1, trust: 0, skill: 0, skillLevel: 1, ...b });
@@ -87,4 +88,31 @@ test('[干员-7] a module adds its level\'s attributes and upgrades talents; onl
   assert.throws(() => operatorAt(angel, { ...e2, module: 2 }), /module 2 is not unlocked/);
   const y2 = operatorAt(angel, { ...e2, module: 1, moduleLevel: 2 });
   assert.equal(y2.talentBb?.attack_speed, 15, '快速弹匣\'s upgrade keeps its leading clause');
+});
+
+test('[干员-9] team parts: 编入队伍时 for the deck, 在场时 on the field, by profession; deck ones apply within one seat\'s deck', async () => {
+  const c = (/** @type {string} */ description, /** @type {Record<string, number>} */ bb) => teamPart({ description, bb, hidden: false });
+  assert.deepEqual([
+    c('编入队伍时，所有【重装】职业干员的生命上限+20%', { max_hp: 0.2 }), c('在场时所有友方【重装】职业干员的防御力提升8%，自身防御力额外提升4%', { def: 0.08 }),
+    c('在场时，所有【先锋】干员每秒回复28点生命', { hp_recovery_per_sec: 28 }), c('编入队伍时所有【先锋】干员的初始技力+8', { sp: 8 }),
+  ], [
+    { when: 'deck', profession: 'TANK', bb: { max_hp: 0.2 } }, { when: 'field', profession: 'TANK', bb: { def: 0.08 } },
+    { when: 'field', profession: 'PIONEER', bb: { hp_recovery_per_sec: 28 } }, { when: 'deck', profession: 'PIONEER', bb: { sp: 8 } },
+  ]);
+  assert.deepEqual([c('在场时，所有【狙击】干员的部署费用-2', { value: -2, cost: -2 }), c('编入队伍时，所有【深海猎人】干员攻击速度+14', { attack_speed: 14 }),
+    c('攻击力+8%', { atk: 0.08 })], [null, null, null], 'cost on the field, a faction, not a team talent');
+  assert.deepEqual(operatorAt(await loadTraining('char_180_amgoat'), E2).fieldTalents, [{ profession: 'CASTER', bb: { atk: 0.14 } }], '艾雅法拉 at elite 2, potential 1');
+});
+
+const E2 = { elite: 2, level: 1, potential: 1, trust: 0, skill: 0, skillLevel: 1 };
+
+test('[干员-9] deck team parts apply to the operators of their profession in the same seat\'s deck, the holder too', async () => {
+  const deck = (/** @type {string[]} */ ids) => ids.map((id) => ({ id, build: E2 }));
+  const ops = /** @type {Record<string, any>} */ ((await matchContent({ level: 'act1multi_01', difficulty: 'NORMAL', seed: 1,
+    decks: [deck(['char_2014_nian', 'char_202_demkni', 'char_222_bpipe']), deck(['char_202_demkni', 'char_222_bpipe'])] })).operators);
+  const hp = (/** @type {string} */ k) => (ops[k].talentBb ? ops[k].talentBb.max_hp : 0);
+  const [nian, bpipe] = await Promise.all(['char_2014_nian', 'char_222_bpipe'].map(async (id) => teamTalentsAt(await loadTraining(id), E2).deck[0].bb));
+  assert.ok(Math.abs(hp('char_202_demkni#0') - hp('char_202_demkni#1') - nian.max_hp) < 1e-12, '年 raises the 重装 of her own deck only');
+  const plain = /** @type {any} */ (operatorAt(await loadTraining('char_222_bpipe'), E2));
+  assert.deepEqual([ops['char_222_bpipe#0'].skill.init, ops['char_222_bpipe#1'].skill.init], [plain.skill.init + bpipe.sp, plain.skill.init + bpipe.sp], '风笛 raises herself in each deck');
 });

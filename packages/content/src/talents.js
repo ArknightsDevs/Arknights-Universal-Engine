@@ -72,3 +72,53 @@ export function alwaysOnBb(talents) {
   for (const c of talents) for (const [k, v] of Object.entries((c && alwaysOn(c)) ?? {})) if (v !== 0) bb[k] = (bb[k] ?? 0) + v;
   return bb;
 }
+
+/** The professions a team talent names (干员-9), by their Chinese names. */
+const PROFESSIONS = Object.freeze(/** @type {Record<string, string>} */ ({
+  先锋: 'PIONEER', 近卫: 'WARRIOR', 重装: 'TANK', 狙击: 'SNIPER', 术师: 'CASTER', 医疗: 'MEDIC', 辅助: 'SUPPORT', 特种: 'SPECIAL',
+}));
+const TEAM_WORDS = Object.freeze(/** @type {Record<string, string>} */ ({ ...WORDS, 初始技力: 'sp' }));
+const TEAM_ATTR = Object.keys(TEAM_WORDS).sort((a, b) => b.length - a.length).join('|');
+const PROF = Object.keys(PROFESSIONS).join('|');
+/** 编入队伍时 or 在场时, then 所有（友方）【profession】（职业）干员（的）. */
+const TEAM_HEAD = new RegExp(`^(编入队伍时|在场时)，?所有(?:友方)?(?:【(${PROF})】|(${PROF}))(?:职业)?干员的?`);
+/** One team clause: attributes joined by 和 or 、, then (各) a signed number — or 提升 and a number — maybe with %, 秒 or /秒. */
+const TEAM_CLAUSE = new RegExp(`^((?:${TEAM_ATTR})(?:[和、](?:${TEAM_ATTR}))*)各?(?:提升[+＋]?|[+＋\\-－])\\d+(?:\\.\\d+)?(?:%|秒|/秒)?$`);
+const TEAM_ATTR_G = new RegExp(TEAM_ATTR, 'g');
+/** A team clause of 生命回复: 每秒回复 N 点生命. */
+const REGEN = /^每秒回复\d+(?:\.\d+)?点生命$/;
+/** The keys an on-field team talent may carry: attributes a buff can hold (技能-5). */
+const FIELD_KEYS = Object.freeze(['atk', 'def', 'max_hp', 'attack_speed', 'magic_resistance', 'sp_recovery_per_sec', 'hp_recovery_per_sec']);
+
+/**
+ * The keys the leading team clauses name, and how many clauses those are (干员-9).
+ * @param {string[]} clauses @returns {{ keys: Set<string>, n: number }}
+ */
+function teamKeys(clauses) {
+  const keys = new Set();
+  let n = 0;
+  for (; n < clauses.length; n++) {
+    const cl = clauses[n].trim(), m = TEAM_CLAUSE.exec(cl);
+    if (REGEN.test(cl)) keys.add('hp_recovery_per_sec');
+    else if (m) for (const w of m[1].match(TEAM_ATTR_G) ?? []) keys.add(TEAM_WORDS[w]);
+    else break;
+  }
+  return { keys, n };
+}
+
+/**
+ * The team part of a talent (干员-9): its first sentence begins 「编入队伍时」 (the deck) or 「在场时」 (on the field),
+ * then 「所有（友方）【profession】（职业）干员（的）」, then leading clauses as in 干员-6 — attributes with a signed number
+ * (or 提升 and a number), or 「每秒回复N点生命」 — every key they name in the blackboard, the rest of the sentence not
+ * speaking of an 效果. An on-field one carries only attributes a buff can hold. Null otherwise; hidden talents have none.
+ * @param {Talent} c @returns {{ when: 'deck' | 'field', profession: string, bb: Record<string, number> } | null}
+ */
+export function teamPart(c) {
+  if (c.hidden || !c.description) return null;
+  const first = c.description.replace(/<[^>]*>/g, '').replace(/（[^）]*）/g, '').split(/[。；]/)[0], head = TEAM_HEAD.exec(first);
+  if (!head) return null;
+  const clauses = first.slice(head[0].length).split('，'), { keys, n } = teamKeys(clauses), when = head[1] === '在场时' ? 'field' : 'deck';
+  if (!n || ![...keys].every((k) => Number.isFinite(c.bb[k])) || clauses.slice(n).join('，').includes('效果')) return null;
+  if (when === 'field' && ![...keys].every((k) => FIELD_KEYS.includes(k))) return null;
+  return { when, profession: PROFESSIONS[head[2] ?? head[3]], bb: Object.fromEntries([...keys].map((k) => [k, c.bb[k]])) };
+}
