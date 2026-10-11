@@ -11,7 +11,8 @@ test('[时间-1] the battle runs at 30 frames per second', () => {
 });
 
 test('[时间-2] durations from the data become whole frames, halves rounded up', () => {
-  const cases = [[0, 0], [0.3, 9], [0.1, 3], [1.2, 36], [1, 30], [0.05, 2], [0.15, 5], [0.01, 0], [0.0166, 0], [0.0167, 1], [2.5, 75], [100, 3000]];
+  // 0.678 s (能天使, potential 3) is 20 frames and 0.696 s is 21 — the example PRTS gives for the 2019-12-24 rule
+  const cases = [[0, 0], [0.3, 9], [0.1, 3], [1.2, 36], [1, 30], [0.05, 2], [0.15, 5], [0.01, 0], [0.0166, 0], [0.0167, 1], [2.5, 75], [100, 3000], [0.678, 20], [0.696, 21]];
   for (const [s, f] of cases) assert.equal(secondsToFrames(s), f, `${s} s`);
 });
 
