@@ -5,6 +5,7 @@ export { takeSnapshot, restoreSnapshot } from './snapshot.js';
 export { toView } from './view.js';
 export { deployProblem } from './commands.js';
 export { physicalDamage, rangeCell } from './combat.js';
+export * as dir from './dir.js';
 export { nextUint32, seedState } from './rng.js';
 export { hashNumbers, HASH_START } from './hash.js';
 

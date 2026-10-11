@@ -9,6 +9,7 @@
     ".": "./src/index.js"
   },
   "devDependencies": {
+    "@aue/testkit": "workspace:*",
     "fast-check": "^4.10.2"
   }
 }

@@ -1,22 +1,19 @@
 // Operators attack (spec 攻击-1, 伤害-1, 伤害-2): when the cooldown is out and an enemy stands in range, hit the
 // earliest-spawned one for physical damage, then wait the attack interval.
-import { KIND, ANIM, DIR } from '@aue/schema';
+import { KIND, ANIM } from '@aue/schema';
+import { offsetTile } from './dir.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell */
 
 /**
- * The tile an operator's range offset lands on: offsets are given facing right (col forward, row to the left side) and
- * turn with the facing (spec 攻击-1).
+ * The tile an operator's range offset lands on: offsets are written facing right and turn with the facing (spec 攻击-1,
+ * 方向-2).
  * @param {Unit} op @param {Cell} off @returns {Cell}
  */
 export function rangeCell(op, off) {
-  switch (op.dir) {
-    case DIR.UP: return { row: op.y + off.col, col: op.x - off.row };
-    case DIR.LEFT: return { row: op.y - off.row, col: op.x - off.col };
-    case DIR.DOWN: return { row: op.y - off.col, col: op.x + off.row };
-    default: return { row: op.y + off.row, col: op.x + off.col };
-  }
+  const [row, col] = offsetTile(op.y, op.x, off.row, off.col, op.dir);
+  return { row, col };
 }
 
 /** Physical damage after defence, at least 5 % of the attack (spec 伤害-1, 伤害-2). @param {number} atk @param {number} def */

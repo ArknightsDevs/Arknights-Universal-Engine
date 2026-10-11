@@ -116,8 +116,8 @@ test('[伤害-1] [伤害-2] physical damage: attack minus defence, at least 5 % 
 });
 
 test('[攻击-1] range offsets turn with the facing; four turns come back', () => {
-  const op = /** @type {any} */ ({ x: 3, y: 1, dir: 0 }), off = { row: 1, col: 2 };
-  const cells = [0, 1, 2, 3].map((dir) => rangeCell({ ...op, dir }, off));
+  const op = /** @type {any} */ ({ x: 3, y: 1, dir: 'RIGHT' }), off = { row: 1, col: 2 };
+  const cells = ['RIGHT', 'UP', 'LEFT', 'DOWN'].map((dir) => rangeCell({ ...op, dir }, off));
   assert.deepEqual(cells, [{ row: 2, col: 5 }, { row: 3, col: 2 }, { row: 0, col: 1 }, { row: -1, col: 4 }]);
 });
 

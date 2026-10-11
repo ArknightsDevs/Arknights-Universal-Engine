@@ -21,7 +21,7 @@
  * @property {number} x column (tile coordinates)
  * @property {number} y row
  * @property {number} z height level of the tile
- * @property {number} dir operator facing (schema DIR)
+ * @property {import('./dir.js').Dir} dir facing (spec 方向-1)
  * @property {number} hp
  * @property {number} maxHp
  * @property {number} atk

@@ -7,6 +7,7 @@ import { hashNumbers, HASH_START } from './hash.js';
 import { spawnFrames, spawnDue, moveEnemies } from './enemies.js';
 import { operatorsAttack } from './combat.js';
 import { applyCommand } from './commands.js';
+import { codeOfDir } from './dir.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -70,7 +71,7 @@ export function stateHash(w) {
   for (const p of w.players) { nums.push(p.life, p.cost, p.costTimer, p.deployed.length); p.deployed.forEach(text); }
   for (const u of w.units) {
     text(u.key);
-    nums.push(u.id, u.kind, u.owner, u.x, u.y, u.z, u.dir, u.hp, u.maxHp, u.atk, u.def, u.atkInterval, u.atkCd, u.route, u.leg, u.speed, u.anim);
+    nums.push(u.id, u.kind, u.owner, u.x, u.y, u.z, codeOfDir(u.dir), u.hp, u.maxHp, u.atk, u.def, u.atkInterval, u.atkCd, u.route, u.leg, u.speed, u.anim);
   }
   return hashNumbers(HASH_START, nums);
 }
