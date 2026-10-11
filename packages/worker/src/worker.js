@@ -1,6 +1,7 @@
 // The module Worker's entry: wires a BattleSession to WebSocket, postMessage and the clock. Messages from the page:
 //   { type: 'start', url, seat, key }   connect and play
 //   { type: 'command', cmd }            a player command (validated before it is sent)
+//   { type: 'speed', on } | { type: 'pause' } | { type: 'pauseReply', accept } | { type: 'resume' }   the controls
 //   { type: 'debug' }                   reply with { type: 'debug', frame, hash, sealed, stats }
 //   { type: 'stop' }
 import { commandProblem } from '@aue/schema';
@@ -28,10 +29,19 @@ const session = new BattleSession(skeletonContent, {
   content: matchContent,
 });
 
+/** What each message from the page does. @type {Record<string, (m: any) => void>} */
+const HANDLERS = {
+  start: (m) => session.start({ url: String(m.url), seat: Number(m.seat), key: String(m.key) }),
+  command: (m) => { if (!commandProblem(m.cmd)) session.command(m.cmd); },
+  speed: (m) => session.control({ type: 'speed', on: m.on === true }),
+  pauseReply: (m) => session.control({ type: 'pauseReply', accept: m.accept === true }),
+  pause: () => session.control({ type: 'pause' }),
+  resume: () => session.control({ type: 'resume' }),
+  debug: () => scope.postMessage(session.debug()),
+  stop: () => session.stop(),
+};
+
 scope.onmessage = (/** @type {MessageEvent} */ e) => {
-  const m = e.data;
-  if (m?.type === 'start') session.start({ url: String(m.url), seat: Number(m.seat), key: String(m.key) });
-  else if (m?.type === 'command' && !commandProblem(m.cmd)) session.command(m.cmd);
-  else if (m?.type === 'debug') scope.postMessage(session.debug());
-  else if (m?.type === 'stop') session.stop();
+  const m = e.data, type = m && typeof m.type === 'string' ? m.type : '';
+  if (Object.hasOwn(HANDLERS, type)) HANDLERS[type](m);
 };

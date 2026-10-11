@@ -39,7 +39,9 @@ function rig() {
         send(/** @type {string} */ text) {
           const m = JSON.parse(text);
           assert.equal(clientMessageProblem(m), null);
-          if (m.t === 'hello') host.hello(0, t.now()); else if (m.t === 'cmd') host.command(0, m.at, m.cmd); else host.hash(0, m.frame, m.hash);
+          if (m.t === 'hello') host.hello(0, t.now()); else if (m.t === 'cmd') host.command(0, m.at, m.cmd); else if (m.t === 'hash') host.hash(0, m.frame, m.hash);
+          else if (m.t === 'speed') host.speed(0, m.on, t.now()); else if (m.t === 'pause') host.pause(0, t.now());
+          else if (m.t === 'pauseReply') host.pauseReply(0, m.accept, t.now()); else host.resume(0, t.now());
         } };
       const s = sock;
       t.later(() => s.onopen?.(), 1);
@@ -154,3 +156,23 @@ test('[同步-9] match content that cannot be made is reported', async () => {
   await new Promise((r) => setImmediate(r));
   assert.ok(posts.some((p) => p.type === 'net' && p.state === 'bad-message' && /no level nope/.test(p.reason)));
 });
+
+test('[同步-7] [同步-8] controls from the page reach the server; its control state comes back to the page', () => {
+  const r = rig();
+  r.session.start({ url: 'ws://x', seat: 0, key: 'k' });
+  r.t.run(100, (now) => r.host.tick(now));
+  r.session.control({ type: 'speed', on: true });
+  r.t.run(50, (now) => r.host.tick(now));
+  assert.deepEqual(r.host.fast, [1]);
+  r.session.control({ type: 'pause' });
+  r.t.run(50, (now) => r.host.tick(now));
+  assert.equal(r.host.held, true, 'alone: paused at once');
+  r.session.control({ type: 'resume' });
+  r.session.control({ type: 'pauseReply', accept: true });
+  r.t.run(1100, (now) => r.host.tick(now));
+  assert.equal(r.host.held, false);
+  const controls = r.posts.filter((p) => p.type === 'control');
+  assert.deepEqual(controls.at(-1), { type: 'control', fast: [1], held: 0, asker: -1, resuming: 0 });
+  assert.ok(controls.some((c) => c.held === 1));
+});
+

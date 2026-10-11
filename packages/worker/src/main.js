@@ -8,7 +8,8 @@ import { readView } from '@aue/schema';
  * @property {number} seat
  * @property {string} key the session key (reconnects reuse it)
  * @property {(view: import('@aue/schema').View, events: Record<string, string | number>[], keys: Record<string, string>) => void} onFrame `keys`: the content key of each unit not seen before
- * @property {(state: { state: string, reason?: string }) => void} [onNet]
+ * @property {(state: { state: string, reason?: string, match?: import('@aue/schema').Match }) => void} [onNet] the connection; `match` when a match's content is ready
+ * @property {(c: { fast: number[], held: number, asker: number, resuming: number }) => void} [onControl] the speed and pause state (同步-7, 同步-8)
  */
 
 /** @param {BattleOptions} o */
@@ -20,12 +21,21 @@ export function startBattle(o) {
     const m = e.data;
     if (m.type === 'frame') o.onFrame(readView(m.view), m.events, m.keys);
     else if (m.type === 'net') o.onNet?.(m);
+    else if (m.type === 'control') o.onControl?.(m);
     else if (m.type === 'debug') waiting.shift()?.(m);
   };
   worker.postMessage({ type: 'start', url: o.wsUrl, seat: o.seat, key: o.key });
   return {
     /** @param {import('@aue/schema').Command} cmd */
     command: (cmd) => worker.postMessage({ type: 'command', cmd }),
+    /** This seat's 2× switch (同步-7). @param {boolean} on */
+    speed: (on) => worker.postMessage({ type: 'speed', on }),
+    /** Asks to pause (同步-8). */
+    pause: () => worker.postMessage({ type: 'pause' }),
+    /** Answers the mate's pause request (同步-8). @param {boolean} accept */
+    pauseReply: (accept) => worker.postMessage({ type: 'pauseReply', accept }),
+    /** Resumes a pause (同步-8). */
+    resume: () => worker.postMessage({ type: 'resume' }),
     /** @returns {Promise<{ frame: number, hash: number, sealed: number, stats: object }>} */
     debug: () => new Promise((resolve) => { waiting.push(resolve); worker.postMessage({ type: 'debug' }); }),
     stop: () => { worker.postMessage({ type: 'stop' }); worker.terminate(); },

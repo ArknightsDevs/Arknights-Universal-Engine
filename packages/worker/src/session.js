@@ -44,7 +44,21 @@ export class BattleSession {
 
   /** A lockstep client of this content. @param {import('@aue/sim').Content} content */
   clientFor(content) {
-    return new LockstepClient({ content, send: (m) => this.socket?.send(JSON.stringify(m)), onFrame: (_w, ev) => { this.events.push(...ev); } });
+    return new LockstepClient({
+      content, send: (m) => this.socket?.send(JSON.stringify(m)), onFrame: (_w, ev) => { this.events.push(...ev); },
+      onControl: (c) => this.io.post({ type: 'control', fast: c.fast, held: c.held, asker: c.asker, resuming: c.resuming }),
+    });
+  }
+
+  /**
+   * A speed or pause control from the page (同步-7, 同步-8), passed to the server.
+   * @param {{ type: 'speed', on: boolean } | { type: 'pause' } | { type: 'pauseReply', accept: boolean } | { type: 'resume' }} c
+   */
+  control(c) {
+    if (c.type === 'speed') this.client.speed(c.on);
+    else if (c.type === 'pause') this.client.pause();
+    else if (c.type === 'pauseReply') this.client.pauseReply(c.accept);
+    else this.client.resume();
   }
 
   /** Connects and starts the frame clock. @param {Target} target */
