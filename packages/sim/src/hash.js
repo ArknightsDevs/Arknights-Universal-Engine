@@ -18,3 +18,33 @@ export function hashNumbers(h, values) {
 
 /** A fresh hash. */
 export const HASH_START = FNV_OFFSET;
+
+/**
+ * A value as canonical JSON (同步-10): object keys in code-unit order, members that are functions or undefined left out
+ * (as null in arrays), numbers as JSON writes them.
+ * @param {unknown} v @returns {string}
+ */
+export function canonicalJson(v) {
+  if (Array.isArray(v)) return `[${v.map((x) => (x === undefined || typeof x === 'function' ? 'null' : canonicalJson(x))).join(',')}]`;
+  if (v !== null && typeof v === 'object') {
+    const o = /** @type {Record<string, unknown>} */ (v), keys = Object.keys(o).filter((k) => o[k] !== undefined && typeof o[k] !== 'function').sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${canonicalJson(o[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(v) ?? 'null';
+}
+
+/**
+ * The hash of a battle's content (同步-10): FNV-1a (32 bit) over the UTF-16 code units (low byte first) of the
+ * canonical JSON of its level, enemies, operators and decks. Behaviours are code and not hashed.
+ * @param {{ level: unknown, enemies: unknown, operators: unknown, decks?: unknown }} c @returns {number} uint32
+ */
+export function contentHash(c) {
+  const text = canonicalJson({ level: c.level, enemies: c.enemies, operators: c.operators, decks: c.decks ?? null });
+  let h = FNV_OFFSET;
+  for (let i = 0; i < text.length; i++) {
+    const u = text.charCodeAt(i);
+    h = Math.imul(h ^ (u & 0xff), FNV_PRIME) >>> 0;
+    h = Math.imul(h ^ (u >>> 8), FNV_PRIME) >>> 0;
+  }
+  return h;
+}

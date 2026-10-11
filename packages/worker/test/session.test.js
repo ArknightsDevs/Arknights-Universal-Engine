@@ -177,3 +177,12 @@ test('[同步-7] [同步-8] controls from the page reach the server; its control
   assert.ok(controls.some((c) => c.held === 1));
 });
 
+
+test('[同步-10] a welcome whose content hash differs from the session\'s content is refused', () => {
+  const r = rig();
+  r.host.content = (r.host.content ^ 1) >>> 0;
+  r.session.start({ url: 'ws://x', seat: 0, key: 'k' });
+  r.t.run(500, (now) => r.host.tick(now));
+  assert.ok(r.posts.some((p) => p.type === 'net' && p.state === 'bad-message' && /content differs/.test(p.reason)));
+  assert.equal(r.posts.filter((p) => p.type === 'frame').length, 0, 'no frames are played');
+});

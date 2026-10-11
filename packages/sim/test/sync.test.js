@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import { readView, KIND, SKILL_STATE, eventProblems } from '@aue/schema';
-import { createWorld, step, stateHash, takeSnapshot, restoreSnapshot, toView, nextUint32, seedState, hashNumbers, HASH_START, status } from '../src/index.js';
+import { createWorld, step, stateHash, takeSnapshot, restoreSnapshot, toView, nextUint32, seedState, hashNumbers, HASH_START, status, contentHash, canonicalJson } from '../src/index.js';
 import { pushValue } from '../src/world.js';
 import { tinyContent } from '@aue/testkit';
 
@@ -157,3 +157,13 @@ test('[同步-2] [状态-3] a snapshot with buffs (fractional time left, no end)
   for (const at of [21, 30, 36]) assert.deepEqual(run(at), straight, `restored at ${at}`);
 });
 
+
+test('[同步-10] the content hash: canonical JSON (keys sorted, functions left out), the same for equal content, different when data differs', () => {
+  assert.equal(canonicalJson({ b: [1, undefined, () => 0], a: { d: 'x', c: null, f: () => 1 } }), '{"a":{"c":null,"d":"x"},"b":[1,null,null]}');
+  const c = tinyContent(), again = tinyContent();
+  assert.equal(contentHash(c), contentHash(again));
+  assert.equal(contentHash({ ...c, behaviors: { skills: {} } }), contentHash(c), 'behaviours are not hashed');
+  again.operators.guard.atk += 1;
+  assert.notEqual(contentHash(again), contentHash(c));
+  assert.ok(Number.isInteger(contentHash(c)) && contentHash(c) >= 0 && contentHash(c) <= 0xffffffff);
+});

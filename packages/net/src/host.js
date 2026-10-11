@@ -2,7 +2,7 @@
 // own simulation, desync recovery, the speed and pause controls. Transport-agnostic: messages come in through the
 // methods (already validated with clientMessageProblem) and go out through `send`.
 import { PROTOCOL_VERSION } from '@aue/schema';
-import { createWorld, step, stateHash, takeSnapshot } from '@aue/sim';
+import { createWorld, step, stateHash, takeSnapshot, contentHash } from '@aue/sim';
 import { MAX_AHEAD, HASH_HISTORY, framesAt, PAUSE_ASK_MS, RESUME_MS } from './constants.js';
 
 /** @typedef {import('@aue/schema').Command} Command @typedef {import('@aue/schema').ServerMessage} ServerMessage */
@@ -21,6 +21,8 @@ export class LockstepHost {
     this.o = o;
     /** @type {import('@aue/sim').World} */
     this.world = createWorld(o.content, { seed: o.seed, players: o.seats });
+    /** the content's hash, sent with the welcome (同步-10) */
+    this.content = contentHash(o.content);
     /** the last sealed frame */
     this.sealed = -1;
     /** the battle clock: battle milliseconds at wall time `ms`, running at `rate` while `running` (同步-3, 同步-7, 同步-8) */
@@ -68,7 +70,7 @@ export class LockstepHost {
   hello(seat, now) {
     this.rebase(now);
     this.connected.add(seat);
-    this.o.send(seat, { t: 'welcome', v: PROTOCOL_VERSION, seat, seed: this.o.seed, frame: this.sealed, snapshot: takeSnapshot(this.world), match: this.o.match ?? null });
+    this.o.send(seat, { t: 'welcome', v: PROTOCOL_VERSION, seat, seed: this.o.seed, frame: this.sealed, snapshot: takeSnapshot(this.world), match: this.o.match ?? null, content: this.content });
     this.broadcastControl();
   }
 

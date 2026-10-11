@@ -2,7 +2,7 @@
 // state posted to the main thread after each frame time. Everything that touches the platform comes in through `io`,
 // so the session runs the same in a Worker and in a Node test.
 import { serverMessageProblem, PROTOCOL_VERSION } from '@aue/schema';
-import { toView, stateHash } from '@aue/sim';
+import { toView, stateHash, contentHash } from '@aue/sim';
 import { LockstepClient } from '@aue/net';
 
 /** @typedef {{ send(text: string): void, close(): void, onopen: (() => void) | null, onmessage: ((text: string) => void) | null, onclose: (() => void) | null }} SocketLike */
@@ -51,8 +51,9 @@ export class BattleSession {
     this.knownWorld = null;
   }
 
-  /** A lockstep client of this content. @param {import('@aue/sim').Content} content */
+  /** A lockstep client of this content, and the content's hash (同步-10). @param {import('@aue/sim').Content} content */
   clientFor(content) {
+    this.contentHash = contentHash(content);
     return new LockstepClient({
       content, send: (m) => this.socket?.send(JSON.stringify(m)), onFrame: (_w, ev) => { this.events.push(...ev); },
       onControl: (c) => this.io.post({ type: 'control', fast: c.fast, held: c.held, asker: c.asker, resuming: c.resuming }),
@@ -131,6 +132,10 @@ export class BattleSession {
 
   /** A checked message to the lockstep client; one it cannot take is reported, not fatal. @param {import('@aue/schema').ServerMessage} m */
   deliver(m) {
+    if (m.t === 'welcome' && m.content !== this.contentHash) {
+      this.io.post({ type: 'net', state: 'bad-message', reason: 'the content differs from the server’s (同步-10)' });
+      return;
+    }
     try { this.client.receive(m); } catch (e) {
       this.io.post({ type: 'net', state: 'bad-message', reason: String(e instanceof Error ? e.message : e) });
     }

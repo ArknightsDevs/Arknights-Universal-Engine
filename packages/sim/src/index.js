@@ -28,7 +28,7 @@ export * as stage from './stage.js';
 export * as foes from './foes.js';
 export { nextUint32, seedState, draw, weightedPick } from './rng.js';
 export { BEHAVIOR_API_VERSION, CONTEXT_MEMBERS, SKILL_CONTEXT_MEMBERS } from './api.js';
-export { hashNumbers, HASH_START } from './hash.js';
+export { hashNumbers, HASH_START, contentHash, canonicalJson } from './hash.js';
 
 /** @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').World} World */

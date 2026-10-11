@@ -1,10 +1,10 @@
-// The network messages, version 4 (ADR 0053; version 2 adds the skill command, version 3 the cost request and its answer,
-// and the speed and pause controls, version 4 the match settings in the welcome). Messages from browsers are untrusted: the server accepts one only when
+// The network messages, version 5 (ADR 0053; version 2 adds the skill command, version 3 the cost request and its answer,
+// and the speed and pause controls, version 4 the match settings in the welcome, version 5 the content hash in it). Messages from browsers are untrusted: the server accepts one only when
 // clientMessageProblem returns null — exact fields, integers in range, short ids, nothing else.
 import { isRecord, isInt, isId, keyProblem } from './checks.js';
 import { matchProblem } from './match.js';
 
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 /** Largest frame number (about 9.5 hours at 30 frames per second). */
 export const MAX_FRAME = 1_000_000;
@@ -77,9 +77,9 @@ function sealedCommandsProblem(cmds) {
 
 /** @type {Record<string, (m: Record<string, unknown>) => string | null>} */
 const SERVER = {
-  welcome: (m) => keyProblem(m, ['t', 'v', 'seat', 'seed', 'frame', 'snapshot', 'match'])
+  welcome: (m) => keyProblem(m, ['t', 'v', 'seat', 'seed', 'frame', 'snapshot', 'match', 'content'])
     ?? (m.v !== PROTOCOL_VERSION ? `protocol version ${String(m.v)}, expected ${PROTOCOL_VERSION}` : null)
-    ?? (!isInt(m.seat, 0, MAX_SEAT) || !isInt(m.frame, -1, MAX_FRAME) || !Number.isSafeInteger(m.seed) ? 'welcome fields out of range' : null)
+    ?? (!isInt(m.seat, 0, MAX_SEAT) || !isInt(m.frame, -1, MAX_FRAME) || !Number.isSafeInteger(m.seed) || !isInt(m.content, 0, 0xffffffff) ? 'welcome fields out of range' : null)
     ?? (m.match === null ? null : matchProblem(m.match)),
   frames: (m) => keyProblem(m, ['t', 'from', 'to', 'cmds'])
     ?? (!isInt(m.from, 0, MAX_FRAME) || !isInt(m.to, 0, MAX_FRAME) || /** @type {number} */ (m.to) < /** @type {number} */ (m.from) ? 'frames range malformed' : null)
@@ -121,7 +121,7 @@ export function serverMessageProblem(m) {
 /**
  * The welcome: the seat, the seed, the last sealed frame, the arbiter's snapshot, and the match settings (同步-9; null
  * when both sides know the content otherwise).
- * @typedef {{ t: 'welcome', v: number, seat: number, seed: number, frame: number, snapshot: object | null, match: Match | null }} WelcomeMessage
+ * @typedef {{ t: 'welcome', v: number, seat: number, seed: number, frame: number, snapshot: object | null, match: Match | null, content: number }} WelcomeMessage
  */
 /** @typedef {{ t: 'frames', from: number, to: number, cmds: [number, number, Command][] }} FramesMessage */
 /** @typedef {{ t: 'restamp', from: number, to: number }} RestampMessage */
