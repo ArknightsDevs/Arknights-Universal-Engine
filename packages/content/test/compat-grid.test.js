@@ -47,8 +47,7 @@ test('[兼容-1] kits load under a 64 × 64 grid: 远牙’s whole-row range, bu
   assert.ok(grid.LOAD_GRID.width > 50 && grid.LOAD_GRID.height > 44, 'the largest map in the data is 50 × 44');
   const url = pathToFileURL(join(oracleDir(), 'server', 'sim', 'content', 'kits', 'ops', 'chess_char_4_20-fartth.js')).href;
   /** @type {any} */
-  let kit = null;
-  kit = await grid.loadUnderGrid(() => import(url));
+  const kit = await grid.loadUnderGrid(() => import(url));
   assert.deepEqual([grid.COLS, grid.ROWS], [0, 0], 'back after the loading');
   /** @type {any[][]} */
   const lines = [];
