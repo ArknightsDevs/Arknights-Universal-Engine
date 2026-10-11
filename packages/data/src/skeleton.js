@@ -1,9 +1,12 @@
-// The M0.5 walking-skeleton extractor: one co-op stage, three operators and the enemies of a few spawns, as one compact
-// object (written to packages/content/data/skeleton.json by cli/skeleton.js). Pure functions over parsed game data.
+// The walking-skeleton extractor: one co-op stage, four operators (three reserve operators and 米格鲁 with her first
+// skill) and the enemies of a few spawns, as one compact object (written to packages/content/data/skeleton.json by
+// cli/skeleton.js). Pure functions over parsed game data.
 import { asArray, asNumber, asObject, asString, field, wrapped, wrappedNumber } from './validate.js';
 import { extractRoutesAndSpawns, extractTiles } from './skeleton-world.js';
 
-export const SKELETON_OPERATORS = Object.freeze(['char_500_noirc', 'char_502_nblade', 'char_503_rang']);
+export const SKELETON_OPERATORS = Object.freeze(['char_500_noirc', 'char_502_nblade', 'char_503_rang', 'char_122_beagle']);
+/** The skill level an operator reaches at elite 0 (技能-1): level 4, levels[3]. */
+const E0_SKILL_LEVEL = 3;
 const OPTION_KEYS = ['maxLifePoint', 'initialCost', 'maxCost', 'costIncreaseTime', 'characterLimit', 'moveMultiplier'];
 
 /**
@@ -130,13 +133,30 @@ function traitBlackboard(c, p) {
 }
 
 /**
+ * The first skill's level at elite 0, as skill_table writes it (技能-1), with its id; nothing when the operator has no
+ * skill.
+ * @param {Record<string, unknown>} c character_table entry @param {string} p its path @param {unknown} skillsRaw skill_table.json
+ * @returns {{ skillLevel?: Record<string, unknown> }}
+ */
+function firstSkill(c, p, skillsRaw) {
+  const list = asArray(field(c, 'skills', p), `${p}.skills`);
+  if (list.length === 0) return {};
+  const id = asString(field(asObject(list[0], `${p}.skills[0]`), 'skillId', `${p}.skills[0]`), `${p}.skills[0].skillId`);
+  const sp = `skills[${id}]`, levels = asArray(field(asObject(field(asObject(skillsRaw, 'skills'), id, 'skills'), sp), 'levels', sp), `${sp}.levels`);
+  const lp = `${sp}.levels[${Math.min(E0_SKILL_LEVEL, levels.length - 1)}]`, lv = asObject(levels[Math.min(E0_SKILL_LEVEL, levels.length - 1)], lp);
+  const keep = ['skillType', 'durationType', 'duration', 'spData', 'blackboard'];
+  return { skillLevel: { id, ...Object.fromEntries(keep.map((k) => [k, field(lv, k, lp)])) } };
+}
+
+/**
  * One operator at elite 0, max level.
  * @param {unknown} raw character_table entry
  * @param {string} id
  * @param {unknown} rangesRaw range_table.json
+ * @param {unknown} skillsRaw skill_table.json
  * @returns {Record<string, unknown>}
  */
-function extractOperator(raw, id, rangesRaw) {
+function extractOperator(raw, id, rangesRaw, skillsRaw) {
   const p = `characters[${id}]`;
   const c = asObject(raw, p);
   const pp = `${p}.phases[0]`;
@@ -163,15 +183,16 @@ function extractOperator(raw, id, rangesRaw) {
     branch: asString(field(c, 'subProfessionId', p), `${p}.subProfessionId`),
     respawnTime: num('respawnTime'),
     traitBb: traitBlackboard(c, p),
+    ...firstSkill(c, p, skillsRaw),
   };
 }
 
 /**
  * Build the skeleton fixture.
- * @param {{ level: unknown, enemyDb: unknown, characters: unknown, ranges: unknown, commit: string }} input parsed JSON files
+ * @param {{ level: unknown, enemyDb: unknown, characters: unknown, ranges: unknown, skills: unknown, commit: string }} input parsed JSON files
  * @returns {Record<string, unknown>}
  */
-export function extractSkeleton({ level, enemyDb, characters, ranges, commit }) {
+export function extractSkeleton({ level, enemyDb, characters, ranges, skills, commit }) {
   const lv = asObject(level, 'level');
   const { width, height, tiles } = extractTiles(field(lv, 'mapData', 'level'));
   const { routes, spawns } = extractRoutesAndSpawns(field(lv, 'waves', 'level'), field(lv, 'routes', 'level'));
@@ -191,6 +212,6 @@ export function extractSkeleton({ level, enemyDb, characters, ranges, commit }) 
       spawns,
     },
     enemies: extractEnemies(enemyDb, [...new Set(spawns.map((s) => s.enemy))]),
-    operators: Object.fromEntries(SKELETON_OPERATORS.map((id) => [id, extractOperator(field(chars, id, 'characters'), id, ranges)])),
+    operators: Object.fromEntries(SKELETON_OPERATORS.map((id) => [id, extractOperator(field(chars, id, 'characters'), id, ranges, skills)])),
   };
 }

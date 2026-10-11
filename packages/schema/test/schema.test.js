@@ -9,22 +9,22 @@ import {
 } from '../src/index.js';
 
 const SEED = 20261011;
-const fixture = JSON.parse(readFileSync(new URL('fixtures/view-v1.json', import.meta.url), 'utf8'));
+const fixture = JSON.parse(readFileSync(new URL('fixtures/view-v2.json', import.meta.url), 'utf8'));
 
-test('render state v1: the layout is the fixture, number by number, and reads back', () => {
-  assert.equal(VIEW_VERSION, 1);
+test('render state v2: the layout is the fixture, number by number, and reads back', () => {
+  assert.equal(VIEW_VERSION, 2);
   const a = writeView(fixture.view);
   assert.deepEqual(Array.from(a), fixture.numbers);
   assert.deepEqual(readView(a), fixture.view);
-  assert.equal(viewLength(2, 2), fixture.numbers.length);
+  assert.equal(viewLength(3, 2), fixture.numbers.length);
 });
 
 test('render state: reuses a long enough array, refuses a wrong version or a short array', () => {
   const big = new Float64Array(64), a = writeView(fixture.view, big);
   assert.equal(a, big);
   assert.notEqual(writeView(fixture.view, new Float64Array(3)), null);
-  assert.throws(() => readView(Float64Array.from([2, 0, 0, 0])), RangeError);
-  assert.throws(() => readView(Float64Array.from([1, 0, 3, 0])), RangeError);
+  assert.throws(() => readView(Float64Array.from([1, 0, 0, 0])), RangeError);
+  assert.throws(() => readView(Float64Array.from([2, 0, 3, 0])), RangeError);
 });
 
 test('events: well formed ones pass; unknown types, wrong types and extra fields are reported', () => {

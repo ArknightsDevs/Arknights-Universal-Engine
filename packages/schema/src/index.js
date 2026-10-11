@@ -1,5 +1,5 @@
 // @aue/schema: the versioned formats between the simulation, the renderer and the network (ADR 0053).
-export { VIEW_VERSION, VIEW_HEADER, VIEW_PLAYER, VIEW_UNIT, KIND, ANIM, DIR, viewLength, writeView, readView } from './view.js';
+export { VIEW_VERSION, VIEW_HEADER, VIEW_PLAYER, VIEW_UNIT, KIND, ANIM, DIR, SKILL_STATE, viewLength, writeView, readView } from './view.js';
 export { EVENTS_VERSION, EVENT_FIELDS, eventProblems } from './events.js';
 export { PROTOCOL_VERSION, MAX_FRAME, MAX_SEAT, commandProblem, clientMessageProblem, serverMessageProblem } from './protocol.js';
 export { SNAPSHOT_VERSION, snapshotProblem } from './snapshot.js';

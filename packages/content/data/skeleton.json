@@ -1168,6 +1168,48 @@
       "branch": "fastshot",
       "respawnTime": 70,
       "traitBb": {}
+    },
+    "char_122_beagle": {
+      "name": "米格鲁",
+      "position": "MELEE",
+      "cost": 16,
+      "blockCnt": 3,
+      "baseAttackTime": 1.2,
+      "maxHp": 1526,
+      "atk": 236,
+      "def": 362,
+      "res": 0,
+      "range": [
+        {
+          "row": 0,
+          "col": 0
+        }
+      ],
+      "profession": "TANK",
+      "branch": "protector",
+      "respawnTime": 70,
+      "traitBb": {},
+      "skillLevel": {
+        "id": "skcom_def_up[1]",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "duration": 30,
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 45,
+          "initSp": 0,
+          "increment": 1
+        },
+        "blackboard": [
+          {
+            "key": "def",
+            "value": 0.3,
+            "valueStr": null
+          }
+        ]
+      }
     }
   }
 }

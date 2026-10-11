@@ -2,7 +2,7 @@
 // simulation runs it to the end the same way twice.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createWorld, step, stateHash } from '@aue/sim';
+import { createWorld, step, stateHash, attrs } from '@aue/sim';
 import { skeletonContent as c, skeletonSource } from '../src/index.js';
 
 test('[地图-1] tiles are in route coordinates: start tiles at the top, every route starts on one', () => {
@@ -27,4 +27,20 @@ test('the skeleton plays out the same way twice', () => {
     return out;
   };
   assert.deepEqual(play(), play());
+});
+
+test('[技能-3] [技能-5] the skeleton’s 米格鲁 starts 防御力强化·α型 by command once she holds 45 SP: def × 1.3 for 30 s', () => {
+  const quiet = { ...c, level: { ...c.level, spawns: [] } }, w = createWorld(quiet, { seed: 1, players: 1 });
+  const tile = c.level.tiles.flatMap((row, r) => row.map((t, col) => ({ t, r, col }))).find((x) => x.t.buildable === 'MELEE' || x.t.buildable === 'ALL');
+  assert.ok(tile);
+  assert.equal(c.operators.char_122_beagle.cost, 16);
+  w.players[0].cost = 16;
+  step(w, quiet, [[0, { type: 'deploy', op: 'char_122_beagle', row: tile.r, col: tile.col, dir: 0 }]]);
+  const b = w.units[0], def = attrs.statsOf(b).def;
+  assert.equal(b.skill?.cost, 45);
+  for (let f = 0; f < 45 * 30; f++) step(w, quiet);
+  assert.equal(b.skill?.sp, 45);
+  const ev = step(w, quiet, [[0, { type: 'skill', unit: b.id }]]);
+  assert.deepEqual(ev.filter((e) => e.type === 'skill'), [{ type: 'skill', id: b.id, active: 1 }]);
+  assert.equal(attrs.statsOf(b).def, def * 1.3);
 });

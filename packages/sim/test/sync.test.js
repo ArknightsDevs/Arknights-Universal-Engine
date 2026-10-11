@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { readView, KIND, eventProblems } from '@aue/schema';
+import { readView, KIND, SKILL_STATE, eventProblems } from '@aue/schema';
 import { createWorld, step, stateHash, takeSnapshot, restoreSnapshot, toView, nextUint32, seedState, hashNumbers, HASH_START, status } from '../src/index.js';
 import { pushValue } from '../src/world.js';
 import { tinyContent } from '@aue/testkit';
@@ -79,9 +79,26 @@ test('[帧-1] commands of a frame act in that frame: a deploy at frame 0 is on t
   assert.deepEqual(view.players, [{ life: 3, cost: 5 }]);
   assert.equal(view.units[0].kind, KIND.OPERATOR);
   assert.deepEqual([view.units[0].x, view.units[0].y, view.units[0].z], [1, 1, 0]);
+  assert.deepEqual([view.units[0].sp, view.units[0].spCost, view.units[0].skill, view.units[0].skillLeft], [-1, 0, SKILL_STATE.NONE, -1], 'no skill');
 });
 
-test('[帧-1] every presentation event the simulation emits is well formed (schema events v1)', () => {
+test('[技能-2] [技能-4] the render state shows a skill: SP and cost, gathering, ready, running with its frames left', () => {
+  const cc = tinyContent();
+  cc.level.spawns = [];
+  cc.operators.guard.skill = { id: 's', type: 'MANUAL', sp: 'time', cost: 2, init: 0, charges: 1, duration: 3, ammo: false, bb: {} };
+  const w = createWorld(cc, { seed: 1, players: 1 });
+  step(w, cc, [[0, { type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 }]]);
+  const look = () => { const u = readView(toView(w)).units[0]; return [u.sp, u.spCost, u.skill, u.skillLeft]; };
+  assert.deepEqual(look(), [0, 2, SKILL_STATE.CHARGING, -1]);
+  for (let f = 0; f < 60; f++) step(w, cc);
+  assert.deepEqual(look(), [2, 2, SKILL_STATE.READY, -1]);
+  step(w, cc, [[0, { type: 'skill', unit: w.units[0].id }]]);
+  assert.deepEqual(look(), [0, 2, SKILL_STATE.RUNNING, 90]);
+  step(w, cc);
+  assert.deepEqual(look()[3], 89);
+});
+
+test('[帧-1] every presentation event the simulation emits is well formed (schema events)', () => {
   const w = createWorld(c, { seed: 3, players: 2 }), problems = [];
   for (let f = 0; f < 300; f++) {
     /** @type {[number, import('@aue/schema').Command][]} */

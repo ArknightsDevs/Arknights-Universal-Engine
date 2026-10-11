@@ -45,7 +45,7 @@ function gitCommit(dir) {
 }
 
 /**
- * Read the four source files of a checkout and extract the skeleton.
+ * Read the five source files of a checkout and extract the skeleton.
  * @param {string} root the checkout directory
  * @returns {Record<string, unknown>}
  */
@@ -59,6 +59,7 @@ export function extractFromCheckout(root) {
     enemyDb: readJson(join(data, 'levels', 'enemydata', 'enemy_database.json')),
     characters: readJson(join(data, 'excel', 'character_table.json')),
     ranges: readJson(join(data, 'excel', 'range_table.json')),
+    skills: readJson(join(data, 'excel', 'skill_table.json')),
     commit: gitCommit(root),
   });
 }

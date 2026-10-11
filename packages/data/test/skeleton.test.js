@@ -56,7 +56,7 @@ const makeEnemyDb = () => ({ enemies: [enemy('e_a', 'Alpha'), enemy('e_b', 'Beta
 
 const makeCharacters = () => ({
   char_500_noirc: {
-    name: 'Noir', position: 'MELEE', profession: 'TANK', subProfessionId: 'protector', trait: null,
+    name: 'Noir', position: 'MELEE', profession: 'TANK', subProfessionId: 'protector', trait: null, skills: [],
     phases: [{ rangeId: '0-1', attributesKeyFrames: [
       { level: 1, data: { maxHp: 1, atk: 1, def: 1, magicResistance: 0, cost: 1, blockCnt: 1, baseAttackTime: 1, respawnTime: 70 } },
       { level: 30, data: { maxHp: 1670, atk: 240, def: 315, magicResistance: 0, cost: 14, blockCnt: 3, baseAttackTime: 1.2, respawnTime: 70 } },
@@ -66,6 +66,11 @@ const makeCharacters = () => ({
 
 const ranges = { '0-1': { id: '0-1', grids: [pos(0, 0), pos(-1, 2)] } };
 
+/** A skill_table level: its level number in the blackboard, to see which one was taken. @param {number} n */
+const skillLevel = (n) => ({ skillType: 'MANUAL', durationType: 'NONE', duration: 30, spData: { spType: 'INCREASE_WITH_TIME', spCost: 45, initSp: 0, maxChargeTime: 1 },
+  blackboard: [{ key: 'def', value: n }], name: 'x', description: 'y', rangeId: null, prefabId: 'p' });
+const makeSkills = () => ({ sk_a: { levels: [1, 2, 3, 4, 5, 6, 7].map(skillLevel) }, sk_short: { levels: [1, 2].map(skillLevel) } });
+
 /**
  * @param {{ level?: unknown, enemyDb?: unknown, characters?: unknown }} [over]
  * @returns {any}
@@ -73,9 +78,10 @@ const ranges = { '0-1': { id: '0-1', grids: [pos(0, 0), pos(-1, 2)] } };
 function run(over = {}) {
   const characters = over.characters ?? makeCharacters();
   const chars = /** @type {Record<string, unknown>} */ (characters);
-  // the real extractor asks for three operators; the fixture reuses one entry for all of them
-  const three = { char_500_noirc: chars.char_500_noirc, char_502_nblade: chars.char_500_noirc, char_503_rang: chars.char_500_noirc };
-  return extractSkeleton({ level: over.level ?? makeLevel(), enemyDb: over.enemyDb ?? makeEnemyDb(), characters: three, ranges, commit: 'abc' });
+  // the real extractor asks for four operators; the fixture reuses one entry for the reserve ones, and gives 米格鲁 a skill
+  const beagle = chars.char_122_beagle ?? { ...(/** @type {object} */ (chars.char_500_noirc)), skills: [{ skillId: 'sk_a' }] };
+  const four = { char_500_noirc: chars.char_500_noirc, char_502_nblade: chars.char_500_noirc, char_503_rang: chars.char_500_noirc, char_122_beagle: beagle };
+  return extractSkeleton({ level: over.level ?? makeLevel(), enemyDb: over.enemyDb ?? makeEnemyDb(), characters: four, ranges, skills: makeSkills(), commit: 'abc' });
 }
 
 test('tiles are flipped so that row 0 is the bottom row', () => {
@@ -218,7 +224,8 @@ test('the real extraction satisfies the contract', { skip: process.env.AUE_GAMED
     assert.equal(sp.enemy in s.enemies, true);
   }
   assert.deepEqual(level.spawns.map((/** @type {any} */ x) => x.at), level.spawns.map((/** @type {any} */ x) => x.at).toSorted((/** @type {number} */ a, /** @type {number} */ b) => a - b));
-  assert.deepEqual(Object.keys(s.operators), ['char_500_noirc', 'char_502_nblade', 'char_503_rang']);
+  assert.deepEqual(Object.keys(s.operators), ['char_500_noirc', 'char_502_nblade', 'char_503_rang', 'char_122_beagle']);
+  assert.deepEqual([s.operators.char_122_beagle.skillLevel.id, s.operators.char_122_beagle.skillLevel.skillType], ['skcom_def_up[1]', 'MANUAL']);
 });
 
 test('the trait blackboard of an operator: the last candidate unlocked at elite 0 and potential 0 (职业-7)', () => {
@@ -228,4 +235,13 @@ test('the trait blackboard of an operator: the last candidate unlocked at elite 
   assert.deepEqual(run({ characters: chars }).operators.char_500_noirc.traitBb, { cost: 2 });
   /** @type {any} */ (chars.char_500_noirc).trait = { candidates: [cand('PHASE_2', 0, 1)] };
   assert.deepEqual(run({ characters: chars }).operators.char_500_noirc.traitBb, {});
+});
+
+test('an operator with skills: its first skill at level 4 (elite 0), as skill_table writes it (技能-1)', () => {
+  const s = run();
+  assert.deepEqual(s.operators.char_122_beagle.skillLevel, { id: 'sk_a', ...(({ name: _n, description: _d, rangeId: _r, prefabId: _p, ...rest }) => rest)(skillLevel(4)) });
+  assert.equal(s.operators.char_500_noirc.skillLevel, undefined, 'no skills: none');
+  const chars = /** @type {any} */ (makeCharacters());
+  chars.char_122_beagle = { ...chars.char_500_noirc, skills: [{ skillId: 'sk_short' }] };
+  assert.deepEqual(run({ characters: chars }).operators.char_122_beagle.skillLevel.blackboard, [{ key: 'def', value: 2 }], 'fewer levels: the last');
 });
