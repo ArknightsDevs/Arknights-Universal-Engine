@@ -1,7 +1,7 @@
 // The skeleton's rules on the tiny level (docs/spec: deploy, enemies, combat). Test names cite the clauses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createWorld, step, physicalDamage, rangeCell, deployProblem } from '../src/index.js';
+import { createWorld, step, rangeCell, deployProblem, damage, status } from '../src/index.js';
 import { tinyContent } from '@aue/testkit';
 
 const c = tinyContent();
@@ -11,6 +11,8 @@ const fresh = (players = 2) => createWorld(c, { seed: 1, players });
 const deploy = (o) => ({ type: 'deploy', op: 'guard', row: 1, col: 2, dir: 0, ...o });
 /** @param {ReturnType<typeof fresh>} w @param {number} n */
 const run = (w, n) => { for (let i = 0; i < n; i++) step(w, c); };
+/** @param {import('../src/types.js').Unit} u */
+const removeAll = (u) => { u.buffs = []; };
 
 test('[费用-1] each player starts with the initial cost and gains 1 per costIncreaseTime, up to maxCost', () => {
   const w = fresh();
@@ -108,11 +110,15 @@ test('[目标-1] an enemy at the goal costs one life of the player the goal belo
   assert.deepEqual(solo.players.map((p) => p.life), [1]);
 });
 
-test('[伤害-1] [伤害-2] physical damage: attack minus defence, at least 5 % of the attack', () => {
-  assert.equal(physicalDamage(232, 50), 182);
-  assert.equal(physicalDamage(100, 300), 5);
-  assert.equal(physicalDamage(240, 240), 12);
-  assert.equal(physicalDamage(269, 0), 269);
+test('[伤害-6] [攻击-1] the normal attack of an operator is one hit of its attack, of its damage type', () => {
+  const w = fresh();
+  step(w, c, [[0, deploy({ row: 1, col: 1, dir: 0 })]]);
+  const t = { type: /** @type {const} */ ('phys'), amount: 50 };
+  assert.equal(damage.mitigate(t.amount, t.type, { def: 10, res: 0, epDamageResistance: 0 }, damage.penetration(null)), 40);
+  /** @type {any[]} */
+  const hits = [];
+  for (let f = 1; f < 120; f++) for (const e of step(w, c)) if (e.type === 'hit') hits.push(e);
+  assert.ok(hits.length > 0 && hits.every((h) => h.damage === 40 && h.id === 1));
 });
 
 test('[攻击-1] range offsets turn with the facing; four turns come back', () => {
@@ -132,3 +138,55 @@ test('[攻击-1] an operator hits the earliest enemy in range once per attack in
   assert.ok(gaps.every((g) => g === 30), `attack interval 1 s = 30 frames: ${gaps}`);
   assert.ok(hits.every((h) => h.damage === 40), 'guard 50 atk vs slime 10 def');
 });
+
+test('[攻击-1] [状态-5] a stunned operator neither attacks nor counts its cooldown down', () => {
+  const w = fresh();
+  step(w, c, [[0, deploy({ row: 1, col: 1, dir: 0 })]]);
+  const op = w.units[0];
+  status.applyStatus(op, 'stun', { frames: 600 });
+  /** @type {any[]} */
+  const ev = [];
+  for (let f = 1; f < 200; f++) ev.push(...step(w, c));
+  assert.equal(ev.filter((e) => e.type === 'attack').length, 0);
+  assert.equal(op.atkCd, 0);
+});
+
+test('[移动-1] [状态-5] an enemy that cannot move stays; 停顿 moves it at a fifth of its speed', () => {
+  const w = fresh();
+  run(w, 16);
+  const e = w.units[0], y = e.y;
+  status.applyStatus(e, 'root', { frames: 30 });
+  run(w, 10);
+  assert.equal(e.y, y);
+  removeAll(e);
+  status.applyStatus(e, 'sluggish', {});
+  run(w, 1);
+  assert.ok(Math.abs(y - e.y - 0.2 / 30) < 1e-15, `${y - e.y}`);
+});
+
+test('[帧-1] buffs run down after the spawns and before the enemies move: a 1-frame root holds an enemy for the frame it was given in', () => {
+  const w = fresh();
+  run(w, 16);
+  const e = w.units[0], y = e.y;
+  status.applyStatus(e, 'root', { frames: 1 });
+  run(w, 1);
+  assert.equal(e.buffs.length, 0, 'it ran out in the buff phase');
+  assert.ok(e.y < y, 'so the enemy moved this frame');
+});
+
+test('[属性-1] [属性-3] units take their base attributes from the content; what it leaves out takes the default', () => {
+  const cc = tinyContent();
+  cc.enemies.slime = { ...cc.enemies.slime, aspd: 120, tauntLevel: 1, massLevel: 4, epDamageResistance: 30, epResistance: 10,
+    motion: 'FLY', immune: ['stun'], dmgType: 'arts', baseAttackTime: 2 };
+  const w = createWorld(cc, { seed: 1, players: 1 });
+  for (let f = 0; f < 16; f++) step(w, cc);
+  const e = w.units[0];
+  assert.deepEqual(e.base, { maxHp: 100, atk: 0, def: 10, res: 0, aspd: 120, bat: 2, blockCnt: 0, moveSpeed: 1, tauntLevel: 1, massLevel: 4,
+    epDamageResistance: 30, epResistance: 10, motion: 'FLY', immune: ['stun'], dmgType: 'arts' });
+  const plain = fresh(1);
+  step(plain, c, [[0, deploy({})]]);
+  const op = plain.units[0];
+  assert.deepEqual([op.base.aspd, op.base.blockCnt, op.base.moveSpeed, op.base.motion, op.base.dmgType, op.base.immune], [100, 2, 1, 'WALK', 'phys', []]);
+  assert.deepEqual([op.hp, op.maxHp, op.born, op.bornN, op.blockedBy], [1000, 1000, 0, 1, -1]);
+});
+

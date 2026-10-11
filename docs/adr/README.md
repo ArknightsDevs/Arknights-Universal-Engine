@@ -66,3 +66,5 @@
 | [0050](0050-end-to-end-skeleton-first.md) | 起步后先做端到端骨架 | 已采纳 | 里程碑 |
 | [0051](0051-mvp-scope-and-milestones.md) | MVP 范围与里程碑 | 已采纳 | 里程碑 |
 | [0052](0052-engine-as-git-submodule.md) | 平台以 git 子模块引用引擎 | 已采纳 | 工程与包 |
+| [0053](0053-interface-schemas.md) | 接口模式集中在 @aue/schema | 已采纳 | 可维护性 |
+| [0054](0054-attributes-and-buffs-as-data.md) | 属性由 Buff 推导，Buff 是纯数据 | 已采纳 | 模拟内核 |

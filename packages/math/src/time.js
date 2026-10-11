@@ -17,6 +17,26 @@ export function secondsToFrames(seconds) {
   const { mantissa, exponent } = decimalOf(seconds);
   const scaled = mantissa * BigInt(FPS);
   if (exponent >= 0) return Number(scaled * pow10(exponent));
-  const den = pow10(-exponent), q = scaled / den, r = scaled % den;
+  return nearest(scaled, pow10(-exponent));
+}
+
+/**
+ * A duration in seconds run at `speed` percent, `seconds / (speed / 100)`, to whole frames the same way: the nearest
+ * frame, halves rounded up, exact on the decimals of both numbers. [属性-5]
+ * @param {number} seconds a finite duration ≥ 0
+ * @param {number} speed a finite speed > 0, in percent
+ * @returns {number} frames
+ */
+export function secondsAtSpeedToFrames(seconds, speed) {
+  if (!(speed > 0)) throw new RangeError(`secondsAtSpeedToFrames: expected a speed > 0, got ${speed}`);
+  const t = decimalOf(seconds), s = decimalOf(speed), e = t.exponent - s.exponent;
+  // seconds × 100 × FPS / speed = (t.m × 10^t.e × 100 × FPS) / (s.m × 10^s.e)
+  const num = t.mantissa * BigInt(100 * FPS) * (e > 0 ? pow10(e) : 1n), den = s.mantissa * (e < 0 ? pow10(-e) : 1n);
+  return nearest(num, den);
+}
+
+/** num / den to the nearest integer, halves up (num ≥ 0, den > 0). @param {bigint} num @param {bigint} den */
+function nearest(num, den) {
+  const q = num / den, r = num % den;
   return Number(2n * r >= den ? q + 1n : q);
 }

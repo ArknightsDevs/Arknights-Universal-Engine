@@ -1,0 +1,65 @@
+{
+  "$comment": "ADR 0045: the modules that may write each unit field (and each buff field) after the unit or buff is created. A field with an empty list is fixed at creation. Enforced by @aue/lint's field-ownership rule on packages/sim/src.",
+  "id": [],
+  "kind": [],
+  "key": [],
+  "owner": [],
+  "z": [],
+  "dir": [],
+  "route": [],
+  "base": [],
+  "born": [],
+  "bornN": [],
+  "blockedBy": [],
+  "x": [
+    "packages/sim/src/enemies.js"
+  ],
+  "y": [
+    "packages/sim/src/enemies.js"
+  ],
+  "leg": [
+    "packages/sim/src/enemies.js"
+  ],
+  "hp": [
+    "packages/sim/src/damage.js",
+    "packages/sim/src/buffs.js",
+    "packages/sim/src/enemies.js"
+  ],
+  "maxHp": [
+    "packages/sim/src/buffs.js"
+  ],
+  "buffs": [
+    "packages/sim/src/buffs.js"
+  ],
+  "atkCd": [
+    "packages/sim/src/combat.js"
+  ],
+  "anim": [
+    "packages/sim/src/combat.js",
+    "packages/sim/src/world.js"
+  ],
+  "left": [
+    "packages/sim/src/buffs.js"
+  ],
+  "acc": [
+    "packages/sim/src/buffs.js"
+  ],
+  "stacks": [
+    "packages/sim/src/buffs.js"
+  ],
+  "maxStacks": [
+    "packages/sim/src/buffs.js"
+  ],
+  "mods": [
+    "packages/sim/src/buffs.js"
+  ],
+  "flags": [
+    "packages/sim/src/buffs.js"
+  ],
+  "shield": [
+    "packages/sim/src/damage.js"
+  ],
+  "shieldHits": [
+    "packages/sim/src/damage.js"
+  ]
+}

@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import { readView, KIND, eventProblems } from '@aue/schema';
-import { createWorld, step, stateHash, takeSnapshot, restoreSnapshot, toView, nextUint32, seedState, hashNumbers, HASH_START } from '../src/index.js';
+import { createWorld, step, stateHash, takeSnapshot, restoreSnapshot, toView, nextUint32, seedState, hashNumbers, HASH_START, status } from '../src/index.js';
+import { pushValue } from '../src/world.js';
 import { tinyContent } from '@aue/testkit';
 
 const c = tinyContent(), SEED = 20261011;
@@ -99,3 +100,43 @@ test('[同步-1] the hash sees IEEE-754 bits: −0 differs from 0, every NaN is 
   assert.equal(h([1, 2]), h([1, 2]));
   assert.notEqual(h([1, 2]), h([2, 1]));
 });
+
+test('[同步-1] the state hash: tagged plain data, −0 as 0, undefined keys skipped, key order counts', () => {
+  /** @param {unknown} v */
+  const h = (v) => {
+    /** @type {number[]} */
+    const out = [];
+    pushValue(out, v);
+    return hashNumbers(HASH_START, out);
+  };
+  assert.equal(h({ a: -0 }), h({ a: 0 }));
+  assert.equal(h({ a: 1, b: undefined }), h({ a: 1 }));
+  assert.notEqual(h({ a: 1, b: 2 }), h({ b: 2, a: 1 }));
+  assert.notEqual(h(['1']), h([1]));
+  assert.notEqual(h([true]), h([1]));
+  assert.notEqual(h([null]), h([]));
+  assert.notEqual(h([[1], 2]), h([1, [2]]));
+  assert.throws(() => h({ f: () => 0 }), TypeError);
+  const w = createWorld(c, { seed: 3, players: 1 });
+  for (let f = 0; f < 20; f++) step(w, c);
+  const before = stateHash(w);
+  status.applyStatus(w.units[0], 'stun', { frames: 30 });
+  assert.notEqual(stateHash(w), before, 'buffs are in the hash');
+});
+
+test('[同步-2] [状态-3] a snapshot with buffs (fractional time left, no end) restores and runs on bit for bit', () => {
+  const run = (/** @type {number} */ snapAt) => {
+    let w = createWorld(c, { seed: 5, players: 1 });
+    const out = [];
+    for (let f = 0; f < 120; f++) {
+      if (f === 20) { status.applyStatus(w.units[0], 'buffres', {}); status.applyStatus(w.units[0], 'stun', { frames: 31 }); status.applyStatus(w.units[0], 'sluggish', {}); }
+      if (f === snapAt) w = restoreSnapshot(JSON.parse(JSON.stringify(takeSnapshot(w))));
+      step(w, c);
+      out.push(stateHash(w));
+    }
+    return out;
+  };
+  const straight = run(-1);
+  for (const at of [21, 30, 36]) assert.deepEqual(run(at), straight, `restored at ${at}`);
+});
+

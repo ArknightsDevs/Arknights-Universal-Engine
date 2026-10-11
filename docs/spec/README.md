@@ -36,7 +36,11 @@
 - [battle.md](battle.md)：一帧内的顺序、随机数、状态哈希、快照
 - [field.md](field.md)：地图坐标、部署、撤退、费用
 - [enemies.md](enemies.md)：出怪、移动、到达目标点
-- [combat.md](combat.md)：攻击、伤害
+- [combat.md](combat.md)：干员攻击
+- [attributes.md](attributes.md)：属性公式、修饰器、数值范围、攻击间隔
+- [status.md](status.md)：Buff、同名规则、衰减率、异常状态
+- [damage.md](damage.md)：伤害公式、结算顺序、伤判、生命流失、治疗
+- [targeting.md](targeting.md)：攻击范围、可选性、目标顺序、仇恨值
 - [lockstep.md](lockstep.md)：输入延迟、封口、追赶、哈希校验、重连、暂停
 - [direction.md](direction.md)：四个方向、偏移旋转、位移的方向、并列先后
 - [body.md](body.md)：点单位与巨型单位所在的格、距离

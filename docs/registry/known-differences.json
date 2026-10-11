@@ -22,5 +22,77 @@
     "stronghold": "server/sim/body.js 用 Math.round，正好在中间时取较大的格，如 2.5 → 3。",
     "reason": "PRTS「作战机制」oldid=433935：「受击方坐标经round函数取整(四舍六入五成双)得到其所属格坐标」。只影响坐标正好落在 .5 的时刻。",
     "status": "有效"
+  },
+  {
+    "id": "DIF-0004",
+    "clause": "伤害-1",
+    "ours": "穿透先减固定值、再乘百分比：(1 − I_p) × max(0, D − I_v)。法术同理。",
+    "stronghold": "server/sim/damage.js mitigate：先乘百分比、再减固定值，max(0, D × (1 − I_p) − I_v)。",
+    "reason": "PRTS「游戏数据基础」oldid=440563 的伤害公式。两者只在一次攻击同时有两种穿透时不同；只有一种时结果逐位相同。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0005",
+    "clause": "索敌-3",
+    "ours": "仇恨值按 0.1 的精度比较：路径距离相差不到 0.1 格的敌人可能算作并列，按出现先后；只有近战干员优先自己阻挡的敌人。",
+    "stronghold": "server/sim/targeting.js sortEnemyTargets：路径距离精确比较；阻挡优先不分近战远程。",
+    "reason": "PRTS「仇恨」oldid=429076：仇恨降序「比对精度为0.1」；「索敌的概念」oldid=376233：「阻挡（近战限定）」。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0006",
+    "clause": "状态-3",
+    "ours": "可抵抗状态的剩余时间每帧按 1 / 一减状态抵抗率 衰减，抵抗中途变化立刻影响；一减状态抵抗率下限 0.001。",
+    "stronghold": "server/sim/battle/status.js applyStatus：施加时把持续时间乘以 1 − 抵抗率（最多减 95%），之后不再变化。",
+    "reason": "PRTS「Buff的持续时间衰减率」oldid=429893。抵抗不变时两者的总时长相同（差别只在帧的取整，见 DIF-0001）。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0007",
+    "clause": "伤害-8",
+    "ours": "伤判效果按事件优先级、再按获取顺序逐个结算：闪避、脆弱、护盾、屏障的先后由 Buff 的获取顺序决定；每个闪避各抽一次随机数。",
+    "stronghold": "server/sim/damage.js dealDamage：固定顺序，先闪避（所有来源合成一个概率，抽一次），再把所有倍率乘在一起，最后护盾、屏障。",
+    "reason": "PRTS「伤判效果」oldid=439572：「事件优先级＞获取顺序」，取消后跳过后续伤判。命中概率相同，但随机数的消耗和屏障与脆弱的先后可能不同。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0008",
+    "clause": "状态-2",
+    "ours": "同名 Buff 默认排队：都留在列表里，最早的生效，后来的等它结束后接着生效。",
+    "stronghold": "server/sim/battle/status.js addBuff：默认 replace，新的直接替换旧的（旧的剩余时间丢弃）；异常状态默认 extend（剩余时间取较长）。",
+    "reason": "PRTS「常见同名状态」oldid=417450 的默认叠加方式。对同样效果的 Buff，排队和取较长的结果相同；效果不同时，排队先保留先来的那个。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0009",
+    "clause": "属性-3",
+    "ours": "数值范围按 PRTS：移动速度下限 0.1；攻击速度只有下限 20（攻击间隔计算时才限定 600）；1 + 直接乘算小于 0 时取 0（攻击间隔可以为 0）；嘲讽等级限定 −2 到 2；重量不设下限；固定值穿透不小于 0。",
+    "stronghold": "server/sim/units.js _recalc：移动速度下限 0；攻击速度限定 20–600；攻击间隔的直接乘算下限 0.1 倍；嘲讽等级不限；重量下限 0；固定值穿透不限。",
+    "reason": "PRTS「数值范围」oldid=439605。正常数据下两者相同，只在极端修饰器下不同。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0010",
+    "clause": "索敌-1",
+    "ours": "攻击距离让每个格向前拉伸：一行中间有空格的范围，空格会被拉伸的格补上。",
+    "stronghold": "server/sim/targeting.js absoluteRangeKeys：每行只在最远的格之后延伸。",
+    "reason": "PRTS「攻击范围」oldid=421062：「每1点攻击距离属性会令组成其攻击范围的方块向正前方拉伸1格」。只影响一行内有空格的范围。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0011",
+    "clause": "状态-6",
+    "ours": "寒冷、冻结分友方和敌方两类，按施加者区分：友方寒冷两两一对成友方冻结（持续时间取较长）；敌方寒冷遇到敌方寒冷或冻结时变成敌方冻结；只有友方冻结有法抗 −15，与被冻结的是谁无关。",
+    "stronghold": "server/sim/battle/status.js applyStatus：按目标阵营区分；第二个寒冷变成冻结，持续时间取较长；法抗 −15 只对敌人。",
+    "reason": "PRTS「术语释义」oldid=440223 寒冷、冻结。常见情况（干员冻结敌人、敌人冻结干员）结果相同。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0012",
+    "clause": "状态-7",
+    "ours": "免疫时 Buff 照常添加，只是对应的标记不生效；免疫结束后重新生效。",
+    "stronghold": "server/sim/battle/status.js applyStatus：免疫时拒绝添加。",
+    "reason": "PRTS「异常效果」oldid=440606：免疫令异常效果「无法生效，无法被检测」，不移除 Buff。只在免疫中途结束时不同。",
+    "status": "有效"
   }
 ]

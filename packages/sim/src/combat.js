@@ -1,9 +1,11 @@
-// Operators attack (spec 攻击-1, 伤害-1, 伤害-2): when the cooldown is out and an enemy stands in range, hit the
-// earliest-spawned one for physical damage, then wait the attack interval.
+// Operators attack (spec 攻击-1, 索敌-1…索敌-3, 伤害-7): when the cooldown is out, the first candidate in the official
+// order takes a hit of the operator's attack, then the operator waits its attack interval.
 import { KIND, ANIM } from '@aue/schema';
 import { offsetTile } from './dir.js';
-import { tileOf } from './body.js';
-import { MIN_DAMAGE_RATIO } from './constants.js';
+import { statsOf, intervalFrames } from './attrs.js';
+import { rangeKeys, inKeys, selectable, sortEnemies } from './targeting.js';
+import { dealDamage } from './damage.js';
+import { remainingDistance } from './enemies.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell */
@@ -18,34 +20,34 @@ export function rangeCell(op, off) {
   return { row, col };
 }
 
-/** Physical damage after defence, at least 5 % of the attack (spec 伤害-1, 伤害-2). @param {number} atk @param {number} def */
-export const physicalDamage = (atk, def) => Math.max(atk - def, atk * MIN_DAMAGE_RATIO);
-
 /**
- * The enemy an operator attacks: the earliest-spawned living enemy whose tile (spec 体积-1) is in range.
- * @param {World} w @param {Unit} op @param {Cell[]} range @returns {Unit | null}
+ * The enemy an operator attacks (索敌-1…索敌-3): of the selectable enemies with a tile in range, the first in the
+ * official order. Melee operators cannot select flying enemies.
+ * @param {World} w @param {Content} c @param {Unit} op @returns {Unit | null}
  */
-export function pickTarget(w, op, range) {
-  const cells = new Set(range.map((off) => { const c = rangeCell(op, off); return `${c.row},${c.col}`; }));
-  for (const u of w.units) {
-    if (u.kind !== KIND.ENEMY || u.hp <= 0) continue;
-    const [r, c] = tileOf(u);
-    if (cells.has(`${r},${c}`)) return u;
-  }
-  return null;
+export function pickTarget(w, c, op) {
+  const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], melee = d.position === 'MELEE';
+  const keys = rangeKeys(grid, op, d.range, statsOf(op).rangeExtend);
+  const cands = w.units.filter((u) => u.kind === KIND.ENEMY && selectable(u, { canHitFly: !melee }) && inKeys(u, keys, grid));
+  return sortEnemies(op, cands, { melee, pathDist: (e) => remainingDistance(c, e) })[0] ?? null;
 }
 
-/** Every operator's attack this frame. @param {World} w @param {Content} c */
+/**
+ * Every operator's attack this frame (攻击-1). An operator that cannot act (晕眩, 冻结 …) neither attacks nor counts its
+ * cooldown down.
+ * @param {World} w @param {Content} c
+ */
 export function operatorsAttack(w, c) {
   for (const op of w.units) {
-    if (op.kind !== KIND.OPERATOR) continue;
+    if (op.kind !== KIND.OPERATOR || op.hp <= 0) continue;
+    const s = statsOf(op);
+    if (s.disabled) continue;
     if (op.atkCd > 0) { op.atkCd--; continue; }
-    const t = pickTarget(w, op, c.operators[op.key].range);
+    const t = pickTarget(w, c, op);
     op.anim = t ? ANIM.ATTACK : ANIM.IDLE;
     if (!t) continue;
-    const dmg = physicalDamage(op.atk, t.def);
-    t.hp = Math.max(0, t.hp - dmg);
-    op.atkCd = op.atkInterval - 1;
-    w.events.push({ type: 'attack', id: op.id, target: t.id }, { type: 'hit', id: op.id, target: t.id, damage: dmg });
+    op.atkCd = intervalFrames(s.bat, s.aspd) - 1;
+    w.events.push({ type: 'attack', id: op.id, target: t.id });
+    dealDamage(w, op, t, { type: op.base.dmgType, amount: s.atk });
   }
 }
