@@ -11,6 +11,17 @@ updates:
     ignore:
       # pinned to an exact version and upgraded by hand with screenshot tests
       - dependency-name: three
+      # TypeScript is pinned (ADR 0005); a new major changes the JSDoc checking and needs an ADR
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+      # the Node types follow the oldest supported Node line (engines: >=22.12), not the newest release
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+      # ESLint majors change the flat-config rules @aue/lint builds on
+      - dependency-name: eslint
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
