@@ -11,4 +11,6 @@ export default aueConfig({
   deterministic: ['packages/math/src/**', 'packages/sim/src/**', 'packages/content/src/**'],
   fieldOwnership: { files: ['packages/sim/src/**', 'packages/content/src/**'], fields },
   exempt: [],
+  // agents' git worktrees live under .claude/
+  ignores: ['.claude/'],
 });

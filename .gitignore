@@ -17,3 +17,6 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 Thumbs.db
+
+# --- local tool state (agent worktrees) -----------------------------------------------------------------
+.claude/
