@@ -60,6 +60,7 @@ export function extractFromCheckout(root) {
     characters: readJson(join(data, 'excel', 'character_table.json')),
     ranges: readJson(join(data, 'excel', 'range_table.json')),
     skills: readJson(join(data, 'excel', 'skill_table.json')),
+    handbook: readJson(join(data, 'excel', 'enemy_handbook_table.json')),
     commit: gitCommit(root),
   });
 }

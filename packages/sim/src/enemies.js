@@ -5,6 +5,7 @@ import { followRoute, speedOf } from './routes.js';
 import { enemyAtGoal, goalSeats } from './coop.js';
 import { tryBlock, keepOrRelease } from './blocking.js';
 import { enemyAttack } from './combat.js';
+import { foeTick } from './foes.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 
@@ -25,6 +26,7 @@ function reachGoal(w, c, e) {
  * @param {World} w @param {Content} c @param {Unit} e
  */
 function enemyTurn(w, c, e) {
+  foeTick(w, c, e);
   keepOrRelease(w, e);
   tryBlock(w, c, e);
   const attacked = enemyAttack(w, c, e);

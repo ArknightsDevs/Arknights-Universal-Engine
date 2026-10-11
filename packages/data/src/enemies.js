@@ -39,7 +39,7 @@ function immunities(at, path) {
  * @param {Record<string, unknown>} data
  * @param {string} key
  * @param {string} dp path of data
- * @returns {Record<string, string | number | boolean | string[]>}
+ * @returns {Record<string, unknown>}
  */
 function readEnemy(data, key, dp) {
   const ap = `${dp}.attributes`;
@@ -63,7 +63,48 @@ function readEnemy(data, key, dp) {
     ...definedNumber(at, 'epResistance', ap),
     ...immunities(at, ap),
     ...neutralOf(key, data, dp),
+    ...abilitiesOf(data, dp),
   };
+}
+
+/**
+ * An enemy's talents and skills (敌能-1): the talent blackboard grouped by the part of each key before its first `.`;
+ * the skills with their cooldowns and blackboards.
+ * @param {Record<string, unknown>} data @param {string} dp
+ * @returns {{ talents?: Record<string, Record<string, number>>, skills?: { key: string, cooldown: number, initCooldown: number, bb: Record<string, number> }[] }}
+ */
+function abilitiesOf(data, dp) {
+  /** @type {Record<string, Record<string, number>>} */
+  const talents = {};
+  (Array.isArray(data.talentBlackboard) ? data.talentBlackboard : []).forEach((t, i) => {
+    const o = asObject(t, `${dp}.talentBlackboard[${i}]`), k = asString(o.key, `${dp}.talentBlackboard[${i}].key`);
+    const dot = k.indexOf('.'), name = dot < 0 ? k : k.slice(0, dot), field_ = dot < 0 ? '' : k.slice(dot + 1);
+    (talents[name] ??= {})[field_] = asNumber(o.value, `${dp}.talentBlackboard[${i}].value`, -1e9, 1e9);
+  });
+  const skills = (Array.isArray(data.skills) ? data.skills : []).map((s, i) => {
+    const sp = `${dp}.skills[${i}]`, o = asObject(s, sp);
+    const bb = Object.fromEntries((Array.isArray(o.blackboard) ? o.blackboard : []).map((b, j) => {
+      const e = asObject(b, `${sp}.blackboard[${j}]`);
+      return [asString(e.key, `${sp}.blackboard[${j}].key`), asNumber(e.value, `${sp}.blackboard[${j}].value`, -1e9, 1e9)];
+    }));
+    return { key: asString(field(o, 'prefabKey', sp), `${sp}.prefabKey`), cooldown: asNumber(field(o, 'cooldown', sp), `${sp}.cooldown`, 0, 1e6), initCooldown: asNumber(field(o, 'initCooldown', sp), `${sp}.initCooldown`, 0, 1e6), bb };
+  });
+  return { ...(Object.keys(talents).length > 0 ? { talents } : {}), ...(skills.length > 0 ? { skills } : {}) };
+}
+
+/** enemy_handbook_table's damageType → the engine's damage type (敌能-1). */
+const DAMAGE_TYPES = Object.freeze({ PHYSIC: 'phys', MAGIC: 'arts' });
+
+/**
+ * An enemy's normal attack damage type (敌能-1): the first of its handbook damageType, physical when that is neither
+ * PHYSIC nor MAGIC or the enemy has no handbook entry.
+ * @param {unknown} handbook enemy_handbook_table.json @param {string} key @returns {{ dmgType?: 'arts' }}
+ */
+export function damageTypeOf(handbook, key) {
+  const data = handbook ? asObject(asObject(handbook, 'handbook').enemyData ?? {}, 'handbook.enemyData') : {};
+  const e = Object.hasOwn(data, key) ? asObject(data[key], `handbook.enemyData[${key}]`) : null;
+  const first = e && Array.isArray(e.damageType) ? e.damageType[0] : undefined;
+  return /** @type {Record<string, string>} */ (DAMAGE_TYPES)[String(first)] === 'arts' ? { dmgType: 'arts' } : {};
 }
 
 /**

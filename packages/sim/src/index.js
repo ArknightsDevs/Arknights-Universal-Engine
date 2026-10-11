@@ -25,6 +25,7 @@ export * as swing from './swing.js';
 export * as coop from './coop.js';
 export * as waves from './waves.js';
 export * as stage from './stage.js';
+export * as foes from './foes.js';
 export { nextUint32, seedState, draw, weightedPick } from './rng.js';
 export { BEHAVIOR_API_VERSION, CONTEXT_MEMBERS, SKILL_CONTEXT_MEMBERS } from './api.js';
 export { hashNumbers, HASH_START } from './hash.js';
@@ -38,5 +39,6 @@ export { hashNumbers, HASH_START } from './hash.js';
 /** @typedef {import('./types.js').TraitDef} TraitDef */
 /** @typedef {import('./types.js').OperatorDef} OperatorDef */
 /** @typedef {import('./types.js').EnemyDef} EnemyDef */
+/** @typedef {import('./foes.js').FoeBehavior} FoeBehavior @typedef {import('./foes.js').FoeContext} FoeContext */
 /** @typedef {import('./traits.js').TraitBehavior} TraitBehavior */
 /** @typedef {import('@aue/schema').Command} Command */

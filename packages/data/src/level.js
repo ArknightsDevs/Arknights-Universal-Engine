@@ -4,7 +4,7 @@ import { asArray, asNumber, asObject, asString, field } from './validate.js';
 import { extractTiles, readRoute } from './skeleton-world.js';
 import { extractWaves, predefinesOf, stagesOf, maskCovers } from './waves.js';
 import { extractOptions } from './skeleton.js';
-import { enemyOf, sharedEnemies } from './enemies.js';
+import { enemyOf, sharedEnemies, damageTypeOf } from './enemies.js';
 
 /** @typedef {'NORMAL' | 'FOUR_STAR'} Difficulty */
 /** @typedef {{ mods: Record<string, number>, enemy?: string[], exclude?: string[] }} EnemyMul */
@@ -82,9 +82,9 @@ function routeTable(routesRaw) {
 
 /**
  * A whole level (关卡-1, 关卡-2): `id` names it in the content.
- * @param {{ id: string, level: unknown, enemyDb: unknown, commit: string }} input @returns {Record<string, unknown>}
+ * @param {{ id: string, level: unknown, enemyDb: unknown, handbook?: unknown, commit: string }} input @returns {Record<string, unknown>}
  */
-export function extractLevel({ id, level, enemyDb, commit }) {
+export function extractLevel({ id, level, enemyDb, handbook, commit }) {
   const lv = asObject(level, 'level');
   const { width, height, tiles } = extractTiles(field(lv, 'mapData', 'level'));
   const { routes, routeOf } = routeTable(field(lv, 'routes', 'level'));
@@ -101,6 +101,6 @@ export function extractLevel({ id, level, enemyDb, commit }) {
     source: { repo: 'Kengxxiao/ArknightsGameData', commit, server: 'zh_CN' },
     level: { id, width, height, options: extractOptions(field(lv, 'options', 'level')), tiles, routes, waves, predefines: predefinesOf(lv.predefines), stages: stagesOf(lv.predefines) },
     difficulties,
-    enemies: Object.fromEntries(keys.map((k) => [k, { ...enemyOf(enemyDb, k, refs.get(k)), ...(shared.has(k) ? { shared: true } : {}) }])),
+    enemies: Object.fromEntries(keys.map((k) => [k, { ...enemyOf(enemyDb, k, refs.get(k)), ...damageTypeOf(handbook, k), ...(shared.has(k) ? { shared: true } : {}) }])),
   };
 }

@@ -4,7 +4,7 @@
 import { asArray, asNumber, asObject, asString, field } from './validate.js';
 import { extractRoutesAndWaves, extractTiles } from './skeleton-world.js';
 import { hiddenGroupsOf } from './waves.js';
-import { enemyOf, sharedEnemies } from './enemies.js';
+import { enemyOf, sharedEnemies, damageTypeOf } from './enemies.js';
 
 export { sharedEnemies };
 
@@ -26,10 +26,11 @@ export function extractOptions(raw) {
  * The enemies used, level 0 of their enemy_database entry (关卡-1).
  * @param {unknown} dbRaw enemy_database.json
  * @param {string[]} keys
- * @returns {Record<string, Record<string, string | number | boolean | string[]>>}
+ * @param {unknown} [handbook] enemy_handbook_table.json
+ * @returns {Record<string, Record<string, unknown>>}
  */
-function extractEnemies(dbRaw, keys) {
-  return Object.fromEntries(keys.map((key) => [key, enemyOf(dbRaw, key)]));
+function extractEnemies(dbRaw, keys, handbook) {
+  return Object.fromEntries(keys.map((key) => [key, { ...enemyOf(dbRaw, key), ...damageTypeOf(handbook, key) }]));
 }
 
 /**
@@ -122,10 +123,10 @@ function extractOperator(raw, id, rangesRaw, skillsRaw) {
 
 /**
  * Build the skeleton fixture.
- * @param {{ level: unknown, enemyDb: unknown, characters: unknown, ranges: unknown, skills: unknown, commit: string }} input parsed JSON files
+ * @param {{ level: unknown, enemyDb: unknown, characters: unknown, ranges: unknown, skills: unknown, handbook?: unknown, commit: string }} input parsed JSON files
  * @returns {Record<string, unknown>}
  */
-export function extractSkeleton({ level, enemyDb, characters, ranges, skills, commit }) {
+export function extractSkeleton({ level, enemyDb, characters, ranges, skills, handbook, commit }) {
   const lv = asObject(level, 'level');
   const { width, height, tiles } = extractTiles(field(lv, 'mapData', 'level'));
   const { routes, waves } = extractRoutesAndWaves(field(lv, 'waves', 'level'), field(lv, 'routes', 'level'));
@@ -145,7 +146,7 @@ export function extractSkeleton({ level, enemyDb, characters, ranges, skills, co
       waves,
       hiddenGroups: hiddenGroupsOf(lv.runes ?? null, 'NORMAL'),
     },
-    enemies: Object.fromEntries(Object.entries(extractEnemies(enemyDb, [...new Set(waves.flatMap((w) => w.fragments.flatMap((f) => f.actions.map((a) => a.key))))].toSorted()))
+    enemies: Object.fromEntries(Object.entries(extractEnemies(enemyDb, [...new Set(waves.flatMap((w) => w.fragments.flatMap((f) => f.actions.map((a) => a.key))))].toSorted(), handbook))
       .map(([k, e]) => [k, sharedEnemies(lv.runes ?? null).has(k) ? { ...e, shared: true } : e])),
     operators: Object.fromEntries(SKELETON_OPERATORS.map((id) => [id, extractOperator(field(chars, id, 'characters'), id, ranges, skills)])),
   };

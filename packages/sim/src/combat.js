@@ -1,7 +1,7 @@
 // Attacks (spec 攻击-1…攻击-3, 敌人攻击-1, 索敌-1…索敌-5, 伤害-7, 职业-1…职业-5): when the cooldown is out, the first
 // candidates in the official order are locked and a swing starts; at the end of its wind-up they take hits of the
 // attacker's attack — a healer's heals, a ranged attacker's projectiles — and the attacker waits out its interval.
-import { FPS } from '@aue/math';
+import { FPS, secondsToFrames } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { offsetTile } from './dir.js';
 import { statsOf, intervalFrames } from './attrs.js';
@@ -10,6 +10,9 @@ import { dealDamage, heal } from './damage.js';
 import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
+import { foeTargets, foeAttack, isFoeOf } from './foes.js';
+import { makeBuff } from './buffs.js';
+import { tileOf } from './body.js';
 import { tickSkill, beforeAttack, afterAttack } from './skills.js';
 import { palsyInterrupts } from './status.js';
 import { dealEp, rampageAttack } from './elements.js';
@@ -69,8 +72,25 @@ function hitTarget(w, c, src, t, load) {
   }
 }
 
+/** The attack of an attacker, with an attack bonus for this attack only (敌能-11). @param {Unit} a @param {number} [pct] */
+const atkOf = (a, pct) => (pct ? statsOf({ ...a, buffs: [...a.buffs, makeBuff({ key: 'attackBonus', mods: { atkPct: pct } })] }).atk : statsOf(a).atk);
+
 /** What an attack carries to each target (攻击-2): its type, the attack × 倍率, hits, 元素损伤. @param {Unit} a @param {AttackMods} mods @returns {Load} */
-const loadOf = (a, mods) => ({ type: a.base.dmgType, amount: statsOf(a).atk * mods.scale, times: mods.times, element: mods.element ?? '', ep: mods.ep ?? 0 });
+const loadOf = (a, mods) => ({ type: mods.type ?? a.base.dmgType, amount: atkOf(a, mods.atkPct) * mods.scale, times: mods.times, element: mods.element ?? '', ep: mods.ep ?? 0 });
+
+/**
+ * The units a cross-shaped splash reaches (敌能-7): those an enemy may attack on the target's tile and the four tiles
+ * next to it.
+ * @param {World} w @param {Unit} a @param {Unit} t @returns {Unit[]}
+ */
+function crossOf(w, a, t) {
+  const [r, col] = tileOf(t);
+  return w.units.filter((u) => {
+    if (u.hp <= 0 || u.hidden || !isFoeOf(u, a)) return false;
+    const [ur, uc] = tileOf(u);
+    return Math.abs(ur - r) + Math.abs(uc - col) <= 1;
+  });
+}
 
 /**
  * An attack lands at the end of its wind-up (攻击-2, 攻击-3): 麻痹 may interrupt an enemy's (状态-8); the locked
@@ -85,12 +105,24 @@ function land(w, c, a) {
   const op = a.kind === KIND.OPERATOR, heals = op && traitOf(c, a).heal, load = loadOf(a, sw.mods);
   for (const id of sw.targets) {
     const t = w.units.find((u) => u.id === id);
-    if (!t || t.hp <= 0 || t.hidden) continue;
-    if (heals) for (let k = 0; k < load.times; k++) w.events.push({ type: 'heal', id: a.id, target: t.id, amount: heal(a, t, load.amount) });
-    else if (shoots(c, a, heals)) launch(w, a, t, load);
-    else hitTarget(w, c, a, t, load);
+    if (t && t.hp > 0 && !t.hidden) deliver(w, c, a, t, { load, heals: !!heals, cross: !!sw.mods.cross });
   }
   if (op) afterAttack(w, c, a, sw.mods);
+  const ch = sw.mods.channel;
+  if (ch && (sw.left ?? ch.hits) > 1) a.swing = { ...sw, wind: secondsToFrames(ch.duration / ch.hits), since: 0, left: (sw.left ?? ch.hits) - 1 };
+}
+
+/**
+ * One locked target of a landing attack (攻击-2, 攻击-3, 职业-2, 敌能-7): a healer's heals, a cross splash's hits around
+ * it, a ranged attacker's projectile, or the hits.
+ * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t @param {{ load: Load, heals: boolean, cross: boolean }} how
+ */
+function deliver(w, c, a, t, how) {
+  const { load } = how;
+  if (how.heals) for (let k = 0; k < load.times; k++) w.events.push({ type: 'heal', id: a.id, target: t.id, amount: heal(a, t, load.amount) });
+  else if (how.cross) for (const u of crossOf(w, a, t)) hitTarget(w, c, a, u, load);
+  else if (shoots(c, a, how.heals)) launch(w, a, t, load);
+  else hitTarget(w, c, a, t, load);
 }
 
 /**
@@ -100,12 +132,13 @@ function land(w, c, a) {
  * @param {World} w @param {Content} c @param {Unit} a @param {Unit[]} targets @param {AttackMods} mods
  */
 function startSwing(w, c, a, targets, mods) {
-  const s = statsOf(a), interval = intervalFrames(s.bat, s.aspd);
+  const s = statsOf(a), ch = mods.channel, every = ch ? secondsToFrames(ch.duration / ch.hits) : 0;
+  const interval = ch ? ch.hits * every + secondsToFrames(ch.after) : intervalFrames(s.bat, s.aspd);
   a.atkCd = interval - 1;
   a.anim = ANIM.ATTACK;
   rampageAttack(a);
   for (const t of targets) w.events.push({ type: 'attack', id: a.id, target: t.id });
-  a.swing = { wind: windupFrames(timingOf(c, a), interval), since: 0, targets: targets.map((t) => t.id), mods };
+  a.swing = { wind: ch ? every : windupFrames(timingOf(c, a), interval), since: 0, targets: targets.map((t) => t.id), mods };
   if (a.swing.wind === 0) land(w, c, a);
 }
 
@@ -194,8 +227,8 @@ export function enemyAttack(w, c, e) {
   if (e.swing) advanceSwing(w, c, e);
   if (e.atkCd > 0) { e.atkCd--; return swinging; }
   if (e.swing) return true;
-  const t = sortAllies(e, enemyTargets(w, e), FPS)[0];
+  const t = sortAllies(e, foeTargets(w, c, e, enemyTargets(w, e)), FPS)[0];
   if (!t) return swinging;
-  startSwing(w, c, e, [t], { scale: 1, times: 1, targets: 1, skill: false });
+  startSwing(w, c, e, [t], foeAttack(w, c, e, { scale: 1, times: 1, targets: 1, skill: false }));
   return true;
 }

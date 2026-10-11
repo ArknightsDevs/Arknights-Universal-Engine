@@ -64,10 +64,15 @@
  */
 
 /**
+ * An enemy's skill (敌能-1): its name (prefabKey), first and later cooldowns in seconds, blackboard.
+ * @typedef {{ key: string, cooldown: number, initCooldown: number, bb: Record<string, number> }} FoeSkill
+ */
+/**
  * An enemy: `blockCnt` is how much block it takes (阻挡数消耗, default 1); `rangeRadius` its attack radius in tiles and
- * `applyWay` MELEE or RANGED (敌人攻击-1).
+ * `applyWay` MELEE, RANGED or ALL (敌人攻击-1); its talents by name and its skills (敌能-1).
  * @typedef {OptionalStats & { name: string, maxHp: number, atk: number, def: number, res: number, moveSpeed: number, motion?: string,
- *   baseAttackTime?: number, blockCnt?: number, rangeRadius?: number, applyWay?: string }} EnemyDef
+ *   baseAttackTime?: number, blockCnt?: number, rangeRadius?: number, applyWay?: string, talents?: Record<string, Record<string, number>>,
+ *   skills?: FoeSkill[] }} EnemyDef
  */
 /**
  * A skill as the content gives it (技能-1): one level of a skill_table entry.
@@ -110,7 +115,8 @@
 /**
  * Behaviours by key (ADR 0054, 0055): what a skill or a buff does beyond its data. Content brings them; the default is
  * the generic one (技能-5).
- * @typedef {{ skills?: Record<string, import('./skills.js').SkillBehavior>, buffs?: Record<string, import('./buffs.js').Behavior>, traits?: Record<string, import('./traits.js').TraitBehavior> }} Behaviors
+ * @typedef {{ skills?: Record<string, import('./skills.js').SkillBehavior>, buffs?: Record<string, import('./buffs.js').Behavior>, traits?: Record<string, import('./traits.js').TraitBehavior>,
+ *   foes?: Record<string, import('./foes.js').FoeBehavior> }} Behaviors
  */
 /** @typedef {{ level: Level, enemies: Record<string, EnemyDef>, operators: Record<string, OperatorDef>, behaviors?: Behaviors }} Content */
 
@@ -197,6 +203,7 @@
  * @property {number} frag the frame its spawn's fragment began
  * @property {number} wave the wave that must wait for it to be handled (波次-3), −1 for none
  * @property {boolean} [unharmful] it costs no life at the goal (目标-1)
+ * @property {Record<string, number>} ab an enemy's ability state (敌能-2): cooldowns, marks, what it saw last turn
  * @property {SkillState | null} skill its skill, null when it has none (技能-1)
  * @property {Record<string, number>} ep element values below their maximum, by element (元素-1); none recorded is at its maximum
  * @property {number} paid the cost its deployment took, 0 for enemies (撤退-1)
@@ -205,8 +212,21 @@
  */
 
 /**
- * An attack under way (攻击-2): frames until it lands, frames since it began, the ids of its locked targets, its mods.
- * @typedef {{ wind: number, since: number, targets: number[], mods: import('./skills.js').AttackMods }} Swing
+ * An attack under way (攻击-2): frames until it lands, frames since it began, the ids of its locked targets, its mods;
+ * a channel's hits still to come (敌能-6).
+ * @typedef {{ wind: number, since: number, targets: number[], mods: import('./skills.js').AttackMods, left?: number }} Swing
+ */
+/**
+ * A delayed explosion (敌能-3): where, how far it reaches, frames left, whether it reaches flying units, its source's id
+ * (−1 for none), what it does.
+ * @typedef {{ x: number, y: number, radius: number, left: number, air: boolean, src: number, type: DamageType, amount: number,
+ *   status: { key: string, seconds: number } | null }} Blast
+ */
+/**
+ * A 直击 bolt in flight (敌能-4): its source's id, where it is, its direction, what it does — or the radius of the
+ * explosion it sets off (0 for none).
+ * @typedef {{ src: number, x: number, y: number, dx: number, dy: number, type: DamageType, amount: number, status: { key: string, seconds: number } | null,
+ *   blast: number }} Bolt
  */
 
 /**
@@ -271,6 +291,8 @@
  * @property {string[]} predefined the aliases of the predefined units in effect (波次-6)
  * @property {number} result the battle's result (结束-1): −1 going on, 0 lost, 1 won
  * @property {StageState} stage the co-op stages (合作-6)
+ * @property {Blast[]} blasts delayed explosions (敌能-3)
+ * @property {Bolt[]} bolts 直击 bolts in flight (敌能-4)
  * @property {number} bornThisFrame units created so far in this frame
  * @property {Shot[]} shots projectiles in flight, in launch order (攻击-3)
  * @property {Record<string, string | number>[]} events this frame's presentation events (not part of the state)

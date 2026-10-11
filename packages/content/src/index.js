@@ -5,6 +5,14 @@ import timings from '../data/timings.json' with { type: 'json' };
 import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
 import { levelAt } from './levels.js';
+import { foeBehaviors, withFoeExtras } from './foes.js';
+import { skillBehaviors } from './skills.js';
+
+/** The official behaviours: skills (技能-6) and enemy abilities (敌能-2). */
+const BEHAVIORS = Object.freeze({ skills: skillBehaviors, foes: foeBehaviors });
+
+/** Enemies with their PRTS extras (敌能-5…) and attack timings (攻击-2). @param {Record<string, any>} enemies */
+const enemiesOf = (enemies) => Object.fromEntries(Object.entries(enemies).map(([k, e]) => [k, { ...withFoeExtras(k, e), ...attackOf(k) }]));
 
 /** A unit's attack timing from data/timings.json (攻击-2), when its skeleton gave one. @param {string} key */
 function attackOf(key) {
@@ -26,7 +34,8 @@ function operatorOf(key, o) {
 export const skeletonContent = /** @type {any} */ ({
   ...skeleton,
   operators: Object.fromEntries(Object.entries(skeleton.operators).map(([k, o]) => [k, operatorOf(k, o)])),
-  enemies: Object.fromEntries(Object.entries(skeleton.enemies).map(([k, e]) => [k, { ...e, ...attackOf(k) }])),
+  enemies: enemiesOf(skeleton.enemies),
+  behaviors: BEHAVIORS,
 });
 
 /**
@@ -34,7 +43,8 @@ export const skeletonContent = /** @type {any} */ ({
  * @param {string} id @param {import('./levels.js').Difficulty} difficulty @returns {import('@aue/sim').Content}
  */
 export function levelContent(id, difficulty) {
-  return /** @type {any} */ ({ ...levelAt(id, difficulty, attackOf), operators: skeletonContent.operators });
+  const lv = levelAt(id, difficulty);
+  return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), operators: skeletonContent.operators, behaviors: BEHAVIORS });
 }
 
 /** Where the attack timings come from: the skeletons' sources (攻击-2). */
@@ -46,3 +56,4 @@ export const skeletonSource = skeleton.source;
 export { skillDefOf, skillBehaviors } from './skills.js';
 export { BRANCHES, coveredBranch, withTrait } from './traits.js';
 export { LEVELS, levelAt } from './levels.js';
+export { foeBehaviors, withFoeExtras, FOE_EXTRAS } from './foes.js';

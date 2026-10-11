@@ -8,6 +8,7 @@ import { makeEnemy } from './units.js';
 import { isDown } from './coop.js';
 import { weightedPick } from './rng.js';
 import { stageOf, startStage, resting } from './stage.js';
+import { foeSpawn } from './foes.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Wave} Wave @typedef {import('./types.js').WaveAction} WaveAction @typedef {import('./types.js').Schedule} Schedule */
@@ -79,6 +80,7 @@ function act(w, c, a, fragAt, wave) {
     const u = makeEnemy(w, c, { key: a.key, route: a.route, frag: fragAt, wave: a.dontBlockWave ? -1 : wave, unharmful: a.unharmful });
     w.units.push(u);
     w.events.push({ type: 'spawn', id: u.id, key: u.key });
+    foeSpawn(w, c, u);
   } else if (a.type === 'ACTIVATE' && !w.predefined.includes(a.key)) {
     w.predefined.push(a.key);
     w.events.push({ type: 'predefine', key: a.key, on: 1 });

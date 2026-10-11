@@ -85,6 +85,9 @@
   "frag": [],
   "wave": [],
   "unharmful": [],
+  "ab": [
+    "packages/sim/src/foes.js"
+  ],
   "skill": [],
   "sp": [
     "packages/sim/src/sp.js"

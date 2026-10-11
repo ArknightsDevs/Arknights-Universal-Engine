@@ -40,7 +40,10 @@ export function extractLevelFromCheckout(root, id) {
   const data = join(root, 'zh_CN', 'gamedata');
   const file = findLevel(join(data, 'levels'), `level_${id}.json`);
   if (file === null) throw new Error(`level_${id}.json not found under ${data}`);
-  return extractLevel({ id, level: readJson(file), enemyDb: readJson(join(data, 'levels', 'enemydata', 'enemy_database.json')), commit: gitCommit(root) });
+  return extractLevel({
+    id, level: readJson(file), enemyDb: readJson(join(data, 'levels', 'enemydata', 'enemy_database.json')),
+    handbook: readJson(join(data, 'excel', 'enemy_handbook_table.json')), commit: gitCommit(root),
+  });
 }
 
 /** @param {string[]} argv @param {string} name @returns {string | undefined} */

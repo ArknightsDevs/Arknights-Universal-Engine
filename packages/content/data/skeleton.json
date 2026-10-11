@@ -1087,6 +1087,19 @@
       "massLevel": 1,
       "levelType": "NORMAL",
       "lifePointReduce": 1,
+      "skills": [
+        {
+          "key": "CrossAttack",
+          "cooldown": 8,
+          "initCooldown": 2,
+          "bb": {
+            "atk_scale": 1,
+            "stun": 5,
+            "duration": 2
+          }
+        }
+      ],
+      "dmgType": "arts",
       "shared": true
     },
     "enemy_3001_upeopl": {
@@ -1104,7 +1117,12 @@
       "levelType": "NORMAL",
       "lifePointReduce": 0,
       "neutral": true,
-      "deathLife": 1
+      "deathLife": 1,
+      "talents": {
+        "dead": {
+          "value": -1
+        }
+      }
     }
   },
   "operators": {

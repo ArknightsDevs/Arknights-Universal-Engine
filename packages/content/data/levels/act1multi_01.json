@@ -7934,7 +7934,13 @@
       "motion": "WALK",
       "massLevel": 0,
       "levelType": "NORMAL",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "talents": {
+        "boom": {
+          "atk_scale": 2,
+          "freeze": 10
+        }
+      }
     },
     "enemy_1107_uoffcr": {
       "name": "感染者纠察官",
@@ -7994,7 +8000,8 @@
       "motion": "WALK",
       "massLevel": 2,
       "levelType": "NORMAL",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "dmgType": "arts"
     },
     "enemy_1110_uamord_2": {
       "name": "乌萨斯高级着铠术师",
@@ -8009,7 +8016,8 @@
       "motion": "WALK",
       "massLevel": 2,
       "levelType": "NORMAL",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "dmgType": "arts"
     },
     "enemy_1111_ucommd": {
       "name": "乌萨斯突击者",
@@ -8088,7 +8096,12 @@
       "motion": "WALK",
       "massLevel": 4,
       "levelType": "ELITE",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "talents": {
+        "atkup": {
+          "atk": 1
+        }
+      }
     },
     "enemy_1385_winbom": {
       "name": "“喷射罐”",
@@ -8103,7 +8116,17 @@
       "motion": "WALK",
       "massLevel": 3,
       "levelType": "ELITE",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "talents": {
+        "Boom": {
+          "atk_scale": 1,
+          "freeze": 10,
+          "attack@times": 3,
+          "attack@cooldown": 4,
+          "attack@attack_cd": 3
+        }
+      },
+      "dmgType": "arts"
     },
     "enemy_1385_winbom_2": {
       "name": "“喷爆罐”",
@@ -8118,7 +8141,17 @@
       "motion": "WALK",
       "massLevel": 3,
       "levelType": "ELITE",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "talents": {
+        "Boom": {
+          "atk_scale": 1,
+          "freeze": 10,
+          "attack@times": 3,
+          "attack@cooldown": 4,
+          "attack@attack_cd": 3
+        }
+      },
+      "dmgType": "arts"
     },
     "enemy_1388_wingnt": {
       "name": "“投石机”",
@@ -8133,7 +8166,12 @@
       "motion": "WALK",
       "massLevel": 4,
       "levelType": "ELITE",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "talents": {
+        "FirstAttack": {
+          "attack@first_atk_scale": 1.5
+        }
+      }
     },
     "enemy_1388_wingnt_2": {
       "name": "“榴弹炮”",
@@ -8148,7 +8186,12 @@
       "motion": "WALK",
       "massLevel": 4,
       "levelType": "ELITE",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "talents": {
+        "FirstAttack": {
+          "attack@first_atk_scale": 1.5
+        }
+      }
     },
     "enemy_1389_winbab": {
       "name": "访问团强攻手",
@@ -8193,7 +8236,15 @@
       "motion": "WALK",
       "massLevel": 1,
       "levelType": "NORMAL",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "skills": [
+        {
+          "key": "CrossAttack",
+          "cooldown": 5,
+          "initCooldown": 2,
+          "bb": {}
+        }
+      ]
     },
     "enemy_1403_gunsho_2": {
       "name": "速射劲弩手",
@@ -8208,7 +8259,15 @@
       "motion": "WALK",
       "massLevel": 1,
       "levelType": "NORMAL",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "skills": [
+        {
+          "key": "CrossAttack",
+          "cooldown": 5,
+          "initCooldown": 2,
+          "bb": {}
+        }
+      ]
     },
     "enemy_1404_msnip": {
       "name": "重弩突袭者",
@@ -8224,6 +8283,19 @@
       "massLevel": 1,
       "levelType": "NORMAL",
       "lifePointReduce": 1,
+      "skills": [
+        {
+          "key": "CrossAttack",
+          "cooldown": 8,
+          "initCooldown": 2,
+          "bb": {
+            "atk_scale": 1,
+            "stun": 5,
+            "duration": 2
+          }
+        }
+      ],
+      "dmgType": "arts",
       "shared": true
     },
     "enemy_1404_msnip_2": {
@@ -8240,6 +8312,19 @@
       "massLevel": 1,
       "levelType": "NORMAL",
       "lifePointReduce": 1,
+      "skills": [
+        {
+          "key": "CrossAttack",
+          "cooldown": 8,
+          "initCooldown": 2,
+          "bb": {
+            "atk_scale": 1,
+            "stun": 5,
+            "duration": 2
+          }
+        }
+      ],
+      "dmgType": "arts",
       "shared": true
     },
     "enemy_1405_boomer_2": {
@@ -8255,7 +8340,24 @@
       "motion": "WALK",
       "massLevel": 3,
       "levelType": "NORMAL",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "talents": {
+        "Light": {
+          "move_speed": 0.7,
+          "mass_level": -2
+        }
+      },
+      "skills": [
+        {
+          "key": "Bomb",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "bb": {
+            "atk_scale": 2,
+            "projectile_range": 1.1
+          }
+        }
+      ]
     },
     "enemy_1406_chghmr": {
       "name": "战线推进者",
@@ -8270,7 +8372,22 @@
       "motion": "WALK",
       "massLevel": 4,
       "levelType": "ELITE",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "talents": {
+        "DmgUp": {
+          "sheltr_atk_scale": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "PowerHit",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "bb": {
+            "atk": 0.8
+          }
+        }
+      ]
     },
     "enemy_1406_chghmr_2": {
       "name": "战线突破者",
@@ -8285,7 +8402,22 @@
       "motion": "WALK",
       "massLevel": 4,
       "levelType": "ELITE",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "talents": {
+        "DmgUp": {
+          "sheltr_atk_scale": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "PowerHit",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "bb": {
+            "atk": 0.8
+          }
+        }
+      ]
     },
     "enemy_3001_upeopl": {
       "name": "乌萨斯平民",
@@ -8302,7 +8434,12 @@
       "levelType": "NORMAL",
       "lifePointReduce": 0,
       "neutral": true,
-      "deathLife": 1
+      "deathLife": 1,
+      "talents": {
+        "dead": {
+          "value": -1
+        }
+      }
     }
   }
 }
