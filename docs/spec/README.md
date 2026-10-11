@@ -37,3 +37,4 @@
 - [field.md](field.md)：地图坐标、部署、撤退、费用
 - [enemies.md](enemies.md)：出怪、移动、到达目标点
 - [combat.md](combat.md)：攻击、伤害
+- [lockstep.md](lockstep.md)：输入延迟、封口、追赶、哈希校验、重连、暂停

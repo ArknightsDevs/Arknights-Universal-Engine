@@ -3,7 +3,8 @@
   "include": [
     "packages/math/src/**",
     "packages/schema/src/**",
-    "packages/sim/src/**"
+    "packages/sim/src/**",
+    "packages/net/src/**"
   ],
   "branches": 95,
   "lines": 95,

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import { readView, KIND, eventProblems } from '@aue/schema';
 import { createWorld, step, stateHash, takeSnapshot, restoreSnapshot, toView, nextUint32, seedState, hashNumbers, HASH_START } from '../src/index.js';
-import { tinyContent } from './fixtures/tiny.js';
+import { tinyContent } from '@aue/testkit';
 
 const c = tinyContent(), SEED = 20261011;
 /** @typedef {[number, number, import('@aue/schema').Command]} Timed frame, seat, command */

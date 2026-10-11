@@ -59,7 +59,24 @@ importers:
         specifier: ^4.10.2
         version: 4.10.2
 
-  packages/net: {}
+  packages/net:
+    dependencies:
+      '@aue/math':
+        specifier: workspace:*
+        version: link:../math
+      '@aue/schema':
+        specifier: workspace:*
+        version: link:../schema
+      '@aue/sim':
+        specifier: workspace:*
+        version: link:../sim
+    devDependencies:
+      '@aue/testkit':
+        specifier: workspace:*
+        version: link:../testkit
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
 
   packages/render: {}
 
@@ -78,6 +95,9 @@ importers:
         specifier: workspace:*
         version: link:../schema
     devDependencies:
+      '@aue/testkit':
+        specifier: workspace:*
+        version: link:../testkit
       fast-check:
         specifier: ^4.10.2
         version: 4.10.2

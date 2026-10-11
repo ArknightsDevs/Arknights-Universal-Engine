@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step, physicalDamage, rangeCell, deployProblem } from '../src/index.js';
-import { tinyContent } from './fixtures/tiny.js';
+import { tinyContent } from '@aue/testkit';
 
 const c = tinyContent();
 /** @param {number} [players] */

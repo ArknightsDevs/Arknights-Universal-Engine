@@ -1,4 +1,4 @@
-// A tiny hand-made level for the simulation's unit tests: 6 columns × 3 rows, route coordinates (row 0 nearest).
+// Shared test fixtures. tinyContent: a tiny hand-made level for unit tests of the simulation and the lockstep: 6 columns × 3 rows, route coordinates (row 0 nearest).
 //   row 2   S  .  W  W  .  .      S start (enemies come in), W high ground (ranged)
 //   row 1   _  _  _  _  _  E      _ road (melee), E goal
 //   row 0   .  .  W  W  .  .      . floor (nothing)
@@ -9,7 +9,7 @@ const t = (key, height, buildable) => ({ key, height, buildable, passable: 'ALL'
 const F = t('tile_floor', 'LOWLAND', 'NONE'), R = t('tile_road', 'LOWLAND', 'MELEE'), W = t('tile_wall', 'HIGHLAND', 'RANGED');
 const S = t('tile_start', 'LOWLAND', 'NONE'), E = t('tile_end', 'LOWLAND', 'NONE');
 
-/** @returns {import('../../src/types.js').Content} */
+/** A fresh copy each call (tests may change it). Shaped as @aue/sim's Content. @returns {any} */
 export function tinyContent() {
   return {
     level: {
