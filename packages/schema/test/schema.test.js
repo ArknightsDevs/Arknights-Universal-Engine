@@ -40,6 +40,8 @@ test('events: well formed ones pass; unknown types, wrong types and extra fields
   assert.deepEqual([eventProblems({ type: 'wave', index: 0 }), eventProblems({ type: 'predefine', key: 'trap_1#1', on: 1 }), eventProblems({ type: 'end', result: 1 })], [[], [], []],
     'version 8: a wave, a predefined unit, the end');
   assert.deepEqual(eventProblems({ type: 'stage', index: 1, on: 0, stamps: 2 }), [], 'version 8: a co-op stage');
+  assert.deepEqual(eventProblems({ type: 'attack', id: 1, target: 2, wind: 12 }), [], 'version 9: an attack with its wind-up');
+  assert.deepEqual(eventProblems({ type: 'attack', id: 1, target: 2 }), ['attack.wind is not a number']);
   assert.deepEqual(eventProblems({ type: 'predefine', key: 3, on: 1 }), ['predefine.key is not a string']);
   assert.deepEqual(eventProblems(null), ['not an object']);
   assert.deepEqual(eventProblems({ type: 'explode' }), ['unknown event type explode']);

@@ -3,7 +3,7 @@
 // The figure stands at its feet facing the camera; its depth is that of an upright pole at its feet (ADR 0027), so
 // terrain hides it and figures never cut each other.
 import * as THREE from 'three';
-import { newPose, setupPose, applyAnimation, updateOrder, updateWorld, drawList, readSkeleton, readAtlas } from '@aue/spine';
+import { newPose, setupPose, applyAnimation, updateOrder, updateWorld, drawList, readSkeleton, readAtlas, animationTimes } from '@aue/spine';
 
 /** @typedef {import('@aue/spine').Skeleton} Skeleton @typedef {import('@aue/spine').Atlas} Atlas */
 /** @typedef {{ skeleton: Skeleton, atlas: Atlas, textures: THREE.Texture[], pma: boolean }} SpineModel */
@@ -99,13 +99,15 @@ export function createFigure(model, scale = SKELETON_SCALE) {
     if (!mats.has(key)) mats.set(key, material(model.textures[page], blend, model.pma));
     return /** @type {THREE.ShaderMaterial} */ (mats.get(key));
   };
-  const byName = new Map(s.animations.map((a) => [a.name, a]));
+  const byName = new Map(s.animations.map((a) => [a.name, a])), times = animationTimes(s);
   return {
     object: mesh,
     /** Animation names. */
     animations: s.animations.map((a) => a.name),
     /** The duration of an animation in seconds, 0 when it has none. @param {string} name */
     duration: (name) => byName.get(name)?.duration ?? 0,
+    /** The time of an animation's first OnAttack in seconds, 0 when it has none. @param {string} name */
+    hit: (name) => times[name]?.hits[0] ?? 0,
     /** @param {string} name @param {number} time seconds @param {boolean} loop @param {boolean} flip */
     show(name, time, loop, flip) {
       setupPose(s, p);

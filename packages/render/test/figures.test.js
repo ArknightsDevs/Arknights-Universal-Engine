@@ -7,6 +7,7 @@ import { tinyContent } from '@aue/testkit';
 import { ANIM, DIR } from '@aue/schema';
 import { figureArrays, blendFactors, animationRoles, roleOf, operatorFacing, enemyFacing, SKELETON_SCALE } from '../src/index.js';
 import { createUnits } from '../src/units.js';
+import { tinyModel } from './model.js';
 
 const batch = (/** @type {number} */ page, /** @type {number} */ blend) => ({
   page, blend, positions: [0, 0, 100, 0, 100, 200], uvs: [0, 0, 1, 0, 1, 1], light: Array(12).fill(1), dark: [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1], indices: [0, 1, 2],
@@ -50,20 +51,6 @@ test('[渲染-4] facing: operators use the back facing up and mirror facing left
   assert.equal(enemyFacing(true, 0.1), false);
   assert.equal(enemyFacing(true, 0), true);
 });
-
-/** A one-bone skeleton with a 100 × 200 region and animations Idle and Move. */
-function tinyModel() {
-  const bone = { name: 'root', parent: -1, rotation: 0, x: 0, y: 0, scaleX: 1, scaleY: 1, shearX: 0, shearY: 0, length: 0, transform: 0, skinRequired: false, color: 0 };
-  const region = { name: 'r', type: 'region', path: 'r', x: 0, y: 100, rotation: 0, scaleX: 1, scaleY: 1, width: 100, height: 200, color: -1 };
-  const anim = (/** @type {string} */ name) => ({ name, duration: 1, timelines: [], events: [], drawOrder: [] });
-  const skeleton = /** @type {any} */ ({
-    hash: '', version: '3.8.99', x: 0, y: 0, width: 0, height: 0, nonessential: null, bones: [bone], slots: [{ name: 's', bone: 0, color: -1, dark: -1, attachment: 'r', blend: 0 }],
-    constraints: { ik: [], transform: [], path: [] }, skins: [{ name: 'default', bones: [], ik: [], transform: [], path: [], attachments: [{ slot: 0, key: 'r', attachment: region }] }],
-    events: [], animations: [anim('Idle'), anim('Move')],
-  });
-  const atlas = { pages: [{ name: 'p.png', width: 128, height: 256 }], regions: [{ name: 'r', page: 0, x: 0, y: 0, width: 100, height: 200, degrees: 0, originalWidth: 100, originalHeight: 200, offsetX: 0, offsetY: 0, index: -1 }] };
-  return { skeleton, atlas, textures: [new THREE.Texture()], pma: true };
-}
 
 test('[渲染-1] [渲染-2] units: a figure for a unit with a model, standing at its feet, facing the camera, not writing depth', () => {
   const level = tinyContent().level, u = createUnits(new Map(), new Map([['slime', { front: tinyModel() }]]));

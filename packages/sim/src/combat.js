@@ -137,8 +137,9 @@ function startSwing(w, c, a, targets, mods) {
   a.atkCd = interval - 1;
   a.anim = ANIM.ATTACK;
   rampageAttack(a);
-  for (const t of targets) w.events.push({ type: 'attack', id: a.id, target: t.id });
-  a.swing = { wind: ch ? every : windupFrames(timingOf(c, a), interval), since: 0, targets: targets.map((t) => t.id), mods };
+  const wind = ch ? every : windupFrames(timingOf(c, a), interval);
+  for (const t of targets) w.events.push({ type: 'attack', id: a.id, target: t.id, wind });
+  a.swing = { wind, since: 0, targets: targets.map((t) => t.id), mods };
   if (a.swing.wind === 0) land(w, c, a);
 }
 

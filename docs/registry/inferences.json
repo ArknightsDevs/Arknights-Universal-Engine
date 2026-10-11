@@ -569,7 +569,7 @@
   {
     "id": "INF-0082",
     "clause": "渲染-3",
-    "statement": "按名字为动画分角色：待机 Idle、移动 Move_Loop 或 Move、攻击 Attack、Attack_Loop 或 Combat、死亡 Die、入场 Start，找不到时按名字的形状找，再找不到用待机。",
+    "statement": "按名字为动画分角色：待机 Idle、移动 Move_Loop 或 Move、攻击 Attack、Attack_Loop 或 Combat、死亡 Die、入场 Start，找不到时按名字的形状找，再找不到用待机。干员部署后先播一次入场动画；单位死亡后播完死亡动画再移除；攻击动画每次攻击从头播一次，播完接待机。",
     "basis": "统计本地 113 个敌人模型和 8 名干员的正面、背面模型：待机 101 个敌人名为 Idle，其余是 A_Idle、Idle_A 一类；移动 92 个为 Move、8 个为 Move_Loop，9 个没有移动动画；攻击 97 个为 Attack；干员都有 Idle、Attack、Start，正面有 Die、背面没有。同名动画在游戏里的用途没有公开说明。",
     "status": "待查证"
   },

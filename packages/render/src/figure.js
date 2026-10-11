@@ -1,0 +1,109 @@
+// A unit's figure over time (docs/spec/render.md 渲染-3, 渲染-4): which side of its model shows and mirrored or not,
+// and which clip plays — the deploy clip first, each attack from its start at the pace that lands its OnAttack on the
+// hit frame, idle once an attack is over, the die clip after the unit dies.
+import * as THREE from 'three';
+import { KIND } from '@aue/schema';
+import { createFigure } from './spine.js';
+import { animationRoles, roleOf, operatorFacing, enemyFacing } from './roles.js';
+
+/** Simulation frames per second (the engine's 时间-1). */
+export const FPS = 30;
+
+/**
+ * A unit drawn as a figure: its figures and roles by side, the side showing and the mirroring, the role playing, the
+ * frame it began and its pace, the role the view last gave, the x it was last at, and whether it is dying.
+ * @typedef {{ group: THREE.Group, sides: Record<string, ReturnType<typeof createFigure>>, roles: Record<string, import('./roles.js').Roles>,
+ *   side: string, flip: boolean, role: string, since: number, rate: number, view: string, x: number, dying: boolean }} Figure
+ */
+
+/**
+ * A figure for a unit from its model's sides (null without a front). An operator starts with its deploy clip when it
+ * has one.
+ * @param {{ front?: import('./spine.js').SpineModel, back?: import('./spine.js').SpineModel } | undefined} m
+ * @param {import('@aue/schema').ViewUnit} u @param {number} frame @returns {Figure | null}
+ */
+export function newFigure(m, u, frame) {
+  if (!m?.front) return null;
+  /** @type {Figure} */
+  const f = { group: new THREE.Group(), sides: {}, roles: {}, side: 'front', flip: false, role: '', since: frame, rate: 1, view: 'idle', x: u.x, dying: false };
+  for (const side of /** @type {const} */ (['front', 'back'])) {
+    const model = m[side];
+    if (!model) continue;
+    f.sides[side] = createFigure(model);
+    f.roles[side] = animationRoles(f.sides[side].animations);
+    f.group.add(f.sides[side].object);
+  }
+  if (u.kind === KIND.OPERATOR && f.roles.front.start) f.role = 'start';
+  return f;
+}
+
+/** @param {Figure} f @param {string} role @param {number} frame @param {number} rate */
+const play = (f, role, frame, rate) => { f.role = role; f.since = frame; f.rate = rate; };
+
+/**
+ * A figure following its unit's view (渲染-3, 渲染-4): moving or idle starts that role; a deploy or attack clip plays
+ * out unless the unit moves; operators face by their direction, enemies by how they moved.
+ * @param {Figure} f @param {import('@aue/schema').ViewUnit} u @param {number} frame
+ */
+export function follow(f, u, frame) {
+  const role = roleOf(u.anim), held = f.role === 'start' || f.role === 'attack';
+  f.view = role;
+  if (role === 'attack' && !held) play(f, 'attack', frame, 1);
+  else if (role !== f.role && !(held && role === 'idle')) play(f, role, frame, 1);
+  const back = { back: !!f.sides.back, backDies: !!f.roles.back?.die, dying: role === 'die' };
+  const facing = u.kind === KIND.OPERATOR ? operatorFacing(u.dir, back) : { side: 'front', flip: enemyFacing(f.flip, u.x - f.x) };
+  f.side = facing.side; f.flip = facing.flip; f.x = u.x;
+}
+
+/**
+ * An attack starting (渲染-3): the attack clip from its start, paced so its first OnAttack falls `wind` frames later;
+ * at its own pace without a wind-up or an OnAttack.
+ * @param {Figure} f @param {number} wind @param {number} frame
+ */
+export function attacked(f, wind, frame) {
+  const fig = f.sides[f.side], name = f.roles[f.side].attack, hit = fig.hit(name);
+  play(f, 'attack', frame, wind > 0 && hit > 0 ? (hit * FPS) / wind : 1);
+}
+
+/**
+ * The unit died (渲染-3): the die clip plays from this frame, on the front when the side showing has none; false when
+ * the model has no die clip at all.
+ * @param {Figure} f @param {number} frame
+ */
+export function dies(f, frame) {
+  if (!f.roles[f.side].die) f.side = 'front';
+  if (!f.roles[f.side].die) return false;
+  play(f, 'die', frame, 1);
+  f.dying = true;
+  return true;
+}
+
+/** Whether a dying figure's die clip is over. @param {Figure} f @param {number} frame */
+export const deathOver = (f, frame) => (frame - f.since) / FPS >= f.sides[f.side].duration(f.roles[f.side].die ?? '');
+
+/**
+ * The clip a figure shows at a (fractional) frame (渲染-3): a deploy or attack clip once, then the view's role (idle
+ * after an attack) carrying on from the clip's end; a die clip once, holding its last pose; the others looping.
+ * @param {Figure} f @param {number} frame @returns {{ name: string, time: number, loop: boolean }}
+ */
+export function clipAt(f, frame) {
+  const fig = f.sides[f.side], roles = f.roles[f.side], t = ((frame - f.since) / FPS) * f.rate;
+  const of = (/** @type {string} */ role) => roles[/** @type {'idle'} */ (role)] ?? roles.idle;
+  if (f.role === 'start' || f.role === 'attack') {
+    const name = of(f.role), d = fig.duration(name);
+    if (t < d) return { name, time: t, loop: false };
+    return { name: of(f.role === 'start' ? f.view : 'idle'), time: t - d, loop: true };
+  }
+  return { name: of(f.role), time: t, loop: f.role !== 'die' };
+}
+
+/**
+ * Poses a figure at a frame and turns it to face the camera; only its current side shows.
+ * @param {Figure} f @param {number} frame @param {THREE.Camera} camera
+ */
+export function poseFigure(f, frame, camera) {
+  for (const [side, x] of Object.entries(f.sides)) x.object.visible = side === f.side;
+  const c = clipAt(f, frame);
+  f.sides[f.side].show(c.name, c.time, c.loop, f.flip);
+  f.group.quaternion.copy(camera.quaternion);
+}

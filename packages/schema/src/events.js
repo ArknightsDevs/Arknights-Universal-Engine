@@ -1,14 +1,14 @@
 // Presentation events, version 4 (ADR 0053; version 2 adds a skill starting or ending, version 3 an element burst, version 4 a heal, version 5 a projectile launched, version 6 a player down and back, version 7 a cost request and its answer, version 8 a wave beginning, a predefined unit coming
-// into effect or leaving, a co-op stage beginning and settled, an enemy's 直击 bolt and explosion, and the end of the battle): what happened in a frame, for the renderer and the sound. They flow from
+// into effect or leaving, a co-op stage beginning and settled, an enemy's 直击 bolt and explosion, and the end of the battle, version 9 an attack's wind-up in frames): what happened in a frame, for the renderer and the sound. They flow from
 // the simulation to the screen only; the simulation never reads them back.
 
-export const EVENTS_VERSION = 8;
+export const EVENTS_VERSION = 9;
 
 /** Each event type and its fields besides `type` (all numbers, except `key`: a content id; `el` is an element id 1…5). */
 export const EVENT_FIELDS = Object.freeze({
   spawn: Object.freeze(['id', 'key']),
   deploy: Object.freeze(['id', 'key', 'owner']),
-  attack: Object.freeze(['id', 'target']),
+  attack: Object.freeze(['id', 'target', 'wind']),
   hit: Object.freeze(['id', 'target', 'damage']),
   death: Object.freeze(['id']),
   goal: Object.freeze(['id', 'owner']),
