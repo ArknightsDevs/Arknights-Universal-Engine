@@ -11,10 +11,10 @@ import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, oper
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
 
-test('[职业-7] the covered branches are 37 of the 72 official ones', () => {
+test('[职业-7] the covered branches are 40 of the 72 official ones', () => {
   assert.equal(Object.keys(ALL).length, 72);
   for (const b of Object.keys(BRANCHES)) assert.ok(Object.hasOwn(ALL, b), b);
-  assert.equal(Object.keys(BRANCHES).length, 37);
+  assert.equal(Object.keys(BRANCHES).length, 40);
   assert.ok(coveredBranch('fastshot') && !coveredBranch('mystic') && !coveredBranch('toString'));
 });
 
@@ -82,4 +82,13 @@ test('[职业-7] [职业-8] 炮手, 扩散术师, 撼地者, 投掷手, 教官 a
   assert.equal((await t('char_130_doberm')).unblockedScale, 1.2);
   const lap = await t('char_140_whitew');
   assert.deepEqual([lap.antiAir, lap.blockedFirst, lap.unblockedScale], [true, true, 0.8]);
+});
+
+test('[职业-7] [职业-9] 武者, 收割者 and 不屈者 from the real data: no ally heals them; the first two heal themselves', async () => {
+  const t = async (/** @type {string} */ id) => traits.traitOfDef(await real(id));
+  const helage = await t('char_188_helage');
+  assert.deepEqual([helage.flags, helage.selfHeal, helage.selfHealMax], [{ noAllyHeal: true }, 30, Infinity]);
+  const excu2 = await t('char_1032_excu2');
+  assert.deepEqual([excu2.flags, excu2.selfHeal, excu2.selfHealMax, excu2.targets], [{ noAllyHeal: true }, 50, 'blockCnt', 'all']);
+  assert.deepEqual((await t('char_163_hpsts')).flags, { noAllyHeal: true });
 });

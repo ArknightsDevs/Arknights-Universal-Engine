@@ -152,13 +152,14 @@ export function dealDamage(w, src, target, dmg) {
 
 /**
  * Heals (伤害-11): the amount times the healer's 治疗倍率 and the target's 受到治疗倍率, nothing under 禁疗, never above
- * the maximum HP. Returns the HP restored.
+ * the maximum HP. A unit no ally may heal (`noAllyHeal`, 职业-9) takes heals only from itself, and those even under
+ * 禁疗. Returns the HP restored.
  * @param {Unit | null} src @param {Unit} target @param {number} amount
  */
 export function heal(src, target, amount) {
   if (target.hp <= 0) return 0;
-  const ts = statsOf(target);
-  if (ts.flags.healFree) return 0;
+  const ts = statsOf(target), own = src === target && ts.flags.noAllyHeal === true;
+  if ((ts.flags.noAllyHeal && src !== target) || (ts.flags.healFree && !own)) return 0;
   const amt = amount * (src ? statsOf(src).healingDealtMul : 1) * ts.healingTakenMul;
   const actual = Math.max(0, Math.min(amt, ts.maxHp - target.hp));
   target.hp = Math.min(ts.maxHp, target.hp + actual);

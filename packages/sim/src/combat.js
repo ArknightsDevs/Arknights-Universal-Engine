@@ -42,7 +42,7 @@ export function rangeCell(op, off) {
 export function targetsOf(w, c, op) {
   const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], t = traitOfDef(d);
   const keys = rangeKeys(grid, op, d.range, statsOf(op).rangeExtend);
-  if (t.heal) return sortHealTargets(w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !statsOf(u).flags.healFree && inKeys(u, keys, grid)));
+  if (t.heal) return sortHealTargets(w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal && inKeys(u, keys, grid)));
   const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id;
   const cands = w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true
     && ((held(u) && selectable(u, { canHitFly: true })) || (selectable(u, { canHitFly: t.antiAir }) && inKeys(u, keys, grid))));
@@ -142,13 +142,26 @@ function land(w, c, a) {
   a.swing = null;
   if (palsyInterrupts(a)) { a.anim = ANIM.IDLE; return; }
   const op = a.kind === KIND.OPERATOR, heals = op && traitOf(c, a).heal, load = loadOf(a, sw.mods);
+  let reached = 0;
   for (const id of sw.targets) {
     const t = w.units.find((u) => u.id === id);
-    if (t && t.hp > 0 && !t.hidden) deliver(w, c, a, t, { load, heals: !!heals, cross: !!sw.mods.cross });
+    if (t && t.hp > 0 && !t.hidden) { deliver(w, c, a, t, { load, heals: !!heals, cross: !!sw.mods.cross }); reached++; }
   }
-  if (op) afterAttack(w, c, a, sw.mods);
+  if (op) { selfHeal(w, c, a, reached); afterAttack(w, c, a, sw.mods); }
   const ch = sw.mods.channel;
   if (ch && (sw.left ?? ch.hits) > 1) a.swing = { ...sw, wind: secondsToFrames(ch.duration / ch.hits), since: 0, left: (sw.left ?? ch.hits) - 1 };
+}
+
+/**
+ * An operator's own heal after its attack reached enemies (职业-9): the trait's amount for each of them, at most its
+ * cap (a number, or its 阻挡数 and at least 1).
+ * @param {World} w @param {Content} c @param {Unit} a @param {number} reached
+ */
+function selfHeal(w, c, a, reached) {
+  const t = traitOf(c, a);
+  if (t.selfHeal <= 0 || reached === 0 || t.heal) return;
+  const cap = t.selfHealMax === 'blockCnt' ? Math.max(1, statsOf(a).blockCnt) : t.selfHealMax;
+  for (let k = 0; k < Math.min(reached, cap); k++) w.events.push({ type: 'heal', id: a.id, target: a.id, amount: heal(a, a, t.selfHeal) });
 }
 
 /**

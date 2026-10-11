@@ -10,6 +10,7 @@ import { defaultTrait, traitTargets, traitOfDef } from '../src/traits.js';
 import { deployCost, cardOf, MAX_PENALTY } from '../src/deck.js';
 import { makeEnemy } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
+import { heal } from '../src/damage.js';
 import { statsOf } from '../src/attrs.js';
 import { pickTarget, targetsOf } from '../src/combat.js';
 import { BEHAVIOR_API_VERSION, CONTEXT_MEMBERS, SKILL_CONTEXT_MEMBERS } from '../src/api.js';
@@ -317,4 +318,22 @@ test('[职业-8] a ranged splash lands where its projectile arrives', () => {
   assert.ok(ev.some((e) => e.type === 'shot') && hits.some((e) => e.target === main.id), 'shot, then the hit');
   const first = hits.find((e) => e.target === main.id);
   assert.ok(hits.some((e) => e.target === side.id && e.f === first?.f && e.damage === first?.damage), 'the side enemy takes the same in the same frame');
+});
+
+test('[职业-9] no ally heals a noAllyHeal operator, not even a healer picks it; its own heals pass even under 禁疗', () => {
+  const { w, c, foe } = arena((cc) => {
+    cc.operators.guard.trait = { flags: { noAllyHeal: true }, selfHeal: 30, selfHealMax: 'blockCnt', targets: 'all' };
+    cc.operators.guard.range = [{ row: 0, col: 0 }, { row: 0, col: 1 }];
+  });
+  run(w, c, 1, [deploy('guard', 1, 1)]);
+  const guard = /** @type {Unit} */ (w.units[0]);
+  guard.hp = 100;
+  for (const col of [1, 2]) foe(1, col, { maxHp: 1e6 });
+  applyStatus(guard, 'healFree', {});
+  const ev = run(w, c, 1);
+  const own = ev.filter((e) => e.type === 'heal' && e.target === guard.id);
+  assert.deepEqual(own.map((e) => e.amount), [30, 30], 'one heal per enemy reached, its 阻挡数 (2) at most, despite 禁疗');
+  assert.equal(guard.hp, 160);
+  assert.equal(heal(guard, guard, 10), 10);
+  assert.equal(heal(w.units[1] ?? null, guard, 10), 0, 'another unit\'s heal does nothing');
 });

@@ -33,6 +33,9 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // the other enemies around the target take the share of the hit (职业-8)
   hammer: { trait: (bb) => ({ splash: { radius: bb['attack@ability_range_radius'] ?? 1, scale: bb['attack@atk_scale_2'] ?? 0.5, ground: false } }) },
   centurion: blockTargets,
+  // no ally heals them; they heal themselves for the enemies their attacks reach (职业-9)
+  musha: { trait: (bb) => ({ flags: { noAllyHeal: true }, selfHeal: bb.value ?? 0 }) },
+  reaper: { trait: (bb) => ({ flags: { noAllyHeal: true }, filter: 'ALL', targets: 'all', selfHeal: bb.value ?? 0, selfHealMax: 'blockCnt' }) },
   crusher: blockTargets,
   primguard: {},
   // 重装
@@ -40,6 +43,7 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   guardian: {},
   primprotector: {},
   shotprotector: { trait: () => ({ antiAir: true }) },
+  unyield: { trait: () => ({ flags: { noAllyHeal: true } }) },
   // 狙击
   fastshot: { trait: () => ({ secondary: 'FLY_FIRST' }) },
   closerange: {},

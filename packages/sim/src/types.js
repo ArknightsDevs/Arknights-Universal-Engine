@@ -107,6 +107,8 @@
  * @property {Splash | null} splash its attack also hits the enemies around the target (职业-8)
  * @property {number} aftershock its attack hits once more at this share of its 倍率 (0: no aftershock; 职业-8)
  * @property {number} unblockedScale its attack's 倍率 against an enemy it does not block is multiplied by this (职业-8)
+ * @property {number} selfHeal HP it restores itself for each enemy an attack of its reaches (职业-9)
+ * @property {number | 'blockCnt'} selfHealMax at most this many such heals an attack (its 阻挡数, at least 1)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
  */
 /**

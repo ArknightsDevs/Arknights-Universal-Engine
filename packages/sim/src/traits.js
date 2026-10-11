@@ -19,7 +19,7 @@ import { dealEp } from './elements.js';
  */
 export const defaultTrait = (position) => ({
   antiAir: position !== 'MELEE', blockedFirst: position === 'MELEE', filter: 'HATRED_DES', secondary: '', targets: 1,
-  heal: false, hits: 1, mods: {}, flags: {}, killCost: 0, refund: 0.5, hitStatus: null, splash: null, aftershock: 0, unblockedScale: 1, bb: {},
+  heal: false, hits: 1, mods: {}, flags: {}, killCost: 0, refund: 0.5, hitStatus: null, splash: null, aftershock: 0, unblockedScale: 1, selfHeal: 0, selfHealMax: Infinity, bb: {},
 });
 
 /** An operator record's trait: its own fields over the defaults of its position (职业-1). @param {OperatorDef} d @returns {TraitDef} */
