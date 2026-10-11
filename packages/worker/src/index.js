@@ -1,3 +1,4 @@
-// @aue/worker: the worker entry and its build.
-// Empty until its milestone (docs/adr, plan §8); the package exists so the boundaries hold from the start.
-export {};
+// @aue/worker: the battle in a module Worker (ADR 0009). The page imports startBattle (main.js) and points it at the
+// served worker.js; BattleSession (session.js) is the platform-free core, tested in Node.
+export { startBattle } from './main.js';
+export { BattleSession } from './session.js';

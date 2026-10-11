@@ -7,5 +7,14 @@
   "type": "module",
   "exports": {
     ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@aue/content": "workspace:*",
+    "@aue/net": "workspace:*",
+    "@aue/schema": "workspace:*",
+    "@aue/sim": "workspace:*"
+  },
+  "devDependencies": {
+    "@aue/testkit": "workspace:*"
   }
 }

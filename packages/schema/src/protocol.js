@@ -52,6 +52,41 @@ export function clientMessageProblem(m) {
   return check ? check(m) : `unknown message type ${String(m.t)}`;
 }
 
+/** @param {unknown} cmds @returns {string | null} */
+function sealedCommandsProblem(cmds) {
+  if (!Array.isArray(cmds)) return 'frames.cmds is not an array';
+  for (const c of cmds) {
+    if (!Array.isArray(c) || c.length !== 3 || !isInt(c[0], 0, MAX_FRAME) || !isInt(c[1], 0, MAX_SEAT)) return 'frames.cmds has a malformed entry';
+    const why = commandProblem(c[2]);
+    if (why) return why;
+  }
+  return null;
+}
+
+/** @type {Record<string, (m: Record<string, unknown>) => string | null>} */
+const SERVER = {
+  welcome: (m) => keyProblem(m, ['t', 'v', 'seat', 'seed', 'frame', 'snapshot'])
+    ?? (m.v !== PROTOCOL_VERSION ? `protocol version ${String(m.v)}, expected ${PROTOCOL_VERSION}` : null)
+    ?? (!isInt(m.seat, 0, MAX_SEAT) || !isInt(m.frame, -1, MAX_FRAME) || !Number.isSafeInteger(m.seed) ? 'welcome fields out of range' : null),
+  frames: (m) => keyProblem(m, ['t', 'from', 'to', 'cmds'])
+    ?? (!isInt(m.from, 0, MAX_FRAME) || !isInt(m.to, 0, MAX_FRAME) || /** @type {number} */ (m.to) < /** @type {number} */ (m.from) ? 'frames range malformed' : null)
+    ?? sealedCommandsProblem(m.cmds),
+  restamp: (m) => keyProblem(m, ['t', 'from', 'to']) ?? (!isInt(m.from, 0, MAX_FRAME) || !isInt(m.to, 0, MAX_FRAME) ? 'restamp out of range' : null),
+  resync: (m) => keyProblem(m, ['t', 'snapshot']),
+  error: (m) => keyProblem(m, ['t', 'code', 'message']) ?? (typeof m.code !== 'string' || typeof m.message !== 'string' ? 'error fields are not strings' : null),
+};
+
+/**
+ * Why a message from the server is rejected, or null. Clients check it too: a broken or hostile host must not crash
+ * a page. Snapshots are checked when they are restored (snapshotProblem).
+ * @param {unknown} m the parsed JSON @returns {string | null}
+ */
+export function serverMessageProblem(m) {
+  if (!isRecord(m)) return 'message is not an object';
+  const check = typeof m.t === 'string' && Object.hasOwn(SERVER, m.t) ? SERVER[m.t] : null;
+  return check ? check(m) : `unknown message type ${String(m.t)}`;
+}
+
 /** @typedef {{ t: 'hello', v: number, seat: number, key: string, since: number }} HelloMessage */
 /** @typedef {{ t: 'cmd', at: number, cmd: Command }} CommandMessage */
 /** @typedef {{ t: 'hash', frame: number, hash: number }} HashMessage */

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import fc from 'fast-check';
 import {
-  VIEW_VERSION, viewLength, writeView, readView, eventProblems, clientMessageProblem, commandProblem, snapshotProblem, PROTOCOL_VERSION,
+  VIEW_VERSION, viewLength, writeView, readView, eventProblems, clientMessageProblem, commandProblem, snapshotProblem, PROTOCOL_VERSION, serverMessageProblem,
 } from '../src/index.js';
 
 const SEED = 20261011;
@@ -74,4 +74,23 @@ test('snapshot envelope v1', () => {
   assert.equal(snapshotProblem({ v: 1, frame: -1, data: {} }), 'snapshot.frame out of range');
   assert.equal(snapshotProblem({ v: 1, frame: 0, data: [] }), 'snapshot.data is not an object');
   assert.equal(snapshotProblem({ v: 1, frame: 0 }), 'missing field data');
+});
+
+test('server messages: well-formed ones pass; broken ones are reported, never thrown', () => {
+  const ok = [
+    { t: 'welcome', v: 1, seat: 0, seed: 9, frame: -1, snapshot: { v: 1, frame: 0, data: {} } },
+    { t: 'frames', from: 3, to: 5, cmds: [[4, 1, DEPLOY], [5, 0, { type: 'retreat', unit: 2 }]] },
+    { t: 'restamp', from: 3, to: 7 }, { t: 'resync', snapshot: {} }, { t: 'error', code: 'x', message: 'y' },
+  ];
+  for (const m of ok) assert.equal(serverMessageProblem(m), null, JSON.stringify(m));
+  const bad = [
+    [null, 'message is not an object'], [{ t: 'hello' }, 'unknown message type hello'],
+    [{ ...ok[0], v: 0 }, 'protocol version 0, expected 1'], [{ ...ok[0], seed: 1.5 }, 'welcome fields out of range'],
+    [{ ...ok[1], to: 2 }, 'frames range malformed'], [{ ...ok[1], cmds: {} }, 'frames.cmds is not an array'],
+    [{ ...ok[1], cmds: [[4, 9, DEPLOY]] }, 'frames.cmds has a malformed entry'], [{ ...ok[1], cmds: [[4, 1, { type: 'x' }]] }, 'unknown command type x'],
+    [{ t: 'restamp', from: -1, to: 1 }, 'restamp out of range'], [{ t: 'error', code: 1, message: 'y' }, 'error fields are not strings'],
+    [{ t: 'resync' }, 'missing field snapshot'],
+  ];
+  for (const [m, why] of bad) assert.equal(serverMessageProblem(m), why, JSON.stringify(m));
+  fc.assert(fc.property(fc.jsonValue(), (v) => { const r = serverMessageProblem(v); return r === null || typeof r === 'string'; }), { seed: SEED, numRuns: 2000 });
 });

@@ -7,5 +7,13 @@
   "type": "module",
   "exports": {
     ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@aue/schema": "workspace:*",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@aue/testkit": "workspace:*",
+    "@types/three": "0.186.0"
   }
 }
