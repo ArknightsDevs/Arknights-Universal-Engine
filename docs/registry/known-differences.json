@@ -158,5 +158,45 @@
     "stronghold": "server/sim/damage.js：闪避的攻击不触发受击回复。",
     "reason": "PRTS「技能」oldid=420458 写的是「每次被攻击时」，没有排除闪避（INF-0032）。",
     "status": "有效"
+  },
+  {
+    "id": "DIF-0021",
+    "clause": "状态-8",
+    "ours": "被麻痹打断的敌人得到 0.5 秒麻痹震颤：无法移动、攻击，冷却暂停。",
+    "stronghold": "server/sim/ai.js：打断后冷却设为攻击间隔，麻痹震颤「not modelled」，未被阻挡的远程敌人原地停留 ATTACK_PAUSE。",
+    "reason": "PRTS「术语释义」麻痹「进入0.5秒的麻痹震颤状态」，「异常效果」麻痹震颤「无法攻击、释放技能」，并且同样让单位无法移动。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0022",
+    "clause": "状态-8",
+    "ours": "麻痹在麻痹 Buff 自己的计数上流失：只在持有抵抗时每帧加综合抵抗衰减率，满 10 秒 × 30 帧流失一层。",
+    "stronghold": "server/sim/buffs.js：抵抗 Buff 自带每 5 秒（RESIST_PALSY_DECAY）一次的触发，每次移除一层麻痹，与综合抵抗衰减率无关，计时从抵抗 Buff 获得时开始。",
+    "reason": "PRTS「术语释义」麻痹：「流失机制实际为每(10/综合抵抗衰减率)秒流失1层麻痹，因此麻痹流失速度可以不是5秒流失1层」。默认抵抗下两者都是 5 秒一层，起算时刻不同。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0023",
+    "clause": "元素-4",
+    "ours": "凋亡爆发给干员的是静默（不算沉默）；给其他单位的是 50% 虚弱状态，与其他虚弱按效果取最高。",
+    "stronghold": "server/sim/damage.js resolveBurst：干员一侧用 silence 标记（算作沉默）；敌人一侧把 atkMul 写在爆发冷却 Buff 上，与其他虚弱相乘。",
+    "reason": "PRTS「元素」：凋亡「立即获得等时长的阻回、静默」，「异常效果」静默「效果与沉默相同，但不会被识别为沉默」；其他单位「立即获得等时长的50%的虚弱效果」，「术语释义」虚弱为同名效果取最高。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0024",
+    "clause": "元素-4",
+    "ours": "有狂躁（ANGER）元素：干员爆发时攻击速度 +50，每秒受到 X 点真实伤害。",
+    "stronghold": "server/sim/constants.js ELEMENT：没有狂躁，另有一种自创的 necrosis 元素。",
+    "reason": "PRTS「元素」元素类型表第 5 种为 ANGER 狂躁损伤；necrosis 没有官方对应（Stronghold 自注「no official counterpart」）。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0025",
+    "clause": "元素-4",
+    "ours": "凋亡爆发每秒从技力中扣 1 点，技能运行时也扣（扣的是剩下的充能）。",
+    "stronghold": "server/sim/damage.js resolveBurst：持续中的计时技能不扣技力。",
+    "reason": "PRTS「元素」只写「每秒损失1点技力」，没有例外；「技能」可充能「当持有者的技力流失时，充能次数也会实时降低」。",
+    "status": "有效"
   }
 ]

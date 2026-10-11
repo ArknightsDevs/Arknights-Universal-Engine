@@ -130,7 +130,7 @@ const TABLE = {
   maxHp: [1, null], atk: [0, null], def: [0, null], res: [0, 100], aspd: [20, null], bat: [0, null], blockCnt: [0, null], moveSpeed: [0.1, null],
   taunt: [-2, 2], massLevel: [null, null], rangeExtend: [null, null], spRecovery: [0, null], hpRecoveryPerSec: [0, null],
   defIgnorePct: [0, 1], resIgnorePct: [0, 1], defIgnoreFlat: [0, null], resIgnoreFlat: [0, null], statusRes: [0.001, 1000],
-  epDamageResistance: [0, 100], epResistance: [0, 100],
+  epDamageResistance: [0, 100], epResistance: [0, 100], maxEp: [0, null],
 };
 
 test('[属性-3] bounds: every attribute stops at its limits of the spec table, and ATTRS says the same', () => {

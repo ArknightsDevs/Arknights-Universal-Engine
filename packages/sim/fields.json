@@ -104,5 +104,15 @@
   ],
   "at": [
     "packages/sim/src/skills.js"
-  ]
+  ],
+  "ep": [
+    "packages/sim/src/elements.js"
+  ],
+  "n": [
+    "packages/sim/src/buffs.js"
+  ],
+  "value": [
+    "packages/sim/src/buffs.js"
+  ],
+  "tag": []
 }

@@ -44,6 +44,7 @@
 - [blocking.md](blocking.md)：阻挡的条件、阻挡数、解除、被阻挡的敌人
 - [paths.md](paths.md)：寻路（流场、平滑）、路线指令、巡逻、消失
 - [skills.md](skills.md)：技能的种类、技力、发动、运行与结束、通用效果、行为接口
+- [elements.md](elements.md)：元素值、元素损伤、爆发与爆发冷却、各元素的爆发效果、当前损伤元素
 - [lockstep.md](lockstep.md)：输入延迟、封口、追赶、哈希校验、重连、暂停
 - [direction.md](direction.md)：四个方向、偏移旋转、位移的方向、并列先后
 - [body.md](body.md)：点单位与巨型单位所在的格、距离

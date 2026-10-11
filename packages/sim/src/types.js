@@ -24,6 +24,8 @@
  * @property {number} [epResistance] 损伤抵抗
  * @property {string[]} [immune] status flags the unit is immune to (状态-7)
  * @property {DamageType} [dmgType] the type of its normal attack (default phys)
+ * @property {number} [maxEp] maximum element value (default by 元素-1)
+ * @property {string} [levelType] NORMAL, ELITE or BOSS (领袖)
  */
 
 /**
@@ -74,6 +76,7 @@
  * @property {DamageType} dmgType
  * @property {number} rangeRadius an enemy's attack radius in tiles, 0 for melee
  * @property {string} applyWay MELEE or RANGED
+ * @property {number} maxEp maximum element value (元素-1)
  */
 
 /**
@@ -97,6 +100,8 @@
  * @property {number} shield barrier (屏障) left
  * @property {number} shieldHits shield (护盾) layers left
  * @property {string} shieldType the damage type it absorbs, "" for every type
+ * @property {number} n a counter its behaviour keeps (麻痹's decay, 狂躁's damage)
+ * @property {string} tag marks a buff a behaviour made, to find it again ("" for none)
  */
 
 /**
@@ -127,6 +132,7 @@
  * @property {boolean} hidden it has disappeared (路线-4)
  * @property {number} frag the frame its spawn's fragment began
  * @property {SkillState | null} skill its skill, null when it has none (技能-1)
+ * @property {Record<string, number>} ep element values below their maximum, by element (元素-1); none recorded is at its maximum
  * @property {number} anim schema ANIM
  */
 

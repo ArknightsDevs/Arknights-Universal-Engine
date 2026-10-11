@@ -46,7 +46,9 @@ const enemy = (/** @type {string} */ key, /** @type {string} */ name) => ({
   Value: [{ level: 0, enemyData: {
     name: wrap(name), levelType: wrap('NORMAL'), rangeRadius: wrap(0), applyWay: wrap('MELEE'), motion: wrap('WALK'),
     attributes: { maxHp: wrap(100.5), atk: wrap(10), def: wrap(5), magicResistance: wrap(0), moveSpeed: wrap(0.65), baseAttackTime: wrap(1.2), massLevel: wrap(1),
-      blockCnt: key === 'e_b' ? wrap(2) : { m_defined: false, m_value: 0 } },
+      blockCnt: key === 'e_b' ? wrap(2) : { m_defined: false, m_value: 0 },
+      epResistance: key === 'e_b' ? wrap(15) : { m_defined: false, m_value: 0 }, epDamageResistance: { m_defined: false, m_value: 0 },
+      palsyImmune: wrap(key === 'e_b'), stunImmune: { m_defined: false, m_value: true }, silenceImmune: wrap(key === 'e_b') },
   } }],
 });
 
@@ -135,6 +137,13 @@ test('only the enemies that spawn are exported, with level 0 attributes unrounde
   assert.equal(s.enemies.e_a.name, 'Alpha');
   assert.equal(s.enemies.e_a.res, 0);
   assert.deepEqual([s.enemies.e_a.applyWay, s.enemies.e_a.motion, s.enemies.e_a.blockCnt, s.enemies.e_b.blockCnt], ['MELEE', 'WALK', undefined, 2]);
+});
+
+test('an enemy carries its 损伤抵抗 and 元素抗性 when defined, and its immunities as status flags (状态-7, 元素-2)', () => {
+  const s = run();
+  assert.deepEqual([s.enemies.e_a.epResistance, s.enemies.e_b.epResistance, s.enemies.e_b.epDamageResistance], [undefined, 15, undefined]);
+  assert.equal(s.enemies.e_a.immune, undefined, 'none defined as true: an undefined true does not count');
+  assert.deepEqual(s.enemies.e_b.immune, ['silence', 'palsy']);
 });
 
 test('an operator takes the last keyframe of elite 0 and its range grids', () => {

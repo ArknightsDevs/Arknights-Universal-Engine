@@ -1,10 +1,11 @@
 // Creating units from content (spec 部署-1, 出怪-1, 属性-1): the base attributes come from the content, the buffs start
-// empty, the HP full.
+// empty, the HP and the element values full.
 import { KIND, ANIM } from '@aue/schema';
 import { tileAt } from './level.js';
 import { dirOfCode, DEFAULT_DIR } from './dir.js';
 import { statsOf } from './attrs.js';
 import { makeSkillState } from './skills.js';
+import { LEADER_MAX_EP } from './elements.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Base} Base */
 /** @typedef {import('./types.js').Content} Content @typedef {import('./types.js').EnemyDef} EnemyDef @typedef {import('./types.js').OperatorDef} OperatorDef */
@@ -17,6 +18,9 @@ const OPTIONAL = Object.freeze({
   aspd: 100, blockCnt: 1, moveSpeed: 1, tauntLevel: 0, massLevel: 0, epDamageResistance: 0, epResistance: 0, motion: 'WALK',
   dmgType: 'phys', rangeRadius: 0, applyWay: 'MELEE',
 });
+
+/** A record's maximum element value: its own, else 2000 for a leader (领袖, levelType BOSS), else 1000 (元素-1). @param {Record<string, any>} r */
+const maxEpOf = (r) => r.maxEp ?? (r.levelType === 'BOSS' ? LEADER_MAX_EP : 1000);
 
 /**
  * The base attributes of a content record (属性-1); what the record leaves out takes the default.
@@ -31,7 +35,7 @@ export function baseOf(d) {
     maxHp: d.maxHp, atk: d.atk, def: d.def, res: d.res, aspd: opt('aspd'), bat: d.baseAttackTime ?? 1, blockCnt: opt('blockCnt'),
     moveSpeed: opt('moveSpeed'), tauntLevel: opt('tauntLevel'), massLevel: opt('massLevel'), epDamageResistance: opt('epDamageResistance'),
     epResistance: opt('epResistance'), motion: opt('motion'), immune: [...(d.immune ?? [])], dmgType: opt('dmgType'),
-    rangeRadius: opt('rangeRadius'), applyWay: opt('applyWay'),
+    rangeRadius: opt('rangeRadius'), applyWay: opt('applyWay'), maxEp: maxEpOf(r),
   };
 }
 
@@ -41,7 +45,7 @@ export function baseOf(d) {
  */
 function fresh(w, base) {
   const maxHp = statsOf({ base, buffs: [] }).maxHp;
-  return { base, buffs: [], hp: maxHp, maxHp, atkCd: 0, blockedBy: -1, blockedAt: -1, born: w.frame, bornN: ++w.bornThisFrame, path: [], pt: 0, wait: -1, hidden: false, skill: null };
+  return { base, buffs: [], hp: maxHp, maxHp, atkCd: 0, blockedBy: -1, blockedAt: -1, born: w.frame, bornN: ++w.bornThisFrame, path: [], pt: 0, wait: -1, hidden: false, skill: null, ep: {} };
 }
 
 /**

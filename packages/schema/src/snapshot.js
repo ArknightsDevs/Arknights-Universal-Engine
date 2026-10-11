@@ -1,10 +1,10 @@
-// The snapshot envelope, version 2 (ADR 0053): a version, the frame it was taken at, and the simulation's own data.
+// The snapshot envelope, version 3 (ADR 0053): a version, the frame it was taken at, and the simulation's own data.
 // The data's inner structure belongs to the simulation and changes together with SNAPSHOT_VERSION (version 2: units
-// carry their base attributes, buffs, route state and skill).
+// carry their base attributes, buffs, route state and skill; version 3: their element values, buffs a tag and a counter).
 import { isRecord, isInt, keyProblem } from './checks.js';
 import { MAX_FRAME } from './protocol.js';
 
-export const SNAPSHOT_VERSION = 2;
+export const SNAPSHOT_VERSION = 3;
 
 /** @typedef {{ v: number, frame: number, data: Record<string, unknown> }} Snapshot */
 

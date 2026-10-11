@@ -10,6 +10,8 @@ import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
 import { tickSkill, beforeAttack, afterAttack } from './skills.js';
+import { palsyInterrupts } from './status.js';
+import { dealEp, rampageAttack } from './elements.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell @typedef {import('./attrs.js').Stats} Stats */
@@ -42,16 +44,22 @@ export function targetsOf(w, c, op) {
 export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
 
 /**
- * Starts the cooldown and hits the targets (伤害-6, 伤害-7, 技能-5): each target takes `times` hits of the attack × the
- * 攻击力倍率, of the attacker's damage type.
- * @param {World} w @param {Unit} a @param {Stats} s @param {Unit[]} targets @param {{ scale: number, times: number }} [mods]
+ * Starts the cooldown and hits the targets (伤害-6, 伤害-7, 技能-5, 元素-2): each target takes `times` hits of the
+ * attack × the 攻击力倍率, of the attacker's damage type, each followed by the attack's 元素损伤 if it carries one. An
+ * attack during a 狂躁 burst counts once (元素-4).
+ * @param {World} w @param {Unit} a @param {Stats} s @param {Unit[]} targets @param {{ scale: number, times: number, element?: string, ep?: number }} [mods]
  */
 function strike(w, a, s, targets, mods = { scale: 1, times: 1 }) {
   a.atkCd = intervalFrames(s.bat, s.aspd) - 1;
   a.anim = ANIM.ATTACK;
+  rampageAttack(a);
+  const el = /** @type {import('./elements.js').Element | undefined} */ (mods.element), ep = mods.ep ?? 0;
   for (const t of targets) {
     w.events.push({ type: 'attack', id: a.id, target: t.id });
-    for (let k = 0; k < mods.times; k++) dealDamage(w, a, t, { type: a.base.dmgType, amount: s.atk * mods.scale });
+    for (let k = 0; k < mods.times; k++) {
+      dealDamage(w, a, t, { type: a.base.dmgType, amount: s.atk * mods.scale });
+      if (el && ep > 0) dealEp(w, t, el, ep);
+    }
   }
 }
 
@@ -101,8 +109,8 @@ export function enemyTargets(w, e) {
 
 /**
  * An enemy's attack this frame (敌人攻击-1): like an operator's — the cooldown counts down while it can act; when it
- * is out and there is a target, the first in the official order (索敌-5) takes the hit. An enemy without attack does
- * not attack. Returns whether it attacked.
+ * is out and there is a target, the first in the official order (索敌-5) takes the hit. 麻痹 interrupts it: no hit,
+ * the cooldown starts over (状态-8). An enemy without attack does not attack. Returns whether it attacked.
  * @param {World} w @param {Content} _c @param {Unit} e
  */
 export function enemyAttack(w, _c, e) {
@@ -111,6 +119,11 @@ export function enemyAttack(w, _c, e) {
   if (e.atkCd > 0) { e.atkCd--; return false; }
   const t = sortAllies(e, enemyTargets(w, e), FPS)[0];
   if (!t) return false;
+  if (palsyInterrupts(e)) {
+    e.atkCd = intervalFrames(s.bat, s.aspd) - 1;
+    e.anim = ANIM.IDLE;
+    return true;
+  }
   strike(w, e, s, [t]);
   return true;
 }

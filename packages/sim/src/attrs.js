@@ -40,6 +40,7 @@ export const ATTRS = Object.freeze({
   statusRes: attr('statusRes', kinds('statusRes'), 1, 0.001, 1000),
   epDamageResistance: attr('epDamageResistance', kinds('epDmgRes'), 0, 0, 100),
   epResistance: attr('epResistance', kinds('epRes'), 0, 0, 100),
+  maxEp: attr('maxEp', kinds('maxEp'), 1000, 0),
 });
 
 /**
@@ -49,7 +50,7 @@ export const ATTRS = Object.freeze({
 export const JUDGE_KEYS = Object.freeze(['dmgTakenMul', 'physTakenMul', 'artsTakenMul', 'trueTakenMul', 'elementalTakenMul', 'dodgePhys', 'dodgeArts']);
 
 /** Multipliers kept as products besides the attributes' own (属性-2): the source's and the healer's (伤害-7, 伤害-11). */
-const CHANNELS = Object.freeze(['dmgDealtMul', 'physDealtMul', 'artsDealtMul', 'healingDealtMul', 'healingTakenMul']);
+const CHANNELS = Object.freeze(['dmgDealtMul', 'physDealtMul', 'artsDealtMul', 'healingDealtMul', 'healingTakenMul', 'epTakenMul']);
 
 /** Each attribute key's kind: 0 直接加算, 1 直接乘算, 2 最终加算, 3 最终乘算. */
 const KIND_OF = new Map(Object.values(ATTRS).flatMap((a) => a.keys.map((k, i) => /** @type {[string, number]} */ ([k, i]))));
@@ -125,7 +126,7 @@ export const intervalFrames = (bat, aspd) => secondsAtSpeedToFrames(bat, Math.mi
 /**
  * @typedef {Record<keyof typeof ATTRS, number> & {
  *   interval: number,
- *   dmgDealtMul: number, physDealtMul: number, artsDealtMul: number, healingDealtMul: number, healingTakenMul: number,
+ *   dmgDealtMul: number, physDealtMul: number, artsDealtMul: number, healingDealtMul: number, healingTakenMul: number, epTakenMul: number,
  *   flags: Record<string, boolean>, flying: boolean, invincible: boolean, disabled: boolean, immobile: boolean,
  *   sum: Record<string, number>, prod: Record<string, number>
  * }} Stats
@@ -142,7 +143,7 @@ function flagsOf(base, raw) {
   const flags = {};
   for (const k of Object.keys(raw)) if (!immune.has(k)) flags[k] = true;
   const flying = flags.levitate ? true : flags.groundbind ? false : base.motion === 'FLY';
-  const disabled = !!(flags.stun || flags.freeze || flags.sleep || flags.levitate);
+  const disabled = !!(flags.stun || flags.freeze || flags.sleep || flags.levitate || flags.palsyShake);
   return { flags, flying, invincible: !!(flags.invincible || flags.sleep), disabled, immobile: disabled || !!(flags.root || flags.groundbind) };
 }
 

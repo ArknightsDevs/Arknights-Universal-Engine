@@ -184,7 +184,7 @@ test('[属性-1] [属性-3] units take their base attributes from the content; w
   for (let f = 0; f < 16; f++) step(w, cc);
   const e = w.units[0];
   assert.deepEqual(e.base, { maxHp: 100, atk: 0, def: 10, res: 0, aspd: 120, bat: 2, blockCnt: 1, moveSpeed: 1, tauntLevel: 1, massLevel: 4,
-    epDamageResistance: 30, epResistance: 10, motion: 'FLY', immune: ['stun'], dmgType: 'arts', rangeRadius: 0, applyWay: 'MELEE' });
+    epDamageResistance: 30, epResistance: 10, motion: 'FLY', immune: ['stun'], dmgType: 'arts', rangeRadius: 0, applyWay: 'MELEE', maxEp: 1000 });
   const plain = fresh(1);
   step(plain, c, [[0, deploy({})]]);
   const op = plain.units[0];

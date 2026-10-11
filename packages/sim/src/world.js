@@ -9,6 +9,8 @@ import { releaseAll } from './blocking.js';
 import { operatorsAttack } from './combat.js';
 import { applyCommand } from './commands.js';
 import { tickBuffs } from './buffs.js';
+import { STATUS_BEHAVIORS } from './status.js';
+import { BURST_BEHAVIORS } from './elements.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -52,6 +54,12 @@ function removeDead(w) {
   w.units = w.units.filter((u) => u.hp > 0);
 }
 
+/** The engine's own buff behaviours (状态-8, 元素-4); content cannot replace them. */
+const BUILTIN = Object.freeze({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS });
+
+/** The buff behaviours of a battle: the content's, then the engine's own. @param {Content} c */
+const buffBehaviors = (c) => (c.behaviors?.buffs ? { ...c.behaviors.buffs, ...BUILTIN } : BUILTIN);
+
 /**
  * Runs frame `w.frame` with the commands executed in it ([seat, command] in the order the server sealed them) and
  * advances to the next frame. Returns the frame's presentation events.
@@ -63,7 +71,7 @@ export function step(w, c, commands = []) {
   for (const [seat, cmd] of commands) applyCommand(w, c, seat, cmd);
   gainCost(w, c);
   spawnDue(w, c);
-  tickBuffs(w, c.behaviors?.buffs ?? {});
+  tickBuffs(w, buffBehaviors(c));
   enemiesAct(w, c);
   operatorsAttack(w, c);
   removeDead(w);

@@ -8,6 +8,7 @@ import { makeBuff, addBuff, removeBuff } from './buffs.js';
 import { applyStatus } from './status.js';
 import { dealDamage, heal } from './damage.js';
 import { timeSp, gainSp, spendSp } from './sp.js';
+import { dealEp } from './elements.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').SkillDef} SkillDef @typedef {import('./types.js').SkillState} SkillState */
@@ -15,8 +16,8 @@ import { timeSp, gainSp, spendSp } from './sp.js';
 
 /**
  * What a skill's attacks change (技能-5): the 攻击力倍率, hits per target, the number of targets; `skill` marks an attack
- * the skill makes (it gives no attack SP).
- * @typedef {{ scale: number, times: number, targets: number, skill: boolean }} AttackMods
+ * the skill makes (it gives no attack SP); `element` and `ep`, 元素损伤 each hit carries (元素-2).
+ * @typedef {{ scale: number, times: number, targets: number, skill: boolean, element?: import('./elements.js').Element, ep?: number }} AttackMods
  */
 
 /**
@@ -32,6 +33,7 @@ import { timeSp, gainSp, spendSp } from './sp.js';
  * @property {(target: Unit, key: string) => void} removeBuff
  * @property {(target: Unit, key: import('./status.js').StatusKey, o?: import('./status.js').StatusOptions) => void} applyStatus
  * @property {(target: Unit, dmg: import('./damage.js').Damage) => number} dealDamage
+ * @property {(target: Unit, element: import('./elements.js').Element, amount: number) => number} dealEp
  * @property {(target: Unit, amount: number) => number} heal
  * @property {(n: number) => void} gainCost
  */
@@ -112,6 +114,7 @@ function contextOf(w, c, op) {
     removeBuff: (t, key) => { removeBuff(t, key); },
     applyStatus: (t, key, o) => { applyStatus(t, key, { ...o, src: op }); },
     dealDamage: (t, dmg) => dealDamage(w, op, t, dmg),
+    dealEp: (t, el, amount) => dealEp(w, t, el, amount),
     heal: (t, amount) => heal(op, t, amount),
     gainCost: (n) => { const p = w.players[op.owner]; p.cost = Math.min(c.level.options.maxCost, p.cost + n); },
   };
@@ -144,14 +147,14 @@ export function activate(w, c, op) {
 
 /**
  * Whether a skill may start now (技能-3): it is not running, it holds its cost, its operator can act and is not
- * silenced, and its type is the one asked for.
+ * silenced (沉默, 静默), and its type is the one asked for.
  * @param {Content} c @param {Unit} op @param {'AUTO' | 'MANUAL'} type
  */
 export function canStart(c, op, type) {
   const st = op.skill;
   if (!st || st.active || st.sp < st.cost || defOf(c, op).type !== type) return false;
   const s = statsOf(op);
-  return !s.disabled && !s.flags.silence;
+  return !s.disabled && !s.flags.silence && !s.flags.mute;
 }
 
 /** When an AUTO skill starts (技能-3). @param {Content} c @param {Unit} op @returns {'ready' | 'attack'} */
@@ -167,7 +170,7 @@ export function tickSkill(w, c, op) {
   if (!st) return;
   if (st.active && st.dur > 0 && st.at < w.frame && --st.dur === 0) endSkill(w, c, op);
   if (st.active) behaviorOf(c, st.id).tick?.(contextOf(w, c, op));
-  timeSp(st, statsOf(op).spRecovery);
+  if (!statsOf(op).flags.noSp) timeSp(st, statsOf(op).spRecovery);
   if (triggerOf(c, op) === 'ready' && canStart(c, op, 'AUTO')) activate(w, c, op);
 }
 
@@ -205,7 +208,7 @@ export function afterAttack(w, c, op, mods) {
   if (!st) return;
   if (mods.skill && st.armed) endSkill(w, c, op);
   else if (mods.skill && st.ammo > 0) st.ammo--;
-  else if (!mods.skill && st.spType === 'attack') gainSp(st, 1);
+  else if (!mods.skill && st.spType === 'attack' && !statsOf(op).flags.noSp) gainSp(st, 1);
 }
 
 /** A newly deployed operator's passive skill starts (技能-3). @param {World} w @param {Content} c @param {Unit} op */

@@ -25,11 +25,32 @@ function definedNumber(o, key, path) {
   return w.m_defined === true ? { [key]: wrappedNumber(o, key, path) } : {};
 }
 
+/** The enemy_database immunities and the status flags they stand for (状态-7). */
+const IMMUNE_FLAGS = Object.freeze({
+  stunImmune: 'stun', silenceImmune: 'silence', sleepImmune: 'sleep', frozenImmune: 'freeze', levitateImmune: 'levitate',
+  disarmedCombatImmune: 'disarmedCombat', fearedImmune: 'fear', palsyImmune: 'palsy', attractImmune: 'attract',
+  teleportImmune: 'teleport', groundBoundImmune: 'groundbind',
+});
+
+/**
+ * { immune: [flags] } for each immunity defined as true, else nothing.
+ * @param {Record<string, unknown>} at attributes @param {string} path path of at
+ * @returns {{ immune?: string[] }}
+ */
+function immunities(at, path) {
+  const out = Object.entries(IMMUNE_FLAGS).filter(([k]) => {
+    if (!Object.hasOwn(at, k)) return false;
+    const w = asObject(at[k], `${path}.${k}`);
+    return w.m_defined === true && w.m_value === true;
+  }).map(([, flag]) => flag);
+  return out.length > 0 ? { immune: out } : {};
+}
+
 /**
  * One enemy at level 0.
  * @param {unknown} entry enemy_database entry
  * @param {string} key
- * @returns {Record<string, string | number>}
+ * @returns {Record<string, string | number | string[]>}
  */
 function readEnemy(entry, key) {
   const p = `enemyDb[${key}]`;
@@ -52,6 +73,9 @@ function readEnemy(entry, key) {
     ...definedNumber(at, 'blockCnt', ap),
     massLevel: wrappedNumber(at, 'massLevel', ap),
     levelType: asString(wrapped(data, 'levelType', dp), `${dp}.levelType.m_value`),
+    ...definedNumber(at, 'epDamageResistance', ap),
+    ...definedNumber(at, 'epResistance', ap),
+    ...immunities(at, ap),
   };
 }
 
@@ -59,7 +83,7 @@ function readEnemy(entry, key) {
  * The enemies used, level 0 of their enemy_database entry.
  * @param {unknown} dbRaw enemy_database.json
  * @param {string[]} keys
- * @returns {Record<string, Record<string, string | number>>}
+ * @returns {Record<string, Record<string, string | number | string[]>>}
  */
 function extractEnemies(dbRaw, keys) {
   const list = asArray(field(asObject(dbRaw, 'enemyDb'), 'enemies', 'enemyDb'), 'enemyDb.enemies');

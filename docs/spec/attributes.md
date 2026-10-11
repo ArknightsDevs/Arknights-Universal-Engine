@@ -24,7 +24,7 @@
 - **范围**：只计入生效的 Buff（状态-2）。伤判类修饰器（受到伤害倍率、闪避）不在这里汇总，而是在结算时逐个处理（伤害-8）。
 - **键名**：每项属性的四类修饰器的键名见下表，沿用 Stronghold 内容接口的名字。没有对应名字的属性，四个键是 `<前缀>Flat`、`<前缀>Pct`、`<前缀>Final`、`<前缀>Mul`。
   - 表外以 `Mul` 结尾的键按最终乘算相乘，其余的键相加。
-  - 其中这几个乘区由伤害和治疗读取（伤害-7、伤害-11）：伤害倍率 `dmgDealtMul`、`physDealtMul`、`artsDealtMul`，治疗倍率 `healingDealtMul`，受到治疗倍率 `healingTakenMul`。
+  - 其中这几个乘区由伤害和治疗读取（伤害-7、伤害-11）：伤害倍率 `dmgDealtMul`、`physDealtMul`、`artsDealtMul`，治疗倍率 `healingDealtMul`，受到治疗倍率 `healingTakenMul`；元素损伤读取受到元素损伤倍率 `epTakenMul`（元素-2）。
 
 | 属性 | 基础字段 | 直接加算 | 直接乘算 | 最终加算 | 最终乘算 |
 |---|---|---|---|---|---|
@@ -38,7 +38,7 @@
 | 移动速度 | `moveSpeed` | `moveFlat` | `movePct` | `moveFinal` | `moveMul` |
 | 嘲讽等级 | `tauntLevel` | `taunt` | `tauntPct` | `tauntFinal` | `tauntMul` |
 
-其余属性的前缀：重量 `mass`、技力自然回复速度 `spRecovery`、生命回复速度 `hpRegen`（直接加算键为 `hpRegen`）、攻击距离 `rangeExtend`（直接加算键为 `rangeExtend`）、四种穿透（直接加算键就是属性名，如 `defIgnorePct`）、一减状态抵抗率 `statusRes`、元素抗性 `epDmgRes`、损伤抵抗 `epRes`。
+其余属性的前缀：重量 `mass`、技力自然回复速度 `spRecovery`、生命回复速度 `hpRegen`（直接加算键为 `hpRegen`）、攻击距离 `rangeExtend`（直接加算键为 `rangeExtend`）、四种穿透（直接加算键就是属性名，如 `defIgnorePct`）、一减状态抵抗率 `statusRes`、元素抗性 `epDmgRes`、损伤抵抗 `epRes`、最大元素值 `maxEp`。
 
 - 来源：[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「修饰器叠加」：「除最终乘算为变化数值之间相乘外，其余均为相加」；层数的计法为推断 INF-0015
 
@@ -61,6 +61,7 @@
 | 物理穿透（固定值）、法术穿透（固定值） | 0 | — | 0 |
 | 一减状态抵抗率 | 0.001 | 1000 | 1 |
 | 元素抗性、损伤抵抗 | 0 | 100 | 0 |
+| 最大元素值 | 0 | — | 按 元素-1：领袖 2000，其余 1000 |
 
 「—」表示不限。攻击速度只在计算攻击间隔时另外限定在 10–600（属性-5）。
 

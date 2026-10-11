@@ -1,0 +1,171 @@
+// Elements (docs/spec/elements.md 元素-1…元素-5): each unit's element values, the 元素损伤 that lowers them, the burst
+// (元素损伤爆发) when one reaches 0 — its effects on characters and on other units, the lock while it lasts, the values
+// back at their maximum when it ends — and the 当前损伤元素.
+import { FPS, secondsToFrames } from '@aue/math';
+import { KIND } from '@aue/schema';
+import { statsOf } from './attrs.js';
+import { makeBuff, addBuff, count, retune } from './buffs.js';
+import { applyStatus } from './status.js';
+import { dealDamage } from './damage.js';
+import { loseSp } from './sp.js';
+import { MIN_DAMAGE_RATIO } from './constants.js';
+
+/** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff */
+/** @typedef {'SANITY' | 'WATER' | 'FIRE' | 'DARK' | 'ANGER'} Element */
+
+/** The elements in the order of their ids 1…5 (元素-1). */
+export const ELEMENTS = /** @type {readonly Element[]} */ (Object.freeze(['SANITY', 'WATER', 'FIRE', 'DARK', 'ANGER']));
+
+/** A leader (领袖) enemy's maximum element value; every other unit's is 1000 (元素-1). */
+export const LEADER_MAX_EP = 2000;
+
+/** The 狂躁 burst's damage per second on a character: 100, 50 more for each attack since it began, at most 600 (元素-4). */
+export const rampageDamage = (/** @type {number} */ attacks) => Math.min(600, 100 + 50 * attacks);
+
+/** The burst buff's key for an element. @param {Element} el */
+const burstKey = (el) => `burst:${el}`;
+/** Whether a buff is a burst. @param {Buff} b */
+const isBurst = (b) => b.key.startsWith('burst:');
+
+/** Whether the unit is in a burst: its element values are locked (元素-3). @param {Unit} u */
+export const bursting = (u) => u.buffs.some(isBurst);
+
+/** Whether the burst effects for characters apply (元素-4): to operators; every other unit takes the others'. @param {Unit} u */
+const character = (u) => u.kind === KIND.OPERATOR;
+
+/**
+ * The element value of one element (元素-1): what is recorded, or the maximum when none is.
+ * @param {Unit} u @param {Element} el
+ */
+export const epOf = (u, el) => (Object.hasOwn(u.ep, el) ? u.ep[el] : statsOf(u).maxEp);
+
+/**
+ * The 当前损伤元素 (元素-5): of the elements below their maximum, the lowest value, the lower id of equals; null when
+ * none is below it.
+ * @param {Unit} u @returns {Element | null}
+ */
+export function currentElement(u) {
+  const max = statsOf(u).maxEp;
+  /** @type {Element | null} */
+  let best = null;
+  for (const el of ELEMENTS) if (epOf(u, el) < max && (best === null || epOf(u, el) < epOf(u, best))) best = el;
+  return best;
+}
+
+/**
+ * The 元素损伤 a unit takes of an amount (元素-2): A with no 损伤抵抗, max(0.05A, A·(1 − 0.01·D)) with D > 0, then
+ * times its 元素损伤 multiplier.
+ * @param {number} amount A @param {import('./attrs.js').Stats} s
+ */
+export function epTaken(amount, s) {
+  const d = s.epResistance, a = d > 0 ? Math.max(MIN_DAMAGE_RATIO * amount, amount * (1 - 0.01 * d)) : amount;
+  return a * s.epTakenMul;
+}
+
+/**
+ * Deals 元素损伤 (元素-2, 元素-3): nothing to a unit at 0 HP, invincible, disappeared, immune to elements (元素免疫) or
+ * in a burst; otherwise the element's value drops by what the unit takes, and at 0 the burst begins. Returns the amount
+ * taken.
+ * @param {World} w @param {Unit} u @param {Element} el @param {number} amount
+ */
+export function dealEp(w, u, el, amount) {
+  if (u.hp <= 0 || !(amount > 0)) return 0;
+  const s = statsOf(u);
+  if (s.invincible || u.hidden || s.flags.epImmune || bursting(u)) return 0;
+  const taken = epTaken(amount, s), left = epOf(u, el) - taken;
+  u.ep[el] = Math.max(0, left);
+  if (left <= 0) burst(w, u, el);
+  return taken;
+}
+
+/** Burst damage (元素-4): no source, cannot be dodged. @param {World} w @param {Unit} u @param {import('./types.js').DamageType} type @param {number} amount */
+const burstHit = (w, u, type, amount) => { dealDamage(w, null, u, { type, amount, canDodge: false }); };
+
+/** A permanent, endlessly stacking cut of DEF (侵蚀, 元素-4). @param {Unit} u @param {number} by */
+const erode = (u, by) => { addBuff(u, makeBuff({ key: 'erosion', rule: 'stack', maxStacks: Number.MAX_SAFE_INTEGER, mods: { defFlat: by } })); };
+
+/**
+ * One side of an element's burst (元素-4): how long it lasts, what its buff carries for as long, whether that buff
+ * triggers each second, and what happens at once (the damage last).
+ * @typedef {{ secs: number, mods: Record<string, number>, ticks: boolean, start: (w: World, u: Unit, frames: number) => void }} BurstSide
+ */
+
+/** @param {Partial<BurstSide> & { secs: number }} o @returns {BurstSide} */
+const side = (o) => ({ mods: {}, ticks: false, start: () => {}, ...o });
+
+/** Each element's burst: on a character, on any other unit (元素-4). @type {Readonly<Record<Element, readonly [BurstSide, BurstSide]>>} */
+const BURSTS = Object.freeze({
+  SANITY: [
+    side({ secs: 10, start: (w, u, frames) => { applyStatus(u, 'stun', { frames }); burstHit(w, u, 'true', 1000); } }),
+    side({ secs: 10, start: (w, u) => {
+      if (!(u.base.immune ?? []).includes('palsy')) for (let i = 0; i < 3; i++) applyStatus(u, 'palsy');
+      burstHit(w, u, 'elemental', 6000);
+    } }),
+  ],
+  WATER: [
+    side({ secs: 10, start: (w, u) => { erode(u, -100); burstHit(w, u, 'phys', 800); } }),
+    side({ secs: 8, start: (w, u) => { erode(u, -120); burstHit(w, u, 'elemental', 5000); } }),
+  ],
+  FIRE: [
+    side({ secs: 10, mods: { resFlat: -20 }, start: (w, u) => burstHit(w, u, 'arts', 1200) }),
+    side({ secs: 10, mods: { resFlat: -20 }, start: (w, u) => burstHit(w, u, 'elemental', 7000) }),
+  ],
+  DARK: [
+    side({ secs: 15, ticks: true, start: (_w, u, frames) => { applyStatus(u, 'noSp', { frames }); applyStatus(u, 'mute', { frames }); } }),
+    side({ secs: 15, ticks: true, start: (_w, u, frames) => { applyStatus(u, 'weaken', { frames, value: 0.5, tag: burstKey('DARK') }); } }),
+  ],
+  ANGER: [side({ secs: 15, ticks: true, mods: { aspd: 50 } }), side({ secs: 15 })],
+});
+
+/**
+ * The burst (元素-3, 元素-4): a burst buff that locks the element values for the burst's time and carries what lasts
+ * as long, then the effects that come at once.
+ * @param {World} w @param {Unit} u @param {Element} el
+ */
+function burst(w, u, el) {
+  const s = BURSTS[el][character(u) ? 0 : 1], frames = secondsToFrames(s.secs);
+  addBuff(u, makeBuff({ key: burstKey(el), left: frames, value: frames, every: s.ticks ? FPS : 0, fixed: true, mods: s.mods }));
+  w.events.push({ type: 'burst', id: u.id, el: ELEMENTS.indexOf(el) + 1 });
+  s.start(w, u, frames);
+}
+
+/**
+ * Each second of a 凋亡 burst (元素-4): a character loses 1 SP and takes 100 arts damage; another unit takes 800
+ * elemental damage and its 虚弱 drops to 50% × the time left ÷ the burst's time.
+ * @type {import('./buffs.js').Behavior}
+ */
+const darkTick = {
+  tick(w, u, b) {
+    if (character(u)) {
+      if (u.skill) loseSp(u.skill, 1);
+      burstHit(w, u, 'arts', 100);
+      return;
+    }
+    burstHit(w, u, 'elemental', 800);
+    const weak = u.buffs.find((x) => x.key === 'weaken' && x.tag === b.key);
+    if (!weak) return;
+    const v = (0.5 * Math.max(0, b.left - 1)) / b.value;
+    retune(u, weak, v, { atkMul: 1 - v });
+  },
+};
+
+/** Each second of a 狂躁 burst on a character (元素-4): true damage by the attacks it made since the burst began. @type {import('./buffs.js').Behavior} */
+const angerTick = {
+  tick(w, u, b) { burstHit(w, u, 'true', rampageDamage(b.n)); },
+};
+
+/** A burst's end (元素-3): every element value back at its maximum. @type {import('./buffs.js').Behavior} */
+const burstEnd = {
+  expire(_w, u) { u.ep = {}; },
+};
+
+/** The behaviours of the burst buffs, by key. @type {Readonly<Record<string, import('./buffs.js').Behavior>>} */
+export const BURST_BEHAVIORS = Object.freeze(Object.fromEntries(ELEMENTS.map((el) => [burstKey(el), {
+  ...(el === 'DARK' ? darkTick : el === 'ANGER' ? angerTick : {}), ...burstEnd,
+}])));
+
+/** An attack a unit makes during a 狂躁 burst raises its damage (元素-4). @param {Unit} u */
+export function rampageAttack(u) {
+  const b = u.buffs.find((x) => x.key === burstKey('ANGER'));
+  if (b) count(b, 1);
+}

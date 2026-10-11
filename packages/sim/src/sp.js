@@ -1,6 +1,7 @@
 // SP (docs/spec/skills.md 技能-2): whole points up to the cap (cost × charges); the 技力冷却槽 that gives auto recovery
 // its points; nothing while the skill runs (阻回) or the bar is full.
 import { FPS } from '@aue/math';
+import { statsOf } from './attrs.js';
 
 /** @typedef {import('./types.js').SkillState} SkillState @typedef {import('./types.js').Unit} Unit */
 
@@ -37,7 +38,12 @@ export function spendSp(st) {
   st.sp -= st.cost;
 }
 
-/** A hit on a unit whose skill recovers when hit (受击回复): one point (技能-2). @param {Unit} u */
+/** Loses up to n points (凋亡's 爆发, 元素-3). @param {SkillState} st @param {number} n */
+export function loseSp(st, n) {
+  st.sp = Math.max(0, st.sp - n);
+}
+
+/** A hit on a unit whose skill recovers when hit (受击回复): one point, none under 阻回 (技能-2). @param {Unit} u */
 export function hurtSp(u) {
-  if (u.skill && u.skill.spType === 'hurt') gainSp(u.skill, 1);
+  if (u.skill && u.skill.spType === 'hurt' && !statsOf(u).flags.noSp) gainSp(u.skill, 1);
 }

@@ -1,9 +1,9 @@
-// Presentation events, version 2 (ADR 0053; version 2 adds a skill starting or ending): what happened in a frame, for the renderer and the sound. They flow from
+// Presentation events, version 3 (ADR 0053; version 2 adds a skill starting or ending, version 3 an element burst): what happened in a frame, for the renderer and the sound. They flow from
 // the simulation to the screen only; the simulation never reads them back.
 
-export const EVENTS_VERSION = 2;
+export const EVENTS_VERSION = 3;
 
-/** Each event type and its fields besides `type` (all numbers, except `key`: a content id). */
+/** Each event type and its fields besides `type` (all numbers, except `key`: a content id; `el` is an element id 1…5). */
 export const EVENT_FIELDS = Object.freeze({
   spawn: Object.freeze(['id', 'key']),
   deploy: Object.freeze(['id', 'key', 'owner']),
@@ -13,6 +13,7 @@ export const EVENT_FIELDS = Object.freeze({
   goal: Object.freeze(['id', 'owner']),
   retreat: Object.freeze(['id']),
   skill: Object.freeze(['id', 'active']),
+  burst: Object.freeze(['id', 'el']),
 });
 
 /** @typedef {{ type: keyof typeof EVENT_FIELDS, [field: string]: string | number }} PresentationEvent */

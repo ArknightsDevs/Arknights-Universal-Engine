@@ -1,9 +1,10 @@
-// Statuses (docs/spec/status.md 状态-5…状态-7): the official 异常状态 as buff templates, and applying one — who it
-// cannot affect, how long it lasts, and how a second cold turns into a freeze.
+// Statuses (docs/spec/status.md 状态-5…状态-9): the official 异常状态 as buff templates, and applying one — who it
+// cannot affect, how long it lasts, and how a second cold turns into a freeze; 麻痹 interrupting an enemy's attack and
+// wearing off under 抵抗.
 import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
-import { makeBuff, addBuff, removeBuff } from './buffs.js';
+import { makeBuff, addBuff, removeBuff, consumeStack, count, decayRate } from './buffs.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff */
 /** @typedef {import('./attrs.js').Stats} Stats */
@@ -20,11 +21,12 @@ import { makeBuff, addBuff, removeBuff } from './buffs.js';
  * @property {number} maxStacks
  * @property {number | null} value the value when none is given; null when one must be given
  * @property {(s: Stats, u: Unit) => boolean} refuse
+ * @property {number} every frames between its behaviour's triggers, counted without the decay rate; 0 for none
  */
 
 /** @param {Partial<Status>} o @returns {Readonly<Status>} */
 const status = (o) => Object.freeze({
-  rule: 'queue', mods: () => ({}), flags: {}, resist: false, heavy: false, maxStacks: 1, value: 0, refuse: () => false, ...o,
+  rule: 'queue', mods: () => ({}), flags: {}, resist: false, heavy: false, maxStacks: 1, value: 0, refuse: () => false, every: 0, ...o,
 });
 /** @param {(v: number) => Record<string, number>} mods @returns {Partial<Status>} 效果取最高, with a value that must be given */
 const valued = (mods) => ({ rule: 'max', mods, value: null });
@@ -47,10 +49,14 @@ export const STATUS = Object.freeze({
   levitate: status({ flags: { levitate: true }, heavy: true, refuse: (s) => s.flying }),
   groundbind: status({ flags: { groundbind: true }, heavy: true, refuse: (s) => !s.flying }),
   fear: status({ flags: { fear: true }, resist: true, refuse: (_s, u) => u.kind !== KIND.ENEMY }),
-  palsy: status({ rule: 'stack', maxStacks: 3, resist: true }),
+  palsy: status({ rule: 'stack', maxStacks: 3, resist: true, flags: { palsy: true }, every: 1 }),
+  palsyShake: status({ flags: { palsyShake: true } }),
   invincible: status({ flags: { invincible: true } }),
   healFree: status({ flags: { healFree: true } }),
   silence: status({ flags: { silence: true } }),
+  mute: status({ flags: { mute: true } }),
+  noSp: status({ flags: { noSp: true } }),
+  elementFree: status({ flags: { epImmune: true } }),
 });
 
 /** @typedef {keyof typeof STATUS} StatusKey */
@@ -62,6 +68,7 @@ export const STATUS = Object.freeze({
  * @property {number} [frames] how long, in frames
  * @property {number} [value] its strength, for statuses that have one
  * @property {number} [stacks] layers, for statuses that stack
+ * @property {string} [tag] a mark for the behaviour that applies it, to find the buff again
  */
 
 /** Frames from the options: given frames, or seconds converted (时间-2), or −1 for no end. @param {StatusOptions} o */
@@ -81,7 +88,7 @@ export function statusBuff(key, target, o = {}) {
   const heavy = t.heavy && statsOf(target).massLevel > 3;
   return makeBuff({
     key, src: o.src?.id ?? -1, rule: t.rule, value, mods: t.mods(value), flags: t.flags, stacks: o.stacks ?? 1,
-    maxStacks: t.maxStacks, left: framesOf(o), resist: t.resist, decay: heavy ? 2 : 1,
+    maxStacks: t.maxStacks, left: framesOf(o), resist: t.resist, decay: heavy ? 2 : 1, every: t.every, fixed: t.every > 0, tag: o.tag,
   });
 }
 
@@ -112,4 +119,40 @@ export function applyStatus(target, key, o = {}) {
   const b = statusBuff(k, target, o);
   if (b.left === 0) return null;
   return k === 'cold' || k === 'enemyCold' ? applyCold(target, b) : addBuff(target, b);
+}
+
+/** 麻痹 loses a layer every this many frames at a 综合抵抗衰减率 of 1 (状态-8: 10 s). */
+export const PALSY_DECAY_FRAMES = secondsToFrames(10);
+/** How long 麻痹震颤 lasts (状态-8: 0.5 s). */
+export const PALSY_SHAKE_FRAMES = secondsToFrames(0.5);
+
+/**
+ * 麻痹 wearing off (状态-8): only while the holder has 抵抗, it loses one layer per 10 / 综合抵抗衰减率 seconds — its
+ * counter `n` gains the decay rate each frame.
+ * @type {import('./buffs.js').Behavior}
+ */
+const palsyDecay = {
+  tick(_w, u, b) {
+    if (!u.buffs.some((x) => x.key === 'buffres')) return;
+    count(b, decayRate(b, statsOf(u).statusRes));
+    if (b.n < PALSY_DECAY_FRAMES) return;
+    count(b, -PALSY_DECAY_FRAMES);
+    consumeStack(u, b);
+  },
+};
+
+/** The behaviours of the statuses that have one, by key. */
+export const STATUS_BEHAVIORS = Object.freeze({ palsy: palsyDecay });
+
+/**
+ * 麻痹 at an enemy's attack (状态-8): when its 麻痹 takes effect, one layer goes, the enemy gets 0.5 s of 麻痹震颤 and
+ * the attack is interrupted. Returns whether it was.
+ * @param {Unit} e
+ */
+export function palsyInterrupts(e) {
+  const b = e.kind === KIND.ENEMY && statsOf(e).flags.palsy ? e.buffs.find((x) => x.key === 'palsy') : undefined;
+  if (!b) return false;
+  consumeStack(e, b);
+  applyStatus(e, 'palsyShake', { frames: PALSY_SHAKE_FRAMES });
+  return true;
 }

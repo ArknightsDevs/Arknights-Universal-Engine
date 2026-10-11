@@ -15,7 +15,7 @@ import { statsOf } from './attrs.js';
 /** Every field a buff may leave out, with its value then (状态-1), in the order a buff holds them. */
 const DEFAULTS = Object.freeze({
   src: -1, rule: /** @type {Buff['rule']} */ ('queue'), value: 0, left: -1, every: 0, fixed: false, resist: false, decay: 1, prio: 0,
-  shield: 0, shieldHits: 0, shieldType: '',
+  shield: 0, shieldHits: 0, shieldType: '', n: 0, tag: '',
 });
 
 /**
@@ -84,6 +84,28 @@ export function addBuff(u, b) {
   u.buffs.push(b);
   refreshHp(u);
   return b;
+}
+
+/**
+ * Replaces a buff's strength and modifiers (a behaviour whose effect changes over time, 元素-4); HP keeps its ratio
+ * (属性-4).
+ * @param {Unit} u @param {Buff} b @param {number} value @param {Record<string, number>} mods
+ */
+export function retune(u, b, value, mods) {
+  b.value = value;
+  b.mods = { ...mods };
+  refreshHp(u);
+}
+
+/** Takes one layer of a stacking buff; the last one removes it (状态-8). @param {Unit} u @param {Buff} b */
+export function consumeStack(u, b) {
+  if (b.stacks > 1) b.stacks--;
+  else removeBuff(u, b);
+}
+
+/** Counts towards a behaviour's own goal (its counter `n`). @param {Buff} b @param {number} d */
+export function count(b, d) {
+  b.n += d;
 }
 
 /**

@@ -18,6 +18,7 @@ export * as routes from './routes.js';
 export * as paths from './paths.js';
 export * as skills from './skills.js';
 export * as sp from './sp.js';
+export * as elements from './elements.js';
 export { nextUint32, seedState } from './rng.js';
 export { hashNumbers, HASH_START } from './hash.js';
 
