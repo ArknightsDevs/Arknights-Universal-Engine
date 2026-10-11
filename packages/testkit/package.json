@@ -11,6 +11,9 @@
   "bin": {
     "aue-check": "./src/cli.js"
   },
+  "dependencies": {
+    "espree": "11.2.0"
+  },
   "aue": {
     "node": true
   }

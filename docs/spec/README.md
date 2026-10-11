@@ -47,6 +47,7 @@
 - [elements.md](elements.md)：元素值、元素损伤、爆发与爆发冷却、各元素的爆发效果、当前损伤元素
 - [traits.md](traits.md)：职业与分支特性：按位置的默认值、治疗、目标数与伤害次数、在场修饰器与命中效果、击杀费用、行为接口、官方分支表
 - [spine.md](spine.md)：Spine 3.8 二进制骨骼的读取，战斗用的动画时长和攻击时刻
+- [compat.md](compat.md)：Stronghold 兼容层：网格尺寸
 - [lockstep.md](lockstep.md)：输入延迟、封口、追赶、哈希校验、重连、暂停
 - [direction.md](direction.md)：四个方向、偏移旋转、位移的方向、并列先后
 - [body.md](body.md)：点单位与巨型单位所在的格、距离

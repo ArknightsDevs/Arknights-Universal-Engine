@@ -6,4 +6,5 @@ export { checkRegistry } from './registry.js';
 export { coverageArgs, runCoverage } from './coverage.js';
 export { CLAUSE_ID, readClauses, readCitations, readRegistry } from './spec.js';
 export { tinyContent } from './fixtures.js';
+export { loadTimeReads } from './scan.js';
 export { STRONGHOLD, oracleDir, fetchOracle, loadOracle } from './oracle.js';

@@ -80,7 +80,8 @@
     },
     "testkit": {
       "allow": [
-        "fast-check"
+        "fast-check",
+        "espree"
       ],
       "node": true,
       "role": "repository checks, Stronghold oracle, generators (dev only)"

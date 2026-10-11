@@ -131,7 +131,11 @@ importers:
 
   packages/spine: {}
 
-  packages/testkit: {}
+  packages/testkit:
+    dependencies:
+      espree:
+        specifier: 11.2.0
+        version: 11.2.0
 
   packages/ui: {}
 
