@@ -10,15 +10,19 @@
   "base": [],
   "born": [],
   "bornN": [],
-  "blockedBy": [],
+  "blockedBy": [
+    "packages/sim/src/blocking.js"
+  ],
   "x": [
-    "packages/sim/src/enemies.js"
+    "packages/sim/src/routes.js",
+    "packages/sim/src/blocking.js"
   ],
   "y": [
-    "packages/sim/src/enemies.js"
+    "packages/sim/src/routes.js",
+    "packages/sim/src/blocking.js"
   ],
   "leg": [
-    "packages/sim/src/enemies.js"
+    "packages/sim/src/routes.js"
   ],
   "hp": [
     "packages/sim/src/damage.js",
@@ -36,7 +40,8 @@
   ],
   "anim": [
     "packages/sim/src/combat.js",
-    "packages/sim/src/world.js"
+    "packages/sim/src/world.js",
+    "packages/sim/src/enemies.js"
   ],
   "left": [
     "packages/sim/src/buffs.js"
@@ -61,5 +66,8 @@
   ],
   "shieldHits": [
     "packages/sim/src/damage.js"
+  ],
+  "blockedAt": [
+    "packages/sim/src/blocking.js"
   ]
 }

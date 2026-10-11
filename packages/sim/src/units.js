@@ -11,16 +11,26 @@ import { statsOf } from './attrs.js';
 /** @param {import('./level.js').Tile | null} tile */
 const heightLevel = (tile) => (tile && tile.height === 'HIGHLAND' ? 1 : 0);
 
+/** What a content record may leave out, with the value then (属性-3, 敌人攻击-1). */
+const OPTIONAL = Object.freeze({
+  aspd: 100, blockCnt: 1, moveSpeed: 1, tauntLevel: 0, massLevel: 0, epDamageResistance: 0, epResistance: 0, motion: 'WALK',
+  dmgType: 'phys', rangeRadius: 0, applyWay: 'MELEE',
+});
+
 /**
  * The base attributes of a content record (属性-1); what the record leaves out takes the default.
  * @param {EnemyDef | OperatorDef} d @returns {Base}
  */
 export function baseOf(d) {
+  /** @type {Record<string, any>} */
+  const r = d;
+  /** @param {keyof typeof OPTIONAL} k @returns {any} */
+  const opt = (k) => r[k] ?? OPTIONAL[k];
   return {
-    maxHp: d.maxHp, atk: d.atk, def: d.def, res: d.res, aspd: d.aspd ?? 100, bat: d.baseAttackTime ?? 1,
-    blockCnt: 'blockCnt' in d ? d.blockCnt : 0, moveSpeed: 'moveSpeed' in d ? d.moveSpeed : 1, tauntLevel: d.tauntLevel ?? 0,
-    massLevel: d.massLevel ?? 0, epDamageResistance: d.epDamageResistance ?? 0, epResistance: d.epResistance ?? 0,
-    motion: 'motion' in d && d.motion ? d.motion : 'WALK', immune: [...(d.immune ?? [])], dmgType: d.dmgType ?? 'phys',
+    maxHp: d.maxHp, atk: d.atk, def: d.def, res: d.res, aspd: opt('aspd'), bat: d.baseAttackTime ?? 1, blockCnt: opt('blockCnt'),
+    moveSpeed: opt('moveSpeed'), tauntLevel: opt('tauntLevel'), massLevel: opt('massLevel'), epDamageResistance: opt('epDamageResistance'),
+    epResistance: opt('epResistance'), motion: opt('motion'), immune: [...(d.immune ?? [])], dmgType: opt('dmgType'),
+    rangeRadius: opt('rangeRadius'), applyWay: opt('applyWay'),
   };
 }
 
@@ -30,7 +40,7 @@ export function baseOf(d) {
  */
 function fresh(w, base) {
   const maxHp = statsOf({ base, buffs: [] }).maxHp;
-  return { base, buffs: [], hp: maxHp, maxHp, atkCd: 0, blockedBy: -1, born: w.frame, bornN: ++w.bornThisFrame };
+  return { base, buffs: [], hp: maxHp, maxHp, atkCd: 0, blockedBy: -1, blockedAt: -1, born: w.frame, bornN: ++w.bornThisFrame };
 }
 
 /**

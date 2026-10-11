@@ -22,7 +22,12 @@
  * @property {DamageType} [dmgType] the type of its normal attack (default phys)
  */
 
-/** @typedef {OptionalStats & { name: string, maxHp: number, atk: number, def: number, res: number, moveSpeed: number, motion?: string, baseAttackTime?: number }} EnemyDef */
+/**
+ * An enemy: `blockCnt` is how much block it takes (阻挡数消耗, default 1); `rangeRadius` its attack radius in tiles and
+ * `applyWay` MELEE or RANGED (敌人攻击-1).
+ * @typedef {OptionalStats & { name: string, maxHp: number, atk: number, def: number, res: number, moveSpeed: number, motion?: string,
+ *   baseAttackTime?: number, blockCnt?: number, rangeRadius?: number, applyWay?: string }} EnemyDef
+ */
 /** @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number, range: Cell[] }} OperatorDef */
 /** @typedef {{ level: Level, enemies: Record<string, EnemyDef>, operators: Record<string, OperatorDef> }} Content */
 
@@ -45,6 +50,8 @@
  * @property {string} motion WALK or FLY
  * @property {string[]} immune
  * @property {DamageType} dmgType
+ * @property {number} rangeRadius an enemy's attack radius in tiles, 0 for melee
+ * @property {string} applyWay MELEE or RANGED
  */
 
 /**
@@ -87,6 +94,7 @@
  * @property {number} maxHp the maximum HP last computed (属性-4)
  * @property {number} atkCd frames until the next attack may start
  * @property {number} blockedBy the id of the unit blocking this one, −1 for none
+ * @property {number} blockedAt the frame it was blocked in, −1 when not blocked
  * @property {number} born the frame the unit was created in
  * @property {number} bornN its place among the units created in that frame, from 1 (索敌-5)
  * @property {number} route index into the level's routes, −1 for operators

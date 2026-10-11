@@ -94,5 +94,21 @@
     "stronghold": "server/sim/battle/status.js applyStatus：免疫时拒绝添加。",
     "reason": "PRTS「异常效果」oldid=440606：免疫令异常效果「无法生效，无法被检测」，不移除 Buff。只在免疫中途结束时不同。",
     "status": "有效"
+  },
+  {
+    "id": "DIF-0013",
+    "clause": "敌人攻击-1",
+    "ours": "敌人在同一帧里先检查阻挡、再攻击，所以刚被阻挡的敌人当帧就可以攻击阻挡者；没有攻击前摇时，出手当帧造成伤害。",
+    "stronghold": "server/sim/ai.js updateEnemy：先攻击再检查阻挡，刚被阻挡的敌人下一帧才攻击；敌人有按动画片段计算的前摇和攻击后停顿（缺数据时停顿 0.35 秒）。",
+    "reason": "PRTS「状态机」只说 MOVE 每 Tick 根据条件切换到 COMBAT / ATTACK，没有给出同一帧内的先后；前摇依赖动画数据（ADR 0014），在 M3c 加入。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0014",
+    "clause": "阻挡-4",
+    "ours": "只有近战干员可以选中自己阻挡的范围外敌人；干员部署到敌人所在格时，敌人被移到半径 0.5 的圆上。",
+    "stronghold": "server/sim/ai.js acquireTargets：任何阻挡者都把被阻挡的敌人加入候选；没有部署时的阻挡偏移。",
+    "reason": "PRTS「索敌的概念」oldid=376233 说的是「我方近战单位」；部署偏移见 PRTS「作战机制」oldid=433935。",
+    "status": "有效"
   }
 ]

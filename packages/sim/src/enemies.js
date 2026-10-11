@@ -1,11 +1,13 @@
-// Enemies: spawning on schedule (spec 出怪-1), walking their route (移动-1), reaching the goal (目标-1).
-import { FPS, secondsToFrames } from '@aue/math';
-import { KIND } from '@aue/schema';
+// Enemies: spawning on schedule (spec 出怪-1) and each enemy's turn (帧-1): blocking (阻挡-1, 阻挡-3), its attack
+// (敌人攻击-1), walking its route (移动-1) and reaching the goal (目标-1).
+import { secondsToFrames } from '@aue/math';
+import { KIND, ANIM } from '@aue/schema';
 import { makeEnemy } from './units.js';
-import { statsOf } from './attrs.js';
+import { waypoints, walk, speedOf, goalOwner } from './routes.js';
+import { tryBlock, keepOrRelease } from './blocking.js';
+import { enemyAttack } from './combat.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
-/** @typedef {import('./types.js').Route} Route @typedef {import('./types.js').Cell} Cell */
 
 /** @param {Content} c @returns {number[]} the frame of each spawn */
 export const spawnFrames = (c) => c.level.spawns.map((s) => secondsToFrames(s.at));
@@ -20,68 +22,38 @@ export function spawnDue(w, c) {
   }
 }
 
-/** The waypoints of a route: its MOVE checkpoints, then its end (spec 移动-1). @param {Route} r @returns {Cell[]} */
-export function waypoints(r) {
-  return [...r.checkpoints.filter((p) => p.type === 'MOVE').map((p) => ({ row: p.row, col: p.col })), r.end];
+/**
+ * An enemy at the end of its route leaves and costs a life of the player whose objective it reached (目标-1).
+ * @param {World} w @param {Content} c @param {Unit} e
+ */
+function reachGoal(w, c, e) {
+  const owner = goalOwner(c, w.players.length, c.level.routes[e.route].end);
+  w.players[owner].life = Math.max(0, w.players[owner].life - 1);
+  e.hp = 0;
+  w.events.push({ type: 'goal', id: e.id, owner });
 }
 
 /**
- * Moves an enemy `speed` tiles along its waypoints, in straight lines; returns true when it reached the route's end.
- * @param {Unit} u @param {Cell[]} pts @param {number} speed tiles this frame @returns {boolean}
+ * One enemy's turn (帧-1): it is released if its blocker is gone or cannot block; it may be blocked; it attacks; an
+ * enemy that is not blocked and did not attack walks, and may be blocked where it arrives.
+ * @param {World} w @param {Content} c @param {Unit} e
  */
-export function walk(u, pts, speed) {
-  let left = speed;
-  while (u.leg < pts.length) {
-    const p = pts[u.leg], dx = p.col - u.x, dy = p.row - u.y, d = Math.sqrt(dx * dx + dy * dy);
-    if (d > left) { u.x += (dx / d) * left; u.y += (dy / d) * left; return false; }
-    u.x = p.col; u.y = p.row; left -= d; u.leg++;
+function enemyTurn(w, c, e) {
+  keepOrRelease(w, e);
+  tryBlock(w, c, e);
+  const attacked = enemyAttack(w, c, e);
+  if (e.blockedBy >= 0) {
+    if (!attacked) e.anim = ANIM.IDLE;
+    return;
   }
-  return true;
+  if (attacked) return;
+  const speed = speedOf(c, e);
+  e.anim = speed > 0 ? ANIM.MOVE : ANIM.IDLE;
+  if (speed > 0 && walk(e, waypoints(c.level.routes[e.route]), speed)) reachGoal(w, c, e);
+  else if (speed > 0) tryBlock(w, c, e);
 }
 
-/**
- * An enemy's speed in tiles per frame (移动-1): its move speed × the level's moveMultiplier / FPS; 0 while it cannot
- * move (状态-5).
- * @param {Content} c @param {Unit} u
- */
-export function speedOf(c, u) {
-  const s = statsOf(u);
-  return s.immobile ? 0 : (s.moveSpeed * c.level.options.moveMultiplier) / FPS;
-}
-
-/**
- * An enemy's 路径距离 (索敌-3) until the movement rules of M3: the length of the rest of its route as it walks it —
- * straight to the next waypoint, then from waypoint to waypoint.
- * @param {Content} c @param {Unit} u
- */
-export function remainingDistance(c, u) {
-  const pts = waypoints(c.level.routes[u.route]);
-  let d = 0, x = u.x, y = u.y;
-  for (let i = u.leg; i < pts.length; i++) {
-    const dx = pts[i].col - x, dy = pts[i].row - y;
-    d += Math.sqrt(dx * dx + dy * dy);
-    x = pts[i].col; y = pts[i].row;
-  }
-  return d;
-}
-
-/**
- * Moves every enemy; one at the end of its route is removed and costs a life of the player whose objective it reached
- * (spec 目标-1).
- * @param {World} w @param {Content} c
- */
-export function moveEnemies(w, c) {
-  for (const u of w.units) {
-    if (u.kind !== KIND.ENEMY || u.hp <= 0) continue;
-    if (!walk(u, waypoints(c.level.routes[u.route]), speedOf(c, u))) continue;
-    const owner = goalOwner(c, w.players.length, c.level.routes[u.route].end);
-    w.players[owner].life = Math.max(0, w.players[owner].life - 1);
-    u.hp = 0;
-    w.events.push({ type: 'goal', id: u.id, owner });
-  }
-}
-
-/** The player an objective tile belongs to: the left half to player 0, the right half to player 1 (目标-1). */
-export function goalOwner(/** @type {Content} */ c, /** @type {number} */ players, /** @type {Cell} */ end) {
-  return players > 1 && end.col * 2 >= c.level.width ? 1 : 0;
+/** Every enemy's turn, in creation order (帧-1). @param {World} w @param {Content} c */
+export function enemiesAct(w, c) {
+  for (const e of w.units) if (e.kind === KIND.ENEMY && e.hp > 0) enemyTurn(w, c, e);
 }

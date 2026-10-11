@@ -1,0 +1,119 @@
+// Blocking (docs/spec/blocking.md 阻挡-1…阻挡-4): an operator stops the enemies that come within its block radius, as
+// many as its block count holds; a blocked enemy stays where it is until it is released.
+import { KIND } from '@aue/schema';
+import { statsOf } from './attrs.js';
+import { tileAt } from './level.js';
+import { tileOf } from './body.js';
+import { BLOCK_RADIUS_SQ } from './constants.js';
+
+/** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
+/** @typedef {import('./attrs.js').Stats} Stats */
+
+/** Whether a unit can block now (阻挡-2): not 晕眩, not 沉睡. @param {Stats} s */
+export const canBlock = (s) => !(s.flags.stun || s.flags.sleep);
+
+/** Whether an enemy can be blocked now (阻挡-1): not 无法被阻挡, 恐惧, 浮空 or 沉睡. @param {Stats} s */
+export const blockable = (s) => !(s.flags.unblockable || s.flags.fear || s.flags.levitate || s.flags.sleep);
+
+/** The enemies a unit blocks, in the order they were blocked (阻挡-3). @param {World} w @param {Unit} op @returns {Unit[]} */
+export function heldBy(w, op) {
+  const list = w.units.filter((e) => e.kind === KIND.ENEMY && e.blockedBy === op.id);
+  return list.sort((a, b) => a.blockedAt - b.blockedAt);
+}
+
+/** The block weight (阻挡数消耗) a unit holds: the sum of its blocked enemies' block counts (阻挡-2). @param {World} w @param {Unit} op */
+export const blockLoad = (w, op) => heldBy(w, op).reduce((n, e) => n + statsOf(e).blockCnt, 0);
+
+/**
+ * Whether a unit blocks enemies of this kind of motion (阻挡-2): flying enemies only with `blockFly`; ground enemies
+ * from a ground tile (not high ground) that every unit may pass.
+ * @param {Content} c @param {Unit} op @param {Stats} os @param {boolean} flying
+ */
+function blocksMotion(c, op, os, flying) {
+  if (flying) return !!os.flags.blockFly;
+  const t = tileAt(c.level, op.y, op.x);
+  return !!t && t.height !== 'HIGHLAND' && t.passable === 'ALL';
+}
+
+/** Releases an enemy (阻挡-3). @param {Unit} e */
+export function release(e) {
+  e.blockedBy = -1;
+  e.blockedAt = -1;
+}
+
+/**
+ * A unit deployed this frame onto the tile of an enemy it blocks puts the enemy on the circle of radius 0.5 around it,
+ * along the line from its centre through the enemy; an enemy within 0.00001 of the centre stays (阻挡-4).
+ * @param {World} w @param {Unit} op @param {Unit} e
+ */
+function deployOffset(w, op, e) {
+  const [r, c] = tileOf(e);
+  if (op.born !== w.frame || r !== op.y || c !== op.x) return;
+  const dx = e.x - op.x, dy = e.y - op.y, d = Math.sqrt(dx * dx + dy * dy);
+  if (d < 1e-5) return;
+  e.x = op.x + (dx / d) * 0.5;
+  e.y = op.y + (dy / d) * 0.5;
+}
+
+/**
+ * Whether `op` may take `e` now (阻挡-2): it is alive and can block, it blocks this motion, and its block count holds
+ * the enemy's weight on top of what it already holds.
+ * @param {World} w @param {Content} c @param {Unit} op @param {Stats} es
+ */
+function takes(w, c, op, es) {
+  const os = statsOf(op);
+  if (op.hp <= 0 || !canBlock(os) || !blocksMotion(c, op, os, es.flying) || os.blockCnt <= 0) return false;
+  return blockLoad(w, op) + es.blockCnt <= os.blockCnt;
+}
+
+/**
+ * Blocks an enemy if it can be (阻挡-1): of the units that may take it and whose block radius it is inside —
+ * (dx² + dy²) < r², r² = 0.49999037 for ground enemies, 0.79995137 for flying ones — the nearest, the earliest
+ * created of equals. Returns whether the enemy is blocked.
+ * @param {World} w @param {Content} c @param {Unit} e
+ */
+export function tryBlock(w, c, e) {
+  if (e.blockedBy >= 0) return true;
+  const es = statsOf(e);
+  if (!blockable(es)) return false;
+  const r2 = es.flying ? BLOCK_RADIUS_SQ.fly : BLOCK_RADIUS_SQ.ground;
+  /** @type {Unit | null} */
+  let best = null, bd = Infinity;
+  for (const op of w.units) {
+    if (op.kind !== KIND.OPERATOR) continue;
+    const dx = e.x - op.x, dy = e.y - op.y, d2 = dx * dx + dy * dy;
+    if (d2 < r2 && d2 < bd && takes(w, c, op, es)) { best = op; bd = d2; }
+  }
+  if (!best) return false;
+  e.blockedBy = best.id;
+  e.blockedAt = w.frame;
+  deployOffset(w, best, e);
+  return true;
+}
+
+/**
+ * Keeps an enemy blocked only while its blocker is on the field and can block and the enemy can be blocked; otherwise
+ * releases it (阻挡-3).
+ * @param {World} w @param {Unit} e
+ */
+export function keepOrRelease(w, e) {
+  if (e.blockedBy < 0) return;
+  const op = w.units.find((u) => u.id === e.blockedBy);
+  if (!op || op.hp <= 0 || !canBlock(statsOf(op)) || !blockable(statsOf(e))) release(e);
+}
+
+/** A unit whose block count dropped below what it holds lets go of the latest blocked first (阻挡-3). @param {World} w @param {Unit} op */
+export function enforceCapacity(w, op) {
+  const held = heldBy(w, op), cap = statsOf(op).blockCnt;
+  let load = held.reduce((n, e) => n + statsOf(e).blockCnt, 0);
+  while (load > cap && held.length) {
+    const e = /** @type {Unit} */ (held.pop());
+    load -= statsOf(e).blockCnt;
+    release(e);
+  }
+}
+
+/** Releases every enemy a unit blocks: it left the field (阻挡-3). @param {World} w @param {number} id */
+export function releaseAll(w, id) {
+  for (const e of w.units) if (e.blockedBy === id) release(e);
+}

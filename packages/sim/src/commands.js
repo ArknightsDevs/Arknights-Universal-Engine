@@ -3,6 +3,7 @@
 import { KIND } from '@aue/schema';
 import { tileAt, buildableFor } from './level.js';
 import { makeOperator } from './units.js';
+import { releaseAll } from './blocking.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -38,6 +39,7 @@ function retreat(w, seat, unit) {
   const i = w.units.findIndex((u) => u.id === unit && u.kind === KIND.OPERATOR && u.owner === seat);
   if (i < 0) return;
   const [u] = w.units.splice(i, 1), p = w.players[seat];
+  releaseAll(w, u.id);
   p.deployed = p.deployed.filter((k) => k !== u.key);
   w.events.push({ type: 'retreat', id: u.id });
 }

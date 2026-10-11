@@ -1,10 +1,11 @@
 // The world and one frame of it (spec 帧-1): commands, cost, spawns, buffs, enemy movement, operator attacks, removal
 // of the dead — in that order, every frame, on every peer.
 import { secondsToFrames } from '@aue/math';
-import { ANIM } from '@aue/schema';
+import { ANIM, KIND } from '@aue/schema';
 import { seedState } from './rng.js';
 import { hashNumbers, HASH_START } from './hash.js';
-import { spawnFrames, spawnDue, moveEnemies } from './enemies.js';
+import { spawnFrames, spawnDue, enemiesAct } from './enemies.js';
+import { releaseAll } from './blocking.js';
 import { operatorsAttack } from './combat.js';
 import { applyCommand } from './commands.js';
 import { tickBuffs } from './buffs.js';
@@ -34,13 +35,19 @@ function gainCost(w, c) {
   }
 }
 
-/** Removes units with no HP left; enemies killed by attacks die, enemies at the goal leave quietly. @param {World} w */
+/**
+ * Removes units with no HP left (伤害-9): enemies killed by attacks die, enemies at the goal leave quietly; an operator
+ * that falls releases what it blocks (阻挡-3) and may be deployed again (INF-0009).
+ * @param {World} w
+ */
 function removeDead(w) {
   const reachedGoal = new Set(w.events.filter((e) => e.type === 'goal').map((e) => e.id));
   for (const u of w.units) {
     if (u.hp > 0) continue;
     u.anim = ANIM.DIE;
     if (!reachedGoal.has(u.id)) w.events.push({ type: 'death', id: u.id });
+    releaseAll(w, u.id);
+    if (u.kind === KIND.OPERATOR) w.players[u.owner].deployed = w.players[u.owner].deployed.filter((k) => k !== u.key);
   }
   w.units = w.units.filter((u) => u.hp > 0);
 }
@@ -57,7 +64,7 @@ export function step(w, c, commands = []) {
   gainCost(w, c);
   spawnDue(w, c);
   tickBuffs(w);
-  moveEnemies(w, c);
+  enemiesAct(w, c);
   operatorsAttack(w, c);
   removeDead(w);
   w.frame++;
