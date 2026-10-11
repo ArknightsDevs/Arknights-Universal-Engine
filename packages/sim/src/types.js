@@ -104,7 +104,15 @@
  * @property {number} killCost cost gained when its attack or skill kills an enemy
  * @property {number} refund the share of the paid cost a retreat returns (返还倍率)
  * @property {{ key: import('./status.js').StatusKey, seconds: number } | null} hitStatus a status each hit gives the target
+ * @property {Splash | null} splash its attack also hits the enemies around the target (职业-8)
+ * @property {number} aftershock its attack hits once more at this share of its 倍率 (0: no aftershock; 职业-8)
+ * @property {number} unblockedScale its attack's 倍率 against an enemy it does not block is multiplied by this (职业-8)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
+ */
+/**
+ * A splash (职业-8): every other enemy within `radius` tiles of the target (only those on the ground when `ground`)
+ * takes the hit at `scale` of its amount.
+ * @typedef {{ radius: number, scale: number, ground: boolean }} Splash
  */
 /**
  * An operator: `branch` is its profession branch (subProfessionId), `trait` the branch's trait (职业-1), `respawnTime`
@@ -236,7 +244,8 @@
 /**
  * A projectile in flight (攻击-3): its shooter's and its target's ids, where it is (tile coordinates), its speed in
  * tiles per second, and what it carries — the damage type and amount, hits, 元素损伤 ('' and 0 for none).
- * @typedef {{ src: number, target: number, sx: number, sy: number, speed: number, type: DamageType, amount: number, times: number, element: string, ep: number }} Shot
+ * @typedef {{ src: number, target: number, sx: number, sy: number, speed: number, type: DamageType, amount: number, times: number, element: string, ep: number,
+ *   splash?: Splash | null, aftershock?: number }} Shot
  */
 
 /**

@@ -27,6 +27,11 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   fighter: {},
   artsfghter: { dmgType: ARTS },
   sword: { trait: () => ({ hits: 2 }) },
+  // the attack's 倍率 against an enemy it does not block (职业-8)
+  instructor: { trait: (bb) => ({ unblockedScale: bb.atk_scale ?? 1.2 }) },
+  lord: { trait: (bb) => ({ antiAir: true, unblockedScale: bb.atk_scale ?? 0.8 }) },
+  // the other enemies around the target take the share of the hit (职业-8)
+  hammer: { trait: (bb) => ({ splash: { radius: bb['attack@ability_range_radius'] ?? 1, scale: bb['attack@atk_scale_2'] ?? 0.5, ground: false } }) },
   centurion: blockTargets,
   crusher: blockTargets,
   primguard: {},
@@ -40,9 +45,12 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   closerange: {},
   longrange: { trait: () => ({ filter: 'DEF_ASC' }) },
   siegesniper: { trait: () => ({ filter: 'MASS_DES' }) },
+  aoesniper: { trait: () => ({ splash: { radius: 1, scale: 1, ground: false } }) },
+  bombarder: { trait: (bb) => ({ antiAir: false, splash: { radius: 0.9, scale: 1, ground: true }, aftershock: bb['attack@append_atk_scale'] ?? 0.5 }) },
   // 术师
   corecaster: { dmgType: ARTS },
   blastcaster: { dmgType: ARTS, trait: () => ({ filter: 'ALL', targets: 'all' }) },
+  splashcaster: { dmgType: ARTS, trait: () => ({ splash: { radius: 1.1, scale: 1, ground: false } }) },
   primcaster: { dmgType: ARTS },
   // 医疗
   physician: healer(1),

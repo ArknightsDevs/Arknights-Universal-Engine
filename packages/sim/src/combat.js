@@ -53,7 +53,12 @@ export function targetsOf(w, c, op) {
 export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
 
 /** @typedef {import('./skills.js').AttackMods} AttackMods @typedef {import('./types.js').Swing} Swing */
-/** @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number }} Load */
+/**
+ * What an attack carries to one target: its damage type and amount, hits, 元素损伤, and an operator's splash and
+ * aftershock (职业-8).
+ * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
+ *   aftershock?: number }} Load
+ */
 
 /**
  * One target's hits of an attack that lands (伤害-6, 伤害-7, 元素-2, 职业-4, 职业-5): `times` hits of the amount, each
@@ -93,6 +98,40 @@ function crossOf(w, a, t) {
 }
 
 /**
+ * An operator's attack against one target (职业-8): its amount × the trait's 倍率 for enemies it does not block, and
+ * the trait's splash and aftershock; an enemy's as it is.
+ * @param {Content} c @param {Unit} a @param {Unit} t @param {Load} load @returns {Load}
+ */
+function loadFor(c, a, t, load) {
+  if (a.kind !== KIND.OPERATOR) return load;
+  const tr = traitOf(c, a), k = t.blockedBy !== a.id ? tr.unblockedScale : 1;
+  return { ...load, amount: load.amount * k, splash: tr.splash, aftershock: tr.aftershock };
+}
+
+/**
+ * The enemies a splash around a target reaches (职业-8): every other enemy on the field within the radius of it —
+ * hidden ones not, flying ones only when the splash is not ground-only.
+ * @param {World} w @param {Unit} t @param {import('./types.js').Splash} s @returns {Unit[]}
+ */
+function splashOf(w, t, s) {
+  return w.units.filter((u) => u !== t && u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0 && !u.hidden
+    && !(s.ground && statsOf(u).flying) && (u.x - t.x) * (u.x - t.x) + (u.y - t.y) * (u.y - t.y) <= s.radius * s.radius);
+}
+
+/**
+ * An attack reaching its target (攻击-2, 攻击-3, 职业-8): the target takes the hits; with a splash every other enemy
+ * around it takes them at the splash's share; an aftershock repeats both at its share of the amount.
+ * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {Load} load
+ */
+export function impact(w, c, src, t, load) {
+  const s = load.splash, around = s ? splashOf(w, t, s) : [];
+  for (const k of load.aftershock ? [1, load.aftershock] : [1]) {
+    if (t.hp > 0) hitTarget(w, c, src, t, { ...load, amount: load.amount * k });
+    for (const u of around) if (u.hp > 0) hitTarget(w, c, src, u, { ...load, amount: load.amount * k * (s?.scale ?? 1) });
+  }
+}
+
+/**
  * An attack lands at the end of its wind-up (攻击-2, 攻击-3): 麻痹 may interrupt an enemy's (状态-8); the locked
  * targets still on the field and alive take it — out of range or not — as hits, a healer's heals (职业-2), or the
  * projectiles a ranged attacker launches; then an operator's skill counts the attack (技能-2, 技能-4).
@@ -118,11 +157,11 @@ function land(w, c, a) {
  * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t @param {{ load: Load, heals: boolean, cross: boolean }} how
  */
 function deliver(w, c, a, t, how) {
-  const { load } = how;
+  const load = loadFor(c, a, t, how.load);
   if (how.heals) for (let k = 0; k < load.times; k++) w.events.push({ type: 'heal', id: a.id, target: t.id, amount: heal(a, t, load.amount) });
   else if (how.cross) for (const u of crossOf(w, a, t)) hitTarget(w, c, a, u, load);
   else if (shoots(c, a, how.heals)) launch(w, a, t, load);
-  else hitTarget(w, c, a, t, load);
+  else impact(w, c, a, t, load);
 }
 
 /**
@@ -194,7 +233,7 @@ export function operatorsAttack(w, c) {
  * @param {World} w @param {Content} c
  */
 export function shotsFly(w, c) {
-  flyShots(w, (s, t) => { hitTarget(w, c, w.units.find((u) => u.id === s.src && u.hp > 0) ?? null, t, s); });
+  flyShots(w, (s, t) => { impact(w, c, w.units.find((u) => u.id === s.src && u.hp > 0) ?? null, t, s); });
 }
 
 /**

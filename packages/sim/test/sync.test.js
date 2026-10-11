@@ -64,7 +64,7 @@ test('[同步-1] [同步-2] any commands: a snapshot restored at any frame runs 
 
 test('[同步-2] malformed snapshots are refused', () => {
   const w = createWorld(c, { seed: 1, players: 1 }), snap = takeSnapshot(w);
-  assert.throws(() => restoreSnapshot({ ...snap, v: 9 }), /version/);
+  assert.throws(() => restoreSnapshot({ ...snap, v: 8 }), /version/);
   assert.throws(() => restoreSnapshot({ ...snap, frame: 5 }), /envelope's frame/);
   assert.throws(() => restoreSnapshot(null), /not an object/);
 });

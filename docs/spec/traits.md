@@ -64,7 +64,7 @@
 
 ### 职业-7 官方分支
 
-`@aue/content` 用分支表把干员数据的分支和特性 blackboard 换成伤害类型和特性数据。表里有 31 个分支（共 72 个），特性能完全用 职业-1…职业-5 的数据表达：
+`@aue/content` 用分支表把干员数据的分支和特性 blackboard 换成伤害类型和特性数据。表里有 37 个分支（共 72 个），特性能完全用 职业-1…职业-5、职业-8 的数据表达：
 
 | 分支 | 特性数据 |
 |---|---|
@@ -82,8 +82,21 @@
 | 医师、守望者 | 治疗，目标 1 |
 | 群愈师 | 治疗，目标 3 |
 | 凝滞师 | 法术伤害，`hitStatus` 停顿，时间 = blackboard `sluggish` |
+| 教官、领主 | 对自身未阻挡的敌人，攻击倍率乘 blackboard `atk_scale`（1.2、0.8）；领主可对空（职业-8） |
+| 炮手、扩散术师 | 溅射半径 1.0、1.1，溅射目标受同样的伤害；扩散术师法术伤害（职业-8） |
+| 撼地者 | 溅射半径 = blackboard `attack@ability_range_radius`，溅射目标受 `attack@atk_scale_2`（0.5）倍伤害（职业-8） |
+| 投掷手 | 不可对空；溅射半径 0.9，只波及地面敌人；余震倍率 = blackboard `attack@append_atk_scale`（职业-8） |
 | 伏击客 | 仇恨过滤器 全部，`targets` 全部，不优先攻击阻挡的单位（INF-0085），`mods` 物理闪避、法术闪避 = blackboard `prob`（嘲讽等级 -1 在干员数据里） |
 
-其余 41 个分支（溅射、跳跃、召唤物、起飞、子弹和能量储存、费用消耗、禁疗与自我回复、按目标或按距离变化的攻击倍率、在远程位部署等）还没有覆盖，取位置的默认值，随干员内容（M4）补齐。
+其余 35 个分支（跳跃、召唤物、起飞、子弹和能量储存、费用消耗、禁疗与自我回复、按目标或按距离变化的攻击倍率、在远程位部署等）还没有覆盖，取位置的默认值，随干员内容（M4）补齐。
 
 - 来源：[PRTS「分支特性信息/data」oldid=427899](https://prts.wiki/index.php?title=%E5%88%86%E6%94%AF%E7%89%B9%E6%80%A7%E4%BF%A1%E6%81%AF/data&oldid=427899)（可对空、优先攻击阻挡单位、最大目标数等于阻挡数、同时攻击范围内的所有敌人、治疗规则、停顿时间、击杀来源）；[PRTS「选择器」oldid=428553](https://prts.wiki/index.php?title=%E9%80%89%E6%8B%A9%E5%99%A8&oldid=428553)：二次过滤器「FLY_FIRST 飞行单位优先 速射手特性」；[PRTS「仇恨」oldid=429076](https://prts.wiki/index.php?title=%E4%BB%87%E6%81%A8&oldid=429076)：「防御升序 典型使用者：神射手」，「重量降序 典型使用者：攻城手」；[PRTS「部署费用」oldid=434779](https://prts.wiki/index.php?title=%E9%83%A8%E7%BD%B2%E8%B4%B9%E7%94%A8&oldid=434779)：返还倍率「先锋-冲锋手为100%」；数据：character_table 各分支特性文字（法术伤害、两次伤害、恢复三个友方单位）与 blackboard；[PRTS「谜图」oldid=435066](https://prts.wiki/index.php?title=%E8%B0%9C%E5%9B%BE&oldid=435066)、[PRTS「桃金娘」oldid=435164](https://prts.wiki/index.php?title=%E6%A1%83%E9%87%91%E5%A8%98&oldid=435164)、[PRTS「聆音」oldid=435037](https://prts.wiki/index.php?title=%E8%81%86%E9%9F%B3&oldid=435037)、[PRTS「余」oldid=435251](https://prts.wiki/index.php?title=%E4%BD%99&oldid=435251)、[PRTS「烛煌」oldid=435287](https://prts.wiki/index.php?title=%E7%83%9B%E7%85%8C&oldid=435287)、[PRTS「酒神」oldid=440179](https://prts.wiki/index.php?title=%E9%85%92%E7%A5%9E&oldid=440179)、[PRTS「狮蝎」oldid=435138](https://prts.wiki/index.php?title=%E7%8B%AE%E8%9D%8E&oldid=435138) 的特性文字（情报官、执旗手、本源近卫、本源铁卫、本源术师、巫役、伏击客；本源术师、巫役「攻击造成法术伤害」，伏击客「对攻击范围内所有敌人造成伤害」「拥有50%的物理和法术闪避」）；「分支特性信息/data」同版：情报官「可对空」，伏击客「嘲讽等级为-1」，其余分支的特性行；没有「优先攻击阻挡的单位」一行的分支不设该项为推断 INF-0085
+
+### 职业-8 溅射、余震与按阻挡的攻击倍率
+
+- **按阻挡的倍率**：干员的普通攻击打到一个它没有阻挡的敌人时，这次攻击的倍率乘特性的 `unblockedScale`（默认 1）。
+- **溅射**：攻击（近战在命中时，远程在投射物到达时）打到目标后，目标周围半径内的其他敌人也受到这次攻击，伤害为目标所受的 `scale` 倍。半径按单位位置之间的直线距离计（不大于半径）；隐藏的敌人不受影响；只波及地面的溅射不影响飞行单位。溅射目标在命中前确定，目标被击倒也照常波及。
+- **余震**：有余震时，目标和溅射目标再各受一次攻击，倍率为余震的倍数。
+- 溅射和余震的每一下都按普通攻击的命中处理（击杀计入干员，特性的命中效果照常生效，职业-4、职业-5）。
+
+- 来源：[PRTS「分支特性信息/data」oldid=427899](https://prts.wiki/index.php?title=%E5%88%86%E6%94%AF%E7%89%B9%E6%80%A7%E4%BF%A1%E6%81%AF/data&oldid=427899)：炮手「攻击为范围伤害，溅射半径1.0」，投掷手「溅射半径0.9」「余震的"伤害降低"为攻击倍率降低」，撼地者「攻击具有1.0的溅射半径（溅射效果不对主目标生效）」「对主目标造成普通伤害，对溅射目标造成溅射伤害」，扩散术师「溅射半径1.1」，教官「攻击力提升效果为攻击力倍率提升，可对任何"自身阻挡的单位"以外的任何单位生效」，领主「可对空，攻击力降低效果为降低攻击倍率」；[PRTS「W」oldid=435177](https://prts.wiki/index.php?title=W&oldid=435177)「攻击造成群体物理伤害」；[PRTS「12F」oldid=434834](https://prts.wiki/index.php?title=12F&oldid=434834)「攻击造成群体法术伤害」；[PRTS「怒潮凛冬」oldid=435087](https://prts.wiki/index.php?title=%E6%80%92%E6%BD%AE%E5%87%9B%E5%86%AC&oldid=435087)「攻击使目标周围的其他敌人受到相当于攻击力50%的群体物理伤害」；[PRTS「承曦格雷伊」oldid=434889](https://prts.wiki/index.php?title=%E6%89%BF%E6%9B%A6%E6%A0%BC%E9%9B%B7%E4%BC%8A&oldid=434889)「攻击对小范围的地面敌人造成两次物理伤害（第二次为余震，伤害降低至攻击力的一半）」；[PRTS「杜宾」oldid=434911](https://prts.wiki/index.php?title=%E6%9D%9C%E5%AE%BE&oldid=434911)「攻击自身未阻挡的敌人时攻击力提升至120%」；[PRTS「拉普兰德」oldid=435014](https://prts.wiki/index.php?title=%E6%8B%89%E6%99%AE%E5%85%B0%E5%BE%B7&oldid=435014)「可以进行远程攻击，但此时攻击力降低至80%」；数据：各分支干员的特性 blackboard；距离的量法、溅射倍数按这次伤害计、余震紧接着结算为推断 INF-0086

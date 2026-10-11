@@ -11,10 +11,10 @@ import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, oper
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
 
-test('[职业-7] the covered branches are 31 of the 72 official ones', () => {
+test('[职业-7] the covered branches are 37 of the 72 official ones', () => {
   assert.equal(Object.keys(ALL).length, 72);
   for (const b of Object.keys(BRANCHES)) assert.ok(Object.hasOwn(ALL, b), b);
-  assert.equal(Object.keys(BRANCHES).length, 31);
+  assert.equal(Object.keys(BRANCHES).length, 37);
   assert.ok(coveredBranch('fastshot') && !coveredBranch('mystic') && !coveredBranch('toString'));
 });
 
@@ -69,4 +69,17 @@ test('[职业-7] 本源术师 and 巫役 from the real data deal arts damage; th
     assert.equal(op.dmgType, undefined, id);
     assert.deepEqual(traits.traitOfDef(op), { ...traits.defaultTrait('MELEE'), bb: op.trait?.bb ?? {} }, id);
   }
+});
+
+test('[职业-7] [职业-8] 炮手, 扩散术师, 撼地者, 投掷手, 教官 and 领主 from the real data', async () => {
+  const t = async (/** @type {string} */ id) => traits.traitOfDef(await real(id));
+  assert.deepEqual((await t('char_113_cqbw')).splash, { radius: 1, scale: 1, ground: false });
+  const f12 = await real('char_1011_lava2');
+  assert.deepEqual([f12.dmgType, traits.traitOfDef(f12).splash], ['arts', { radius: 1.1, scale: 1, ground: false }]);
+  assert.deepEqual((await t('char_1051_headb2')).splash, { radius: 1, scale: 0.5, ground: false });
+  const greyy = await t('char_1027_greyy2');
+  assert.deepEqual([greyy.antiAir, greyy.splash, greyy.aftershock], [false, { radius: 0.9, scale: 1, ground: true }, 0.5]);
+  assert.equal((await t('char_130_doberm')).unblockedScale, 1.2);
+  const lap = await t('char_140_whitew');
+  assert.deepEqual([lap.antiAir, lap.blockedFirst, lap.unblockedScale], [true, true, 0.8]);
 });

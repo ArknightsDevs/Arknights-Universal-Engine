@@ -278,3 +278,43 @@ test('[部署-3] [同步-1] cards and paid costs are state: a snapshot restores 
   assert.equal(stateHash(copy), stateHash(w));
   assert.deepEqual(copy.players[0].cards.guard, { penalty: 1, ready: 31 });
 });
+
+test('[职业-8] the 倍率 against enemies the operator does not block (教官 1.2, 领主 0.8)', () => {
+  const { w, c, foe } = arena((cc) => {
+    cc.operators.guard.trait = { unblockedScale: 1.2, targets: 'all' };
+    cc.operators.guard.range = [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }];
+  });
+  run(w, c, 1, [deploy('guard', 1, 1)]);
+  const guard = /** @type {Unit} */ (w.units[0]), near = foe(1, 1, { maxHp: 1e6, def: 0 }), far = foe(1, 3, { maxHp: 1e6, def: 0 });
+  near.blockedBy = guard.id;
+  const ev = run(w, c, 1);
+  assert.deepEqual(ev.filter((e) => e.type === 'hit').map((e) => [e.target, e.damage]).sort((a, b) => a[0] - b[0]), [[near.id, 50], [far.id, 60]]);
+});
+
+test('[职业-8] a splash: the other enemies within the radius take its share; ground-only spares flyers; an aftershock hits them all again', () => {
+  const { w, c, foe } = arena((cc) => {
+    cc.operators.guard.trait = { splash: { radius: 1, scale: 0.5, ground: true }, aftershock: 0.5 };
+    cc.operators.guard.range = [{ row: 0, col: 0 }, { row: 0, col: 1 }];
+  });
+  run(w, c, 1, [deploy('guard', 1, 1)]);
+  const main = foe(1, 2, { maxHp: 1e6, def: 0 }), near = foe(2, 2, { maxHp: 1e6, def: 0 }), flyer = foe(1, 3, { maxHp: 1e6, def: 0, motion: 'FLY' });
+  const away = foe(3, 2, { maxHp: 1e6, def: 0 });
+  const hits = run(w, c, 1).filter((e) => e.type === 'hit').map((e) => [e.target, e.damage]);
+  assert.deepEqual(hits, [[main.id, 50], [near.id, 25], [main.id, 25], [near.id, 12.5]]);
+  assert.ok(!hits.some(([t]) => t === flyer.id || t === away.id), 'the flyer (ground-only) and the enemy 2 tiles away are spared');
+});
+
+test('[职业-8] a ranged splash lands where its projectile arrives', () => {
+  const { w, c, foe } = arena((cc) => {
+    cc.operators.sniper.trait = { splash: { radius: 1, scale: 1, ground: false } };
+    cc.operators.sniper.range = [{ row: 0, col: 1 }, { row: 0, col: 2 }];
+  });
+  run(w, c, 1, [deploy('sniper', 0, 2, 2)]);
+  assert.equal(w.units[0]?.key, 'sniper', 'on the high ground, facing left');
+  const main = foe(0, 0, { maxHp: 1e6, def: 0 }), side = foe(1, 0, { maxHp: 1e6, def: 0 });
+  const ev = run(w, c, 60);
+  const hits = ev.filter((e) => e.type === 'hit');
+  assert.ok(ev.some((e) => e.type === 'shot') && hits.some((e) => e.target === main.id), 'shot, then the hit');
+  const first = hits.find((e) => e.target === main.id);
+  assert.ok(hits.some((e) => e.target === side.id && e.f === first?.f && e.damage === first?.damage), 'the side enemy takes the same in the same frame');
+});
