@@ -3,6 +3,7 @@
 // penalty layer and the 再部署时间 for a retreat or a fall alike.
 import { secondsToFrames } from '@aue/math';
 import { traitOfDef, gainCost } from './traits.js';
+import { releaseAll } from './blocking.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Player} Player @typedef {import('./types.js').Card} Card */
@@ -31,4 +32,16 @@ export function leaveField(w, c, u, retreated) {
   if (retreated) gainCost(w, c, u.owner, Math.floor(Math.min(u.paid * traitOfDef(d).refund, d.cost)));
   p.cards[u.key] = { penalty: Math.min(MAX_PENALTY, card.penalty + 1), ready: w.frame + secondsToFrames(d.respawnTime ?? DEFAULT_RESPAWN) };
   p.deployed = p.deployed.filter((k) => k !== u.key);
+}
+
+/**
+ * An operator on the field retreats (撤退-1): it leaves at once, lets go of what it blocks, takes its refund, penalty and
+ * 再部署时间, and the event `retreat` tells it.
+ * @param {World} w @param {Content} c @param {Unit} u
+ */
+export function withdraw(w, c, u) {
+  w.units.splice(w.units.indexOf(u), 1);
+  releaseAll(w, u.id);
+  leaveField(w, c, u, true);
+  w.events.push({ type: 'retreat', id: u.id });
 }

@@ -1,6 +1,7 @@
 // Traits (docs/spec/traits.md 职业-1…职业-6): what a profession branch changes about its operators, as data — who it
 // can target and in which order, how many, whether its attack heals, hits per attack, lasting modifiers, cost on a
 // kill, the retreat refund — plus behaviours by branch for the rest, acting through a context (ADR 0055).
+import { FPS, secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff } from './buffs.js';
@@ -19,7 +20,8 @@ import { dealEp } from './elements.js';
  */
 export const defaultTrait = (position) => ({
   antiAir: position !== 'MELEE', blockedFirst: position === 'MELEE', filter: 'HATRED_DES', secondary: '', targets: 1,
-  heal: false, hits: 1, mods: {}, flags: {}, killCost: 0, refund: 0.5, hitStatus: null, splash: null, aftershock: 0, unblockedScale: 1, selfHeal: 0, selfHealMax: Infinity, bb: {},
+  heal: false, hits: 1, mods: {}, flags: {}, killCost: 0, refund: 0.5, hitStatus: null, splash: null, aftershock: 0, unblockedScale: 1, selfHeal: 0, selfHealMax: Infinity,
+  rangedTiles: false, skillArts: false, immuneBlocking: [], hpDrain: 0, costDrain: null, bb: {},
 });
 
 /** An operator record's trait: its own fields over the defaults of its position (职业-1). @param {OperatorDef} d @returns {TraitDef} */
@@ -92,12 +94,15 @@ function behaviorOf(c, op) {
 }
 
 /**
- * A newly deployed operator's trait (职业-4): its lasting modifiers and flags as a buff, then its behaviour's deploy.
+ * A newly deployed operator's trait (职业-4, 职业-10): its lasting modifiers and flags as a buff, its upkeep — the HP
+ * drain each second, the cost it consumes — as buffs without an end, then its behaviour's deploy.
  * @param {World} w @param {Content} c @param {Unit} op
  */
 export function traitDeploy(w, c, op) {
   const t = traitOf(c, op);
   if (Object.keys(t.mods).length > 0 || Object.keys(t.flags).length > 0) addBuff(op, makeBuff({ key: 'trait', src: op.id, mods: t.mods, flags: t.flags }));
+  if (t.hpDrain > 0) addBuff(op, makeBuff({ key: 'drain', src: op.id, every: FPS, fixed: true, value: t.hpDrain }));
+  if (t.costDrain) addBuff(op, makeBuff({ key: 'upkeep', src: op.id, every: secondsToFrames(t.costDrain.every), fixed: true, value: t.costDrain.cost }));
   behaviorOf(c, op)?.deploy?.(contextOf(w, c, op));
 }
 

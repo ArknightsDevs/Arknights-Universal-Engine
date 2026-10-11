@@ -12,7 +12,7 @@ tiles[r] = mapData.map[高 − 1 − r]
 
 ### 部署-1 可部署地块
 
-近战干员只能部署在可部署类型为 `MELEE` 的地块上，远程干员只能部署在 `RANGED` 的地块上，两类都可部署在 `ALL` 的地块上。地图外不能部署。
+近战干员只能部署在可部署类型为 `MELEE` 的地块上，远程干员只能部署在 `RANGED` 的地块上，两类都可部署在 `ALL` 的地块上；特性允许时，近战干员也可以部署在 `RANGED` 的地块上（职业-10）。地图外不能部署。
 
 - 来源：数据：level.mapData.tiles[].buildableType、character_table.position
 

@@ -11,10 +11,10 @@ import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, oper
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
 
-test('[职业-7] the covered branches are 40 of the 72 official ones', () => {
+test('[职业-7] the covered branches are 46 of the 72 official ones', () => {
   assert.equal(Object.keys(ALL).length, 72);
   for (const b of Object.keys(BRANCHES)) assert.ok(Object.hasOwn(ALL, b), b);
-  assert.equal(Object.keys(BRANCHES).length, 40);
+  assert.equal(Object.keys(BRANCHES).length, 46);
   assert.ok(coveredBranch('fastshot') && !coveredBranch('mystic') && !coveredBranch('toString'));
 });
 
@@ -91,4 +91,13 @@ test('[职业-7] [职业-9] 武者, 收割者 and 不屈者 from the real data: 
   const excu2 = await t('char_1032_excu2');
   assert.deepEqual([excu2.flags, excu2.selfHeal, excu2.selfHealMax, excu2.targets], [{ noAllyHeal: true }, 50, 'blockCnt', 'all']);
   assert.deepEqual((await t('char_163_hpsts')).flags, { noAllyHeal: true });
+});
+
+test('[职业-7] [职业-10] the upkeep branches from the real data: 行商, 怪杰, 决战者, 推击手, 钩索师, 驭法铁卫', async () => {
+  const [merchant, geek, duelist, pusher, hook, arts] = await Promise.all(['char_1033_swire2', 'char_1041_angel2', 'char_416_zumama', 'char_241_panda', 'char_173_slchan', 'char_1044_hsgma2']
+    .map(async (id) => traits.traitOfDef(await real(id))));
+  assert.deepEqual([merchant.refund, merchant.costDrain], [0, { every: 3, cost: 3 }]);
+  assert.equal(geek.hpDrain, 0.01);
+  assert.deepEqual([duelist.flags, duelist.immuneBlocking], [{ noSp: true }, ['noSp']]);
+  assert.deepEqual([pusher.targets, pusher.rangedTiles, hook.antiAir, hook.rangedTiles, arts.skillArts], ['blockCnt', true, true, true, true]);
 });

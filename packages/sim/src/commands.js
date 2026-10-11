@@ -3,15 +3,24 @@
 import { KIND } from '@aue/schema';
 import { tileAt, buildableFor } from './level.js';
 import { makeOperator } from './units.js';
-import { releaseAll } from './blocking.js';
 import { onDeploy, commandSkill } from './skills.js';
-import { traitDeploy } from './traits.js';
-import { cardOf, deployCost, leaveField } from './deck.js';
+import { traitDeploy, traitOfDef } from './traits.js';
+import { cardOf, deployCost, withdraw } from './deck.js';
 import { isDown, askCost, answerCost } from './coop.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
 /** @typedef {import('@aue/schema').DeployCommand} DeployCommand */
+
+/**
+ * Whether an operator may stand on a tile (部署-1): a tile of its position or of both; a melee one whose trait allows it
+ * (职业-10) also on a ranged tile.
+ * @param {Content} c @param {import('./types.js').OperatorDef} d @param {number} row @param {number} col
+ */
+function fits(c, d, row, col) {
+  const tile = tileAt(c.level, row, col);
+  return buildableFor(tile, d.position) || (traitOfDef(d).rangedTiles && buildableFor(tile, 'RANGED'));
+}
 
 /**
  * Why a deploy is refused, or null (spec 部署-1…部署-3).
@@ -26,7 +35,7 @@ export function deployProblem(w, c, seat, cmd) {
   if (p.deployed.length >= c.level.options.characterLimit) return 'deploy limit reached';
   if (w.frame < cardOf(p, cmd.op).ready) return 'redeploying';
   if (p.cost < deployCost(c, p, cmd.op)) return 'not enough cost';
-  if (!buildableFor(tileAt(c.level, cmd.row, cmd.col), d.position)) return 'tile not buildable for this operator';
+  if (!fits(c, d, cmd.row, cmd.col)) return 'tile not buildable for this operator';
   if (w.units.some((u) => u.kind === KIND.OPERATOR && u.x === cmd.col && u.y === cmd.row)) return 'tile occupied';
   return null;
 }
@@ -52,12 +61,8 @@ function deploy(w, c, seat, cmd) {
  * @param {World} w @param {Content} c @param {number} seat @param {number} unit
  */
 function retreat(w, c, seat, unit) {
-  const i = w.units.findIndex((u) => u.id === unit && u.kind === KIND.OPERATOR && u.owner === seat);
-  if (i < 0) return;
-  const [u] = w.units.splice(i, 1);
-  releaseAll(w, u.id);
-  leaveField(w, c, u, true);
-  w.events.push({ type: 'retreat', id: u.id });
+  const u = w.units.find((x) => x.id === unit && x.kind === KIND.OPERATOR && x.owner === seat);
+  if (u) withdraw(w, c, u);
 }
 
 /** Applies one command of a seat. @param {World} w @param {Content} c @param {number} seat @param {Command} cmd */

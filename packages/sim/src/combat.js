@@ -9,6 +9,7 @@ import { rangeKeys, inKeys, selectable, sortEnemies, sortAllies, sortHealTargets
 import { dealDamage, heal } from './damage.js';
 import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
+import { blockingImmunity } from './upkeep.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
 import { foeTargets, foeAttack, isFoeOf } from './foes.js';
 import { makeBuff } from './buffs.js';
@@ -221,7 +222,8 @@ function operatorAttack(w, c, op) {
   if (targetsOf(w, c, op).length === 0) { op.anim = ANIM.IDLE; return; }
   const mods = beforeAttack(w, c, op), t = traitOf(c, op);
   const targets = firstN(targetsOf(w, c, op), Math.max(mods.targets, traitTargets(t, op)));
-  startSwing(w, c, op, targets, { ...mods, times: mods.times * t.hits });
+  const arts = t.skillArts && op.skill?.active && !mods.type ? { type: /** @type {const} */ ('arts') } : {};
+  startSwing(w, c, op, targets, { ...mods, times: mods.times * t.hits, ...arts });
 }
 
 /**
@@ -234,6 +236,7 @@ export function operatorsAttack(w, c) {
   for (const op of w.units) {
     if (op.kind !== KIND.OPERATOR || op.hp <= 0) continue;
     enforceCapacity(w, op);
+    blockingImmunity(w, op, traitOf(c, op).immuneBlocking);
     tickSkill(w, c, op);
     if (!statsOf(op).disabled) operatorAttack(w, c, op);
     else op.swing = null;

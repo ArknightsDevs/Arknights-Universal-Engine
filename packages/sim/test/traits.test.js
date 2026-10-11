@@ -337,3 +337,72 @@ test('[职业-9] no ally heals a noAllyHeal operator, not even a healer picks it
   assert.equal(heal(guard, guard, 10), 10);
   assert.equal(heal(w.units[1] ?? null, guard, 10), 0, 'another unit\'s heal does nothing');
 });
+
+test('[职业-10] [部署-1] a melee operator whose trait allows it may stand on a ranged tile', () => {
+  const { w, c } = arena();
+  assert.equal(deployProblem(w, c, 0, deploy('guard', 0, 2)), 'tile not buildable for this operator');
+  c.operators.guard.trait = { rangedTiles: true };
+  assert.equal(deployProblem(w, c, 0, deploy('guard', 0, 2)), null);
+  assert.equal(deployProblem(w, c, 0, deploy('guard', 1, 1)), null, 'its own tiles still');
+  assert.equal(deployProblem(w, c, 0, deploy('guard', 0, 0)), 'tile not buildable for this operator');
+});
+
+test('[职业-10] [状态-7] 阻回 always, immune to it while blocking: SP recovers only then', () => {
+  const { w, c, foe } = arena((cc) => {
+    cc.operators.guard.trait = { flags: { noSp: true }, immuneBlocking: ['noSp'] };
+    cc.operators.guard.skill = { id: 's', type: 'MANUAL', sp: 'time', cost: 30, init: 0, charges: 1, duration: 0, ammo: false, bb: {} };
+  });
+  run(w, c, 1, [deploy('guard', 1, 1)]);
+  const guard = /** @type {Unit} */ (w.units[0]), st = /** @type {NonNullable<Unit['skill']>} */ (guard.skill);
+  run(w, c, 60);
+  assert.equal(st.sp, 0, 'not blocking: 阻回');
+  const e = foe(1, 1, { maxHp: 1e9 });
+  run(w, c, 2);
+  assert.equal(e.blockedBy, guard.id);
+  assert.deepEqual([statsOf(guard).flags.noSp, guard.buffs.map((b) => b.key)], [undefined, ['trait', 'blocking']]);
+  run(w, c, 60);
+  assert.ok(st.sp >= 1, `blocking: it recovers (${st.sp})`);
+  w.units.splice(w.units.indexOf(e), 1);
+  run(w, c, 1);
+  assert.deepEqual([statsOf(guard).flags.noSp, guard.buffs.map((b) => b.key)], [true, ['trait']], 'blocking none: the immunity goes');
+});
+
+test('[职业-10] attacks started while the skill runs deal arts damage', () => {
+  const { w, c, foe } = arena((cc) => {
+    cc.operators.guard.trait = { skillArts: true };
+    cc.operators.guard.skill = { id: 's', type: 'MANUAL', sp: 'time', cost: 1, init: 1, charges: 1, duration: 100, ammo: false, bb: {} };
+  });
+  run(w, c, 1, [deploy('guard', 1, 1)]);
+  const guard = /** @type {Unit} */ (w.units[0]);
+  foe(1, 2, { maxHp: 1e9, def: 1e9 });
+  const before = run(w, c, 40).filter((e) => e.type === 'hit' && e.id === guard.id).map((e) => e.damage);
+  assert.ok(before.length > 0 && before.every((d) => d === 2.5), `physical: the 5% floor (${before})`);
+  run(w, c, 1, [{ type: 'skill', unit: guard.id }]);
+  const during = run(w, c, 40).filter((e) => e.type === 'hit' && e.id === guard.id).map((e) => e.damage);
+  assert.ok(during.length > 0 && during.every((d) => d === 50), `arts: the resistance is 0 (${during})`);
+});
+
+test('[职业-10] the HP drain: a share of the maximum HP each second from deployment, never the last point', () => {
+  const { w, c } = arena((cc) => { cc.operators.guard.trait = { hpDrain: 0.01 }; });
+  run(w, c, 29, [deploy('guard', 1, 1)]);
+  const guard = /** @type {Unit} */ (w.units[0]);
+  assert.equal(guard.hp, 1000);
+  run(w, c, 1);
+  assert.equal(guard.hp, 990);
+  guard.hp = 5;
+  run(w, c, 30);
+  assert.equal(guard.hp, 1, 'down to 1, not lethal');
+  run(w, c, 30);
+  assert.equal(guard.hp, 1);
+});
+
+test('[职业-10] [撤退-1] the cost upkeep: paid every interval from deployment; short of it, the operator retreats', () => {
+  const { w, c } = arena((cc) => { cc.operators.guard.trait = { refund: 0, costDrain: { every: 3, cost: 3 } }; cc.level.options.costIncreaseTime = 1000; });
+  run(w, c, 89, [deploy('guard', 1, 1)]);
+  assert.equal(w.players[0].cost, 5);
+  run(w, c, 1);
+  assert.equal(w.players[0].cost, 2, 'paid 3 at 3 s');
+  const ev = run(w, c, 90);
+  assert.deepEqual([ev.filter((e) => e.type === 'retreat').map((e) => e.f), w.units.length, w.players[0].cost, cardOf(w.players[0], 'guard').penalty], [[179], 0, 2, 1],
+    'at 6 s 2 < 3: it retreats, no refund, a penalty layer');
+});

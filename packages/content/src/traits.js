@@ -44,6 +44,9 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   primprotector: {},
   shotprotector: { trait: () => ({ antiAir: true }) },
   unyield: { trait: () => ({ flags: { noAllyHeal: true } }) },
+  // 阻回 always, but not while it blocks (职业-10)
+  duelist: { trait: () => ({ flags: { noSp: true }, immuneBlocking: ['noSp'] }) },
+  artsprotector: { trait: () => ({ skillArts: true }) },
   // 狙击
   fastshot: { trait: () => ({ secondary: 'FLY_FIRST' }) },
   closerange: {},
@@ -69,6 +72,12 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   executor: {},
   // every enemy in range; half of the physical and arts hits dodged (blackboard prob)
   stalker: { trait: (bb) => ({ filter: 'ALL', targets: 'all', blockedFirst: false, mods: { dodgePhys: bb.prob ?? 0.5, dodgeArts: bb.prob ?? 0.5 } }) },
+  // melee, but may stand on ranged tiles too (职业-10)
+  pusher: { trait: () => ({ targets: 'blockCnt', rangedTiles: true }) },
+  hookmaster: { trait: () => ({ antiAir: true, rangedTiles: true }) },
+  // no refund; the blackboard's cost (negative) every interval seconds on the field, or it retreats (职业-10)
+  merchant: { trait: (bb) => ({ refund: 0, costDrain: { every: bb.interval ?? 3, cost: -(bb.cost ?? -3) } }) },
+  geek: { trait: (bb) => ({ hpDrain: bb.hp_ratio ?? 0.01 }) },
 }));
 
 /** Whether a branch's trait is covered (职业-7). @param {string} branch */

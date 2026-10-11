@@ -164,5 +164,5 @@ export function tickUnitBuffs(w, u, behaviors) {
 
 /** One frame of every unit's buffs, units in creation order (帧-1). @param {World} w @param {Record<string, Behavior>} [behaviors] */
 export function tickBuffs(w, behaviors = {}) {
-  for (const u of w.units) tickUnitBuffs(w, u, behaviors);
+  for (const u of [...w.units]) if (w.units.includes(u)) tickUnitBuffs(w, u, behaviors);
 }
