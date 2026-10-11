@@ -1,0 +1,509 @@
+{
+ "$comment": "Every profession branch of operators (subProfessionId, TIER_3 to TIER_6, tokens and traps left out), from character_table.json of ArknightsGameData zh_CN 17759cc.",
+ "branches": {
+  "agent": {
+   "name": "情报官",
+   "profession": "PIONEER",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "alchemist": {
+   "name": "炼金师",
+   "profession": "SPECIAL",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "aoesniper": {
+   "name": "炮手",
+   "profession": "SNIPER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "artsfghter": {
+   "name": "术战者",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "artsprotector": {
+   "name": "驭法铁卫",
+   "profession": "TANK",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "bard": {
+   "name": "吟游者",
+   "profession": "SUPPORT",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "bearer": {
+   "name": "执旗手",
+   "profession": "PIONEER",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "blastcaster": {
+   "name": "轰击术师",
+   "profession": "CASTER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "blessing": {
+   "name": "护佑者",
+   "profession": "SUPPORT",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "bombarder": {
+   "name": "投掷手",
+   "profession": "SNIPER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "centurion": {
+   "name": "强攻手",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "chain": {
+   "name": "链术师",
+   "profession": "CASTER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "chainhealer": {
+   "name": "链愈师",
+   "profession": "MEDIC",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "charger": {
+   "name": "冲锋手",
+   "profession": "PIONEER",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "closerange": {
+   "name": "重射手",
+   "profession": "SNIPER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "corecaster": {
+   "name": "中坚术师",
+   "profession": "CASTER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "counsellor": {
+   "name": "策士",
+   "profession": "PIONEER",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "craftsman": {
+   "name": "工匠",
+   "profession": "SUPPORT",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "crusher": {
+   "name": "重剑手",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "dollkeeper": {
+   "name": "傀儡师",
+   "profession": "SPECIAL",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "duelist": {
+   "name": "决战者",
+   "profession": "TANK",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "executor": {
+   "name": "处决者",
+   "profession": "SPECIAL",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "fastshot": {
+   "name": "速射手",
+   "profession": "SNIPER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "fearless": {
+   "name": "无畏者",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "fighter": {
+   "name": "斗士",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "fortress": {
+   "name": "要塞",
+   "profession": "TANK",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "funnel": {
+   "name": "驭械术师",
+   "profession": "CASTER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "geek": {
+   "name": "怪杰",
+   "profession": "SPECIAL",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "guardian": {
+   "name": "守护者",
+   "profession": "TANK",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "hammer": {
+   "name": "撼地者",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "healer": {
+   "name": "疗养师",
+   "profession": "MEDIC",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "hookmaster": {
+   "name": "钩索师",
+   "profession": "SPECIAL",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "hunter": {
+   "name": "猎手",
+   "profession": "SNIPER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "incantationmedic": {
+   "name": "咒愈师",
+   "profession": "MEDIC",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "instructor": {
+   "name": "教官",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "librator": {
+   "name": "解放者",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "longrange": {
+   "name": "神射手",
+   "profession": "SNIPER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "loopshooter": {
+   "name": "回环射手",
+   "profession": "SNIPER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "lord": {
+   "name": "领主",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "mercenary": {
+   "name": "佣兵",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "merchant": {
+   "name": "行商",
+   "profession": "SPECIAL",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "musha": {
+   "name": "武者",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "mystic": {
+   "name": "秘术师",
+   "profession": "CASTER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "phalanx": {
+   "name": "阵法术师",
+   "profession": "CASTER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "physician": {
+   "name": "医师",
+   "profession": "MEDIC",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "pioneer": {
+   "name": "尖兵",
+   "profession": "PIONEER",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "primcaster": {
+   "name": "本源术师",
+   "profession": "CASTER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "primguard": {
+   "name": "本源近卫",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "primprotector": {
+   "name": "本源铁卫",
+   "profession": "TANK",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "protector": {
+   "name": "铁卫",
+   "profession": "TANK",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "pusher": {
+   "name": "推击手",
+   "profession": "SPECIAL",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "reaper": {
+   "name": "收割者",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "reaperrange": {
+   "name": "散射手",
+   "profession": "SNIPER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "ringhealer": {
+   "name": "群愈师",
+   "profession": "MEDIC",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "ritualist": {
+   "name": "巫役",
+   "profession": "SUPPORT",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "shotprotector": {
+   "name": "哨戒铁卫",
+   "profession": "TANK",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "siegesniper": {
+   "name": "攻城手",
+   "profession": "SNIPER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "skybreaker": {
+   "name": "裂空炮手",
+   "profession": "SNIPER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "skywalker": {
+   "name": "巡空者",
+   "profession": "SPECIAL",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "slower": {
+   "name": "凝滞师",
+   "profession": "SUPPORT",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "soulcaster": {
+   "name": "塑灵术师",
+   "profession": "CASTER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "splashcaster": {
+   "name": "扩散术师",
+   "profession": "CASTER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "stalker": {
+   "name": "伏击客",
+   "profession": "SPECIAL",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "summoner": {
+   "name": "召唤师",
+   "profession": "SUPPORT",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "supportiveranger": {
+   "name": "游击手",
+   "profession": "SUPPORT",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "sword": {
+   "name": "剑豪",
+   "profession": "WARRIOR",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "tactician": {
+   "name": "战术家",
+   "profession": "PIONEER",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "traper": {
+   "name": "陷阱师",
+   "profession": "SPECIAL",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "underminer": {
+   "name": "削弱者",
+   "profession": "SUPPORT",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "unyield": {
+   "name": "不屈者",
+   "profession": "TANK",
+   "position": [
+    "MELEE"
+   ]
+  },
+  "wandermedic": {
+   "name": "行医",
+   "profession": "MEDIC",
+   "position": [
+    "RANGED"
+   ]
+  },
+  "watchman": {
+   "name": "守望者",
+   "profession": "MEDIC",
+   "position": [
+    "RANGED"
+   ]
+  }
+ }
+}

@@ -4,11 +4,8 @@
 import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
-import { makeBuff, addBuff, removeBuff } from './buffs.js';
-import { applyStatus } from './status.js';
-import { dealDamage, heal } from './damage.js';
 import { timeSp, gainSp, spendSp } from './sp.js';
-import { dealEp } from './elements.js';
+import { actorContext } from './traits.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').SkillDef} SkillDef @typedef {import('./types.js').SkillState} SkillState */
@@ -21,21 +18,10 @@ import { dealEp } from './elements.js';
  */
 
 /**
- * The context a behaviour acts through (ADR 0055). It reads the operator, its blackboard and its stats, and changes
- * the battle only through these functions.
- * @typedef {object} SkillContext
- * @property {Readonly<Unit>} self
- * @property {Readonly<Record<string, number>>} bb
- * @property {SkillKind} kind
- * @property {number} frame
- * @property {(u: Unit) => import('./attrs.js').Stats} stats
- * @property {(target: Unit, init: import('./buffs.js').BuffInit) => void} addBuff
- * @property {(target: Unit, key: string) => void} removeBuff
- * @property {(target: Unit, key: import('./status.js').StatusKey, o?: import('./status.js').StatusOptions) => void} applyStatus
- * @property {(target: Unit, dmg: import('./damage.js').Damage) => number} dealDamage
- * @property {(target: Unit, element: import('./elements.js').Element, amount: number) => number} dealEp
- * @property {(target: Unit, amount: number) => number} heal
- * @property {(n: number) => void} gainCost
+ * The context a skill behaviour acts through (ADR 0055, 技能-6): the common one (traits.js TraitContext, api.js) with
+ * the skill's blackboard, and the skill's kind. It reads the operator, its blackboard and its stats, and changes the
+ * battle only through its functions.
+ * @typedef {import('./traits.js').TraitContext & { kind: SkillKind }} SkillContext
  */
 
 /**
@@ -108,16 +94,7 @@ const behaviorOf = (c, id) => (c.behaviors?.skills && Object.hasOwn(c.behaviors.
 /** @param {World} w @param {Content} c @param {Unit} op @returns {SkillContext} */
 function contextOf(w, c, op) {
   const def = defOf(c, op);
-  return {
-    self: op, bb: def.bb, kind: kindOf(def), frame: w.frame, stats: statsOf,
-    addBuff: (t, init) => { addBuff(t, makeBuff({ src: op.id, ...init })); },
-    removeBuff: (t, key) => { removeBuff(t, key); },
-    applyStatus: (t, key, o) => { applyStatus(t, key, { ...o, src: op }); },
-    dealDamage: (t, dmg) => dealDamage(w, op, t, dmg),
-    dealEp: (t, el, amount) => dealEp(w, t, el, amount),
-    heal: (t, amount) => heal(op, t, amount),
-    gainCost: (n) => { const p = w.players[op.owner]; p.cost = Math.min(c.level.options.maxCost, p.cost + n); },
-  };
+  return { ...actorContext(w, c, op, def.bb), kind: kindOf(def) };
 }
 
 /** Ends a skill (技能-4): its behaviour's end, then the state at rest. @param {World} w @param {Content} c @param {Unit} op */

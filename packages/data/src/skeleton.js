@@ -112,6 +112,24 @@ function rangeGrids(rangesRaw, rangeId) {
 }
 
 /**
+ * The trait's blackboard at elite 0 and potential 0 (职业-7): of the candidates unlocked at PHASE_0 and potential 0, the
+ * last; {} when the operator has no trait record.
+ * @param {Record<string, unknown>} c character_table entry @param {string} p its path
+ * @returns {Record<string, number>}
+ */
+function traitBlackboard(c, p) {
+  if (c.trait === null || c.trait === undefined) return {};
+  const tp = `${p}.trait`, cands = asArray(field(asObject(c.trait, tp), 'candidates', tp), `${tp}.candidates`).map((x, i) => asObject(x, `${tp}.candidates[${i}]`));
+  const at0 = cands.filter((x) => asObject(x.unlockCondition, `${tp}.unlockCondition`).phase === 'PHASE_0' && x.requiredPotentialRank === 0);
+  const pick = at0[at0.length - 1];
+  if (!pick) return {};
+  return Object.fromEntries(asArray(field(pick, 'blackboard', tp), `${tp}.blackboard`).map((b, i) => {
+    const bp = `${tp}.blackboard[${i}]`, o = asObject(b, bp);
+    return [asString(field(o, 'key', bp), `${bp}.key`), asNumber(field(o, 'value', bp), `${bp}.value`, -1e9, 1e9)];
+  }));
+}
+
+/**
  * One operator at elite 0, max level.
  * @param {unknown} raw character_table entry
  * @param {string} id
@@ -141,6 +159,10 @@ function extractOperator(raw, id, rangesRaw) {
     def: num('def'),
     res: num('magicResistance'),
     range: rangeGrids(rangesRaw, asString(field(phase, 'rangeId', pp), `${pp}.rangeId`)),
+    profession: asString(field(c, 'profession', p), `${p}.profession`),
+    branch: asString(field(c, 'subProfessionId', p), `${p}.subProfessionId`),
+    respawnTime: num('respawnTime'),
+    traitBb: traitBlackboard(c, p),
   };
 }
 

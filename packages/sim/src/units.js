@@ -49,13 +49,13 @@ function fresh(w, base) {
 }
 
 /**
- * A deployed operator; `dir` is the protocol's direction code (schema DIR).
- * @param {World} w @param {Content} c @param {{ key: string, owner: number, row: number, col: number, dir: number }} o @returns {Unit}
+ * A deployed operator; `dir` is the protocol's direction code (schema DIR), `paid` what its deployment cost (部署-3).
+ * @param {World} w @param {Content} c @param {{ key: string, owner: number, row: number, col: number, dir: number, paid?: number }} o @returns {Unit}
  */
 export function makeOperator(w, c, o) {
   return {
     id: w.nextId++, kind: KIND.OPERATOR, key: o.key, owner: o.owner, x: o.col, y: o.row, z: heightLevel(tileAt(c.level, o.row, o.col)),
-    dir: dirOfCode(o.dir), ...fresh(w, baseOf(c.operators[o.key])), route: -1, leg: 0, frag: 0, anim: ANIM.IDLE,
+    dir: dirOfCode(o.dir), ...fresh(w, baseOf(c.operators[o.key])), route: -1, leg: 0, frag: 0, anim: ANIM.IDLE, paid: o.paid ?? c.operators[o.key].cost,
     skill: c.operators[o.key].skill ? makeSkillState(/** @type {import('./types.js').SkillDef} */ (c.operators[o.key].skill)) : null,
   };
 }
@@ -70,6 +70,6 @@ export function makeEnemy(w, c, e) {
   return {
     id: w.nextId++, kind: KIND.ENEMY, key: e.key, owner: -1, x: start.col + off.x, y: start.row + off.y,
     z: heightLevel(tileAt(c.level, start.row, start.col)), dir: DEFAULT_DIR, ...fresh(w, baseOf(c.enemies[e.key])), route: e.route, leg: 0,
-    frag: e.frag ?? w.frame, anim: ANIM.MOVE,
+    frag: e.frag ?? w.frame, anim: ANIM.MOVE, paid: 0,
   };
 }

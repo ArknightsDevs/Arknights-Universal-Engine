@@ -56,10 +56,10 @@ const makeEnemyDb = () => ({ enemies: [enemy('e_a', 'Alpha'), enemy('e_b', 'Beta
 
 const makeCharacters = () => ({
   char_500_noirc: {
-    name: 'Noir', position: 'MELEE',
+    name: 'Noir', position: 'MELEE', profession: 'TANK', subProfessionId: 'protector', trait: null,
     phases: [{ rangeId: '0-1', attributesKeyFrames: [
-      { level: 1, data: { maxHp: 1, atk: 1, def: 1, magicResistance: 0, cost: 1, blockCnt: 1, baseAttackTime: 1 } },
-      { level: 30, data: { maxHp: 1670, atk: 240, def: 315, magicResistance: 0, cost: 14, blockCnt: 3, baseAttackTime: 1.2 } },
+      { level: 1, data: { maxHp: 1, atk: 1, def: 1, magicResistance: 0, cost: 1, blockCnt: 1, baseAttackTime: 1, respawnTime: 70 } },
+      { level: 30, data: { maxHp: 1670, atk: 240, def: 315, magicResistance: 0, cost: 14, blockCnt: 3, baseAttackTime: 1.2, respawnTime: 70 } },
     ] }],
   },
 });
@@ -150,7 +150,7 @@ test('an operator takes the last keyframe of elite 0 and its range grids', () =>
   const s = run();
   assert.deepEqual(s.operators.char_500_noirc, {
     name: 'Noir', position: 'MELEE', cost: 14, blockCnt: 3, baseAttackTime: 1.2, maxHp: 1670, atk: 240, def: 315, res: 0,
-    range: [pos(0, 0), pos(-1, 2)],
+    range: [pos(0, 0), pos(-1, 2)], profession: 'TANK', branch: 'protector', respawnTime: 70, traitBb: {},
   });
   assert.deepEqual(Object.keys(s), ['source', 'level', 'enemies', 'operators']);
   assert.deepEqual(s.source, { repo: 'Kengxxiao/ArknightsGameData', commit: 'abc', server: 'zh_CN' });
@@ -219,4 +219,13 @@ test('the real extraction satisfies the contract', { skip: process.env.AUE_GAMED
   }
   assert.deepEqual(level.spawns.map((/** @type {any} */ x) => x.at), level.spawns.map((/** @type {any} */ x) => x.at).toSorted((/** @type {number} */ a, /** @type {number} */ b) => a - b));
   assert.deepEqual(Object.keys(s.operators), ['char_500_noirc', 'char_502_nblade', 'char_503_rang']);
+});
+
+test('the trait blackboard of an operator: the last candidate unlocked at elite 0 and potential 0 (职业-7)', () => {
+  const chars = makeCharacters();
+  const cand = (/** @type {string} */ phase, /** @type {number} */ pot, /** @type {number} */ v) => ({ unlockCondition: { phase, level: 1 }, requiredPotentialRank: pot, blackboard: [{ key: 'cost', value: v }] });
+  /** @type {any} */ (chars.char_500_noirc).trait = { candidates: [cand('PHASE_0', 0, 1), cand('PHASE_0', 0, 2), cand('PHASE_0', 4, 3), cand('PHASE_1', 0, 4)] };
+  assert.deepEqual(run({ characters: chars }).operators.char_500_noirc.traitBb, { cost: 2 });
+  /** @type {any} */ (chars.char_500_noirc).trait = { candidates: [cand('PHASE_2', 0, 1)] };
+  assert.deepEqual(run({ characters: chars }).operators.char_500_noirc.traitBb, {});
 });

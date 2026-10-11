@@ -143,7 +143,7 @@ test('[索敌-3] an operator\'s targets: the oracle\'s order for a melee attacke
     const theirs = list.map((c, i) => oracleUnit(i + 1, 'enemy', c.taunt, { blockedBy: c.blocked ? foe : null, spawnSeq: i }));
     shT.sortEnemyTargets({ remainingDistance: (/** @type {any} */ e) => dist.get(e.id) }, foe, theirs, null);
     const ours = list.map((c, i) => mk(i + 1, { base: { tauntLevel: c.taunt }, blockedBy: c.blocked ? 100 : -1 }));
-    const got = T.sortEnemies(mk(100, { kind: 0 }), ours, { melee: true, pathDist: (e) => /** @type {number} */ (dist.get(e.id)) });
+    const got = T.sortEnemies(mk(100, { kind: 0 }), ours, { blockedFirst: true, pathDist: (e) => /** @type {number} */ (dist.get(e.id)) });
     assert.deepStrictEqual(ids(got), ids(theirs));
     return true;
   }), { seed: SEED, numRuns: 200 });
@@ -151,47 +151,72 @@ test('[索敌-3] an operator\'s targets: the oracle\'s order for a melee attacke
 
 test('[索敌-3] path distances within the same 0.1 count as equal: the earlier one stays first (the oracle puts the nearer first: DIF-0005)', () => {
   const dist = new Map([[1, 0.17], [2, 0.13]]);
-  const got = T.sortEnemies(mk(100), [mk(1), mk(2)], { melee: true, pathDist: (e) => /** @type {number} */ (dist.get(e.id)) });
+  const got = T.sortEnemies(mk(100), [mk(1), mk(2)], { blockedFirst: true, pathDist: (e) => /** @type {number} */ (dist.get(e.id)) });
   assert.deepStrictEqual(ids(got), [1, 2]);
   assert.equal(T.precisionKey(T.enemyHatred(0, 0.17)), T.precisionKey(T.enemyHatred(0, 0.13)));
   const theirs = [oracleUnit(1, 'enemy', 0, { spawnSeq: 0 }), oracleUnit(2, 'enemy', 0, { spawnSeq: 1 })];
   shT.sortEnemyTargets({ remainingDistance: (/** @type {any} */ e) => dist.get(e.id) }, oracleUnit(100, 'ally', 0), theirs, null);
   assert.deepStrictEqual(ids(theirs), [2, 1]);
   const apart = new Map([[1, 0.27], [2, 0.13]]);
-  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), [mk(1), mk(2)], { melee: true, pathDist: (e) => /** @type {number} */ (apart.get(e.id)) })), [2, 1], 'a whole bucket apart');
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), [mk(1), mk(2)], { blockedFirst: true, pathDist: (e) => /** @type {number} */ (apart.get(e.id)) })), [2, 1], 'a whole bucket apart');
 });
 
 test('[索敌-3] only a melee attacker puts the enemy it blocks first (the oracle always does: DIF-0005)', () => {
   const dist = new Map([[1, 5], [2, 1]]);
   const pathDist = (/** @type {any} */ e) => /** @type {number} */ (dist.get(e.id));
   const cands = () => [mk(1, { blockedBy: 100 }), mk(2)];
-  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), cands(), { melee: true, pathDist })), [1, 2]);
-  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), cands(), { melee: false, pathDist })), [2, 1]);
-  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), [mk(1, { blockedBy: 7 }), mk(2)], { melee: true, pathDist })), [2, 1], 'blocked by someone else');
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), cands(), { blockedFirst: true, pathDist })), [1, 2]);
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), cands(), { blockedFirst: false, pathDist })), [2, 1]);
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), [mk(1, { blockedBy: 7 }), mk(2)], { blockedFirst: true, pathDist })), [2, 1], 'blocked by someone else');
   const foe = oracleUnit(100, 'ally', 0);
   const theirs = [oracleUnit(1, 'enemy', 0, { blockedBy: foe, spawnSeq: 0 }), oracleUnit(2, 'enemy', 0, { spawnSeq: 1 })];
   shT.sortEnemyTargets({ remainingDistance: pathDist }, foe, theirs, null);
   assert.deepStrictEqual(ids(theirs), [1, 2]);
 });
 
-test('[索敌-3] the special priority (lower first) comes after blocking and before 仇恨值', () => {
+test('[索敌-3] 防御升序 (神射手): the lowest defence first, 仇恨值 among equals; the blocked enemies still go first', () => {
   const dist = new Map([[1, 1], [2, 2], [3, 3], [4, 4]]);
   const pathDist = (/** @type {any} */ e) => /** @type {number} */ (dist.get(e.id));
-  const priority = (/** @type {any} */ e) => (e.id === 1 ? 2 : e.id === 4 ? 0 : 1);
-  const mkAll = () => [mk(1), mk(2), mk(3), mk(4, { blockedBy: -1 })];
-  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), mkAll(), { melee: true, pathDist, priority })), [4, 2, 3, 1]);
-  const blocked = [mk(1, { blockedBy: 100 }), mk(2), mk(3), mk(4)];
-  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), blocked, { melee: true, pathDist, priority })), [1, 4, 2, 3], 'blocked first');
-  const taunting = [mk(1), mk(2), mk(3), mk(4, { base: { tauntLevel: -1 } })];
-  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), taunting, { melee: true, pathDist, priority })), [4, 2, 3, 1], 'priority before taunt');
+  const defs = () => [mk(1, { base: { def: 300 } }), mk(2, { base: { def: 100 } }), mk(3, { base: { def: 100.0004 } }), mk(4, { base: { def: 50 } })];
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), defs(), { blockedFirst: false, pathDist, filter: 'DEF_ASC' })), [4, 2, 3, 1], '100 and 100.0004 are equal at 0.001: path distance decides');
+  const blocked = defs();
+  blocked[0].blockedBy = 100;
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), blocked, { blockedFirst: true, pathDist, filter: 'DEF_ASC' })), [1, 4, 2, 3]);
+  const taunting = defs();
+  taunting[2].base.tauntLevel = 1;
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), taunting, { blockedFirst: false, pathDist, filter: 'DEF_ASC' })), [4, 3, 2, 1], 'taunt is the second key');
+});
+
+test('[索敌-3] 重量降序 (攻城手): 重量等级 × (−1000) − 仇恨值, the heaviest first; 全部 keeps the list', () => {
+  const pathDist = (/** @type {any} */ e) => e.id;
+  const cands = [mk(1), mk(2, { base: { massLevel: 3 } }), mk(3, { base: { massLevel: 1 } }), mk(4, { base: { massLevel: 3 } })];
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), cands, { blockedFirst: false, pathDist, filter: 'MASS_DES' })), [2, 4, 3, 1]);
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), cands, { blockedFirst: false, pathDist, filter: 'ALL' })), [1, 2, 3, 4]);
+});
+
+test('[索敌-3] the 二次过滤器 飞行单位优先 swaps, it does not sort: [G1 G2 F1 G3 F2] becomes [F1 F2 G1 G3 G2]', () => {
+  const fly = { base: { motion: 'FLY' } };
+  const cands = [mk(1), mk(2), mk(3, fly), mk(4), mk(5, fly)];
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), cands, { blockedFirst: false, pathDist: () => 3, secondary: 'FLY_FIRST' })), [3, 5, 1, 4, 2]);
+  assert.deepStrictEqual(T.swapForward([1, 2, 3], () => true), [1, 2, 3]);
+  assert.deepStrictEqual(T.swapForward([1, 2, 3], () => false), [1, 2, 3]);
+  const blocked = [mk(1, { blockedBy: 100 }), mk(2, fly)];
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), blocked, { blockedFirst: true, pathDist: () => 3, secondary: 'FLY_FIRST' })), [1, 2], 'the blocked enemies go first after it');
+});
+
+test('[职业-2] heal targets: units at full HP left out, the lowest HP ratio first at 0.001, then creation order', () => {
+  const u = (/** @type {number} */ id, /** @type {number} */ hp, /** @type {number} */ max) => mk(id, { kind: 0, hp, maxHp: max });
+  const got = T.sortHealTargets([u(1, 100, 100), u(4, 0.5, 1), u(2, 50, 100), u(3, 1000.8, 2000), u(5, 30, 100)]);
+  assert.deepStrictEqual(ids(got), [5, 4, 2, 3], '0.5, 0.5 and 0.5004 are equal at 0.001: creation order');
+  assert.deepStrictEqual(T.sortHealTargets([u(1, 10, 10)]), []);
 });
 
 test('[索敌-3] equal 仇恨值 keeps the order the candidates came in, and the input is not changed', () => {
   const cands = [mk(3), mk(1), mk(2)];
-  const got = T.sortEnemies(mk(100), cands, { melee: true, pathDist: () => 4 });
+  const got = T.sortEnemies(mk(100), cands, { blockedFirst: true, pathDist: () => 4 });
   assert.deepStrictEqual(ids(got), [3, 1, 2]);
   assert.deepStrictEqual(ids(cands), [3, 1, 2]);
-  assert.deepStrictEqual(T.sortEnemies(mk(100), [], { melee: true, pathDist: () => 0 }), []);
+  assert.deepStrictEqual(T.sortEnemies(mk(100), [], { blockedFirst: true, pathDist: () => 0 }), []);
 });
 
 test('[索敌-3] the first n targets: n below 1 gives 1, a fraction is floored', () => {
@@ -246,10 +271,10 @@ test('[索敌-4] taunt beats any path distance: a taunt-1 enemy far away comes b
   const dist = new Map([[1, 1e6], [2, 0]]);
   const pathDist = (/** @type {any} */ e) => /** @type {number} */ (dist.get(e.id));
   const far = mk(1, { base: { tauntLevel: 1 } }), near = mk(2);
-  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), [near, far], { melee: false, pathDist })), [1, 2]);
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), [near, far], { blockedFirst: false, pathDist })), [1, 2]);
   const shy = mk(3, { base: { tauntLevel: -1 } });
   dist.set(3, 0);
-  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), [shy, far, near], { melee: false, pathDist })), [1, 2, 3]);
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), [shy, far, near], { blockedFirst: false, pathDist })), [1, 2, 3]);
   assert.ok(T.enemyHatred(1, 1e6) > T.enemyHatred(0, 0 - 1e6));
 });
 
@@ -260,10 +285,10 @@ test('[索敌-4] taunt is an attribute clamped to −2…2, so a buff beyond tha
   const dist = new Map([[1, 50], [2, 10], [3, 50]]);
   const pathDist = (/** @type {any} */ e) => /** @type {number} */ (dist.get(e.id));
   // clamped to 2 like base2, so the nearer base2 comes first (unclamped, the buffed one would)
-  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), [up, base2], { melee: false, pathDist })), [2, 1]);
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), [up, base2], { blockedFirst: false, pathDist })), [2, 1]);
   // clamped to −2 like baseDown, so the two tie on taunt and the nearer one wins (unclamped, it would be last)
   dist.set(1, 10);
-  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), [baseDown, down], { melee: false, pathDist })), [1, 3]);
+  assert.deepStrictEqual(ids(T.sortEnemies(mk(100), [baseDown, down], { blockedFirst: false, pathDist })), [1, 3]);
 });
 
 /** Allies with increasing (born, bornN): a taunt level and how many frames after the one before it. */

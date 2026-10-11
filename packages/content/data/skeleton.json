@@ -1081,7 +1081,11 @@
           "row": 0,
           "col": 0
         }
-      ]
+      ],
+      "profession": "TANK",
+      "branch": "protector",
+      "respawnTime": 70,
+      "traitBb": {}
     },
     "char_502_nblade": {
       "name": "夜刀",
@@ -1102,7 +1106,11 @@
           "row": 0,
           "col": 1
         }
-      ]
+      ],
+      "profession": "PIONEER",
+      "branch": "pioneer",
+      "respawnTime": 70,
+      "traitBb": {}
     },
     "char_503_rang": {
       "name": "巡林者",
@@ -1155,7 +1163,11 @@
           "row": -1,
           "col": 2
         }
-      ]
+      ],
+      "profession": "SNIPER",
+      "branch": "fastshot",
+      "respawnTime": 70,
+      "traitBb": {}
     }
   }
 }

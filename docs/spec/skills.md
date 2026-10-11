@@ -101,4 +101,6 @@
 
 没有行为的技能用通用效果（技能-5）。内容代码不能直接写单位字段，由 lint 检查（ADR 0045）。
 
-- 来源：设计决定，见 [ADR 0055](../adr/0055-sdk-prepared-now-built-after-mvp.md)；生命回复（skcom_heal_self）「立即恢复最大生命的{heal_scale}」见数据：skill_table
+行为接口有版本号（`BEHAVIOR_API_VERSION`，现为第 1 版）。第 1 版的上下文成员：`self`、`bb`、`frame`、`stats`、`addBuff`、`removeBuff`、`applyStatus`、`dealDamage`、`dealEp`、`heal`、`gainCost`，技能的上下文另有 `kind`；行为造成的伤害击杀敌人时算干员的击杀（职业-5）。成员有增减就是新版本，由契约测试检查。
+
+- 来源：设计决定，见 [ADR 0055](../adr/0055-sdk-prepared-now-built-after-mvp.md)、[ADR 0046](../adr/0046-versioned-interfaces.md)；生命回复（skcom_heal_self）「立即恢复最大生命的{heal_scale}」见数据：skill_table

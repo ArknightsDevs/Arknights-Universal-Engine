@@ -32,6 +32,7 @@ test('events: well formed ones pass; unknown types, wrong types and extra fields
   assert.deepEqual(eventProblems({ type: 'deploy', id: 1, key: 'char_500_noirc', owner: 0 }), []);
   assert.deepEqual(eventProblems({ type: 'skill', id: 3, active: 1 }), [], 'version 2: a skill starts or ends');
   assert.deepEqual(eventProblems({ type: 'burst', id: 3, el: 1 }), [], 'version 3: an element burst');
+  assert.deepEqual(eventProblems({ type: 'heal', id: 3, target: 4, amount: 120 }), [], 'version 4: a heal');
   assert.deepEqual(eventProblems(null), ['not an object']);
   assert.deepEqual(eventProblems({ type: 'explode' }), ['unknown event type explode']);
   assert.deepEqual(eventProblems({ type: 'death', id: '1', extra: 1 }), ['death.id is not a number', 'death has an unknown field extra']);
@@ -69,19 +70,19 @@ test('client messages: generated well-formed deploys are accepted', () => {
   fc.assert(fc.property(fc.integer({ min: 0, max: 1_000_000 }), deploy, (at, cmd) => clientMessageProblem({ t: 'cmd', at, cmd }) === null), { seed: SEED, numRuns: 1000 });
 });
 
-test('snapshot envelope v3', () => {
-  assert.equal(snapshotProblem({ v: 3, frame: 0, data: {} }), null, 'version 3: units carry their element values too');
-  assert.equal(snapshotProblem({ v: 2, frame: 0, data: {} }), 'snapshot version 2, expected 3');
+test('snapshot envelope v4', () => {
+  assert.equal(snapshotProblem({ v: 4, frame: 0, data: {} }), null, 'version 4: paid costs and cards too');
+  assert.equal(snapshotProblem({ v: 3, frame: 0, data: {} }), 'snapshot version 3, expected 4');
   assert.equal(snapshotProblem([]), 'snapshot is not an object');
-  assert.equal(snapshotProblem({ v: 4, frame: 0, data: {} }), 'snapshot version 4, expected 3');
-  assert.equal(snapshotProblem({ v: 3, frame: -1, data: {} }), 'snapshot.frame out of range');
-  assert.equal(snapshotProblem({ v: 3, frame: 0, data: [] }), 'snapshot.data is not an object');
-  assert.equal(snapshotProblem({ v: 3, frame: 0 }), 'missing field data');
+  assert.equal(snapshotProblem({ v: 5, frame: 0, data: {} }), 'snapshot version 5, expected 4');
+  assert.equal(snapshotProblem({ v: 4, frame: -1, data: {} }), 'snapshot.frame out of range');
+  assert.equal(snapshotProblem({ v: 4, frame: 0, data: [] }), 'snapshot.data is not an object');
+  assert.equal(snapshotProblem({ v: 4, frame: 0 }), 'missing field data');
 });
 
 test('server messages: well-formed ones pass; broken ones are reported, never thrown', () => {
   const ok = [
-    { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: { v: 3, frame: 0, data: {} } },
+    { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: { v: 4, frame: 0, data: {} } },
     { t: 'frames', from: 3, to: 5, cmds: [[4, 1, DEPLOY], [5, 0, { type: 'retreat', unit: 2 }]] },
     { t: 'restamp', from: 3, to: 7 }, { t: 'resync', snapshot: {} }, { t: 'error', code: 'x', message: 'y' },
   ];

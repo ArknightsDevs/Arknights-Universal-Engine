@@ -51,7 +51,7 @@ test('[索敌-3] [索敌-5] renumbering the units changes no order; only the cre
   fc.assert(fc.property(fc.array(fc.integer({ min: 0, max: 200 }), { minLength: 1, maxLength: 8 }), fc.integer({ min: 1, max: 1000 }), (dists, off) => {
     const att = unit(500), enemies = dists.map((d, i) => unit(i + 1, { d }));
     const renamed = enemies.map((e) => ({ ...e, id: e.id + off }));
-    const order = (/** @type {any[]} */ es) => sortEnemies(att, es, { melee: true, pathDist: (e) => /** @type {any} */ (e).d / 10 + 0.05 })
+    const order = (/** @type {any[]} */ es) => sortEnemies(att, es, { blockedFirst: true, pathDist: (e) => /** @type {any} */ (e).d / 10 + 0.05 })
       .map((e) => es.indexOf(e));
     assert.deepEqual(order(renamed), order(enemies));
     const allies = dists.map((d, i) => unit(i + 1, { born: d, bornN: 1 }));
@@ -64,7 +64,7 @@ test('[索敌-3] [索敌-5] renumbering the units changes no order; only the cre
 test('[索敌-3] a neutral buff on a candidate changes no order', () => {
   fc.assert(fc.property(fc.array(fc.integer({ min: 0, max: 200 }), { minLength: 2, maxLength: 8 }), fc.nat(7), (dists, which) => {
     const es = dists.map((d, i) => unit(i + 1, { d }));
-    const o = { melee: true, pathDist: (/** @type {any} */ e) => e.d / 10 + 0.05 };
+    const o = { blockedFirst: true, pathDist: (/** @type {any} */ e) => e.d / 10 + 0.05 };
     const before = sortEnemies(unit(99), es, o).map((e) => e.id);
     es[which % es.length].buffs.push(makeBuff({ key: 'n', mods: { taunt: 0, atkMul: 1 } }));
     assert.deepEqual(sortEnemies(unit(99), es, o).map((e) => e.id), before);

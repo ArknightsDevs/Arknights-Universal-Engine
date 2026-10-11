@@ -1,17 +1,19 @@
-// Attacks (spec 攻击-1, 敌人攻击-1, 索敌-1…索敌-5, 伤害-7): when the cooldown is out, the first candidate in the official
-// order takes a hit of the attacker's attack, then the attacker waits its attack interval.
+// Attacks (spec 攻击-1, 敌人攻击-1, 索敌-1…索敌-5, 伤害-7, 职业-1…职业-5): when the cooldown is out, the first
+// candidates in the official order take hits of the attacker's attack — or a healer's heals — then the attacker waits its
+// attack interval.
 import { FPS } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { offsetTile } from './dir.js';
 import { statsOf, intervalFrames } from './attrs.js';
-import { rangeKeys, inKeys, selectable, sortEnemies, sortAllies, firstN } from './targeting.js';
-import { dealDamage } from './damage.js';
+import { rangeKeys, inKeys, selectable, sortEnemies, sortAllies, sortHealTargets, firstN } from './targeting.js';
+import { dealDamage, heal } from './damage.js';
 import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
 import { tickSkill, beforeAttack, afterAttack } from './skills.js';
 import { palsyInterrupts } from './status.js';
 import { dealEp, rampageAttack } from './elements.js';
+import { traitOf, traitOfDef, traitTargets, traitHit, traitKill } from './traits.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell @typedef {import('./attrs.js').Stats} Stats */
@@ -27,52 +29,83 @@ export function rangeCell(op, off) {
 }
 
 /**
- * The enemies an operator can attack, in the official order (索敌-1…索敌-3): the selectable enemies with a tile in range
- * and, for a melee operator, the enemies it blocks wherever they stand (阻挡-4). Melee operators cannot select flying
- * enemies.
+ * What an operator's normal attack can target, in the official order (索敌-1…索敌-3, 职业-1, 职业-2). A healer: the
+ * operators in range that are not at full HP and not under 禁疗, by 生命比例升序. Otherwise the selectable enemies with a
+ * tile in range (flying ones only with 可对空) and, when the trait prefers them, the enemies it blocks wherever they
+ * stand, flying or not (阻挡-4) — ordered by the trait's filters.
  * @param {World} w @param {Content} c @param {Unit} op @returns {Unit[]}
  */
 export function targetsOf(w, c, op) {
-  const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], melee = d.position === 'MELEE';
+  const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], t = traitOfDef(d);
   const keys = rangeKeys(grid, op, d.range, statsOf(op).rangeExtend);
-  const cands = w.units.filter((u) => u.kind === KIND.ENEMY && selectable(u, { canHitFly: !melee })
-    && ((melee && u.blockedBy === op.id) || inKeys(u, keys, grid)));
-  return sortEnemies(op, cands, { melee, pathDist: (e) => pathDistance(c, e) });
+  if (t.heal) return sortHealTargets(w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !statsOf(u).flags.healFree && inKeys(u, keys, grid)));
+  const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id;
+  const cands = w.units.filter((u) => u.kind === KIND.ENEMY
+    && ((held(u) && selectable(u, { canHitFly: true })) || (selectable(u, { canHitFly: t.antiAir }) && inKeys(u, keys, grid))));
+  return sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary });
 }
 
 /** The enemy an operator attacks first (索敌-3). @param {World} w @param {Content} c @param {Unit} op @returns {Unit | null} */
 export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
 
-/**
- * Starts the cooldown and hits the targets (伤害-6, 伤害-7, 技能-5, 元素-2): each target takes `times` hits of the
- * attack × the 攻击力倍率, of the attacker's damage type, each followed by the attack's 元素损伤 if it carries one. An
- * attack during a 狂躁 burst counts once (元素-4).
- * @param {World} w @param {Unit} a @param {Stats} s @param {Unit[]} targets @param {{ scale: number, times: number, element?: string, ep?: number }} [mods]
- */
-function strike(w, a, s, targets, mods = { scale: 1, times: 1 }) {
+/** @typedef {{ scale: number, times: number, element?: string, ep?: number }} StrikeMods */
+
+/** Starts the cooldown of an attack (攻击-1, 敌人攻击-1); an attack during a 狂躁 burst counts once (元素-4). @param {Unit} a @param {Stats} s */
+function startAttack(a, s) {
   a.atkCd = intervalFrames(s.bat, s.aspd) - 1;
   a.anim = ANIM.ATTACK;
   rampageAttack(a);
+}
+
+/**
+ * Starts the cooldown and hits the targets (伤害-6, 伤害-7, 技能-5, 元素-2, 职业-4, 职业-5): each target takes `times`
+ * hits of the attack × the 攻击力倍率, of the attacker's damage type; after each, the attack's 元素损伤 if it carries
+ * one. An operator's hit that kills is credited to it, then its trait acts on the hit.
+ * @param {World} w @param {Content | null} c the content, for an operator's trait; null for an enemy @param {Unit} a
+ * @param {Unit[]} targets @param {StrikeMods} [mods]
+ */
+function strike(w, c, a, targets, mods = { scale: 1, times: 1 }) {
+  const s = statsOf(a);
+  startAttack(a, s);
   const el = /** @type {import('./elements.js').Element | undefined} */ (mods.element), ep = mods.ep ?? 0;
   for (const t of targets) {
     w.events.push({ type: 'attack', id: a.id, target: t.id });
     for (let k = 0; k < mods.times; k++) {
+      const alive = t.hp > 0;
       dealDamage(w, a, t, { type: a.base.dmgType, amount: s.atk * mods.scale });
+      if (c && alive && t.hp <= 0) traitKill(w, c, a, t);
       if (el && ep > 0) dealEp(w, t, el, ep);
+      if (c && alive) traitHit(w, c, a, t);
     }
   }
 }
 
 /**
- * One operator's attack (攻击-1, 技能-3…技能-5): with a target and the cooldown out, its skill may start or end, then it
- * hits the first targets the skill's mods allow.
+ * A healer's attack (职业-2): the cooldown starts; each target is healed `times` times by the attack × the 攻击力倍率
+ * (伤害-11), each a `heal` event.
+ * @param {World} w @param {Unit} a @param {Stats} s @param {Unit[]} targets @param {StrikeMods} mods
+ */
+function healStrike(w, a, s, targets, mods) {
+  startAttack(a, s);
+  for (const t of targets) {
+    w.events.push({ type: 'attack', id: a.id, target: t.id });
+    for (let k = 0; k < mods.times; k++) w.events.push({ type: 'heal', id: a.id, target: t.id, amount: heal(a, t, s.atk * mods.scale) });
+  }
+}
+
+/**
+ * One operator's attack (攻击-1, 技能-3…技能-5, 职业-2, 职业-3): with a target and the cooldown out, its skill may start
+ * or end, then it hits — or heals — the first targets: as many as the skill's mods or the trait allow, whichever is more;
+ * the trait's hits multiply the skill's.
  * @param {World} w @param {Content} c @param {Unit} op
  */
 function operatorAttack(w, c, op) {
   if (op.atkCd > 0) { op.atkCd--; return; }
   if (targetsOf(w, c, op).length === 0) { op.anim = ANIM.IDLE; return; }
-  const mods = beforeAttack(w, c, op), targets = firstN(targetsOf(w, c, op), mods.targets);
-  strike(w, op, statsOf(op), targets, mods);
+  const mods = beforeAttack(w, c, op), t = traitOf(c, op);
+  const targets = firstN(targetsOf(w, c, op), Math.max(mods.targets, traitTargets(t, op))), all = { ...mods, times: mods.times * t.hits };
+  if (t.heal) healStrike(w, op, statsOf(op), targets, all);
+  else strike(w, c, op, targets, all);
   afterAttack(w, c, op, mods);
 }
 
@@ -124,6 +157,6 @@ export function enemyAttack(w, _c, e) {
     e.anim = ANIM.IDLE;
     return true;
   }
-  strike(w, e, s, [t]);
+  strike(w, null, e, [t]);
   return true;
 }

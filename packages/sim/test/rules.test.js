@@ -60,7 +60,7 @@ test('[部署-2] the deploy limit counts each player separately', () => {
   assert.equal(deployProblem(w, tight, 0, deploy({ op: 'sniper', row: 0, col: 3 })), 'deploy limit reached');
 });
 
-test('[撤退-1] a player retreats only their own operators, which may then be deployed again', () => {
+test('[撤退-1] [部署-3] a player retreats only their own operators, which may be deployed again after the 再部署时间', () => {
   const w = fresh();
   step(w, c, [[0, deploy({})]]);
   const id = w.units[0].id;
@@ -69,6 +69,9 @@ test('[撤退-1] a player retreats only their own operators, which may then be d
   const ev = step(w, c, [[0, { type: 'retreat', unit: id }]]);
   assert.equal(w.units.filter((u) => u.kind === 0).length, 0);
   assert.deepEqual(ev.filter((e) => e.type === 'retreat'), [{ type: 'retreat', id }]);
+  assert.equal(deployProblem(w, c, 0, deploy({})), 'redeploying', 'no 再部署时间 given: 60 s');
+  w.frame = 2 + 1800;
+  w.players[0].cost = 12;
   assert.equal(deployProblem(w, c, 0, deploy({})), null);
 });
 

@@ -8,6 +8,7 @@ import { spawnFrames, spawnDue, enemiesAct } from './enemies.js';
 import { releaseAll } from './blocking.js';
 import { operatorsAttack } from './combat.js';
 import { applyCommand } from './commands.js';
+import { leaveField } from './deck.js';
 import { tickBuffs } from './buffs.js';
 import { STATUS_BEHAVIORS } from './status.js';
 import { BURST_BEHAVIORS } from './elements.js';
@@ -23,7 +24,7 @@ export function createWorld(c, o) {
   const { initialCost, maxLifePoint, costIncreaseTime } = c.level.options;
   return {
     frame: 0, rng: seedState(o.seed), nextId: 1, nextSpawn: 0, spawnFrames: spawnFrames(c), bornThisFrame: 0, units: [], events: [],
-    players: Array.from({ length: o.players }, () => ({ life: maxLifePoint, cost: initialCost, costTimer: secondsToFrames(costIncreaseTime), deployed: [] })),
+    players: Array.from({ length: o.players }, () => ({ life: maxLifePoint, cost: initialCost, costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {} })),
   };
 }
 
@@ -39,17 +40,17 @@ function gainCost(w, c) {
 
 /**
  * Removes units with no HP left (伤害-9): enemies killed by attacks die, enemies at the goal leave quietly; an operator
- * that falls releases what it blocks (阻挡-3) and may be deployed again (INF-0009).
- * @param {World} w
+ * that falls releases what it blocks (阻挡-3) and leaves the field without a refund (部署-3).
+ * @param {World} w @param {Content} c
  */
-function removeDead(w) {
+function removeDead(w, c) {
   const reachedGoal = new Set(w.events.filter((e) => e.type === 'goal').map((e) => e.id));
   for (const u of w.units) {
     if (u.hp > 0) continue;
     u.anim = ANIM.DIE;
     if (!reachedGoal.has(u.id)) w.events.push({ type: 'death', id: u.id });
     releaseAll(w, u.id);
-    if (u.kind === KIND.OPERATOR) w.players[u.owner].deployed = w.players[u.owner].deployed.filter((k) => k !== u.key);
+    if (u.kind === KIND.OPERATOR) leaveField(w, c, u, false);
   }
   w.units = w.units.filter((u) => u.hp > 0);
 }
@@ -74,7 +75,7 @@ export function step(w, c, commands = []) {
   tickBuffs(w, buffBehaviors(c));
   enemiesAct(w, c);
   operatorsAttack(w, c);
-  removeDead(w);
+  removeDead(w, c);
   w.frame++;
   return w.events;
 }

@@ -47,11 +47,34 @@
  * @property {boolean} ammo durationType AMMO
  * @property {Record<string, number>} bb the blackboard
  */
-/** @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number, range: Cell[], skill?: SkillDef }} OperatorDef */
+/**
+ * A branch trait as the simulation reads it (职业-1…职业-6): anything left out takes the default of the operator's
+ * position (traits.js defaultTrait).
+ * @typedef {object} TraitDef
+ * @property {boolean} antiAir its normal attack can select flying units
+ * @property {boolean} blockedFirst it can and prefers to attack the units it blocks (even flying or out of range)
+ * @property {'HATRED_DES' | 'DEF_ASC' | 'MASS_DES' | 'ALL'} filter its 仇恨过滤器 (索敌-3)
+ * @property {'' | 'FLY_FIRST'} secondary its 二次过滤器 (索敌-3)
+ * @property {number | 'blockCnt' | 'all'} targets a normal attack's maximum number of targets
+ * @property {boolean} heal its normal attack heals allies instead (职业-2)
+ * @property {number} hits hits per target of each attack
+ * @property {Record<string, number>} mods lasting modifiers while deployed
+ * @property {Record<string, boolean>} flags lasting flags while deployed
+ * @property {number} killCost cost gained when its attack or skill kills an enemy
+ * @property {number} refund the share of the paid cost a retreat returns (返还倍率)
+ * @property {{ key: import('./status.js').StatusKey, seconds: number } | null} hitStatus a status each hit gives the target
+ * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
+ */
+/**
+ * An operator: `branch` is its profession branch (subProfessionId), `trait` the branch's trait (职业-1), `respawnTime`
+ * its 再部署时间 in seconds (部署-3; default 60).
+ * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
+ *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, trait?: Partial<TraitDef>, respawnTime?: number }} OperatorDef
+ */
 /**
  * Behaviours by key (ADR 0054, 0055): what a skill or a buff does beyond its data. Content brings them; the default is
  * the generic one (技能-5).
- * @typedef {{ skills?: Record<string, import('./skills.js').SkillBehavior>, buffs?: Record<string, import('./buffs.js').Behavior> }} Behaviors
+ * @typedef {{ skills?: Record<string, import('./skills.js').SkillBehavior>, buffs?: Record<string, import('./buffs.js').Behavior>, traits?: Record<string, import('./traits.js').TraitBehavior> }} Behaviors
  */
 /** @typedef {{ level: Level, enemies: Record<string, EnemyDef>, operators: Record<string, OperatorDef>, behaviors?: Behaviors }} Content */
 
@@ -133,6 +156,7 @@
  * @property {number} frag the frame its spawn's fragment began
  * @property {SkillState | null} skill its skill, null when it has none (技能-1)
  * @property {Record<string, number>} ep element values below their maximum, by element (元素-1); none recorded is at its maximum
+ * @property {number} paid the cost its deployment took, 0 for enemies (撤退-1)
  * @property {number} anim schema ANIM
  */
 
@@ -152,7 +176,12 @@
  * @property {number} at the frame it started
  */
 
-/** @typedef {{ life: number, cost: number, costTimer: number, deployed: string[] }} Player */
+/**
+ * An operator's card in a player's deck (部署-3): the 再部署惩罚 layers it has (0–2) and the frame it may be deployed
+ * again from.
+ * @typedef {{ penalty: number, ready: number }} Card
+ */
+/** @typedef {{ life: number, cost: number, costTimer: number, deployed: string[], cards: Record<string, Card> }} Player */
 
 /**
  * @typedef {object} World

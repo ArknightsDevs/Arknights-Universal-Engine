@@ -77,24 +77,75 @@ export function insertionSort(items, cmp) {
   return items;
 }
 
+/** @typedef {import('./types.js').TraitDef['filter']} FilterName @typedef {import('./types.js').TraitDef['secondary']} SecondaryName */
+
+/**
+ * The 仇恨过滤器 an operator's attack may use (索敌-3): each candidate's reference values, lower first, each compared at
+ * the filter's precision; `null` keeps the list as it is. `h` is the candidate's 仇恨值.
+ * @type {Readonly<Record<FilterName, ((e: Unit, h: number) => number[]) | null>>}
+ */
+export const FILTERS = Object.freeze({
+  HATRED_DES: (_e, h) => [precisionKey(-h, 0.1)],
+  DEF_ASC: (e, h) => [precisionKey(statsOf(e).def, 0.001), precisionKey(-h, 0.001)],
+  MASS_DES: (e, h) => [precisionKey(statsOf(e).massLevel * -1000 - h, 0.001)],
+  ALL: null,
+});
+
+/** Lexicographic comparison of reference values. @param {number[]} a @param {number[]} b */
+function compareKeys(a, b) {
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i];
+  return 0;
+}
+
+/**
+ * A 二次过滤器 (索敌-3): from the front, each unit that meets the condition swaps with the first unit before it that
+ * does not — a swap, not a sort.
+ * @template T @param {T[]} list changed in place @param {(x: T) => boolean} meets @returns {T[]}
+ */
+export function swapForward(list, meets) {
+  for (let i = 0; i < list.length; i++) {
+    if (!meets(list[i])) continue;
+    const j = list.findIndex((x, k) => k < i && !meets(x));
+    if (j >= 0) [list[j], list[i]] = [list[i], list[j]];
+  }
+  return list;
+}
+
+/** The 二次过滤器 by name: the condition a unit must meet to move forward. @type {Readonly<Record<Exclude<SecondaryName, ''>, (e: Unit) => boolean>>} */
+export const SECONDARY = Object.freeze({ FLY_FIRST: (e) => statsOf(e).flying });
+
 /**
  * @typedef {object} EnemyOrder
- * @property {boolean} melee 阻挡 counts first only for melee attackers
+ * @property {boolean} blockedFirst the enemies the attacker blocks go first (melee operators by default)
  * @property {(e: Unit) => number} pathDist the enemy's 路径距离, in tiles
- * @property {(e: Unit) => number} [priority] a special priority, lower first (技能、天赋; M3)
+ * @property {FilterName} [filter] the 仇恨过滤器 (default HATRED_DES)
+ * @property {SecondaryName} [secondary] the 二次过滤器, if any
  */
 
 /**
- * An operator's candidates in the official order (索敌-3): enemies it blocks (melee only), the special priority, 仇恨值
- * high to low at a precision of 0.1, then the order the candidates come in (who appeared first).
+ * An operator's candidates in the official order (索敌-3): the 仇恨过滤器 by a stable insertion sort (by default 仇恨值
+ * high to low at a precision of 0.1, then who appeared first), the 二次过滤器, then the enemies it blocks moved to the
+ * front in that order.
  * @param {Unit} attacker @param {readonly Unit[]} cands in the order they appeared @param {EnemyOrder} o @returns {Unit[]}
  */
 export function sortEnemies(attacker, cands, o) {
-  const rows = cands.map((e) => ({
-    e, b: o.melee && e.blockedBy === attacker.id ? 0 : 1, p: o.priority ? o.priority(e) : 0,
-    h: precisionKey(enemyHatred(statsOf(e).taunt, o.pathDist(e))),
-  }));
-  return insertionSort(rows, (a, b) => a.b - b.b || a.p - b.p || b.h - a.h).map((r) => r.e);
+  const f = FILTERS[o.filter ?? 'HATRED_DES'];
+  const rows = cands.map((e) => ({ e, k: f ? f(e, enemyHatred(statsOf(e).taunt, o.pathDist(e))) : [] }));
+  const list = insertionSort(rows, (a, b) => compareKeys(a.k, b.k)).map((r) => r.e);
+  if (o.secondary) swapForward(list, SECONDARY[o.secondary]);
+  if (!o.blockedFirst) return list;
+  const mine = (/** @type {Unit} */ e) => e.blockedBy === attacker.id;
+  return [...list.filter(mine), ...list.filter((e) => !mine(e))];
+}
+
+/**
+ * A healer's candidates (职业-2): the 仇恨过滤器 生命比例升序(满生命值除外) — units at full HP left out, the lowest HP
+ * ratio first at a precision of 0.001, then the order they come in.
+ * @param {readonly Unit[]} cands in creation order @returns {Unit[]}
+ */
+export function sortHealTargets(cands) {
+  const rows = cands.filter((u) => u.hp < u.maxHp).map((u) => ({ u, k: precisionKey(u.hp / u.maxHp, 0.001) }));
+  return insertionSort(rows, (a, b) => a.k - b.k).map((r) => r.u);
 }
 
 /** The 仇恨值 of one of our units from its creation (索敌-5). @param {Unit} u @param {number} fps */
