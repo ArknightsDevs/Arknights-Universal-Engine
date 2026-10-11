@@ -17,6 +17,7 @@ import { tickBuffs } from './buffs.js';
 import { STATUS_BEHAVIORS } from './status.js';
 import { BURST_BEHAVIORS } from './elements.js';
 import { upkeepBehaviors } from './upkeep.js';
+import { chargeBehavior } from './modes.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -64,8 +65,8 @@ function removeDead(w, c) {
   w.units = w.units.filter((u) => u.hp > 0);
 }
 
-/** The engine's own buff behaviours (状态-8, 元素-4, 职业-10); content cannot replace them. @param {Content} c */
-const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...upkeepBehaviors(c) });
+/** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12); content cannot replace them. @param {Content} c */
+const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...upkeepBehaviors(c), charge: chargeBehavior(c) });
 
 /** The buff behaviours of a battle: the content's, then the engine's own. @param {Content} c */
 const buffBehaviors = (c) => ({ ...c.behaviors?.buffs, ...builtin(c) });

@@ -5,7 +5,7 @@ import { FPS, secondsToFrames } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { offsetTile } from './dir.js';
 import { statsOf, intervalFrames } from './attrs.js';
-import { rangeKeys, inKeys, selectable, sortEnemies, sortAllies, sortHealTargets, firstN } from './targeting.js';
+import { rangeKeys, inKeys, selectable, sortEnemies, sortAllies, firstN } from './targeting.js';
 import { dealDamage, heal } from './damage.js';
 import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
@@ -17,7 +17,8 @@ import { makeBuff } from './buffs.js';
 import { tileOf } from './body.js';
 import { tickSkill, beforeAttack, afterAttack } from './skills.js';
 import { palsyInterrupts } from './status.js';
-import { dealEp, rampageAttack } from './elements.js';
+import { dealEp, rampageAttack, restoreEp } from './elements.js';
+import { mayAttack, healsNow, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder } from './modes.js';
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, PALSY_CUT_FRAMES } from './swing.js';
 
@@ -35,16 +36,17 @@ export function rangeCell(op, off) {
 }
 
 /**
- * What an operator's normal attack can target, in the official order (索敌-1…索敌-3, 职业-1, 职业-2). A healer: the
- * operators in range that are not at full HP and not under 禁疗, by 生命比例升序. Otherwise the selectable enemies with a
- * tile in range (flying ones only with 可对空) and, when the trait prefers them, the enemies it blocks wherever they
- * stand, flying or not (阻挡-4) — ordered by the trait's filters.
+ * What an operator's normal attack can target, in the official order (索敌-1…索敌-3, 职业-1, 职业-2, 职业-12). One
+ * that heals now: the operators in range that are not at full HP (or, restoring element values, have element damage)
+ * and not under 禁疗, by 生命比例升序. Otherwise the selectable enemies with a tile in range (flying ones only with
+ * 可对空) and, when the trait prefers them, the enemies it blocks wherever they stand, flying or not (阻挡-4) —
+ * ordered by the trait's filters.
  * @param {World} w @param {Content} c @param {Unit} op @returns {Unit[]}
  */
 export function targetsOf(w, c, op) {
   const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], t = traitOfDef(d);
   const keys = rangeKeys(grid, op, d.range, statsOf(op).rangeExtend);
-  if (t.heal) return sortHealTargets(w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal && inKeys(u, keys, grid)));
+  if (healsNow(c, op)) return healOrder(c, op, w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal && inKeys(u, keys, grid)));
   const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id;
   const cands = w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true
     && ((held(u) && selectable(u, { canHitFly: true })) || (selectable(u, { canHitFly: t.antiAir }) && inKeys(u, keys, grid))));
@@ -159,15 +161,19 @@ function jumpHits(w, c, src, t, load) {
 }
 
 /**
- * A healer's heals on one target (职业-2, 职业-11), then a heal chain's on each operator it jumps to, at the chain's
- * share of the one before.
- * @param {World} w @param {Unit} a @param {Unit} t @param {Load} load @param {Unit[]} jumps
+ * A healer's heals on one target (职业-2, 职业-11, 职业-12), then a heal chain's on each operator it jumps to, at the
+ * chain's share of the one before; each heal also restores element values by the trait's share of it.
+ * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t @param {{ load: Load, jumps: Unit[] }} how
  */
-function heals(w, a, t, load, jumps) {
-  let amount = load.amount;
-  for (const u of [t, ...jumps]) {
-    for (let k = 0; k < load.times; k++) w.events.push({ type: 'heal', id: a.id, target: u.id, amount: heal(a, u, amount) });
-    amount *= load.chain?.scale ?? 1;
+function heals(w, c, a, t, how) {
+  const ep = traitOf(c, a).epHeal;
+  let amount = how.load.amount;
+  for (const u of [t, ...how.jumps]) {
+    for (let k = 0; k < how.load.times; k++) {
+      w.events.push({ type: 'heal', id: a.id, target: u.id, amount: heal(a, u, amount) });
+      if (ep > 0 && !statsOf(u).flags.healFree) restoreEp(u, amount * ep);
+    }
+    amount *= how.load.chain?.scale ?? 1;
   }
 }
 
@@ -181,15 +187,27 @@ function land(w, c, a) {
   const sw = /** @type {Swing} */ (a.swing);
   a.swing = null;
   if (palsyInterrupts(a)) { a.anim = ANIM.IDLE; return; }
-  const op = a.kind === KIND.OPERATOR, heals = op && traitOf(c, a).heal, load = loadOf(a, sw.mods);
+  const op = a.kind === KIND.OPERATOR, heals = op && (traitOf(c, a).heal || !!sw.mods.heal), load = loadOf(a, sw.mods);
   let reached = 0;
   for (const id of sw.targets) {
     const t = w.units.find((u) => u.id === id);
     if (t && t.hp > 0 && !t.hidden) { deliver(w, c, a, t, { load, heals: !!heals, cross: !!sw.mods.cross }); reached++; }
   }
-  if (op) { selfHeal(w, c, a, reached); afterAttack(w, c, a, sw.mods); }
+  if (op) operatorLanded(w, c, a, { sw, reached, heals: !!heals });
   const ch = sw.mods.channel;
   if (ch && (sw.left ?? ch.hits) > 1) a.swing = { ...sw, wind: secondsToFrames(ch.duration / ch.hits), since: 0, left: (sw.left ?? ch.hits) - 1 };
+}
+
+/**
+ * After an operator's attack landed (职业-9, 职业-12, 技能-2): its stored energy goes at the first target, it heals
+ * itself for the enemies reached, its skill counts the attack.
+ * @param {World} w @param {Content} c @param {Unit} a @param {{ sw: Swing, reached: number, heals: boolean }} how
+ */
+function operatorLanded(w, c, a, how) {
+  const first = w.units.find((u) => u.id === how.sw.targets[0] && u.hp > 0 && !u.hidden);
+  if (first && !how.heals) releaseEnergy(w, a, first);
+  selfHeal(w, c, a, how.reached);
+  afterAttack(w, c, a, how.sw.mods);
 }
 
 /**
@@ -211,7 +229,7 @@ function selfHeal(w, c, a, reached) {
  */
 function deliver(w, c, a, t, how) {
   const load = loadFor(c, a, t, how.load);
-  if (how.heals) heals(w, a, t, load, load.chain ? chainOf(w, c, t, load.chain, { heals: true, antiAir: true }) : []);
+  if (how.heals) heals(w, c, a, t, { load, jumps: load.chain ? chainOf(w, c, t, load.chain, { heals: true, antiAir: true }) : [] });
   else if (how.cross) for (const u of crossOf(w, a, t)) hitTarget(w, c, a, u, load);
   else if (shoots(c, a, how.heals)) launch(w, a, t, load);
   else impact(w, c, a, t, load);
@@ -258,11 +276,13 @@ function operatorAttack(w, c, op) {
   if (op.swing) advanceSwing(w, c, op);
   if (op.atkCd > 0) { op.atkCd--; return; }
   if (op.swing) return;
-  if (targetsOf(w, c, op).length === 0) { op.anim = ANIM.IDLE; return; }
+  const found = mayAttack(c, op) ? targetsOf(w, c, op) : [], hold = holdFrames(c, op, found.length > 0);
+  if (hold > 0) { op.atkCd = hold - 1; op.anim = ANIM.IDLE; return; }
+  if (found.length === 0) { op.anim = ANIM.IDLE; return; }
   const mods = beforeAttack(w, c, op), t = traitOf(c, op);
   const targets = firstN(targetsOf(w, c, op), Math.max(mods.targets, traitTargets(t, op)));
   const arts = t.skillArts && op.skill?.active && !mods.type ? { type: /** @type {const} */ ('arts') } : {};
-  startSwing(w, c, op, targets, { ...mods, times: mods.times * t.hits, ...arts });
+  startSwing(w, c, op, targets, modeMods(c, op, { ...mods, times: mods.times * t.hits, ...arts }));
 }
 
 /**
@@ -277,6 +297,7 @@ export function operatorsAttack(w, c) {
     enforceCapacity(w, op);
     blockingImmunity(w, op, traitOf(c, op).immuneBlocking);
     tickSkill(w, c, op);
+    skillIdle(op, traitOf(c, op));
     if (!statsOf(op).disabled) operatorAttack(w, c, op);
     else op.swing = null;
   }

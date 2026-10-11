@@ -1,0 +1,109 @@
+// Attack modes (docs/spec/traits.md 职业-12) on the tiny level without spawns: attacks only in the skill with idle
+// modifiers and a charge, heals in the skill, bullets, stored energy, element restoring heals.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { tinyContent } from '@aue/testkit';
+import { createWorld, step } from '../src/index.js';
+import { makeEnemy } from '../src/units.js';
+import { applyStatus } from '../src/status.js';
+import { statsOf } from '../src/attrs.js';
+
+/** @typedef {import('../src/types.js').Unit} Unit */
+
+const AROUND = [-1, 0, 1].flatMap((row) => [-1, 0, 1].map((col) => ({ row, col })));
+/** A manual skill that costs 1 SP and lasts `duration` seconds. @param {number} duration */
+const skill = (duration) => ({ id: 's', type: 'MANUAL', sp: 'time', cost: 1, init: 1, charges: 1, duration, ammo: false, bb: {} });
+
+/** @param {(c: any) => void} tweak */
+function arena(tweak) {
+  const c = tinyContent();
+  c.level.waves = [];
+  c.level.options = { ...c.level.options, characterLimit: 9, initialCost: 99, maxCost: 99 };
+  c.operators.sniper = { ...c.operators.sniper, range: AROUND };
+  tweak(c);
+  const w = createWorld(c, { seed: 1, players: 1 });
+  /** A rooted enemy without defence at (row, col). @param {number} row @param {number} col */
+  const foe = (row, col) => {
+    const e = makeEnemy(w, c, { key: 'slime', route: 0 });
+    e.x = col; e.y = row;
+    e.base = { ...e.base, def: 0, maxHp: 1e6 };
+    e.hp = e.maxHp = statsOf(e).maxHp;
+    applyStatus(e, 'root', {});
+    w.units.push(e);
+    return e;
+  };
+  /** @param {string} op @param {number} row @param {number} col */
+  const put = (op, row, col) => { step(w, c, [[0, { type: 'deploy', op, row, col, dir: 0 }]]); return /** @type {Unit} */ (w.units.at(-1)); };
+  /** The events of the next n frames, commands in the first. @param {number} n @param {any[]} [cmds] */
+  const run = (n, cmds = []) => { /** @type {any[]} */ const ev = []; for (let i = 0; i < n; i++) ev.push(...step(w, c, i === 0 ? cmds.map((x) => [0, x]) : [])); return ev; };
+  return { w, c, foe, put, run };
+}
+
+/** @param {Unit} u @param {string} key */
+const buffOf = (u, key) => u.buffs.find((b) => b.key === key);
+
+test('[职业-12] attacks only in the skill; 阻挡数 × 0 out of it; the charge builds a step a second and is back at 0 after the skill', () => {
+  const { foe, put, run } = arena((c) => {
+    c.operators.guard = { ...c.operators.guard, skill: skill(2), trait: { attackInSkill: true, idleMods: { blockCntMul: 0 }, charge: { atk: 2, steps: 40 } } };
+  });
+  const guard = put('guard', 1, 1);
+  foe(1, 2);
+  assert.equal(statsOf(guard).blockCnt, 0);
+  const idle = run(59);
+  assert.equal(idle.filter((e) => e.type === 'hit').length, 0, 'no attack while the skill is off');
+  assert.deepEqual([buffOf(guard, 'charge')?.value, statsOf(guard).atk], [2, 50 * (1 + 0.1)], 'two steps at 2 s');
+  const on = run(40, [{ type: 'skill', unit: guard.id }]);
+  assert.ok(on.some((e) => e.type === 'hit' && e.id === guard.id), 'it attacks in the skill');
+  assert.deepEqual([statsOf(guard).blockCnt, buffOf(guard, 'charge')?.value], [2, 2], 'its 阻挡数 back, the charge held');
+  run(60);
+  assert.deepEqual([statsOf(guard).blockCnt, buffOf(guard, 'charge')?.value], [0, 0], 'after the skill: 阻挡数 0, the charge back at 0');
+});
+
+test('[职业-12] heals instead of attacks while the skill runs, at the skill healer\'s 倍率', () => {
+  const { foe, put, run } = arena((c) => { c.operators.sniper = { ...c.operators.sniper, skill: skill(10), trait: { skillHeal: 0.5 } }; });
+  const mate = put('guard', 1, 2), healer = put('sniper', 2, 2);
+  mate.hp = 500;
+  foe(1, 3);
+  const before = run(46);
+  assert.ok(before.some((e) => e.type === 'hit' && e.id === healer.id) && !before.some((e) => e.type === 'heal'));
+  const during = run(46, [{ type: 'skill', unit: healer.id }]);
+  assert.deepEqual(during.filter((e) => e.type === 'heal').map((e) => [e.target, e.amount]).slice(0, 1), [[mate.id, 15]]);
+  assert.ok(!during.some((e) => e.type === 'shot' && e.id === healer.id), 'no attack launched while it heals');
+});
+
+test('[职业-12] bullets: each attack spends one at its 倍率; out of them, or without a target, it reloads one per base attack interval', () => {
+  const { w, foe, put, run } = arena((c) => { c.operators.sniper = { ...c.operators.sniper, trait: { bullets: { max: 2, scale: 1.5 } } }; });
+  const hunter = put('sniper', 2, 2);
+  assert.equal(buffOf(hunter, 'bullets')?.value, 2, 'full at deployment');
+  const e = foe(1, 2);
+  const hits = run(200).filter((x) => x.type === 'hit' && x.id === hunter.id);
+  assert.deepEqual(hits.slice(0, 3).map((x) => x.damage), [45, 45, 45]);
+  w.units.splice(w.units.indexOf(e), 1);
+  run(200);
+  assert.equal(buffOf(hunter, 'bullets')?.value, 2, 'reloaded to full without a target');
+});
+
+test('[职业-12] stored energy: one per attack interval without a target, up to the most; it goes with the next attack', () => {
+  const { foe, put, run } = arena((c) => { c.operators.sniper = { ...c.operators.sniper, trait: { store: 2 } }; });
+  const mystic = put('sniper', 2, 2);
+  run(200);
+  assert.equal(buffOf(mystic, 'energy')?.value, 2);
+  foe(1, 2);
+  const ev = run(60);
+  assert.equal(ev.filter((x) => x.type === 'shot' && x.id === mystic.id).length >= 3, true, 'its attack and two of energy');
+  const hits = ev.filter((x) => x.type === 'hit' && x.id === mystic.id).map((x) => x.damage);
+  assert.deepEqual(hits.slice(0, 3), [30, 30, 30]);
+  assert.equal(buffOf(mystic, 'energy')?.value, 0);
+});
+
+test('[职业-12] heals that restore element values: a full-HP operator with element damage is a target; not in a burst', () => {
+  const { put, run } = arena((c) => { c.operators.sniper = { ...c.operators.sniper, trait: { heal: true, targets: 1, epHeal: 0.5 } }; });
+  const mate = put('guard', 1, 2), healer = put('sniper', 2, 2);
+  mate.ep = { FIRE: 500 };
+  const ev = run(2);
+  assert.deepEqual(ev.filter((e) => e.type === 'heal').map((e) => [e.id, e.target]), [[healer.id, mate.id]]);
+  assert.deepEqual(mate.ep, { FIRE: 515 });
+  mate.ep = { FIRE: 990 };
+  run(45);
+  assert.deepEqual(mate.ep, {}, 'up to the maximum');
+});

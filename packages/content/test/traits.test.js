@@ -11,11 +11,11 @@ import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, oper
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
 
-test('[职业-7] the covered branches are 51 of the 72 official ones', () => {
+test('[职业-7] the covered branches are 57 of the 72 official ones', () => {
   assert.equal(Object.keys(ALL).length, 72);
   for (const b of Object.keys(BRANCHES)) assert.ok(Object.hasOwn(ALL, b), b);
-  assert.equal(Object.keys(BRANCHES).length, 51);
-  assert.ok(coveredBranch('fastshot') && !coveredBranch('mystic') && !coveredBranch('toString'));
+  assert.equal(Object.keys(BRANCHES).length, 57);
+  assert.ok(coveredBranch('fastshot') && !coveredBranch('funnel') && !coveredBranch('toString'));
 });
 
 test('[职业-7] an operator record takes its branch\'s damage type and trait; the blackboard moves into the trait', () => {
@@ -26,9 +26,9 @@ test('[职业-7] an operator record takes its branch\'s damage type and trait; t
   assert.deepEqual(withTrait({ ...base, position: 'RANGED', branch: 'corecaster' }).dmgType, 'arts');
   assert.deepEqual(withTrait({ ...base, position: 'RANGED', branch: 'slower', traitBb: { sluggish: 0.8 } }).trait?.hitStatus, { key: 'sluggish', seconds: 0.8 });
   assert.deepEqual(withTrait({ ...base, position: 'RANGED', branch: 'ringhealer' }).trait, { heal: true, targets: 3, bb: {} });
-  const mystic = withTrait({ ...base, position: 'RANGED', branch: 'mystic', traitBb: { times: 3 } });
-  assert.equal(mystic.trait, undefined, 'not covered: the position\'s defaults');
-  assert.deepEqual(traits.traitOfDef(mystic).antiAir, true);
+  const funnel = withTrait({ ...base, position: 'RANGED', branch: 'funnel', traitBb: { max_stack_cnt: 6 } });
+  assert.equal(funnel.trait, undefined, 'not covered: the position\'s defaults');
+  assert.deepEqual(traits.traitOfDef(funnel).antiAir, true);
 });
 
 test('[职业-7] the skeleton\'s operators carry their branches: 铁卫, 尖兵, 速射手', () => {
@@ -112,4 +112,12 @@ test('[职业-7] [职业-11] zones and chains from the real data: 散射手, 疗
   assert.deepEqual([chain0.chain, chain2.chain.max, chain0.hitStatus], [{ max: 3, scale: 0.85, radius: 1.7, cells: null }, 4, { key: 'sluggish', seconds: 0.5 }]);
   assert.deepEqual([chainHeal.heal, counted(chainHeal.chain)], [true, { max: 3, scale: 0.75, radius: 0, cells: 9 }]);
   assert.equal(incant.healOnHit, 0.5);
+});
+
+test('[职业-7] [职业-12] attack modes from the real data: 解放者, 护佑者, 猎手, 秘术师, 行医, 佣兵', async () => {
+  const [lib, bless, hunter, mystic, wander, merc] = await Promise.all(['char_1043_leizi2', 'char_1022_flwr2', 'char_4104_coldst', 'char_297_hamoni', 'char_1016_agoat2', 'char_1049_catap2']
+    .map(async (id) => /** @type {any} */ (traits.traitOfDef(await real(id)))));
+  assert.deepEqual([lib.attackInSkill, lib.idleMods, lib.charge], [true, { blockCntMul: 0 }, { atk: 2, steps: 40 }]);
+  assert.deepEqual([bless.skillHeal, hunter.bullets, mystic.store, wander.heal, wander.epHeal], [0.75, { max: 4, scale: 1.2 }, 3, true, 0.5], '冰酿 at elite 0: 4 bullets');
+  assert.deepEqual([merc.blockedFirst, merc.antiAir], [true, false], '佣兵: the melee defaults');
 });
