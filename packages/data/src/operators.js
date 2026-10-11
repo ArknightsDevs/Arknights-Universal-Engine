@@ -1,7 +1,9 @@
-// Operators with everything their training needs (docs/spec/operators.md 干员-1…干员-3): each elite phase's attack
+// Operators with everything their training needs (docs/spec/operators.md 干员-1…干员-5): each elite phase's attack
 // range and attribute keyframes, the trust keyframe, the potential modifiers, every skill with all its levels, the
-// trait candidates. Pure functions over parsed game data.
+// trait candidates, the talents, the modules. Pure functions over parsed game data.
 import { asArray, asInt, asNumber, asObject, asString, field } from './validate.js';
+import { phaseOf, talentsOf } from './talents.js';
+import { modulesOf } from './modules.js';
 
 /** character_table's attribute keys kept for a keyframe, and their names in the engine (属性-1). */
 const STATS = Object.freeze({
@@ -15,13 +17,6 @@ const POTENTIAL_STATS = Object.freeze({ COST: 'cost', RESPAWN_TIME: 'respawnTime
  * 「可随时主动关闭」「手动停止」….
  */
 const CLOSABLE = /(随时|主动|手动)[^，。；\n<]*(停止|关闭)/u;
-
-/** PHASE_n → n. @param {unknown} v @param {string} p */
-const phaseOf = (v, p) => {
-  const s = asString(v, p);
-  if (!/^PHASE_[0-2]$/.test(s)) throw new Error(`${p}: expected PHASE_0…PHASE_2, got ${s}`);
-  return Number(s.slice(6));
-};
 
 /** A keyframe's attributes in the engine's names. @param {unknown} raw @param {string} p @returns {Record<string, number>} */
 function statsOf(raw, p) {
@@ -50,11 +45,12 @@ function rangeOf(rangesRaw, id) {
 }
 
 /**
- * One operator (干员-1…干员-3).
+ * One operator (干员-1…干员-5).
  * @param {unknown} raw character_table entry @param {string} id @param {unknown} rangesRaw @param {unknown} skillsRaw
+ * @param {{ uniequip: unknown, battle: unknown }} equipment uniequip_table and battle_equip_table
  * @returns {Record<string, unknown>}
  */
-export function extractTraining(raw, id, rangesRaw, skillsRaw) {
+export function extractTraining(raw, id, rangesRaw, skillsRaw, equipment) {
   const p = `characters[${id}]`, c = asObject(raw, p);
   const phases = asArray(field(c, 'phases', p), `${p}.phases`).map((ph, i) => {
     const pp = `${p}.phases[${i}]`, o = asObject(ph, pp);
@@ -79,6 +75,8 @@ export function extractTraining(raw, id, rangesRaw, skillsRaw) {
     potentials: asArray(c.potentialRanks ?? [], `${p}.potentialRanks`).map((r, i) => potentialOf(r, `${p}.potentialRanks[${i}]`)),
     skills: asArray(field(c, 'skills', p), `${p}.skills`).map((s, i) => skillOf(s, `${p}.skills[${i}]`, skillsRaw)),
     traits: traitsOf(c.trait, `${p}.trait`),
+    talents: talentsOf(c.talents, `${p}.talents`),
+    modules: modulesOf(id, equipment),
   };
 }
 
@@ -132,11 +130,12 @@ function traitsOf(raw, p) {
 }
 
 /**
- * Every operator of character_table that is not a token or a trap, in id order (干员-1…干员-3).
- * @param {unknown} charactersRaw @param {unknown} rangesRaw @param {unknown} skillsRaw @returns {Record<string, Record<string, unknown>>}
+ * Every operator of character_table that is not a token or a trap, in id order (干员-1…干员-5).
+ * @param {unknown} charactersRaw @param {unknown} rangesRaw @param {unknown} skillsRaw
+ * @param {{ uniequip: unknown, battle: unknown }} equipment uniequip_table and battle_equip_table @returns {Record<string, Record<string, unknown>>}
  */
-export function extractRoster(charactersRaw, rangesRaw, skillsRaw) {
+export function extractRoster(charactersRaw, rangesRaw, skillsRaw, equipment) {
   const all = asObject(charactersRaw, 'characters');
   const ids = Object.keys(all).filter((id) => id.startsWith('char_') && !['TOKEN', 'TRAP'].includes(String(asObject(all[id], `characters[${id}]`).profession))).toSorted();
-  return Object.fromEntries(ids.map((id) => [id, extractTraining(all[id], id, rangesRaw, skillsRaw)]));
+  return Object.fromEntries(ids.map((id) => [id, extractTraining(all[id], id, rangesRaw, skillsRaw, equipment)]));
 }

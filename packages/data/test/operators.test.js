@@ -24,10 +24,11 @@ const char = (/** @type {Record<string, unknown>} */ more = {}) => ({
   ...more,
 });
 const ranges = { r: { grids: [{ row: 0, col: 0 }, { row: 0, col: 1 }] } };
+const equip = { uniequip: { equipDict: {}, charEquip: {} }, battle: {} };
 const skills = { sk: { levels: [level(1, '攻击力提升'), level(2, '可随时停止技能')] } };
 
 test('[干员-1] [干员-2] [干员-3] an operator\'s training data: phases with range and keyframes, trust, potentials, skill levels, trait candidates', () => {
-  const t = /** @type {any} */ (extractTraining(char(), 'char_x', ranges, skills));
+  const t = /** @type {any} */ (extractTraining(char(), 'char_x', ranges, skills, equip));
   assert.deepEqual([t.name, t.position, t.profession, t.branch, t.rarity], ['Op', 'MELEE', 'WARRIOR', 'fighter', 4]);
   assert.deepEqual(t.phases[0].range, [{ row: 0, col: 0 }, { row: 0, col: 1 }]);
   assert.deepEqual(t.phases[0].frames[1], { level: 50, stats: { maxHp: 200, atk: 20, def: 10, res: 0, cost: 10, blockCnt: 2, baseAttackTime: 1.2, respawnTime: 70, aspd: 100, tauntLevel: 0, massLevel: 0 } });
@@ -38,14 +39,14 @@ test('[干员-1] [干员-2] [干员-3] an operator\'s training data: phases with
     [12, { spType: 'INCREASE_WITH_TIME', spCost: 28, initSp: 0, maxChargeTime: 1 }, [{ key: 'atk', value: 0.2 }], true],
   ]);
   assert.deepEqual(t.traits, [{ phase: 0, level: 1, potential: 0, bb: { cost: 1 } }]);
-  const none = /** @type {any} */ (extractTraining(char({ trait: null, favorKeyFrames: null, potentialRanks: null }), 'char_x', ranges, skills));
+  const none = /** @type {any} */ (extractTraining(char({ trait: null, favorKeyFrames: null, potentialRanks: null }), 'char_x', ranges, skills, equip));
   assert.deepEqual([none.traits, none.favor, none.potentials], [[], null, []]);
-  assert.throws(() => extractTraining(char({ potentialRanks: [{ buff: { attributes: { attributeModifiers: [{ attributeType: 'SP', formulaItem: 'ADDITION', value: 1 }] } } }] }), 'char_x', ranges, skills), /unsupported SP ADDITION/);
-  assert.throws(() => extractTraining(char({ skills: [{ skillId: 'sk', unlockCond: { phase: 'PHASE_7', level: 1 } }] }), 'char_x', ranges, skills), /PHASE_0…PHASE_2/);
+  assert.throws(() => extractTraining(char({ potentialRanks: [{ buff: { attributes: { attributeModifiers: [{ attributeType: 'SP', formulaItem: 'ADDITION', value: 1 }] } } }] }), 'char_x', ranges, skills, equip), /unsupported SP ADDITION/);
+  assert.throws(() => extractTraining(char({ skills: [{ skillId: 'sk', unlockCond: { phase: 'PHASE_7', level: 1 } }] }), 'char_x', ranges, skills, equip), /PHASE_0…PHASE_2/);
 });
 
 test('[干员-1] the roster: every character that is not a token or a trap, in id order', () => {
-  const r = extractRoster({ char_b: char(), char_a: char(), token_x: char({ profession: 'TOKEN' }), char_t: char({ profession: 'TRAP' }), trap_1: char() }, ranges, skills);
+  const r = extractRoster({ char_b: char(), char_a: char(), token_x: char({ profession: 'TOKEN' }), char_t: char({ profession: 'TRAP' }), trap_1: char() }, ranges, skills, equip);
   assert.deepEqual(Object.keys(r), ['char_a', 'char_b']);
 });
 

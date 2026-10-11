@@ -27,7 +27,8 @@ export function extractRosterFromCheckout(root) {
   const data = join(root, 'zh_CN', 'gamedata', 'excel');
   return {
     source: { repo: 'Kengxxiao/ArknightsGameData', commit: gitCommit(root), server: 'zh_CN' },
-    operators: extractRoster(readJson(join(data, 'character_table.json')), readJson(join(data, 'range_table.json')), readJson(join(data, 'skill_table.json'))),
+    operators: extractRoster(readJson(join(data, 'character_table.json')), readJson(join(data, 'range_table.json')), readJson(join(data, 'skill_table.json')),
+      { uniequip: readJson(join(data, 'uniequip_table.json')), battle: readJson(join(data, 'battle_equip_table.json')) }),
   };
 }
 
