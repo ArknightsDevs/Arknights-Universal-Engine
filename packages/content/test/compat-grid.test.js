@@ -42,6 +42,28 @@ test('[兼容-1] a real kit (the oracle’s shared tier1 posKey) keys tiles with
   assert.deepEqual(both, [27, 21, 27], 'two battles of different sizes, one inside the other');
 });
 
+test('[兼容-1] kits load under a 64 × 64 grid: 远牙’s whole-row range, built as the kit loads, covers any level', async () => {
+  assert.deepEqual(grid.LOAD_GRID, { width: 64, height: 64 });
+  assert.ok(grid.LOAD_GRID.width > 50 && grid.LOAD_GRID.height > 44, 'the largest map in the data is 50 × 44');
+  const url = pathToFileURL(join(oracleDir(), 'server', 'sim', 'content', 'kits', 'ops', 'chess_char_4_20-fartth.js')).href;
+  /** @type {any} */
+  let kit = null;
+  kit = await grid.loadUnderGrid(() => import(url));
+  assert.deepEqual([grid.COLS, grid.ROWS], [0, 0], 'back after the loading');
+  /** @type {any[][]} */
+  const lines = [];
+  /** @param {any} v @param {number} depth */
+  const find = (v, depth) => {
+    if (depth > 8 || !v || typeof v !== 'object') return;
+    if (Array.isArray(v) && v.length > 0 && v.every((x) => Array.isArray(x) && x.length === 2 && x[0] === 0)) { lines.push(v); return; }
+    for (const x of Object.values(v)) find(x, depth + 1);
+  };
+  // the kit is a factory per chess id: its spec, with 光羽箭 (S3) selected, holds the line range
+  find(kit.default.chess_char_4_20_a({}, null, { skill: { id: 'skchr_fartth_3' }, talents: [], traitBb: {} }), 0);
+  assert.equal(lines.length, 1, 'its S3 range: row 0, every column');
+  assert.equal(lines[0].length, 64);
+});
+
 test('[兼容-1] the oracle’s content code reads COLS or ROWS at load time in one place only: the LINE of chess_char_4_20-fartth', () => {
   const root = join(oracleDir(), 'server', 'sim', 'content');
   /** @type {string[]} */

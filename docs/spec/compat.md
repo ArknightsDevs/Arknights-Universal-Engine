@@ -8,6 +8,6 @@ Stronghold 的常量模块把网格的列数 `COLS`、行数 `ROWS` 给成固定
 
 - 映射表把 kit 对常量模块的导入指向兼容层，其中 `COLS`、`ROWS` 是活的绑定：运行一场战斗的内容代码时（`withGrid`），它们是这一关的宽和高；之后恢复成之前的值，内容代码抛出异常或两场战斗的代码嵌套时也一样。
 - kit 在函数里读 `COLS`、`ROWS`（编码、解码格子键，边界检查，遍历网格），每次调用读到的是当时这一关的尺寸。
-- 在模块加载时就读的，值固定在加载那一刻。固定提交的 Stronghold 内容代码里只有一处：`kits/ops/chess_char_4_20-fartth.js` 第 11 行的 `LINE`。这个 kit 暂不加载，修复回馈上游。
+- 在模块加载时就读的，值固定在加载那一刻。所以兼容层加载 kit 时，`COLS`、`ROWS` 都是 64（`LOAD_GRID`），大于任何关卡（数据里最大 50 × 44）：按地图大小生成的「整行」「整图」列表覆盖每一关，地图外的格子在算攻击范围时去掉（索敌-1）。固定提交的 Stronghold 内容代码里只有一处这样取值：`kits/ops/chess_char_4_20-fartth.js` 第 11 行的 `LINE`（远牙三技能的无限直线范围）。
 
-- 来源：设计决定，见 [ADR 0010](../adr/0010-import-mapping-table.md)（只改写导入路径，不改 kit 源码）、[ADR 0012](../adr/0012-stronghold-compatible-core.md)、[ADR 0045](../adr/0045-unit-field-ownership-compat-isolation.md)；用法统计：固定的 Stronghold 提交中 83 个文件引用 `COLS` / `ROWS`（内容代码 66 个），按语法树分析，内容代码在加载时读取的只有上面一处（`packages/content/test/compat-grid.test.js`，ADR 0056）
+- 来源：设计决定，见 [ADR 0010](../adr/0010-import-mapping-table.md)（只改写导入路径，不改 kit 源码）、[ADR 0012](../adr/0012-stronghold-compatible-core.md)、[ADR 0045](../adr/0045-unit-field-ownership-compat-isolation.md)；用法统计：ArknightsGameData 的 3943 个关卡中地图最宽 50、最高 44；固定的 Stronghold 提交中 83 个文件引用 `COLS` / `ROWS`（内容代码 66 个），按语法树分析，内容代码在加载时读取的只有上面一处（`packages/content/test/compat-grid.test.js`，ADR 0056）
