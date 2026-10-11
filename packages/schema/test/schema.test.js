@@ -35,6 +35,7 @@ test('events: well formed ones pass; unknown types, wrong types and extra fields
   assert.deepEqual(eventProblems({ type: 'heal', id: 3, target: 4, amount: 120 }), [], 'version 4: a heal');
   assert.deepEqual(eventProblems({ type: 'shot', id: 3, target: 4 }), [], 'version 5: a projectile');
   assert.deepEqual([eventProblems({ type: 'down', owner: 1 }), eventProblems({ type: 'revive', owner: 1 })], [[], []], 'version 6: a player down and back');
+  assert.deepEqual([eventProblems({ type: 'ask', owner: 0 }), eventProblems({ type: 'answer', owner: 0, accept: -1, amount: 0 })], [[], []], 'version 7: a cost request');
   assert.deepEqual(eventProblems(null), ['not an object']);
   assert.deepEqual(eventProblems({ type: 'explode' }), ['unknown event type explode']);
   assert.deepEqual(eventProblems({ type: 'death', id: '1', extra: 1 }), ['death.id is not a number', 'death has an unknown field extra']);
@@ -44,18 +45,23 @@ const HELLO = { t: 'hello', v: PROTOCOL_VERSION, seat: 1, key: 'k_abc-1', since:
 const DEPLOY = { type: 'deploy', op: 'char_502_nblade', row: 3, col: 4, dir: 0 };
 
 test('client messages: exactly the well-formed ones are accepted', () => {
-  for (const m of [HELLO, { t: 'cmd', at: 99, cmd: DEPLOY }, { t: 'cmd', at: 0, cmd: { type: 'retreat', unit: 7 } }, { t: 'cmd', at: 5, cmd: { type: 'skill', unit: 7 } }, { t: 'hash', frame: 30, hash: 0xffffffff }]) {
+  for (const m of [HELLO, { t: 'cmd', at: 99, cmd: DEPLOY }, { t: 'cmd', at: 0, cmd: { type: 'retreat', unit: 7 } }, { t: 'cmd', at: 5, cmd: { type: 'skill', unit: 7 } }, { t: 'hash', frame: 30, hash: 0xffffffff },
+    { t: 'cmd', at: 5, cmd: { type: 'ask' } }, { t: 'cmd', at: 5, cmd: { type: 'answer', accept: 0 } }, { t: 'speed', on: 1 }, { t: 'pause' },
+    { t: 'pauseReply', accept: 1 }, { t: 'resume' }]) {
     assert.equal(clientMessageProblem(m), null, JSON.stringify(m));
   }
   const bad = [
     [[], 'message is not an object'], [{ t: 'nope' }, 'unknown message type nope'], [{ t: 'constructor' }, 'unknown message type constructor'],
-    [{ ...HELLO, v: 1 }, 'protocol version 1, expected 2'], [{ ...HELLO, seat: 8 }, 'hello.seat out of range'], [{ ...HELLO, key: 'a b' }, 'hello.key is not an id'],
+    [{ ...HELLO, v: 2 }, 'protocol version 2, expected 3'], [{ ...HELLO, seat: 8 }, 'hello.seat out of range'], [{ ...HELLO, key: 'a b' }, 'hello.key is not an id'],
     [{ ...HELLO, since: 1.5 }, 'hello.since out of range'], [{ ...HELLO, admin: true }, 'unknown field admin'], [{ t: 'hash', frame: 1 }, 'missing field hash'],
     [{ t: 'hash', frame: 1, hash: -1 }, 'hash.hash is not a uint32'], [{ t: 'hash', frame: -1, hash: 1 }, 'hash.frame out of range'],
     [{ t: 'cmd', at: 2e6, cmd: DEPLOY }, 'cmd.at out of range'], [{ t: 'cmd', at: 1, cmd: { ...DEPLOY, row: 64 } }, 'deploy tile out of range'],
     [{ t: 'cmd', at: 1, cmd: { ...DEPLOY, dir: 4 } }, 'deploy.dir is not 0–3'], [{ t: 'cmd', at: 1, cmd: { ...DEPLOY, op: '../x' } }, 'deploy.op is not an id'],
     [{ t: 'cmd', at: 1, cmd: { type: 'retreat', unit: 0 } }, 'retreat.unit is not a unit id'], [{ t: 'cmd', at: 1, cmd: { type: 'skill', unit: 1.5 } }, 'skill.unit is not a unit id'], [{ t: 'cmd', at: 1, cmd: 'deploy' }, 'command is not an object'],
     [{ t: 'cmd', at: 1, cmd: { type: 'toString' } }, 'unknown command type toString'],
+    [{ t: 'cmd', at: 1, cmd: { type: 'ask', seat: 1 } }, 'unknown field seat'], [{ t: 'cmd', at: 1, cmd: { type: 'answer', accept: 2 } }, 'answer.accept is not 0 or 1'],
+    [{ t: 'speed', on: true }, 'speed.on is not 0 or 1'], [{ t: 'pause', seat: 0 }, 'unknown field seat'], [{ t: 'pauseReply' }, 'missing field accept'],
+    [{ t: 'pauseReply', accept: -1 }, 'pauseReply.accept is not 0 or 1'], [{ t: 'resume', at: 3 }, 'unknown field at'],
   ];
   for (const [m, why] of bad) assert.equal(clientMessageProblem(m), why, JSON.stringify(m));
 });
@@ -72,30 +78,33 @@ test('client messages: generated well-formed deploys are accepted', () => {
   fc.assert(fc.property(fc.integer({ min: 0, max: 1_000_000 }), deploy, (at, cmd) => clientMessageProblem({ t: 'cmd', at, cmd }) === null), { seed: SEED, numRuns: 1000 });
 });
 
-test('snapshot envelope v6', () => {
-  assert.equal(snapshotProblem({ v: 6, frame: 0, data: {} }), null, 'version 6: players carry their revival too');
-  assert.equal(snapshotProblem({ v: 5, frame: 0, data: {} }), 'snapshot version 5, expected 6');
+test('snapshot envelope v7', () => {
+  assert.equal(snapshotProblem({ v: 7, frame: 0, data: {} }), null, 'version 7: players carry their cost requests too');
+  assert.equal(snapshotProblem({ v: 6, frame: 0, data: {} }), 'snapshot version 6, expected 7');
   assert.equal(snapshotProblem([]), 'snapshot is not an object');
-  assert.equal(snapshotProblem({ v: 7, frame: 0, data: {} }), 'snapshot version 7, expected 6');
-  assert.equal(snapshotProblem({ v: 6, frame: -1, data: {} }), 'snapshot.frame out of range');
-  assert.equal(snapshotProblem({ v: 6, frame: 0, data: [] }), 'snapshot.data is not an object');
-  assert.equal(snapshotProblem({ v: 6, frame: 0 }), 'missing field data');
+  assert.equal(snapshotProblem({ v: 8, frame: 0, data: {} }), 'snapshot version 8, expected 7');
+  assert.equal(snapshotProblem({ v: 7, frame: -1, data: {} }), 'snapshot.frame out of range');
+  assert.equal(snapshotProblem({ v: 7, frame: 0, data: [] }), 'snapshot.data is not an object');
+  assert.equal(snapshotProblem({ v: 7, frame: 0 }), 'missing field data');
 });
 
 test('server messages: well-formed ones pass; broken ones are reported, never thrown', () => {
   const ok = [
-    { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: { v: 6, frame: 0, data: {} } },
+    { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: { v: 7, frame: 0, data: {} } },
     { t: 'frames', from: 3, to: 5, cmds: [[4, 1, DEPLOY], [5, 0, { type: 'retreat', unit: 2 }]] },
     { t: 'restamp', from: 3, to: 7 }, { t: 'resync', snapshot: {} }, { t: 'error', code: 'x', message: 'y' },
+    { t: 'control', fast: [1, 0], held: 0, asker: -1, resuming: 0 }, { t: 'frames', from: 1, to: 1, cmds: [[1, 1, { type: 'answer', accept: 1 }]] },
   ];
   for (const m of ok) assert.equal(serverMessageProblem(m), null, JSON.stringify(m));
   const bad = [
     [null, 'message is not an object'], [{ t: 'hello' }, 'unknown message type hello'],
-    [{ ...ok[0], v: 0 }, 'protocol version 0, expected 2'], [{ ...ok[0], seed: 1.5 }, 'welcome fields out of range'],
+    [{ ...ok[0], v: 2 }, 'protocol version 2, expected 3'], [{ ...ok[0], seed: 1.5 }, 'welcome fields out of range'],
     [{ ...ok[1], to: 2 }, 'frames range malformed'], [{ ...ok[1], cmds: {} }, 'frames.cmds is not an array'],
     [{ ...ok[1], cmds: [[4, 9, DEPLOY]] }, 'frames.cmds has a malformed entry'], [{ ...ok[1], cmds: [[4, 1, { type: 'x' }]] }, 'unknown command type x'],
     [{ t: 'restamp', from: -1, to: 1 }, 'restamp out of range'], [{ t: 'error', code: 1, message: 'y' }, 'error fields are not strings'],
     [{ t: 'resync' }, 'missing field snapshot'],
+    [{ ...ok[5], fast: [2] }, 'control.fast is not a list of 0 and 1'], [{ ...ok[5], fast: Array(9).fill(0) }, 'control.fast is not a list of 0 and 1'],
+    [{ ...ok[5], fast: 1 }, 'control.fast is not a list of 0 and 1'], [{ ...ok[5], asker: 8 }, 'control fields out of range'], [{ ...ok[5], held: 2 }, 'control fields out of range'],
   ];
   for (const [m, why] of bad) assert.equal(serverMessageProblem(m), why, JSON.stringify(m));
   fc.assert(fc.property(fc.jsonValue(), (v) => { const r = serverMessageProblem(v); return r === null || typeof r === 'string'; }), { seed: SEED, numRuns: 2000 });

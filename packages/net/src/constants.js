@@ -1,4 +1,4 @@
-// The lockstep constants (spec 同步-3, 同步-4, 同步-5).
+// The lockstep constants (spec 同步-3, 同步-4, 同步-5, 同步-8).
 import { secondsToFrames } from '@aue/math';
 
 /** Seconds from a command to the frame it acts in: activity_table MULTIPLAY_V3.<act>.constData.maxOperatorDelay. */
@@ -17,3 +17,7 @@ export const MAX_AHEAD = 90;
 export const HASH_HISTORY = 900;
 /** Milliseconds per frame, as the integer ratio frames = ⌊ms × 3 / 100⌋. */
 export const framesAt = (/** @type {number} */ ms) => Math.floor((ms * 3) / 100);
+/** Milliseconds from a resume to the clock running again (同步-8: about 1 s). */
+export const RESUME_MS = 1000;
+/** Milliseconds a pause request waits for the mate's answer before it lapses as ignored (同步-8). */
+export const PAUSE_ASK_MS = 15000;

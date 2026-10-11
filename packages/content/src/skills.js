@@ -14,7 +14,11 @@ const SP_TYPES = Object.freeze({ INCREASE_WITH_TIME: 'time', INCREASE_WHEN_ATTAC
  * @property {number} duration
  * @property {{ spType: string | number, spCost: number, initSp: number, maxChargeTime: number }} spData
  * @property {{ key: string, value: number }[]} blackboard
+ * @property {string} [description]
  */
+
+/** The description of a skill the player may close (技能-7): 「可随时停止技能」「可随时主动关闭」「手动停止」…. */
+const CLOSABLE = /(随时|主动|手动)[^，。；\n<]*(停止|关闭)/u;
 
 /**
  * A skill_table level as the engine's skill (技能-1).
@@ -27,6 +31,7 @@ export function skillDefOf(id, level) {
   return {
     id, type, sp, cost: level.spData.spCost, init: level.spData.initSp, charges: Math.max(1, level.spData.maxChargeTime),
     duration: level.duration, ammo: level.durationType === 'AMMO', bb: Object.fromEntries(level.blackboard.map((b) => [b.key, b.value])),
+    stoppable: CLOSABLE.test(level.description ?? ''),
   };
 }
 

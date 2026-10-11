@@ -237,9 +237,9 @@ test('the trait blackboard of an operator: the last candidate unlocked at elite 
   assert.deepEqual(run({ characters: chars }).operators.char_500_noirc.traitBb, {});
 });
 
-test('an operator with skills: its first skill at level 4 (elite 0), as skill_table writes it (技能-1)', () => {
+test('an operator with skills: its first skill at level 4 (elite 0), as skill_table writes it (技能-1, 技能-7)', () => {
   const s = run();
-  assert.deepEqual(s.operators.char_122_beagle.skillLevel, { id: 'sk_a', ...(({ name: _n, description: _d, rangeId: _r, prefabId: _p, ...rest }) => rest)(skillLevel(4)) });
+  assert.deepEqual(s.operators.char_122_beagle.skillLevel, { id: 'sk_a', ...(({ name: _n, rangeId: _r, prefabId: _p, ...rest }) => rest)(skillLevel(4)) }, 'the description too: it says whether the skill can be closed (技能-7)');
   assert.equal(s.operators.char_500_noirc.skillLevel, undefined, 'no skills: none');
   const chars = /** @type {any} */ (makeCharacters());
   chars.char_122_beagle = { ...chars.char_500_noirc, skills: [{ skillId: 'sk_short' }] };

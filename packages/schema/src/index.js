@@ -9,6 +9,7 @@ export { SNAPSHOT_VERSION, snapshotProblem } from './snapshot.js';
 /** @typedef {import('./protocol.js').RetreatCommand} RetreatCommand */
 /** @typedef {import('./protocol.js').ClientMessage} ClientMessage */
 /** @typedef {import('./protocol.js').ServerMessage} ServerMessage */
+/** @typedef {import('./protocol.js').ControlMessage} ControlMessage */
 /** @typedef {import('./snapshot.js').Snapshot} Snapshot */
 /** @typedef {import('./view.js').View} View */
 /** @typedef {import('./view.js').ViewUnit} ViewUnit */

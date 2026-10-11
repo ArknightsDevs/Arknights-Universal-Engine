@@ -1,5 +1,6 @@
 // A deterministic simulated network for lockstep tests: one host, two clients, per-seat one-way latency, messages
-// passed through JSON like a socket, client messages validated as the server will validate them, and drops.
+// passed through JSON like a socket, client messages validated as the server will validate them, drops, and the speed
+// and pause controls.
 import { clientMessageProblem, PROTOCOL_VERSION } from '@aue/schema';
 import { stateHash } from '@aue/sim';
 import { tinyContent } from '@aue/testkit';
@@ -12,6 +13,7 @@ import { LockstepHost, LockstepClient, framesAt } from '../src/index.js';
  * @property {{ at: number, seat: number, cmd: import('@aue/schema').Command }[]} [script] commands by wall time
  * @property {{ seat: number, from: number, to: number }[]} [drops] disconnected intervals
  * @property {{ at: number, seat: number, change: (w: import('@aue/sim').World) => void }[]} [tamper]
+ * @property {{ at: number, seat: number, act: (c: LockstepClient) => void }[]} [controls] speed and pause by wall time
  */
 
 /** @param {Scenario} s */
@@ -22,6 +24,8 @@ export function play(s) {
   const down = (/** @type {number} */ seat) => (s.drops ?? []).some((d) => d.seat === seat && now >= d.from && now < d.to);
   /** @type {{ seat: number, frame: number, ours: number, theirs: number }[]} */
   const desyncs = [], sent = /** @type {Map<number, number>[]} */ ([new Map(), new Map()]);
+  /** @type {Record<string, string | number>[][]} every event each client played, with its frame */
+  const events = [[], []];
   const host = new LockstepHost({
     content, seats: 2, seed: 9, onDesync: (d) => desyncs.push(d),
     send: (seat, msg) => later(s.latency[seat], () => { if (!down(seat)) clients[seat].receive(JSON.parse(JSON.stringify(msg))); }),
@@ -34,12 +38,19 @@ export function play(s) {
       if (down(seat)) return;
       if (msg.t === 'hello') host.hello(seat, now);
       else if (msg.t === 'cmd') host.command(seat, msg.at, msg.cmd);
-      else host.hash(seat, msg.frame, msg.hash);
+      else if (msg.t === 'hash') host.hash(seat, msg.frame, msg.hash);
+      else if (msg.t === 'speed') host.speed(seat, msg.on, now);
+      else if (msg.t === 'pause') host.pause(seat, now);
+      else if (msg.t === 'pauseReply') host.pauseReply(seat, msg.accept, now);
+      else host.resume(seat, now);
     });
   };
-  const clients = [0, 1].map((seat) => new LockstepClient({ content, send: (m) => toHost(seat, JSON.parse(JSON.stringify(m))) }));
+  const clients = [0, 1].map((seat) => new LockstepClient({
+    content, send: (m) => toHost(seat, JSON.parse(JSON.stringify(m))),
+    onFrame: (w, ev) => { for (const e of ev) events[seat].push({ ...e, frame: w.frame }); },
+  }));
   runScenario(s, { host, clients, queue, toHost, down, setNow: (/** @type {number} */ t) => { now = t; } });
-  return { host, clients, desyncs, sent, hash: stateHash };
+  return { host, clients, desyncs, sent, events, hash: stateHash };
 }
 
 /** Runs the deliveries due by `t`, in time then send order. @param {any[]} queue @param {number} t */
@@ -56,9 +67,13 @@ function drops(s, env, t) {
   }
 }
 
-/** Scripted commands and tampering due at `t`. @param {Scenario} s @param {any} env @param {number} t */
+/** The entries due at `t` from seats that are connected. @template {{ at: number, seat: number }} T @param {T[] | undefined} list @param {any} env @param {number} t */
+const due = (list, env, t) => (list ?? []).filter((c) => c.at === t && !env.down(c.seat));
+
+/** Scripted commands, controls and tampering due at `t`. @param {Scenario} s @param {any} env @param {number} t */
 function scripted(s, env, t) {
-  for (const c of s.script ?? []) if (c.at === t && !env.down(c.seat)) env.clients[c.seat].command(c.cmd);
+  for (const c of due(s.script, env, t)) env.clients[c.seat].command(c.cmd);
+  for (const c of due(s.controls, env, t)) c.act(env.clients[c.seat]);
   for (const x of s.tamper ?? []) if (x.at === t) x.change(env.clients[x.seat].world);
 }
 

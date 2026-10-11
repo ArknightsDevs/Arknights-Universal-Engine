@@ -1211,7 +1211,8 @@
             "value": 0.3,
             "valueStr": null
           }
-        ]
+        ],
+        "description": "防御力<@ba.vup>+{def:0%}</>"
       }
     }
   }

@@ -122,16 +122,31 @@ export function activate(w, c, op) {
   if (kind === 'instant') endSkill(w, c, op);
 }
 
+/** Whether an operator may trigger its skill (技能-3, 技能-7): it can act and is not silenced (沉默, 静默). @param {Unit} op */
+function mayTrigger(op) {
+  const s = statsOf(op);
+  return !s.disabled && !s.flags.silence && !s.flags.mute;
+}
+
 /**
- * Whether a skill may start now (技能-3): it is not running, it holds its cost, its operator can act and is not
- * silenced (沉默, 静默), and its type is the one asked for.
+ * Whether a skill may start now (技能-3): it is not running, it holds its cost, its operator may trigger it, and its
+ * type is the one asked for.
  * @param {Content} c @param {Unit} op @param {'AUTO' | 'MANUAL'} type
  */
 export function canStart(c, op, type) {
   const st = op.skill;
   if (!st || st.active || st.sp < st.cost || defOf(c, op).type !== type) return false;
-  const s = statsOf(op);
-  return !s.disabled && !s.flags.silence && !s.flags.mute;
+  return mayTrigger(op);
+}
+
+/**
+ * Whether the player may close a skill now (技能-7): it is running, it can be closed, and its operator may trigger it —
+ * closing is a second trigger.
+ * @param {Content} c @param {Unit} op
+ */
+export function canClose(c, op) {
+  const st = op.skill;
+  return !!st && st.active && defOf(c, op).stoppable === true && mayTrigger(op);
 }
 
 /** When an AUTO skill starts (技能-3). @param {Content} c @param {Unit} op @returns {'ready' | 'attack'} */
@@ -194,11 +209,12 @@ export function onDeploy(w, c, op) {
 }
 
 /**
- * The skill command (技能-3): the seat's own operator on the field starts its MANUAL skill if it may; otherwise
- * nothing happens.
+ * The skill command (技能-3, 技能-7): the seat's own operator on the field closes its running skill if it may, or else
+ * starts its MANUAL skill if it may; otherwise nothing happens.
  * @param {World} w @param {Content} c @param {number} seat @param {number} unit
  */
 export function commandSkill(w, c, seat, unit) {
   const op = w.units.find((u) => u.id === unit && u.kind === KIND.OPERATOR && u.owner === seat && u.hp > 0);
-  if (op && canStart(c, op, 'MANUAL')) activate(w, c, op);
+  if (op && canClose(c, op)) endSkill(w, c, op);
+  else if (op && canStart(c, op, 'MANUAL')) activate(w, c, op);
 }

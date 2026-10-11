@@ -56,7 +56,7 @@ test('[同步-3] commands stamped too far ahead are refused with an error', () =
   const last = host.sealed + MAX_AHEAD;
   host.command(0, last, GUARD);
   host.command(0, last + 1, GUARD);
-  assert.deepEqual(out.slice(1).map(([, m]) => m.t), ['error']);
+  assert.deepEqual(out.slice(2).map(([, m]) => m.t), ['error'], 'after the welcome and the controls');
   assert.equal(host.pending.get(last)?.length, 1);
 });
 

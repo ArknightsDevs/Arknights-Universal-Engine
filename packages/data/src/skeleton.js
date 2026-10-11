@@ -162,7 +162,7 @@ function firstSkill(c, p, skillsRaw) {
   const id = asString(field(asObject(list[0], `${p}.skills[0]`), 'skillId', `${p}.skills[0]`), `${p}.skills[0].skillId`);
   const sp = `skills[${id}]`, levels = asArray(field(asObject(field(asObject(skillsRaw, 'skills'), id, 'skills'), sp), 'levels', sp), `${sp}.levels`);
   const lp = `${sp}.levels[${Math.min(E0_SKILL_LEVEL, levels.length - 1)}]`, lv = asObject(levels[Math.min(E0_SKILL_LEVEL, levels.length - 1)], lp);
-  const keep = ['skillType', 'durationType', 'duration', 'spData', 'blackboard'];
+  const keep = ['skillType', 'durationType', 'duration', 'spData', 'blackboard', 'description'];
   return { skillLevel: { id, ...Object.fromEntries(keep.map((k) => [k, field(lv, k, lp)])) } };
 }
 

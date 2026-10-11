@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
 import { KIND } from '@aue/schema';
 import { createWorld, step, deployProblem, stateHash, takeSnapshot, restoreSnapshot } from '../src/index.js';
-import { goalSeats, enemyAtGoal, isDown, REVIVE_FRAMES } from '../src/coop.js';
+import { goalSeats, enemyAtGoal, isDown, REVIVE_FRAMES, ASK_FRAMES, DEFAULT_COST_TRANSFER, askProblem, answerCost } from '../src/coop.js';
 import { makeEnemy } from '../src/units.js';
 import { statsOf } from '../src/attrs.js';
 import { selectable } from '../src/targeting.js';
@@ -105,4 +105,62 @@ test('[合作-4] [同步-1] revival state is state: a snapshot of a down player 
   for (let f = 0; f < REVIVE_FRAMES; f++) { step(w, c); step(copy, c); }
   assert.equal(stateHash(copy), stateHash(w));
   assert.equal(copy.players[0].life, 3);
+});
+
+test('[合作-5] a cost request: who may ask, the transfer capped by the level, the mate and the room left, the cooldown', () => {
+  const { w, c } = arena('A');
+  const [a, b] = w.players;
+  c.level.options.maxCost = 99;
+  a.cost = 90; b.cost = 40;
+  assert.equal(askProblem(w, c, 0), null);
+  step(w, c, [[0, { type: 'ask' }]]);
+  assert.deepEqual([a.ask, a.askCd], [ASK_FRAMES - 1, ASK_FRAMES - 1]);
+  assert.equal(askProblem(w, c, 1), 'request open', 'one request at a time, either way');
+  assert.equal(askProblem(w, c, 0), 'request open');
+  const ev = step(w, c, [[1, { type: 'answer', accept: 1 }]]);
+  assert.deepEqual(ev.filter((e) => e.type === 'answer'), [{ type: 'answer', owner: 0, accept: 1, amount: 9 }], 'only the room left moves');
+  assert.equal(a.ask, -1);
+  assert.equal(askProblem(w, c, 0), 'cost full');
+  a.cost = 10;
+  assert.equal(askProblem(w, c, 0), 'cooling down');
+  for (let f = 0; f < ASK_FRAMES; f++) step(w, c);
+  a.cost = 10; b.cost = 40;
+  assert.equal(askProblem(w, c, 0), null, 'after 15 s it may ask again');
+  step(w, c, [[0, { type: 'ask' }]]);
+  step(w, c, [[1, { type: 'answer', accept: 1 }]]);
+  assert.deepEqual([a.cost - 10 > 0, b.cost], [true, 40 - DEFAULT_COST_TRANSFER], 'at most 15 by default');
+  b.cost = 3; a.ask = -1; a.askCd = 0;
+  c.level.options.costTransfer = 25;
+  step(w, c, [[0, { type: 'ask' }]]);
+  const out = step(w, c, [[1, { type: 'answer', accept: 1 }]]).find((e) => e.type === 'answer');
+  assert.equal(out?.amount, 3, 'never more than the mate has');
+});
+
+test('[合作-5] refused, ignored, out of turn: nothing moves', () => {
+  const { w, c } = arena('A');
+  const [a, b] = w.players;
+  a.cost = 0; b.cost = 20;
+  step(w, c, [[0, { type: 'ask' }]]);
+  let ev = step(w, c, [[0, { type: 'answer', accept: 1 }], [1, { type: 'answer', accept: 0 }]]);
+  assert.deepEqual(ev.filter((e) => e.type === 'answer'), [{ type: 'answer', owner: 0, accept: 0, amount: 0 }], 'the asker cannot answer itself');
+  assert.deepEqual([a.cost, b.cost], [0, 20]);
+  a.askCd = 0;
+  step(w, c, [[0, { type: 'ask' }]]);
+  ev = [];
+  for (let f = 0; f < ASK_FRAMES; f++) ev.push(...step(w, c));
+  assert.deepEqual(ev.filter((e) => e.type === 'answer'), [{ type: 'answer', owner: 0, accept: -1, amount: 0 }], 'unanswered for 15 s: ignored');
+  assert.equal(a.ask, -1);
+});
+
+test('[合作-5] no request without a mate, from a down player, or to a down mate', () => {
+  const c = tinyContent();
+  c.level.spawns = [];
+  const solo = createWorld(c, { seed: 1, players: 1 });
+  assert.equal(askProblem(solo, c, 0), 'no mate');
+  answerCost(solo, c, 0, true);
+  const { w } = arena('A');
+  w.players[0].cost = 0;
+  w.players[1].revive = 10;
+  assert.equal(askProblem(w, c, 0), 'mate down');
+  assert.equal(askProblem(w, c, 1), 'player down');
 });

@@ -1,8 +1,9 @@
-// The network messages, version 2 (ADR 0053; version 2 adds the skill command). Messages from browsers are untrusted: the server accepts one only when
+// The network messages, version 3 (ADR 0053; version 2 adds the skill command, version 3 the cost request and its answer,
+// and the speed and pause controls). Messages from browsers are untrusted: the server accepts one only when
 // clientMessageProblem returns null — exact fields, integers in range, short ids, nothing else.
 import { isRecord, isInt, isId, keyProblem } from './checks.js';
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 /** Largest frame number (about 9.5 hours at 30 frames per second). */
 export const MAX_FRAME = 1_000_000;
@@ -12,7 +13,9 @@ export const MAX_SEAT = 7;
 /** @typedef {{ type: 'deploy', op: string, row: number, col: number, dir: number }} DeployCommand */
 /** @typedef {{ type: 'retreat', unit: number }} RetreatCommand */
 /** @typedef {{ type: 'skill', unit: number }} SkillCommand */
-/** @typedef {DeployCommand | RetreatCommand | SkillCommand} Command */
+/** @typedef {{ type: 'ask' }} AskCommand */
+/** @typedef {{ type: 'answer', accept: number }} AnswerCommand */
+/** @typedef {DeployCommand | RetreatCommand | SkillCommand | AskCommand | AnswerCommand} Command */
 
 /** @type {Record<string, (c: Record<string, unknown>) => string | null>} */
 const COMMANDS = {
@@ -22,6 +25,8 @@ const COMMANDS = {
     ?? (!isInt(c.dir, 0, 3) ? 'deploy.dir is not 0–3' : null),
   retreat: (c) => keyProblem(c, ['type', 'unit']) ?? (!isInt(c.unit, 1, 0x7fffffff) ? 'retreat.unit is not a unit id' : null),
   skill: (c) => keyProblem(c, ['type', 'unit']) ?? (!isInt(c.unit, 1, 0x7fffffff) ? 'skill.unit is not a unit id' : null),
+  ask: (c) => keyProblem(c, ['type']),
+  answer: (c) => keyProblem(c, ['type', 'accept']) ?? (!isInt(c.accept, 0, 1) ? 'answer.accept is not 0 or 1' : null),
 };
 
 /** @param {unknown} c @returns {string | null} why the command is malformed, or null */
@@ -42,6 +47,10 @@ const CLIENT = {
   hash: (m) => keyProblem(m, ['t', 'frame', 'hash'])
     ?? (!isInt(m.frame, 0, MAX_FRAME) ? 'hash.frame out of range' : null)
     ?? (!isInt(m.hash, 0, 0xffffffff) ? 'hash.hash is not a uint32' : null),
+  speed: (m) => keyProblem(m, ['t', 'on']) ?? (!isInt(m.on, 0, 1) ? 'speed.on is not 0 or 1' : null),
+  pause: (m) => keyProblem(m, ['t']),
+  pauseReply: (m) => keyProblem(m, ['t', 'accept']) ?? (!isInt(m.accept, 0, 1) ? 'pauseReply.accept is not 0 or 1' : null),
+  resume: (m) => keyProblem(m, ['t']),
 };
 
 /**
@@ -76,6 +85,9 @@ const SERVER = {
   restamp: (m) => keyProblem(m, ['t', 'from', 'to']) ?? (!isInt(m.from, 0, MAX_FRAME) || !isInt(m.to, 0, MAX_FRAME) ? 'restamp out of range' : null),
   resync: (m) => keyProblem(m, ['t', 'snapshot']),
   error: (m) => keyProblem(m, ['t', 'code', 'message']) ?? (typeof m.code !== 'string' || typeof m.message !== 'string' ? 'error fields are not strings' : null),
+  control: (m) => keyProblem(m, ['t', 'fast', 'held', 'asker', 'resuming'])
+    ?? (!Array.isArray(m.fast) || m.fast.length > MAX_SEAT + 1 || !m.fast.every((f) => isInt(f, 0, 1)) ? 'control.fast is not a list of 0 and 1' : null)
+    ?? (!isInt(m.held, 0, 1) || !isInt(m.asker, -1, MAX_SEAT) || !isInt(m.resuming, 0, 1) ? 'control fields out of range' : null),
 };
 
 /**
@@ -92,11 +104,20 @@ export function serverMessageProblem(m) {
 /** @typedef {{ t: 'hello', v: number, seat: number, key: string, since: number }} HelloMessage */
 /** @typedef {{ t: 'cmd', at: number, cmd: Command }} CommandMessage */
 /** @typedef {{ t: 'hash', frame: number, hash: number }} HashMessage */
-/** @typedef {HelloMessage | CommandMessage | HashMessage} ClientMessage */
+/** @typedef {{ t: 'speed', on: number }} SpeedMessage */
+/** @typedef {{ t: 'pause' }} PauseMessage */
+/** @typedef {{ t: 'pauseReply', accept: number }} PauseReplyMessage */
+/** @typedef {{ t: 'resume' }} ResumeMessage */
+/** @typedef {HelloMessage | CommandMessage | HashMessage | SpeedMessage | PauseMessage | PauseReplyMessage | ResumeMessage} ClientMessage */
 
 /** @typedef {{ t: 'welcome', v: number, seat: number, seed: number, frame: number, snapshot: object | null }} WelcomeMessage */
 /** @typedef {{ t: 'frames', from: number, to: number, cmds: [number, number, Command][] }} FramesMessage */
 /** @typedef {{ t: 'restamp', from: number, to: number }} RestampMessage */
 /** @typedef {{ t: 'resync', snapshot: object }} ResyncMessage */
 /** @typedef {{ t: 'error', code: string, message: string }} ErrorMessage */
-/** @typedef {WelcomeMessage | FramesMessage | RestampMessage | ResyncMessage | ErrorMessage} ServerMessage */
+/**
+ * Every seat's 2× switch; whether the battle is paused; the seat asking to pause (−1 for none); whether a resume is
+ * counting down.
+ * @typedef {{ t: 'control', fast: number[], held: number, asker: number, resuming: number }} ControlMessage
+ */
+/** @typedef {WelcomeMessage | FramesMessage | RestampMessage | ResyncMessage | ErrorMessage | ControlMessage} ServerMessage */

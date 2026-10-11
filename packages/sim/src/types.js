@@ -9,7 +9,10 @@
  * @typedef {{ start: Cell, end: Cell, checkpoints: Checkpoint[], motion: string, allowDiagonal?: boolean, spawnOffset?: { x: number, y: number } }} Route
  */
 /** A spawn; `fragment` is when its fragment began, in seconds (路线-1; default: its own time). @typedef {{ at: number, enemy: string, route: number, fragment?: number }} Spawn */
-/** @typedef {{ maxLifePoint: number, initialCost: number, maxCost: number, costIncreaseTime: number, characterLimit: number, moveMultiplier: number }} LevelOptions */
+/**
+ * A level's options; `costTransfer` is the most a cost request moves (合作-5; default 15).
+ * @typedef {{ maxLifePoint: number, initialCost: number, maxCost: number, costIncreaseTime: number, characterLimit: number, moveMultiplier: number, costTransfer?: number }} LevelOptions
+ */
 /** @typedef {import('./level.js').LevelMap & { id: string, options: LevelOptions, routes: Route[], spawns: Spawn[] }} Level */
 
 /** @typedef {'phys' | 'arts' | 'true' | 'elemental'} DamageType */
@@ -53,6 +56,7 @@
  * @property {number} duration seconds; 0 or less: none
  * @property {boolean} ammo durationType AMMO
  * @property {Record<string, number>} bb the blackboard
+ * @property {boolean} [stoppable] the player may close it while it runs (技能-7)
  */
 /**
  * A branch trait as the simulation reads it (职业-1…职业-6): anything left out takes the default of the operator's
@@ -203,8 +207,10 @@
  */
 /**
  * A player: life, cost and its timer, the operators on the field, the deck's cards; `revive` is the frames left until a
- * down player comes back (−1 when not down), `downs` how often they went down (合作-4).
- * @typedef {{ life: number, cost: number, costTimer: number, deployed: string[], cards: Record<string, Card>, revive: number, downs: number }} Player
+ * down player comes back (−1 when not down), `downs` how often they went down (合作-4); `ask` the frames left of their
+ * open cost request (−1 for none), `askCd` the frames until they may ask again (合作-5).
+ * @typedef {{ life: number, cost: number, costTimer: number, deployed: string[], cards: Record<string, Card>, revive: number, downs: number,
+ *   ask: number, askCd: number }} Player
  */
 
 /**

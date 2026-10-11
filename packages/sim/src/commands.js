@@ -7,7 +7,7 @@ import { releaseAll } from './blocking.js';
 import { onDeploy, commandSkill } from './skills.js';
 import { traitDeploy } from './traits.js';
 import { cardOf, deployCost, leaveField } from './deck.js';
-import { isDown } from './coop.js';
+import { isDown, askCost, answerCost } from './coop.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -63,5 +63,7 @@ function retreat(w, c, seat, unit) {
 export function applyCommand(w, c, seat, cmd) {
   if (cmd.type === 'deploy') deploy(w, c, seat, cmd);
   else if (cmd.type === 'skill') commandSkill(w, c, seat, cmd.unit);
+  else if (cmd.type === 'ask') askCost(w, c, seat);
+  else if (cmd.type === 'answer') answerCost(w, c, seat, cmd.accept === 1);
   else retreat(w, c, seat, cmd.unit);
 }

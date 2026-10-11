@@ -211,3 +211,28 @@ test('[技能-6] a behaviour by skill id: its trigger, start, tick, attack and e
   assert.equal(foe.buffs.find((b) => b.key === 'stun')?.src, a.guard.id, 'the status names the skill\'s operator as its source');
   assert.equal(statsOf(a.guard).atk, 50);
 });
+
+test('[技能-7] the skill command closes a running closable skill — duration or ammo, MANUAL or AUTO — when the operator may trigger it', () => {
+  const a = arena(sk({ cost: 2, init: 2, duration: 30, bb: { atk: 1 }, stoppable: true }));
+  const cmd = [[0, { type: 'skill', unit: a.guard.id }]];
+  run(a.w, a.c, 1, cmd);
+  assert.equal(a.guard.skill?.active, true);
+  applyStatus(a.guard, 'stun', { frames: 3 });
+  run(a.w, a.c, 1, cmd);
+  assert.equal(a.guard.skill?.active, true, 'stunned: no second trigger either');
+  a.guard.buffs = a.guard.buffs.filter((b) => b.key !== 'stun');
+  const ev = run(a.w, a.c, 1, cmd);
+  assert.deepEqual(ev.filter((e) => e.type === 'skill').map((e) => e.active), [0]);
+  assert.deepEqual([a.guard.skill?.active, a.guard.skill?.sp, statsOf(a.guard).atk], [false, 0, 50], 'closed: SP from 0, the bonus gone');
+  run(a.w, a.c, 1, cmd);
+  assert.equal(a.guard.skill?.active, false, 'not ready again yet: the command does nothing');
+  const ammo = arena(sk({ type: 'AUTO', cost: 1, init: 1, ammo: true, bb: { 'attack@trigger_time': 50 }, stoppable: true }));
+  run(ammo.w, ammo.c, 60);
+  assert.equal(ammo.guard.skill?.active, true, 'the AUTO ammo skill started on its attack');
+  run(ammo.w, ammo.c, 1, [[0, { type: 'skill', unit: ammo.guard.id }]]);
+  assert.deepEqual([ammo.guard.skill?.active, ammo.guard.skill?.ammo], [false, 0]);
+  const fixed = arena(sk({ cost: 2, init: 2, duration: 30 }));
+  run(fixed.w, fixed.c, 1, [[0, { type: 'skill', unit: fixed.guard.id }]]);
+  run(fixed.w, fixed.c, 1, [[0, { type: 'skill', unit: fixed.guard.id }]]);
+  assert.equal(fixed.guard.skill?.active, true, 'not closable: it runs on');
+});

@@ -93,3 +93,63 @@ export function tickRevival(w, c) {
     w.events.push({ type: 'revive', owner: seat });
   });
 }
+
+/** How long a cost request stays open and how long before the same player may ask again (合作-5: 15 s). */
+export const ASK_FRAMES = secondsToFrames(15);
+/** The most a cost request moves when the level gives no amount (合作-5: cooperate_battle_table costTransferred). */
+export const DEFAULT_COST_TRANSFER = 15;
+
+/**
+ * Why a player may not ask the mate for cost now, or null (合作-5): a mate is needed; the asker's cost must be below
+ * the maximum; the mate must not be down; no request may be open; the asker's cooldown must be over.
+ * @param {World} w @param {Content} c @param {number} seat @returns {string | null}
+ */
+export function askProblem(w, c, seat) {
+  const p = w.players[seat], mate = w.players.length === 2 ? w.players[1 - seat] : null;
+  if (!p || !mate) return 'no mate';
+  if (isDown(p)) return 'player down';
+  if (p.cost >= c.level.options.maxCost) return 'cost full';
+  if (isDown(mate)) return 'mate down';
+  if (p.ask >= 0 || mate.ask >= 0) return 'request open';
+  return p.askCd > 0 ? 'cooling down' : null;
+}
+
+/** A player asks the mate for cost (合作-5); refused requests change nothing. @param {World} w @param {Content} c @param {number} seat */
+export function askCost(w, c, seat) {
+  if (askProblem(w, c, seat)) return;
+  const p = w.players[seat];
+  p.ask = ASK_FRAMES;
+  p.askCd = ASK_FRAMES;
+  w.events.push({ type: 'ask', owner: seat });
+}
+
+/**
+ * The mate answers an open request (合作-5): accepted, as much of their cost as the asker can take moves, up to the
+ * level's transfer amount; refused, nothing moves. Either way the request closes. Not an open request of the other
+ * player: nothing happens.
+ * @param {World} w @param {Content} c @param {number} seat the answering player @param {boolean} accept
+ */
+export function answerCost(w, c, seat, accept) {
+  const mate = w.players[seat], asker = w.players.length === 2 ? w.players[1 - seat] : null;
+  if (!mate || !asker || asker.ask < 0) return;
+  asker.ask = -1;
+  const room = Math.max(0, c.level.options.maxCost - asker.cost);
+  const amount = accept ? Math.max(0, Math.min(c.level.options.costTransfer ?? DEFAULT_COST_TRANSFER, mate.cost, room)) : 0;
+  mate.cost -= amount;
+  asker.cost += amount;
+  w.events.push({ type: 'answer', owner: 1 - seat, accept: accept ? 1 : 0, amount });
+}
+
+/**
+ * One frame of every player's request and cooldown (合作-5): an open request that nobody answered in time closes as
+ * ignored.
+ * @param {World} w
+ */
+export function tickRequests(w) {
+  w.players.forEach((p, seat) => {
+    if (p.askCd > 0) p.askCd--;
+    if (p.ask < 0) return;
+    if (--p.ask >= 0) return;
+    w.events.push({ type: 'answer', owner: seat, accept: -1, amount: 0 });
+  });
+}

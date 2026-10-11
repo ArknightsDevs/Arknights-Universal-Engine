@@ -3,4 +3,4 @@
 export { LockstepHost } from './host.js';
 export { LockstepClient } from './client.js';
 export { framesThisTick } from './pacing.js';
-export { MAX_OPERATOR_DELAY, INPUT_DELAY, MAX_PLAY_SPEED, JITTER_BUFFER, HASH_EVERY, MAX_AHEAD, HASH_HISTORY, framesAt } from './constants.js';
+export { MAX_OPERATOR_DELAY, INPUT_DELAY, MAX_PLAY_SPEED, JITTER_BUFFER, HASH_EVERY, MAX_AHEAD, HASH_HISTORY, framesAt, RESUME_MS, PAUSE_ASK_MS } from './constants.js';
