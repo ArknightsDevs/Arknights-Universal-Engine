@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { extractRoster, extractTraining } from '../src/index.js';
+import { extractRoster, extractTraining, extractRanges } from '../src/index.js';
 import { extractRosterFromCheckout } from '../src/cli/operators.js';
 
 const stats = (/** @type {number} */ k) => ({
@@ -51,11 +51,20 @@ test('[干员-1] the roster: every character that is not a token or a trap, in i
 });
 
 test('[干员-1] the committed operator files are a fresh extraction of the pinned data', { skip: process.env.AUE_GAMEDATA ? false : 'AUE_GAMEDATA is not set' }, () => {
-  const { source, operators } = /** @type {any} */ (extractRosterFromCheckout(/** @type {string} */ (process.env.AUE_GAMEDATA)));
+  const { source, operators, ranges } = /** @type {any} */ (extractRosterFromCheckout(/** @type {string} */ (process.env.AUE_GAMEDATA)));
   const dir = new URL('../../content/data/operators/', import.meta.url);
   for (const id of ['char_122_beagle', 'char_002_amiya', 'char_1012_skadi2']) {
     assert.equal(`${JSON.stringify(operators[id])}\n`, readFileSync(new URL(`${id}.json`, dir), 'utf8'), id);
   }
   const index = JSON.parse(readFileSync(new URL('index.json', dir), 'utf8'));
   assert.deepEqual([index.source, Object.keys(index.operators).length], [source, Object.keys(operators).length]);
+  assert.equal(readFileSync(new URL('../ranges.json', dir), 'utf8'), `${JSON.stringify({ source, ranges })}\n`, 'ranges.json');
+});
+
+test('[干员-8] every range by id, in id order, its grids as in the source; a malformed one is an error', () => {
+  const raw = { 'x-4': { id: 'x-4', direction: 1, grids: [{ row: 1, col: -1 }] }, '1-3': { id: '1-3', direction: 1, grids: [{ row: 0, col: 0 }, { row: -1, col: 1 }] } };
+  const out = extractRanges(raw);
+  assert.deepEqual(Object.keys(out), ['1-3', 'x-4']);
+  assert.deepEqual(out['1-3'], [{ row: 0, col: 0 }, { row: -1, col: 1 }]);
+  assert.throws(() => extractRanges({ bad: { grids: [{ row: 'a', col: 0 }] } }), /bad/);
 });

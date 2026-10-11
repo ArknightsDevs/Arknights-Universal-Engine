@@ -2,6 +2,8 @@
 // trait data and damage type — data first; a branch that needs more than the data is not covered yet and takes the
 // defaults of its position (M4).
 
+import rangeTable from '../data/ranges.json' with { type: 'json' };
+
 /** @typedef {import('@aue/sim').TraitDef} TraitDef @typedef {import('@aue/sim').OperatorDef} OperatorDef */
 
 /**
@@ -12,6 +14,8 @@
 const ARTS = /** @type {const} */ ('arts');
 /** Normal attacks heal; at most n targets. @param {number} n @returns {Branch} */
 const healer = (n) => ({ trait: () => ({ heal: true, targets: n }) });
+/** A range of range_table by id (干员-8). @param {string} id @returns {{ row: number, col: number }[]} */
+const cellsOf = (id) => /** @type {Record<string, { row: number, col: number }[]>} */ (rangeTable.ranges)[id];
 /** The normal attack's maximum targets is the 阻挡数. @type {Branch} */
 const blockTargets = { trait: () => ({ targets: 'blockCnt' }) };
 
@@ -54,15 +58,28 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   siegesniper: { trait: () => ({ filter: 'MASS_DES' }) },
   aoesniper: { trait: () => ({ splash: { radius: 1, scale: 1, ground: false } }) },
   bombarder: { trait: (bb) => ({ antiAir: false, splash: { radius: 0.9, scale: 1, ground: true }, aftershock: bb['attack@append_atk_scale'] ?? 0.5 }) },
+  // every enemy in range; 倍率 × atk_scale for those in its own and the three tiles before it (range 1-3, 职业-11)
+  reaperrange: { trait: (bb) => ({ filter: 'ALL', targets: 'all', zone: { cells: cellsOf('1-3'), scale: bb.atk_scale ?? 1.5, outside: false } }) },
   // 术师
   corecaster: { dmgType: ARTS },
   blastcaster: { dmgType: ARTS, trait: () => ({ filter: 'ALL', targets: 'all' }) },
   splashcaster: { dmgType: ARTS, trait: () => ({ splash: { radius: 1.1, scale: 1, ground: false } }) },
   primcaster: { dmgType: ARTS },
+  // jumps among max_target enemies within 1.7 tiles, 85 % of the hit before; each hit 停顿 (职业-11)
+  chain: { dmgType: ARTS, trait: (bb) => ({
+    chain: { max: bb['attack@max_target'] ?? bb['attack@chain.max_target'] ?? 3, scale: 0.85, radius: 1.7, cells: null },
+    hitStatus: { key: 'sluggish', seconds: bb['attack@sluggish'] ?? 0.5 },
+  }) },
   // 医疗
   physician: healer(1),
   ringhealer: healer(3),
   watchman: healer(1),
+  // heal_scale for a target outside range 2-3 (职业-11)
+  healer: { trait: (bb) => ({ heal: true, targets: 1, zone: { cells: cellsOf('2-3'), scale: bb.heal_scale ?? 0.8, outside: true } }) },
+  // jumps among max_target operators in the 3 × 3 around each, 75 % of the heal before (职业-11)
+  chainhealer: { trait: (bb) => ({ heal: true, targets: 1, chain: { max: bb['attack@chain.max_target'] ?? 3, scale: bb['attack@chain.atk_scale'] ?? 0.75, radius: 0, cells: cellsOf('x-4') } }) },
+  // arts; its damage heals the most wounded operator in range by scale of it (职业-11)
+  incantationmedic: { dmgType: ARTS, trait: (bb) => ({ healOnHit: bb.scale ?? 0.5 }) },
   // 辅助
   slower: { dmgType: ARTS, trait: (bb) => ({ hitStatus: { key: 'sluggish', seconds: bb.sluggish ?? 0.8 } }) },
   summoner: { dmgType: ARTS },

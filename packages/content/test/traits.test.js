@@ -11,10 +11,10 @@ import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, oper
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
 
-test('[职业-7] the covered branches are 46 of the 72 official ones', () => {
+test('[职业-7] the covered branches are 51 of the 72 official ones', () => {
   assert.equal(Object.keys(ALL).length, 72);
   for (const b of Object.keys(BRANCHES)) assert.ok(Object.hasOwn(ALL, b), b);
-  assert.equal(Object.keys(BRANCHES).length, 46);
+  assert.equal(Object.keys(BRANCHES).length, 51);
   assert.ok(coveredBranch('fastshot') && !coveredBranch('mystic') && !coveredBranch('toString'));
 });
 
@@ -100,4 +100,16 @@ test('[职业-7] [职业-10] the upkeep branches from the real data: 行商, 怪
   assert.equal(geek.hpDrain, 0.01);
   assert.deepEqual([duelist.flags, duelist.immuneBlocking], [{ noSp: true }, ['noSp']]);
   assert.deepEqual([pusher.targets, pusher.rangedTiles, hook.antiAir, hook.rangedTiles, arts.skillArts], ['blockCnt', true, true, true, true]);
+});
+
+test('[职业-7] [职业-11] zones and chains from the real data: 散射手, 疗养师, 链术师 (elite 0 and 2), 链愈师, 咒愈师', async () => {
+  const at = async (/** @type {string} */ id, elite = 0) => /** @type {any} */ (traits.traitOfDef(operatorAt(await loadTraining(id), { elite, level: 1, potential: 1, trust: 0, skill: -1, skillLevel: 1 })));
+  const [reaper, healer, chain0, chain2, chainHeal, incant] = await Promise.all([at('char_1013_chen2'), at('char_348_ceylon'), at('char_306_leizi'), at('char_306_leizi', 2), at('char_4071_peper'), at('char_1020_reed2')]);
+  /** A zone or chain with its cells counted. @param {any} z */
+  const counted = (z) => ({ ...z, cells: z.cells && z.cells.length });
+  assert.deepEqual([counted(reaper.zone), reaper.targets], [{ cells: 4, scale: 1.5, outside: false }, 'all']);
+  assert.deepEqual([healer.heal, counted(healer.zone)], [true, { cells: 7, scale: 0.8, outside: true }]);
+  assert.deepEqual([chain0.chain, chain2.chain.max, chain0.hitStatus], [{ max: 3, scale: 0.85, radius: 1.7, cells: null }, 4, { key: 'sluggish', seconds: 0.5 }]);
+  assert.deepEqual([chainHeal.heal, counted(chainHeal.chain)], [true, { max: 3, scale: 0.75, radius: 0, cells: 9 }]);
+  assert.equal(incant.healOnHit, 0.5);
 });

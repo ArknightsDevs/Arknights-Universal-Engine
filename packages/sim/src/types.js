@@ -114,7 +114,16 @@
  * @property {string[]} immuneBlocking the flags it is immune to while it blocks an enemy (职业-10)
  * @property {number} hpDrain the share of its maximum HP it loses each second, never the last point (职业-10)
  * @property {{ every: number, cost: number } | null} costDrain the cost it consumes every so many seconds on the field (职业-10)
+ * @property {{ cells: Cell[], scale: number, outside: boolean } | null} zone its attack's (or heal's) 倍率 × scale for a target
+ *   inside these tiles around it, turned with it — or, `outside`, for one outside them (职业-11)
+ * @property {Chain | null} chain its attack or heal jumps on from its first target (职业-11)
+ * @property {number} healOnHit a hit of its attack that deals damage heals the most wounded operator in its range by this share of it (职业-11)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
+ */
+/**
+ * A chain (职业-11): at most `max` targets in all, each jump at `scale` × the one before; a damage chain jumps to the
+ * nearest enemy within `radius`, a heal chain to an operator among `cells` around the current target.
+ * @typedef {{ max: number, scale: number, radius: number, cells: Cell[] | null }} Chain
  */
 /**
  * A splash (职业-8): every other enemy within `radius` tiles of the target (only those on the ground when `ground`)
@@ -253,7 +262,7 @@
  * A projectile in flight (攻击-3): its shooter's and its target's ids, where it is (tile coordinates), its speed in
  * tiles per second, and what it carries — the damage type and amount, hits, 元素损伤 ('' and 0 for none).
  * @typedef {{ src: number, target: number, sx: number, sy: number, speed: number, type: DamageType, amount: number, times: number, element: string, ep: number,
- *   splash?: Splash | null, aftershock?: number }} Shot
+ *   splash?: Splash | null, aftershock?: number, chain?: Chain | null }} Shot
  */
 
 /**

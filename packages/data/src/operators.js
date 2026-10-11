@@ -45,6 +45,15 @@ function rangeOf(rangesRaw, id) {
 }
 
 /**
+ * Every range of range_table by id, in id order (干员-8): its grids as they are in the source.
+ * @param {unknown} rangesRaw range_table.json @returns {Record<string, { row: number, col: number }[]>}
+ */
+export function extractRanges(rangesRaw) {
+  const ids = Object.keys(asObject(rangesRaw, 'ranges')).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  return Object.fromEntries(ids.map((id) => [id, rangeOf(rangesRaw, id)]));
+}
+
+/**
  * One operator (干员-1…干员-5).
  * @param {unknown} raw character_table entry @param {string} id @param {unknown} rangesRaw @param {unknown} skillsRaw
  * @param {{ uniequip: unknown, battle: unknown }} equipment uniequip_table and battle_equip_table

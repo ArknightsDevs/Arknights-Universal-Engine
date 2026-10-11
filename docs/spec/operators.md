@@ -75,3 +75,9 @@ blackboard 里的数值条目记作 `{ 键: 值 }`；带 `valueStr` 的条目是
 - **还没有实现**：模组的特性部件（追加或替换特性）、模组自己带的天赋（`index` 为负）、召唤物的属性加成、只在某些模式或地图有效的部件。
 
 - 来源：[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「属性」定义：「信赖、潜能和模组提供数值也会在这一步计（算）入，使得原始属性变为原始属性+」；数据：uniequip_table 的 unlockEvolvePhase、unlockLevel，battle_equip_table 的 phases[]；天赋部件替换天赋的方式为推断 INF-0089
+
+### 干员-8 范围表
+
+range_table 的每个范围按编号记录它的格子（`grids` 的 row、col，原样），按编号排序，写进 `packages/content/data/ranges.json`。特性、天赋按编号引用其中的范围（如 职业-11 的近处范围）；格子相对于干员所在格，随干员朝向转动，和攻击范围相同。
+
+- 来源：数据：range_table 的 grids

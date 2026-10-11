@@ -10,6 +10,7 @@ import { dealDamage, heal } from './damage.js';
 import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
 import { blockingImmunity } from './upkeep.js';
+import { zoneScale, chainOf, woundedInRange } from './chain.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
 import { foeTargets, foeAttack, isFoeOf } from './foes.js';
 import { makeBuff } from './buffs.js';
@@ -56,9 +57,9 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
 /** @typedef {import('./skills.js').AttackMods} AttackMods @typedef {import('./types.js').Swing} Swing */
 /**
  * What an attack carries to one target: its damage type and amount, hits, 元素损伤, and an operator's splash and
- * aftershock (职业-8).
+ * aftershock (职业-8) and chain (职业-11).
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
- *   aftershock?: number }} Load
+ *   aftershock?: number, chain?: import('./types.js').Chain | null }} Load
  */
 
 /**
@@ -70,12 +71,22 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
 function hitTarget(w, c, src, t, load) {
   const el = /** @type {import('./elements.js').Element | ''} */ (load.element), op = src && src.kind === KIND.OPERATOR ? src : null;
   for (let k = 0; k < load.times; k++) {
-    const alive = t.hp > 0;
-    dealDamage(w, src, t, { type: load.type, amount: load.amount });
+    const alive = t.hp > 0, dealt = dealDamage(w, src, t, { type: load.type, amount: load.amount });
+    if (op && dealt > 0) healForDamage(w, c, op, dealt);
     if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
     if (el && load.ep > 0) dealEp(w, t, el, load.ep);
     if (op && alive) traitHit(w, c, op, t);
   }
+}
+
+/**
+ * An operator's heal for the damage a hit of its dealt (职业-11): its trait's share of it to the most wounded operator
+ * in its range, when there is one.
+ * @param {World} w @param {Content} c @param {Unit} op @param {number} dealt
+ */
+function healForDamage(w, c, op, dealt) {
+  const share = traitOf(c, op).healOnHit, to = share > 0 ? woundedInRange(w, c, op) : null;
+  if (to) w.events.push({ type: 'heal', id: op.id, target: to.id, amount: heal(op, to, dealt * share) });
 }
 
 /** The attack of an attacker, with an attack bonus for this attack only (敌能-11). @param {Unit} a @param {number} [pct] */
@@ -99,14 +110,14 @@ function crossOf(w, a, t) {
 }
 
 /**
- * An operator's attack against one target (职业-8): its amount × the trait's 倍率 for enemies it does not block, and
- * the trait's splash and aftershock; an enemy's as it is.
+ * An operator's attack against one target (职业-8, 职业-11): its amount × the trait's 倍率 for enemies it does not
+ * block and its zone's 倍率, and the trait's splash, aftershock and chain; an enemy's as it is.
  * @param {Content} c @param {Unit} a @param {Unit} t @param {Load} load @returns {Load}
  */
 function loadFor(c, a, t, load) {
   if (a.kind !== KIND.OPERATOR) return load;
-  const tr = traitOf(c, a), k = t.blockedBy !== a.id ? tr.unblockedScale : 1;
-  return { ...load, amount: load.amount * k, splash: tr.splash, aftershock: tr.aftershock };
+  const tr = traitOf(c, a), k = (t.blockedBy !== a.id ? tr.unblockedScale : 1) * zoneScale(c, a, t, tr);
+  return { ...load, amount: load.amount * k, splash: tr.splash, aftershock: tr.aftershock, chain: tr.chain };
 }
 
 /**
@@ -129,6 +140,34 @@ export function impact(w, c, src, t, load) {
   for (const k of load.aftershock ? [1, load.aftershock] : [1]) {
     if (t.hp > 0) hitTarget(w, c, src, t, { ...load, amount: load.amount * k });
     for (const u of around) if (u.hp > 0) hitTarget(w, c, src, u, { ...load, amount: load.amount * k * (s?.scale ?? 1) });
+  }
+  if (load.chain) jumpHits(w, c, src, t, load);
+}
+
+/**
+ * A damage chain's jumps after its first target was hit (职业-11): each next enemy takes the hits at the chain's share
+ * of the one before.
+ * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {Load} load
+ */
+function jumpHits(w, c, src, t, load) {
+  const ch = /** @type {import('./types.js').Chain} */ (load.chain), antiAir = !src || traitOf(c, src).antiAir;
+  let amount = load.amount;
+  for (const u of chainOf(w, c, t, ch, { heals: false, antiAir })) {
+    amount *= ch.scale;
+    hitTarget(w, c, src, u, { ...load, amount });
+  }
+}
+
+/**
+ * A healer's heals on one target (职业-2, 职业-11), then a heal chain's on each operator it jumps to, at the chain's
+ * share of the one before.
+ * @param {World} w @param {Unit} a @param {Unit} t @param {Load} load @param {Unit[]} jumps
+ */
+function heals(w, a, t, load, jumps) {
+  let amount = load.amount;
+  for (const u of [t, ...jumps]) {
+    for (let k = 0; k < load.times; k++) w.events.push({ type: 'heal', id: a.id, target: u.id, amount: heal(a, u, amount) });
+    amount *= load.chain?.scale ?? 1;
   }
 }
 
@@ -172,7 +211,7 @@ function selfHeal(w, c, a, reached) {
  */
 function deliver(w, c, a, t, how) {
   const load = loadFor(c, a, t, how.load);
-  if (how.heals) for (let k = 0; k < load.times; k++) w.events.push({ type: 'heal', id: a.id, target: t.id, amount: heal(a, t, load.amount) });
+  if (how.heals) heals(w, a, t, load, load.chain ? chainOf(w, c, t, load.chain, { heals: true, antiAir: true }) : []);
   else if (how.cross) for (const u of crossOf(w, a, t)) hitTarget(w, c, a, u, load);
   else if (shoots(c, a, how.heals)) launch(w, a, t, load);
   else impact(w, c, a, t, load);
