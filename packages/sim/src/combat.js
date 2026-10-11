@@ -3,6 +3,7 @@
 import { KIND, ANIM } from '@aue/schema';
 import { offsetTile } from './dir.js';
 import { tileOf } from './body.js';
+import { MIN_DAMAGE_RATIO } from './constants.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell */
@@ -18,7 +19,7 @@ export function rangeCell(op, off) {
 }
 
 /** Physical damage after defence, at least 5 % of the attack (spec 伤害-1, 伤害-2). @param {number} atk @param {number} def */
-export const physicalDamage = (atk, def) => Math.max(atk - def, atk * 0.05);
+export const physicalDamage = (atk, def) => Math.max(atk - def, atk * MIN_DAMAGE_RATIO);
 
 /**
  * The enemy an operator attacks: the earliest-spawned living enemy whose tile (spec 体积-1) is in range.

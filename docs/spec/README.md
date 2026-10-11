@@ -40,3 +40,4 @@
 - [lockstep.md](lockstep.md)：输入延迟、封口、追赶、哈希校验、重连、暂停
 - [direction.md](direction.md)：四个方向、偏移旋转、位移的方向、并列先后
 - [body.md](body.md)：点单位与巨型单位所在的格、距离
+- [constants.md](constants.md)：最低伤害比例、碰撞半径、阻挡半径、攻速上下限、移动倍率

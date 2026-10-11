@@ -7,6 +7,7 @@ export { deployProblem } from './commands.js';
 export { physicalDamage, rangeCell } from './combat.js';
 export * as dir from './dir.js';
 export * as body from './body.js';
+export * as constants from './constants.js';
 export { nextUint32, seedState } from './rng.js';
 export { hashNumbers, HASH_START } from './hash.js';
 
