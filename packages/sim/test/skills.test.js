@@ -181,6 +181,10 @@ test('[技能-5] the blackboard: attribute keys as mods, attack keys as the mods
   const hits = ev.filter((e) => e.type === 'hit');
   assert.equal(new Set(hits.map((e) => e.target)).size, 2, 'two targets');
   assert.deepEqual(hits.map((e) => e.damage), [75, 75, 75, 75], 'two hits each at 150 %');
+  const v = arena(sk({ cost: 1, init: 1, duration: 10, bb: { cost: 6, atk: 0.2 } }), 0), before = v.w.players[0].cost;
+  run(v.w, v.c, 1, [[0, { type: 'skill', unit: v.guard.id }]]);
+  assert.equal(v.w.players[0].cost - before, 6, 'a duration skill\'s cost comes when it starts (香草)');
+  assert.equal(statsOf(v.guard).atk, 60, 'and its attack +20 % for the duration');
 });
 
 test('[技能-6] a behaviour by skill id: its trigger, start, tick, attack and end, acting only through the context', () => {

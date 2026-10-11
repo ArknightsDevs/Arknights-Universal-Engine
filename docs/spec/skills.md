@@ -86,9 +86,9 @@
 
   另外四种穿透（`def_penetrate`、`def_penetrate_fixed`、`magic_resist_penetrate`、`magic_resist_penetrate_fixed`）也按直接加算。
 - **攻击键**：技能发动的攻击中，`atk_scale`（或 `attack@atk_scale`）是攻击力倍率（伤害-6），`times`（或 `attack@times`）是每个目标受到的次数，`max_target`（或 `attack@max_target`）是目标数（索敌-3 取前 n 个）。行为可以给攻击修正加上一种元素和每下的元素损伤（元素-2）。
-- **立即技能的 `cost`**：拥有者立刻获得这么多费用，不超过上限。
+- **`cost`**：立即技能和持续技能开始时，拥有者立刻获得这么多费用，不超过上限（如香草「获得 6 点部署费用，攻击力 +X%」，持续 10 秒）。
 
-- 来源：数据：battle/buff_template_data 中官方属性修饰器的类型分布（ATK 388 个中 MULTIPLIER 337 个；ATTACK_SPEED 214 个中 ADDITION 196 个；DEF 以 MULTIPLIER 为主；MAX_HP 以 MULTIPLIER 为主；MAGIC_RESISTANCE、BLOCK_CNT、SP_RECOVERY_PER_SEC、BASE_ATTACK_TIME、ABILITY_RANGE_FORWARD_EXTEND、TAUNT_LEVEL、各种穿透以 ADDITION 为主）；[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「倍率」：攻击力倍率；键到效果的对应为推断 INF-0035
+- 来源：数据：battle/buff_template_data 中官方属性修饰器的类型分布（ATK 388 个中 MULTIPLIER 337 个；ATTACK_SPEED 214 个中 ADDITION 196 个；DEF 以 MULTIPLIER 为主；MAX_HP 以 MULTIPLIER 为主；MAGIC_RESISTANCE、BLOCK_CNT、SP_RECOVERY_PER_SEC、BASE_ATTACK_TIME、ABILITY_RANGE_FORWARD_EXTEND、TAUNT_LEVEL、各种穿透以 ADDITION 为主）；[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「倍率」：攻击力倍率；键到效果的对应为推断 INF-0035；持续技能的 `cost` 在开始时获得：[PRTS「香草」oldid=435199](https://prts.wiki/index.php?title=%E9%A6%99%E8%8D%89&oldid=435199) 技能 1 描述「获得 6 点部署费用，攻击力 +5%」，持续 10 秒
 
 ### 技能-6 行为接口
 

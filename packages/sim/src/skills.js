@@ -77,13 +77,13 @@ export function statMods(bb) {
 
 /**
  * The generic behaviour (技能-5): while a skill with a duration, ammo or a passive one runs, its attribute keys are a
- * buff on the operator; an instant skill's `cost` gives the owner that much cost.
+ * buff on the operator; an instant or duration skill's `cost` gives the owner that much cost when it starts.
  * @type {Required<Pick<SkillBehavior, 'start' | 'end'>>}
  */
 export const GENERIC = Object.freeze({
   start(ctx) {
-    if (ctx.kind === 'instant') { if (ctx.bb.cost > 0) ctx.gainCost(ctx.bb.cost); return; }
-    if (ctx.kind === 'next') return;
+    if ((ctx.kind === 'instant' || ctx.kind === 'duration') && ctx.bb.cost > 0) ctx.gainCost(ctx.bb.cost);
+    if (ctx.kind === 'instant' || ctx.kind === 'next') return;
     const mods = statMods(ctx.bb);
     if (Object.keys(mods).length > 0) ctx.addBuff(ctx.self, { key: 'skill', mods });
   },
