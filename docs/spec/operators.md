@@ -48,16 +48,30 @@ blackboard 里的数值条目记作 `{ 键: 值 }`；带 `valueStr` 的条目是
 
 - 来源：数据：uniequip_table 的 charEquip、equipDict[]（uniEquipName、typeName1、typeName2、unlockEvolvePhase、unlockLevel、charId）；battle_equip_table[].phases[]（equipLevel、attributeBlackboard、tokenAttributeBlackboard、parts[].target/isToken/validInGameTag/validInMapTag/overrideTraitDataBundle.candidates[]/addOrOverrideTalentDataBundle.candidates[]）；键的对应关系和 `maxDeckStackCnt`、`maxDeployCount` 两个名字是设计决定
 
-### 干员-6 天赋的练度与常驻天赋
+### 干员-6 天赋的练度与常驻部分
 
-每个天赋在一个练度下取它最后一个已解锁的候选，解锁条件同特性（干员-3）；没有已解锁候选的天赋不生效。
+每个天赋在一个练度下取它最后一个已解锁的候选，解锁条件同特性（干员-3）；没有已解锁候选的天赋不生效。装备模组时，模组可以把天赋换成它的升级（干员-7）。
 
-其中描述只写自身属性加成的候选是**常驻天赋**，从部署起一直生效：
+天赋的**常驻部分**从部署起一直生效。描述去掉富文本标签和全角括号里的潜能差值、去掉末尾的「。」「；」后，取第一句（到第一个「。」或「；」为止），从第一个分句（以「，」分开）起数连续的**自身属性分句**，至少要有一个：
 
-- 描述去掉富文本标签和全角括号里的潜能差值后，按「，」分成的每一句都是「（自身/自身的）属性（和/、属性）（各）带符号的数值（%、秒、/秒）」；
+- 自身属性分句是「（但）（自身/自身的）属性（和/、属性）（各）带符号的数值（%、秒、/秒）」；
 - 属性词和 blackboard 键的对应：攻击力 `atk`，防御力 `def`，生命上限、最大生命值、生命值 `max_hp`，攻击速度、攻速 `attack_speed`，法术抗性 `magic_resistance`，技力自然回复速度 `sp_recovery_per_sec`，再部署时间 `respawn_time`，部署费用 `cost`；
-- 描述提到的键都在 blackboard 里，blackboard 里其他键的值都是 0；隐藏候选（干员-4）不算。
+- 这些分句提到的键都在 blackboard 里，常驻部分就是这些键和它们的值；
+- 描述只有这些分句时，blackboard 里其他键的值都要是 0；后面还有内容时，第一句里剩下的部分不能提到「效果」（它可能改变前面的加成，如「自身受到伤害后失去该效果」「……时效果翻倍」）；
+- 隐藏候选（干员-4）没有常驻部分。
 
-常驻天赋的 blackboard 按键相加（值为 0 的键略去）：`cost` 加到部署费用、`respawn_time` 加到再部署时间（都不低于 0），其余的键作为干员的 `talentBb`，部署时成为 Buff（部署-4）。其他天赋（有条件的、影响别的单位的、带行为的）还没有实现。
+例：「攻击速度+6」整句常驻；「攻击力+8%，攻击变为弱点伤害」的攻击力加成常驻，弱点伤害不在这里；「攻击力+6%，生命上限+10%。置入战场后这个效果会同样赋予给一名随机友方单位」的第一句是干员自己的常驻加成；「部署后随机永久获得下列一项增益：……」「攻击速度+10，自身受到伤害后失去该效果」没有常驻部分。
 
-- 来源：数据：character_table 的 talents（干员-4）；按描述判定常驻天赋、和技能的属性加成同样换算为推断 INF-0088；部署费用的增减在费用倍率之前：[PRTS「部署费用」oldid=434779](https://prts.wiki/index.php?title=%E9%83%A8%E7%BD%B2%E8%B4%B9%E7%94%A8&oldid=434779)「部署费用（属性）=(初始部署费用+基础费用增减)×费用倍率+实时费用增减」
+各天赋的常驻部分按键相加（值为 0 的键略去）：`cost` 加到部署费用、`respawn_time` 加到再部署时间（都不低于 0），其余的键作为干员的 `talentBb`，部署时成为 Buff（部署-4）。天赋的其他内容（有条件的、影响别的单位的、带行为的）还没有实现。
+
+- 来源：数据：character_table 的 talents（干员-4）；按描述判定常驻部分、和技能的属性加成同样换算为推断 INF-0088；部署费用的增减在费用倍率之前：[PRTS「部署费用」oldid=434779](https://prts.wiki/index.php?title=%E9%83%A8%E7%BD%B2%E8%B4%B9%E7%94%A8&oldid=434779)「部署费用（属性）=(初始部署费用+基础费用增减)×费用倍率+实时费用增减」
+
+### 干员-7 模组的练度
+
+练度可以带一个模组：`module` 是干员模组列表（干员-5）里的序号（从 0 数，−1 或不写表示不带），`moduleLevel` 是模组等级 1–3（超过模组的等级数时取最后一级，不写为 1）。模组要在它的解锁精英化阶段和等级之后才能带，否则报错。
+
+- **属性**：模组这一级的属性加成 `stats` 和潜能一样加到原始属性上（在潜能之后）。
+- **天赋**：这一级里目标为 `TALENT` 或 `TALENT_DATA_ONLY`、不属于召唤物、对所有模式和地图有效（`gameTag`、`mapTag` 为 null）的部件，按顺序取其中已解锁的天赋候选（解锁条件同干员-3）；`index` 不小于 0 的候选替换第 `index` 个天赋的候选，描述用它的升级描述 `upgrade`，再按干员-6 取常驻部分。同一个天赋有几个这样的候选时，最后一个起作用。
+- **还没有实现**：模组的特性部件（追加或替换特性）、模组自己带的天赋（`index` 为负）、召唤物的属性加成、只在某些模式或地图有效的部件。
+
+- 来源：[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「属性」定义：「信赖、潜能和模组提供数值也会在这一步计（算）入，使得原始属性变为原始属性+」；数据：uniequip_table 的 unlockEvolvePhase、unlockLevel，battle_equip_table 的 phases[]；天赋部件替换天赋的方式为推断 INF-0089

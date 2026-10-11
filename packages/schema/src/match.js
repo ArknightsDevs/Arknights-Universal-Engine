@@ -11,13 +11,15 @@ export const DIFFICULTIES = Object.freeze(['NORMAL', 'FOUR_STAR']);
 
 /** @typedef {import('./protocol.js').Build} Build @typedef {import('./protocol.js').Match} Match */
 
-/** Each training field and its range. @type {Readonly<Record<keyof Build, [number, number]>>} */
-const BUILD = Object.freeze({ elite: [0, 2], level: [1, 90], potential: [1, 6], trust: [0, 200], skill: [-1, 2], skillLevel: [1, 10] });
+/** Each training field and its range; the module fields may be left out (no module). @type {Readonly<Record<keyof Build, [number, number]>>} */
+const BUILD = Object.freeze({ elite: [0, 2], level: [1, 90], potential: [1, 6], trust: [0, 200], skill: [-1, 2], skillLevel: [1, 10], module: [-1, 2], moduleLevel: [1, 3] });
+/** @type {readonly string[]} */
+const OPTIONAL = Object.freeze(['module', 'moduleLevel']);
 
 /** @param {unknown} b @returns {string | null} why a training is malformed, or null */
 export function buildProblem(b) {
   if (!isRecord(b)) return 'build is not an object';
-  const keys = /** @type {(keyof Build)[]} */ (Object.keys(BUILD));
+  const keys = /** @type {(keyof Build)[]} */ (Object.keys(BUILD)).filter((k) => !OPTIONAL.includes(k) || k in b);
   const why = keyProblem(b, keys);
   if (why) return why;
   const bad = keys.find((k) => !isInt(b[k], BUILD[k][0], BUILD[k][1]));

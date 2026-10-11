@@ -122,6 +122,9 @@ test('[同步-9] match settings: exactly the well-formed ones pass; a welcome ca
   const match = { level: 'act1multi_01', difficulty: 'FOUR_STAR', seed: 1209492319, decks: [[{ id: 'char_122_beagle', build }], []] };
   assert.equal(matchProblem(match), null);
   assert.equal(buildProblem({ ...build, skill: -1, elite: 0, level: 1, potential: 1, trust: 0, skillLevel: 1 }), null);
+  assert.deepEqual([buildProblem({ ...build, module: 2, moduleLevel: 3 }), buildProblem({ ...build, module: -1 }), buildProblem({ ...build, moduleLevel: 1 })], [null, null, null], 'the module fields may be left out');
+  assert.deepEqual([buildProblem({ ...build, module: 3 }), buildProblem({ ...build, moduleLevel: 0 }), buildProblem({ ...build, module: 0.5 })],
+    ['build.module out of range', 'build.moduleLevel out of range', 'build.module out of range']);
   const bad = [
     [null, 'match is not an object'], [{ ...match, extra: 1 }, 'unknown field extra'], [{ ...match, level: 'a b' }, 'match.level is not an id'],
     [{ ...match, difficulty: 'EASY' }, 'match.difficulty is not NORMAL or FOUR_STAR'], [{ ...match, seed: -1 }, 'match.seed is not a uint32'],

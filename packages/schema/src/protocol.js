@@ -113,8 +113,8 @@ export function serverMessageProblem(m) {
 /** @typedef {HelloMessage | CommandMessage | HashMessage | SpeedMessage | PauseMessage | PauseReplyMessage | ResumeMessage} ClientMessage */
 
 /**
- * A training (干员-1, 干员-2).
- * @typedef {{ elite: number, level: number, potential: number, trust: number, skill: number, skillLevel: number }} Build
+ * A training (干员-1, 干员-2, 干员-7); without the module fields, no module.
+ * @typedef {{ elite: number, level: number, potential: number, trust: number, skill: number, skillLevel: number, module?: number, moduleLevel?: number }} Build
  */
 /** @typedef {{ id: string, build: Build }} DeckEntry */
 /** The match settings (同步-9; match.js checks them). @typedef {{ level: string, difficulty: 'NORMAL' | 'FOUR_STAR', seed: number, decks: DeckEntry[][] }} Match */

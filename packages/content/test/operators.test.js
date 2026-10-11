@@ -51,21 +51,40 @@ test('[干员-3] the trait blackboard of the last candidate unlocked by elite, l
   assert.deepEqual(traitAt(made, build({ elite: 1, level: 1 })).v, 2, 'a lower phase is unlocked whatever its level');
 });
 
-test('[干员-6] each talent\'s last candidate unlocked; an always-on one reads as the operator\'s own attributes only', async () => {
+test('[干员-6] each talent\'s last candidate unlocked; the always-on part reads as the operator\'s own attributes only', async () => {
   const angel = await loadTraining('char_103_angel');
-  assert.deepEqual(talentsAt(angel, build()).length, 0, 'none unlocked at elite 0');
-  assert.deepEqual(talentsAt(angel, build({ elite: 2, potential: 3 })).map((c) => c.bb.attack_speed ?? c.bb.atk), [15, 0.06]);
-  assert.deepEqual(operatorAt(angel, build({ elite: 2, potential: 6 })).talentBb, { attack_speed: 15 }, '天使的祝福 also blesses another unit: not always on');
+  assert.deepEqual(talentsAt(angel, build()), [null, null], 'none unlocked at elite 0');
+  assert.deepEqual(talentsAt(angel, build({ elite: 2, potential: 3 })).map((c) => c?.bb.attack_speed ?? c?.bb.atk), [15, 0.06]);
+  assert.deepEqual(operatorAt(angel, build({ elite: 2, potential: 6 })).talentBb, { attack_speed: 15, atk: 0.08, max_hp: 0.13 }, '天使的祝福: its first sentence is hers');
   const winter = await loadTraining('char_115_headbr'), e0 = operatorAt(winter, build());
   assert.deepEqual([operatorAt(winter, build({ elite: 1 })).cost, e0.cost, e0.talentBb], [winter.phases[1].frames[0].stats.cost - 1, winter.phases[0].frames[0].stats.cost, undefined],
     '自身部署费用-1 (elite 1) folds into the cost');
-  const c = (/** @type {string} */ description, /** @type {Record<string, number>} */ bb, hidden = false) => alwaysOn({ phase: 0, level: 1, potential: 0, name: 'x', description, rangeId: null, bb, hidden, token: null });
+  const c = (/** @type {string} */ description, /** @type {Record<string, number>} */ bb, hidden = false) => alwaysOn({ description, bb, hidden });
   assert.deepEqual([
     c('生命上限和防御力各+12%', { max_hp: 0.12, def: 0.12 }), c('攻击力+8%<@ba.talpu>（+2%）</>，攻击速度+8', { atk: 0.08, attack_speed: 8 }),
-    c('自身再部署时间-15秒', { respawn_time: -15, cost: 0 }), c('自身的技力自然回复速度+0.3/秒', { sp_recovery_per_sec: 0.3 }),
-  ], [true, true, true, true]);
+    c('自身再部署时间-15秒', { respawn_time: -15, cost: 0 }), c('自身的技力自然回复速度+0.3/秒。', { sp_recovery_per_sec: 0.3 }), c('防御力-10%，但攻击速度+20', { def: -0.1, attack_speed: 20 }),
+  ], [{ max_hp: 0.12, def: 0.12 }, { atk: 0.08, attack_speed: 8 }, { respawn_time: -15 }, { sp_recovery_per_sec: 0.3 }, { def: -0.1, attack_speed: 20 }]);
   assert.deepEqual([
-    c('攻击力+8%', { atk: 0.08, prob: 0.1 }), c('攻击力+8%，攻击变为弱点伤害', { atk: 0.08 }), c('攻击速度+6', { atk: 0.06 }),
-    c('攻击力+8%', { atk: 0.08 }, true), c('在场时，所有友方【医疗】职业干员攻速+6', { attack_speed: 6 }),
-  ], [false, false, false, false, false]);
+    c('攻击力+8%，攻击变为弱点伤害', { atk: 0.08 }), c('攻击速度+15，装备技能2时获得+25%攻击力', { attack_speed: 15, atk: 0.25 }),
+    c('攻击速度+12；连续造成伤害时逐渐无视敌人防御力', { attack_speed: 12, def_penetrate_fixed: 6 }),
+  ], [{ atk: 0.08 }, { attack_speed: 15 }, { attack_speed: 12 }], 'the leading clauses; what follows is not always on');
+  assert.deepEqual([
+    c('攻击力+8%', { atk: 0.08, prob: 0.1 }), c('攻击速度+6', { atk: 0.06 }), c('攻击力+8%', { atk: 0.08 }, true),
+    c('在场时，所有友方【医疗】职业干员攻速+6', { attack_speed: 6 }), c('攻击速度+10，自身受到伤害后失去该效果', { attack_speed: 10 }),
+    c('部署后随机永久获得下列一项增益：攻击力+7%；攻击速度+7', { atk: 0.07, attack_speed: 7 }),
+  ], [null, null, null, null, null, null]);
+});
+
+test('[干员-7] a module adds its level\'s attributes and upgrades talents; only once unlocked', async () => {
+  const angel = await loadTraining('char_103_angel'), e2 = build({ elite: 2, level: 90, potential: 6, skill: -1 });
+  const none = operatorAt(angel, e2), x3 = operatorAt(angel, { ...e2, module: 0, moduleLevel: 3 }), x1 = operatorAt(angel, { ...e2, module: 0, moduleLevel: 1 });
+  const stats = angel.modules[0].levels.map((l) => l.stats);
+  assert.deepEqual([x3.atk - none.atk, x3.maxHp - none.maxHp, x1.atk - none.atk], [stats[2].atk, stats[2].maxHp, stats[0].atk]);
+  assert.deepEqual([x1.talentBb, x3.talentBb], [none.talentBb, { attack_speed: 15, atk: 0.1, max_hp: 0.17 }], 'level 1 has no talent part; level 3 upgrades 天使的祝福');
+  assert.deepEqual(operatorAt(angel, { ...e2, module: 0, moduleLevel: 9 }), x3, 'capped at its last level');
+  assert.deepEqual(operatorAt(angel, { ...e2, module: -1 }), none);
+  assert.throws(() => operatorAt(angel, { ...e2, level: 59, module: 0 }), /module 0 is not unlocked at elite 2 level 59/);
+  assert.throws(() => operatorAt(angel, { ...e2, module: 2 }), /module 2 is not unlocked/);
+  const y2 = operatorAt(angel, { ...e2, module: 1, moduleLevel: 2 });
+  assert.equal(y2.talentBb?.attack_speed, 15, '快速弹匣\'s upgrade keeps its leading clause');
 });
