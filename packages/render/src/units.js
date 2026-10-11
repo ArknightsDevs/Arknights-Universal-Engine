@@ -14,7 +14,7 @@ export const unitTextureKey = (kind, key) => (kind === KIND.OPERATOR ? `avatar:$
 
 /** @typedef {Map<string, { front?: import('./spine.js').SpineModel, back?: import('./spine.js').SpineModel }>} Models */
 /** @typedef {import('./figure.js').Figure} Figure */
-/** @typedef {{ type: string, [field: string]: string | number }} Event */
+/** @typedef {Record<string, string | number>} Event a presentation event (type and fields) */
 
 /** A card: the texture standing at its bottom centre, not writing depth. @param {THREE.Texture} map */
 function newCard(map) {
