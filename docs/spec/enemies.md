@@ -2,15 +2,15 @@
 
 ### 出怪-1 出怪
 
-关卡的出怪列表给出每个敌人的出现时间（秒）、种类和路线。出现时间按 时间-2 换算成帧，到那一帧时，敌人在路线起点出现，生命为满。同一帧出现的按列表顺序。
+关卡的出怪列表给出每个敌人的出现时间（秒）、种类和路线。出现时间按 时间-2 换算成帧，到那一帧时，敌人出现在路线起点格的中心、再加上路线的出生偏移（spawnOffset），生命为满。同一帧出现的按列表顺序。出生的随机范围（spawnRandomRange）还没有实现。
 
-- 来源：数据：level.waves[].fragments[].actions[]（时间的展开方式为推断 INF-0007）
+- 来源：[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)：「敌人在起点坐标出现时，位于方格正中心」；数据：level.waves[].fragments[].actions[]、level.routes[].spawnOffset（时间的展开方式为推断 INF-0007）
 
 ### 移动-1 移动
 
-敌人依次走向路线上类型为 `MOVE` 的检查点，最后走向终点。每帧前进 `移动速度 × moveMultiplier ÷ 30` 格：移动速度是属性（属性-1），moveMultiplier 是关卡参数，默认 0.5，即通常实际速度是移动速度的一半。一帧内到达一个点后，剩余的距离继续沿下一段走。无法移动时（状态-5）不前进。骨架里两点之间走直线，其他类型的检查点（等待等）忽略。
+敌人按路线走（路线-1 至 路线-4）。每帧前进 `移动速度 × moveMultiplier ÷ 30` 格：移动速度是属性（属性-1），moveMultiplier 是关卡参数，默认 0.5，即通常实际速度是移动速度的一半。无法移动时（状态-5）不前进，路线上的等待也不计时。
 
-- 来源：速度见 [PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)（每帧移动 移动速度 × m ÷ 帧率 格，「move_multiplier 默认值为0.5」）、数据：level.options.moveMultiplier；直线和忽略等待为推断 INF-0004
+- 来源：速度见 [PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)（每帧移动 移动速度 × m ÷ 帧率 格，「move_multiplier 默认值为0.5」）、数据：level.options.moveMultiplier；被阻挡、攻击当帧、无法移动时路线整体暂停为推断 INF-0030
 
 ### 目标-1 到达目标点
 

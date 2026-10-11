@@ -69,5 +69,18 @@
   ],
   "blockedAt": [
     "packages/sim/src/blocking.js"
-  ]
+  ],
+  "path": [
+    "packages/sim/src/routes.js"
+  ],
+  "pt": [
+    "packages/sim/src/routes.js"
+  ],
+  "wait": [
+    "packages/sim/src/routes.js"
+  ],
+  "hidden": [
+    "packages/sim/src/routes.js"
+  ],
+  "frag": []
 }

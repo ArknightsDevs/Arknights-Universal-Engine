@@ -228,7 +228,7 @@ test('[敌人攻击-1] [索敌-5] on the tiny level: the slime hits the guard bl
   step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 3, dir: 2 }]]);
   /** @type {{ f: number, id: number }[]} */
   const hits = [];
-  for (let f = 1; f < 200; f++) for (const ev of step(w, c)) if (ev.type === 'hit' && ev.target === 1) hits.push({ f, id: Number(ev.id) });
+  for (let f = 1; f < 300; f++) for (const ev of step(w, c)) if (ev.type === 'hit' && ev.target === 1) hits.push({ f, id: Number(ev.id) });
   const first = hits.filter((h) => h.id === 2);
   assert.ok(first.length >= 2 && first[1].f - first[0].f === 60, JSON.stringify(first));
   const slime = /** @type {Unit} */ (w.units.find((u) => u.id === 2));
@@ -245,7 +245,7 @@ test('[敌人攻击-1] [阻挡-3] the guard falls: it leaves, may be deployed ag
   step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 3, dir: 2 }]]);
   /** @type {any[]} */
   const ev = [];
-  for (let f = 1; f < 200; f++) ev.push(...step(w, c));
+  for (let f = 1; f < 400; f++) ev.push(...step(w, c));
   assert.ok(ev.some((e) => e.type === 'death' && e.id === 1));
   assert.deepEqual(w.players[0].deployed, []);
   assert.ok(w.units.every((u) => u.blockedBy === -1));

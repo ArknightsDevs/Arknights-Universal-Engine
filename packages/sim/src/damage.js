@@ -138,7 +138,7 @@ function loseHpNow(w, src, t, amount) {
 
 /**
  * Deals a hit (伤害-7): nothing to a unit already at 0 HP; 生命流失 goes straight to the HP; nothing to an invincible
- * unit (无敌, 沉睡); otherwise the target's defences, the source's multiplier, the target's 伤判 effects, then the HP.
+ * unit (无敌, 沉睡, disappeared: 路线-4); otherwise the target's defences, the source's multiplier, the target's 伤判 effects, then the HP.
  * Returns the HP taken.
  * @param {World} w @param {Unit | null} src @param {Unit} target @param {Damage} dmg
  */
@@ -146,7 +146,7 @@ export function dealDamage(w, src, target, dmg) {
   if (target.hp <= 0) return 0;
   if (dmg.hpLoss) return loseHpNow(w, src, target, dmg.amount);
   const ts = statsOf(target);
-  if (ts.invincible) return 0;
+  if (ts.invincible || target.hidden) return 0;
   const ss = src ? statsOf(src) : null;
   let amount = mitigate(dmg.amount, dmg.type, ts, penetration(ss, dmg.pen));
   if (ss) amount *= dealtMul(ss, dmg.type);

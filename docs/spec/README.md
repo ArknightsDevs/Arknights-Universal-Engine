@@ -42,6 +42,7 @@
 - [damage.md](damage.md)：伤害公式、结算顺序、伤判、生命流失、治疗
 - [targeting.md](targeting.md)：攻击范围、可选性、目标顺序、仇恨值
 - [blocking.md](blocking.md)：阻挡的条件、阻挡数、解除、被阻挡的敌人
+- [paths.md](paths.md)：寻路（流场、平滑）、路线指令、巡逻、消失
 - [lockstep.md](lockstep.md)：输入延迟、封口、追赶、哈希校验、重连、暂停
 - [direction.md](direction.md)：四个方向、偏移旋转、位移的方向、并列先后
 - [body.md](body.md)：点单位与巨型单位所在的格、距离

@@ -24,8 +24,9 @@ function makeLevel() {
     },
     routes: [
       { motionMode: 'WALK', startPosition: pos(3, 0), endPosition: pos(0, 0), checkpoints: null },
-      { motionMode: 'WALK', startPosition: pos(3, 1), endPosition: pos(0, 1), checkpoints: [{ type: 'MOVE', time: 0, position: pos(2, 1) }, { type: 'WAIT_FOR_SECONDS', time: 4, position: pos(0, 0) }] },
-      { motionMode: 'WALK', startPosition: pos(3, 2), endPosition: pos(0, 2), checkpoints: [{ type: 'MOVE', position: pos(1, 2) }] },
+      { motionMode: 'WALK', startPosition: pos(3, 1), endPosition: pos(0, 1), allowDiagonalMove: false, spawnOffset: { x: 0.3, y: 0 },
+        checkpoints: [{ type: 'MOVE', time: 0, position: pos(2, 1), reachOffset: { x: 0, y: -0.25 } }, { type: 'WAIT_FOR_SECONDS', time: 4, position: pos(0, 0) }] },
+      { motionMode: 'WALK', startPosition: pos(3, 2), endPosition: pos(0, 2), checkpoints: [{ type: 'MOVE', position: pos(1, 2), reachOffset: null }] },
     ],
     waves: [
       { preDelay: 100, fragments: [{ preDelay: 1, actions: [spawn('e_a', 1, 1, 0, 0)] }] },
@@ -43,8 +44,9 @@ function makeLevel() {
 const enemy = (/** @type {string} */ key, /** @type {string} */ name) => ({
   Key: key,
   Value: [{ level: 0, enemyData: {
-    name: wrap(name), levelType: wrap('NORMAL'), rangeRadius: wrap(0),
-    attributes: { maxHp: wrap(100.5), atk: wrap(10), def: wrap(5), magicResistance: wrap(0), moveSpeed: wrap(0.65), baseAttackTime: wrap(1.2), massLevel: wrap(1) },
+    name: wrap(name), levelType: wrap('NORMAL'), rangeRadius: wrap(0), applyWay: wrap('MELEE'), motion: wrap('WALK'),
+    attributes: { maxHp: wrap(100.5), atk: wrap(10), def: wrap(5), magicResistance: wrap(0), moveSpeed: wrap(0.65), baseAttackTime: wrap(1.2), massLevel: wrap(1),
+      blockCnt: key === 'e_b' ? wrap(2) : { m_defined: false, m_value: 0 } },
   } }],
 });
 
@@ -89,17 +91,17 @@ test('route starts sit on start tiles of the top rows', () => {
   for (const r of s.level.routes) assert.equal(s.level.tiles[r.start.row][r.start.col].key, 'tile_start_cooperate');
 });
 
-test('spawn times add wave and fragment delays, action delay and count times interval', () => {
+test('spawn times add wave and fragment delays, action delay and count times interval; each knows its fragment start', () => {
   const { spawns } = run().level;
   // fragment start = 2 (wave) + 1 + 3 (fragments up to the second one) = 6; ties keep the action order
   assert.deepEqual(spawns, [
-    { at: 6, enemy: 'e_a', route: 1 },
-    { at: 6, enemy: 'e_a', route: 2 },
-    { at: 7, enemy: 'e_b', route: 0 },
-    { at: 9, enemy: 'e_b', route: 0 },
-    { at: 11, enemy: 'e_b', route: 0 },
-    { at: 11, enemy: 'e_a', route: 1 },
-    { at: 15, enemy: 'e_b', route: 0 },
+    { at: 6, enemy: 'e_a', route: 1, fragment: 6 },
+    { at: 6, enemy: 'e_a', route: 2, fragment: 6 },
+    { at: 7, enemy: 'e_b', route: 0, fragment: 6 },
+    { at: 9, enemy: 'e_b', route: 0, fragment: 6 },
+    { at: 11, enemy: 'e_b', route: 0, fragment: 6 },
+    { at: 11, enemy: 'e_a', route: 1, fragment: 6 },
+    { at: 15, enemy: 'e_b', route: 0, fragment: 6 },
   ]);
 });
 
@@ -118,10 +120,12 @@ test('routes are copied in first-use order and spawns refer to the new indices',
   assert.deepEqual(routes.map((/** @type {any} */ r) => r.start), [pos(3, 2), pos(3, 1), pos(3, 0)]);
   const first = spawns.find((/** @type {any} */ s) => s.enemy === 'e_b' && s.at === 7);
   assert.equal(first.route, 0);
-  assert.deepEqual(routes[1].checkpoints, [{ type: 'MOVE', row: 2, col: 1, time: 0 }, { type: 'WAIT_FOR_SECONDS', row: 0, col: 0, time: 4 }]);
-  assert.deepEqual(routes[0].checkpoints, [{ type: 'MOVE', row: 1, col: 2, time: 0 }]);
+  assert.deepEqual(routes[1].checkpoints, [{ type: 'MOVE', row: 2, col: 1, time: 0, dx: 0, dy: -0.25 }, { type: 'WAIT_FOR_SECONDS', row: 0, col: 0, time: 4, dx: 0, dy: 0 }]);
+  assert.deepEqual(routes[0].checkpoints, [{ type: 'MOVE', row: 1, col: 2, time: 0, dx: 0, dy: 0 }]);
   assert.deepEqual(routes[2].checkpoints, []);
   assert.equal(routes[0].motion, 'WALK');
+  assert.deepEqual([routes[0].allowDiagonal, routes[1].allowDiagonal], [true, false]);
+  assert.deepEqual([routes[0].spawnOffset, routes[1].spawnOffset], [{ x: 0, y: 0 }, { x: 0.3, y: 0 }]);
 });
 
 test('only the enemies that spawn are exported, with level 0 attributes unrounded', () => {
@@ -130,6 +134,7 @@ test('only the enemies that spawn are exported, with level 0 attributes unrounde
   assert.equal(s.enemies.e_a.maxHp, 100.5);
   assert.equal(s.enemies.e_a.name, 'Alpha');
   assert.equal(s.enemies.e_a.res, 0);
+  assert.deepEqual([s.enemies.e_a.applyWay, s.enemies.e_a.motion, s.enemies.e_a.blockCnt, s.enemies.e_b.blockCnt], ['MELEE', 'WALK', undefined, 2]);
 });
 
 test('an operator takes the last keyframe of elite 0 and its range grids', () => {

@@ -110,5 +110,29 @@
     "stronghold": "server/sim/ai.js acquireTargets：任何阻挡者都把被阻挡的敌人加入候选；没有部署时的阻挡偏移。",
     "reason": "PRTS「索敌的概念」oldid=376233 说的是「我方近战单位」；部署偏移见 PRTS「作战机制」oldid=433935。",
     "status": "有效"
+  },
+  {
+    "id": "DIF-0015",
+    "clause": "索敌-6",
+    "ours": "路径距离 = 从所在格起串联各路径点的流场步数（按格计）+ 坐标到格中心向量在前进方向上的投影；所在格到不了目标时用直线距离。",
+    "stronghold": "server/sim/ai.js remainingDistance：沿平滑后的折线量几何长度（hypot），加上到下一个点的直线距离。",
+    "reason": "PRTS「仇恨」oldid=429076 的定义是曼哈顿寻路距离之和加修正值。两者给出的先后通常相同，但几何长度比步数短，斜走的路线差得更多。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0016",
+    "clause": "寻路-2",
+    "ours": "敌人沿官方平滑后的指向走。",
+    "stronghold": "server/sim/grid.js：在官方指向之外另算一个「偏好可阻挡地面」的指向，经过的不可阻挡格更少时改用它。",
+    "reason": "那是 Stronghold 根据试玩反馈加的规则，不是官方的；我们只实现官方寻路（ADR 0013）。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0017",
+    "clause": "路线-1",
+    "ours": "执行 PATROL_MOVE（闭环巡逻）、WAIT_CURRENT_FRAGMENT_TIME（从片段开始计时）和检查点偏移。",
+    "stronghold": "server/sim/ai.js compileRoute：只认 MOVE、WAIT、DISAPPEAR、APPEAR；巡逻点和片段等待在它的数据构建里另行转换，没有检查点偏移。",
+    "reason": "PRTS「作战机制」oldid=433935 写明了这几种指令的含义；促融共竞关卡用到它们（巡逻点 1091 个、片段等待 350 个、带偏移的 MOVE 1180 个）。",
+    "status": "有效"
   }
 ]

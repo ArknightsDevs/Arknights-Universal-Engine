@@ -3,7 +3,7 @@
 import { secondsToFrames } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { makeEnemy } from './units.js';
-import { waypoints, walk, speedOf, goalOwner } from './routes.js';
+import { followRoute, speedOf, goalOwner } from './routes.js';
 import { tryBlock, keepOrRelease } from './blocking.js';
 import { enemyAttack } from './combat.js';
 
@@ -16,7 +16,8 @@ export const spawnFrames = (c) => c.level.spawns.map((s) => secondsToFrames(s.at
 export function spawnDue(w, c) {
   const list = c.level.spawns;
   while (w.nextSpawn < list.length && w.spawnFrames[w.nextSpawn] <= w.frame) {
-    const s = list[w.nextSpawn++], u = makeEnemy(w, c, { key: s.enemy, route: s.route });
+    const s = list[w.nextSpawn++];
+    const u = makeEnemy(w, c, { key: s.enemy, route: s.route, frag: secondsToFrames(s.fragment ?? s.at) });
     w.units.push(u);
     w.events.push({ type: 'spawn', id: u.id, key: u.key });
   }
@@ -48,9 +49,11 @@ function enemyTurn(w, c, e) {
   }
   if (attacked) return;
   const speed = speedOf(c, e);
-  e.anim = speed > 0 ? ANIM.MOVE : ANIM.IDLE;
-  if (speed > 0 && walk(e, waypoints(c.level.routes[e.route]), speed)) reachGoal(w, c, e);
-  else if (speed > 0) tryBlock(w, c, e);
+  if (speed === 0) { e.anim = ANIM.IDLE; return; }
+  const x = e.x, y = e.y;
+  if (followRoute(w, c, e, speed)) { reachGoal(w, c, e); return; }
+  e.anim = e.x !== x || e.y !== y ? ANIM.MOVE : ANIM.IDLE;
+  tryBlock(w, c, e);
 }
 
 /** Every enemy's turn, in creation order (帧-1). @param {World} w @param {Content} c */

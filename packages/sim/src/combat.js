@@ -6,7 +6,7 @@ import { offsetTile } from './dir.js';
 import { statsOf, intervalFrames } from './attrs.js';
 import { rangeKeys, inKeys, selectable, sortEnemies, sortAllies } from './targeting.js';
 import { dealDamage } from './damage.js';
-import { remainingDistance } from './routes.js';
+import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
 
@@ -34,7 +34,7 @@ export function pickTarget(w, c, op) {
   const keys = rangeKeys(grid, op, d.range, statsOf(op).rangeExtend);
   const cands = w.units.filter((u) => u.kind === KIND.ENEMY && selectable(u, { canHitFly: !melee })
     && ((melee && u.blockedBy === op.id) || inKeys(u, keys, grid)));
-  return sortEnemies(op, cands, { melee, pathDist: (e) => remainingDistance(c, e) })[0] ?? null;
+  return sortEnemies(op, cands, { melee, pathDist: (e) => pathDistance(c, e) })[0] ?? null;
 }
 
 /**
@@ -90,7 +90,7 @@ export function enemyTargets(w, e) {
  */
 export function enemyAttack(w, _c, e) {
   const s = statsOf(e);
-  if (s.disabled || s.atk <= 0) return false;
+  if (s.disabled || s.atk <= 0 || e.hidden) return false;
   if (e.atkCd > 0) { e.atkCd--; return false; }
   const t = sortAllies(e, enemyTargets(w, e), FPS)[0];
   if (!t) return false;

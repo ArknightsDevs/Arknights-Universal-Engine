@@ -2,9 +2,13 @@
 // strings, booleans, arrays, plain objects), so a snapshot is a deep copy of it (ADR 0054).
 
 /** @typedef {{ row: number, col: number }} Cell */
-/** @typedef {{ type: string, row: number, col: number, time: number }} Checkpoint */
-/** @typedef {{ start: Cell, end: Cell, checkpoints: Checkpoint[], motion: string }} Route */
-/** @typedef {{ at: number, enemy: string, route: number }} Spawn */
+/** A route checkpoint; (dx, dy) is its reach offset in tiles (路线-1). @typedef {{ type: string, row: number, col: number, time: number, dx?: number, dy?: number }} Checkpoint */
+/**
+ * A route: `motion` WALK or FLY; `allowDiagonal` (default true) lets the smoothed path step diagonally (寻路-2);
+ * `spawnOffset` moves the spawn point off the start tile's centre (出怪-1).
+ * @typedef {{ start: Cell, end: Cell, checkpoints: Checkpoint[], motion: string, allowDiagonal?: boolean, spawnOffset?: { x: number, y: number } }} Route
+ */
+/** A spawn; `fragment` is when its fragment began, in seconds (路线-1; default: its own time). @typedef {{ at: number, enemy: string, route: number, fragment?: number }} Spawn */
 /** @typedef {{ maxLifePoint: number, initialCost: number, maxCost: number, costIncreaseTime: number, characterLimit: number, moveMultiplier: number }} LevelOptions */
 /** @typedef {import('./level.js').LevelMap & { id: string, options: LevelOptions, routes: Route[], spawns: Spawn[] }} Level */
 
@@ -98,7 +102,12 @@
  * @property {number} born the frame the unit was created in
  * @property {number} bornN its place among the units created in that frame, from 1 (索敌-5)
  * @property {number} route index into the level's routes, −1 for operators
- * @property {number} leg index of the waypoint the enemy heads for
+ * @property {number} leg index of the enemy's current leg of its route (路线-1)
+ * @property {number[]} path the planned points of its current move leg, flat [x, y, …]; empty until planned (路线-2)
+ * @property {number} pt index of the point of `path` it heads for
+ * @property {number} wait frames left in its current wait, −1 when not waiting
+ * @property {boolean} hidden it has disappeared (路线-4)
+ * @property {number} frag the frame its spawn's fragment began
  * @property {number} anim schema ANIM
  */
 

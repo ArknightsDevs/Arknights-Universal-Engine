@@ -85,13 +85,15 @@ test('[出怪-1] enemies appear at their spawn time, at the start of their route
   assert.equal(w.units.length, 2);
 });
 
-test('[移动-1] enemies walk straight between MOVE checkpoints at moveSpeed tiles per second', () => {
+test('[移动-1] [路线-1] enemies walk their route at moveSpeed tiles per second and wait where it says', () => {
   const w = fresh();
   run(w, 16);
   const e = w.units[0];
   assert.deepEqual([e.x, e.y], [0, 2 - 1 / 30]);
   run(w, 29);
   assert.ok(Math.abs(e.y - 1) < 1e-12 && e.x < 1e-12, `${e.x},${e.y}`);
+  run(w, 90);
+  assert.ok(Math.abs(e.y - 1) < 1e-12 && e.x < 1e-12, `the 3 s wait: ${e.x},${e.y}`);
   run(w, 30);
   assert.ok(Math.abs(e.x - 1) < 1e-12 && Math.abs(e.y - 1) < 1e-12, `${e.x},${e.y}`);
 });
@@ -100,13 +102,13 @@ test('[目标-1] an enemy at the goal costs one life of the player the goal belo
   const w = fresh();
   /** @type {any[]} */
   const events = [];
-  for (let i = 0; i < 260; i++) events.push(...step(w, c));
+  for (let i = 0; i < 360; i++) events.push(...step(w, c));
   assert.deepEqual(w.players.map((p) => p.life), [3, 1]);
   assert.equal(events.filter((e) => e.type === 'goal').length, 2);
   assert.equal(events.filter((e) => e.type === 'death').length, 0);
   assert.equal(w.units.length, 0);
   const solo = fresh(1);
-  run(solo, 260);
+  run(solo, 360);
   assert.deepEqual(solo.players.map((p) => p.life), [1]);
 });
 
@@ -117,7 +119,7 @@ test('[伤害-6] [攻击-1] the normal attack of an operator is one hit of its a
   assert.equal(damage.mitigate(t.amount, t.type, { def: 10, res: 0, epDamageResistance: 0 }, damage.penetration(null)), 40);
   /** @type {any[]} */
   const hits = [];
-  for (let f = 1; f < 120; f++) for (const e of step(w, c)) if (e.type === 'hit') hits.push(e);
+  for (let f = 1; f < 260; f++) for (const e of step(w, c)) if (e.type === 'hit') hits.push(e);
   assert.ok(hits.length > 0 && hits.every((h) => h.damage === 40 && h.id === 1));
 });
 

@@ -3,9 +3,9 @@ import { asArray, asInt, asNumber, asObject, asPos, asString, field } from './va
 
 /** @typedef {{ row: number, col: number }} Pos */
 /** @typedef {{ key: string, height: string, buildable: string, passable: string, side: string }} Tile */
-/** @typedef {{ type: string, row: number, col: number, time: number }} Checkpoint */
-/** @typedef {{ start: Pos, end: Pos, checkpoints: Checkpoint[], motion: string }} Route */
-/** @typedef {{ at: number, enemy: string, route: number }} Spawn */
+/** @typedef {{ type: string, row: number, col: number, time: number, dx: number, dy: number }} Checkpoint */
+/** @typedef {{ start: Pos, end: Pos, checkpoints: Checkpoint[], motion: string, allowDiagonal: boolean, spawnOffset: { x: number, y: number } }} Route */
+/** @typedef {{ at: number, enemy: string, route: number, fragment: number }} Spawn */
 /** @typedef {{ key: string, count: number, interval: number, preDelay: number, routeIndex: number, start: number }} SpawnAction */
 
 /**
@@ -53,7 +53,20 @@ function readCheckpoint(raw, p) {
   const c = asObject(raw, p);
   const time = c.time === undefined ? 0 : asNumber(c.time, `${p}.time`, 0, 1e6);
   const { row, col } = asPos(field(c, 'position', p), `${p}.position`);
-  return { type: asString(field(c, 'type', p), `${p}.type`), row, col, time };
+  const off = readOffset(c.reachOffset, `${p}.reachOffset`);
+  return { type: asString(field(c, 'type', p), `${p}.type`), row, col, time, dx: off.x, dy: off.y };
+}
+
+/**
+ * An { x, y } offset in tiles (each within ±16); missing or null is no offset.
+ * @param {unknown} raw
+ * @param {string} p
+ * @returns {{ x: number, y: number }}
+ */
+function readOffset(raw, p) {
+  if (raw === undefined || raw === null) return { x: 0, y: 0 };
+  const o = asObject(raw, p);
+  return { x: asNumber(field(o, 'x', p), `${p}.x`, -16, 16), y: asNumber(field(o, 'y', p), `${p}.y`, -16, 16) };
 }
 
 /**
@@ -69,6 +82,8 @@ function readRoute(raw, p) {
     end: asPos(field(r, 'endPosition', p), `${p}.endPosition`),
     checkpoints: cps.map((c, i) => readCheckpoint(c, `${p}.checkpoints[${i}]`)),
     motion: asString(field(r, 'motionMode', p), `${p}.motionMode`),
+    allowDiagonal: r.allowDiagonalMove === undefined ? true : r.allowDiagonalMove === true,
+    spawnOffset: readOffset(r.spawnOffset, `${p}.spawnOffset`),
   };
 }
 
@@ -135,8 +150,8 @@ export function extractRoutesAndSpawns(wavesRaw, routesRaw) {
       routes.push(readRoute(all[act.routeIndex], `level.routes[${act.routeIndex}]`));
     }
     const r = route;
-    return Array.from({ length: act.count }, (_, k) => ({ at: act.start + act.preDelay + k * act.interval, enemy: act.key, route: r, order }));
+    return Array.from({ length: act.count }, (_, k) => ({ at: act.start + act.preDelay + k * act.interval, enemy: act.key, route: r, order, fragment: act.start }));
   });
   spawns.sort((x, y) => x.at - y.at || x.order - y.order);
-  return { routes, spawns: spawns.map(({ at, enemy, route }) => ({ at, enemy, route })) };
+  return { routes, spawns: spawns.map(({ at, enemy, route, fragment }) => ({ at, enemy, route, fragment })) };
 }

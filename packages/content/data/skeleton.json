@@ -807,16 +807,25 @@
             "type": "MOVE",
             "row": 7,
             "col": 5,
-            "time": 0
+            "time": 0,
+            "dx": 0,
+            "dy": 0
           },
           {
             "type": "WAIT_CURRENT_FRAGMENT_TIME",
             "row": 0,
             "col": 0,
-            "time": 12
+            "time": 12,
+            "dx": 0,
+            "dy": 0
           }
         ],
-        "motion": "WALK"
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
       },
       {
         "start": {
@@ -832,10 +841,17 @@
             "type": "MOVE",
             "row": 7,
             "col": 5,
-            "time": 0
+            "time": 0,
+            "dx": 0,
+            "dy": 0
           }
         ],
-        "motion": "WALK"
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
       },
       {
         "start": {
@@ -851,16 +867,25 @@
             "type": "MOVE",
             "row": 7,
             "col": 6,
-            "time": 0
+            "time": 0,
+            "dx": 0,
+            "dy": 0
           },
           {
             "type": "WAIT_FOR_SECONDS",
             "row": 0,
             "col": 0,
-            "time": 3
+            "time": 3,
+            "dx": 0,
+            "dy": 0
           }
         ],
-        "motion": "WALK"
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
       },
       {
         "start": {
@@ -876,22 +901,33 @@
             "type": "MOVE",
             "row": 7,
             "col": 6,
-            "time": 0
+            "time": 0,
+            "dx": 0,
+            "dy": 0
           },
           {
             "type": "WAIT_FOR_SECONDS",
             "row": 0,
             "col": 0,
-            "time": 1
+            "time": 1,
+            "dx": 0,
+            "dy": 0
           },
           {
             "type": "MOVE",
             "row": 4,
             "col": 6,
-            "time": 0
+            "time": 0,
+            "dx": 0,
+            "dy": 0
           }
         ],
-        "motion": "WALK"
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
       },
       {
         "start": {
@@ -907,10 +943,17 @@
             "type": "MOVE",
             "row": 4,
             "col": 5,
-            "time": 0
+            "time": 0,
+            "dx": 0,
+            "dy": 0
           }
         ],
-        "motion": "WALK"
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
       },
       {
         "start": {
@@ -926,53 +969,69 @@
             "type": "MOVE",
             "row": 5,
             "col": 1,
-            "time": 0
+            "time": 0,
+            "dx": 0,
+            "dy": 0
           },
           {
             "type": "WAIT_FOR_SECONDS",
             "row": 0,
             "col": 0,
-            "time": 70
+            "time": 70,
+            "dx": 0,
+            "dy": 0
           }
         ],
-        "motion": "WALK"
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
       }
     ],
     "spawns": [
       {
         "at": 0,
         "enemy": "enemy_1404_msnip",
-        "route": 5
+        "route": 5,
+        "fragment": 0
       },
       {
         "at": 6,
         "enemy": "enemy_3001_upeopl",
-        "route": 0
+        "route": 0,
+        "fragment": 0
       },
       {
         "at": 42,
         "enemy": "enemy_3001_upeopl",
-        "route": 1
+        "route": 1,
+        "fragment": 0
       },
       {
         "at": 60,
         "enemy": "enemy_3001_upeopl",
-        "route": 2
+        "route": 2,
+        "fragment": 0
       },
       {
         "at": 70,
         "enemy": "enemy_3001_upeopl",
-        "route": 3
+        "route": 3,
+        "fragment": 0
       },
       {
         "at": 75,
         "enemy": "enemy_3001_upeopl",
-        "route": 4
+        "route": 4,
+        "fragment": 0
       },
       {
         "at": 94,
         "enemy": "enemy_3001_upeopl",
-        "route": 3
+        "route": 3,
+        "fragment": 0
       }
     ]
   },
@@ -986,6 +1045,8 @@
       "moveSpeed": 0.7,
       "baseAttackTime": 3.5,
       "rangeRadius": -1,
+      "applyWay": "RANGED",
+      "motion": "WALK",
       "massLevel": 1,
       "levelType": "NORMAL"
     },
@@ -998,6 +1059,8 @@
       "moveSpeed": 0.65,
       "baseAttackTime": 0,
       "rangeRadius": 0,
+      "applyWay": "NONE",
+      "motion": "WALK",
       "massLevel": 1,
       "levelType": "NORMAL"
     }

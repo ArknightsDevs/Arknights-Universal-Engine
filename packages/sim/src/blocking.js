@@ -75,7 +75,7 @@ function takes(w, c, op, es) {
 export function tryBlock(w, c, e) {
   if (e.blockedBy >= 0) return true;
   const es = statsOf(e);
-  if (!blockable(es)) return false;
+  if (e.hidden || !blockable(es)) return false;
   const r2 = es.flying ? BLOCK_RADIUS_SQ.fly : BLOCK_RADIUS_SQ.ground;
   /** @type {Unit | null} */
   let best = null, bd = Infinity;
@@ -92,14 +92,14 @@ export function tryBlock(w, c, e) {
 }
 
 /**
- * Keeps an enemy blocked only while its blocker is on the field and can block and the enemy can be blocked; otherwise
- * releases it (阻挡-3).
+ * Keeps an enemy blocked only while its blocker is on the field and can block and the enemy can be blocked (and has not
+ * disappeared); otherwise releases it (阻挡-3).
  * @param {World} w @param {Unit} e
  */
 export function keepOrRelease(w, e) {
   if (e.blockedBy < 0) return;
   const op = w.units.find((u) => u.id === e.blockedBy);
-  if (!op || op.hp <= 0 || !canBlock(statsOf(op)) || !blockable(statsOf(e))) release(e);
+  if (!op || op.hp <= 0 || !canBlock(statsOf(op)) || e.hidden || !blockable(statsOf(e))) release(e);
 }
 
 /** A unit whose block count dropped below what it holds lets go of the latest blocked first (阻挡-3). @param {World} w @param {Unit} op */

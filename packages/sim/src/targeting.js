@@ -34,12 +34,13 @@ export const inKeys = (u, keys, grid) => bodyKeys(u, grid).some((k) => keys.has(
  */
 
 /**
- * Whether a unit can be selected by the other side (索敌-2): on the field, not 无法选中, not 隐匿, not asleep, not
- * camouflaged (unless the attack ignores 迷彩), not flying (unless the attack can hit flying units).
+ * Whether a unit can be selected by the other side (索敌-2): on the field and not disappeared (路线-4), not 无法选中,
+ * not 隐匿, not asleep, not camouflaged (unless the attack ignores 迷彩), not flying (unless the attack can hit flying
+ * units).
  * @param {Unit} u @param {Selector} [sel]
  */
 export function selectable(u, sel = {}) {
-  if (u.hp <= 0) return false;
+  if (u.hp <= 0 || u.hidden) return false;
   const s = statsOf(u), f = s.flags;
   if (f.untargetable || f.stealth || f.sleep) return false;
   if (f.camou && !sel.ignoreCamou) return false;

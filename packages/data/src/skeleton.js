@@ -16,6 +16,16 @@ function extractOptions(raw) {
 }
 
 /**
+ * { [key]: m_value } when the wrapper is defined (m_defined), else nothing: the attribute takes its default.
+ * @param {Record<string, unknown>} o @param {string} key @param {string} path path of o
+ * @returns {Record<string, number>}
+ */
+function definedNumber(o, key, path) {
+  const w = asObject(field(o, key, path), `${path}.${key}`);
+  return w.m_defined === true ? { [key]: wrappedNumber(o, key, path) } : {};
+}
+
+/**
  * One enemy at level 0.
  * @param {unknown} entry enemy_database entry
  * @param {string} key
@@ -37,6 +47,9 @@ function readEnemy(entry, key) {
     moveSpeed: wrappedNumber(at, 'moveSpeed', ap),
     baseAttackTime: wrappedNumber(at, 'baseAttackTime', ap),
     rangeRadius: wrappedNumber(data, 'rangeRadius', dp),
+    applyWay: asString(wrapped(data, 'applyWay', dp), `${dp}.applyWay.m_value`),
+    motion: asString(wrapped(data, 'motion', dp), `${dp}.motion.m_value`),
+    ...definedNumber(at, 'blockCnt', ap),
     massLevel: wrappedNumber(at, 'massLevel', ap),
     levelType: asString(wrapped(data, 'levelType', dp), `${dp}.levelType.m_value`),
   };
