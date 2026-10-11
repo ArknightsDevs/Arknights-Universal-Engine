@@ -4,7 +4,7 @@ import { asArray, asNumber, asObject, asString, field, wrapped, wrappedNumber } 
 import { extractRoutesAndSpawns, extractTiles } from './skeleton-world.js';
 
 export const SKELETON_OPERATORS = Object.freeze(['char_500_noirc', 'char_502_nblade', 'char_503_rang']);
-const OPTION_KEYS = ['maxLifePoint', 'initialCost', 'maxCost', 'costIncreaseTime', 'characterLimit'];
+const OPTION_KEYS = ['maxLifePoint', 'initialCost', 'maxCost', 'costIncreaseTime', 'characterLimit', 'moveMultiplier'];
 
 /**
  * @param {unknown} raw level.options

@@ -140,7 +140,7 @@ test('an operator takes the last keyframe of elite 0 and its range grids', () =>
   });
   assert.deepEqual(Object.keys(s), ['source', 'level', 'enemies', 'operators']);
   assert.deepEqual(s.source, { repo: 'Kengxxiao/ArknightsGameData', commit: 'abc', server: 'zh_CN' });
-  assert.deepEqual(s.level.options, { maxLifePoint: 3, initialCost: 10, maxCost: 99, costIncreaseTime: 1, characterLimit: 6 });
+  assert.deepEqual(s.level.options, { maxLifePoint: 3, initialCost: 10, maxCost: 99, costIncreaseTime: 1, characterLimit: 6, moveMultiplier: 0.5 });
 });
 
 test('the same input gives the same output', () => {

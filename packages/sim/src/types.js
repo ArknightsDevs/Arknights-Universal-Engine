@@ -5,7 +5,7 @@
 /** @typedef {{ type: string, row: number, col: number, time: number }} Checkpoint */
 /** @typedef {{ start: Cell, end: Cell, checkpoints: Checkpoint[], motion: string }} Route */
 /** @typedef {{ at: number, enemy: string, route: number }} Spawn */
-/** @typedef {{ maxLifePoint: number, initialCost: number, maxCost: number, costIncreaseTime: number, characterLimit: number }} LevelOptions */
+/** @typedef {{ maxLifePoint: number, initialCost: number, maxCost: number, costIncreaseTime: number, characterLimit: number, moveMultiplier: number }} LevelOptions */
 /** @typedef {import('./level.js').LevelMap & { id: string, options: LevelOptions, routes: Route[], spawns: Spawn[] }} Level */
 /** @typedef {{ name: string, maxHp: number, atk: number, def: number, res: number, moveSpeed: number }} EnemyDef */
 /** @typedef {{ name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number, range: Cell[] }} OperatorDef */

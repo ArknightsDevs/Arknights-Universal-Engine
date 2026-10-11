@@ -1,4 +1,4 @@
-// Creating units from content (spec 部署-1, 出怪-1).
+// Creating units from content (spec 部署-1, 出怪-1, 移动-1).
 import { FPS, secondsToFrames } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { tileAt } from './level.js';
@@ -31,6 +31,6 @@ export function makeEnemy(w, c, e) {
   return {
     id: w.nextId++, kind: KIND.ENEMY, key: e.key, owner: -1, x: start.col, y: start.row, z: heightLevel(tileAt(c.level, start.row, start.col)),
     dir: 0, hp: d.maxHp, maxHp: d.maxHp, atk: d.atk, def: d.def, atkInterval: 0, atkCd: 0,
-    route: e.route, leg: 0, speed: d.moveSpeed / FPS, anim: ANIM.MOVE,
+    route: e.route, leg: 0, speed: (d.moveSpeed * c.level.options.moveMultiplier) / FPS, anim: ANIM.MOVE,
   };
 }

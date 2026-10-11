@@ -13,7 +13,8 @@
       "initialCost": 10,
       "maxCost": 99,
       "costIncreaseTime": 1,
-      "characterLimit": 6
+      "characterLimit": 6,
+      "moveMultiplier": 0.5
     },
     "tiles": [
       [

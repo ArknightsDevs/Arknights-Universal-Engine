@@ -3,8 +3,8 @@
     "id": "INF-0001",
     "clause": "时间-1",
     "statement": "战斗模拟每秒 30 帧。",
-    "basis": "Stronghold Protocol（docs/SIM.md：TICK = 1/30）和争锋频道的复刻都按每秒 30 帧实现，合作模式的 0.3 秒操作延迟也正好是整数帧（9 帧）。还没有找到官方或 PRTS 的明文。",
-    "status": "待查证"
+    "basis": "Stronghold Protocol（docs/SIM.md：TICK = 1/30）和争锋频道的复刻都按每秒 30 帧实现，合作模式的 0.3 秒操作延迟也正好是整数帧（9 帧）。还没有找到官方或 PRTS 的明文。 已证实：PRTS「游戏数据基础」oldid=440563「战斗计时每游戏帧更新一次（+0.033）」。",
+    "status": "已证实"
   },
   {
     "id": "INF-0002",
@@ -17,14 +17,14 @@
     "id": "INF-0003",
     "clause": "伤害-2",
     "statement": "一次物理伤害至少为攻击力的 5%。",
-    "basis": "Stronghold Protocol 按 5% 保底实现（server/sim/damage.js 的 MIN_DAMAGE_RATIO）；PRTS「伤害分类」只给出了基础公式，保底比例的明文还没找到。",
-    "status": "待查证"
+    "basis": "Stronghold Protocol 按 5% 保底实现（server/sim/damage.js 的 MIN_DAMAGE_RATIO）；PRTS「伤害分类」只给出了基础公式，保底比例的明文还没找到。 已证实：PRTS「游戏数据基础」oldid=440563 的伤害公式取 max(…, 0.05 × A)。",
+    "status": "已证实"
   },
   {
     "id": "INF-0004",
     "clause": "移动-1",
-    "statement": "敌人在检查点之间走直线，moveSpeed 的单位是每秒格数；等待类检查点忽略。",
-    "basis": "骨架的简化。官方敌人在检查点之间按寻路走格子（level.routes[].allowDiagonalMove 等字段），moveSpeed 与格数/秒的换算、关卡 moveMultiplier 都还没核实；M3 用官方寻路替换。",
+    "statement": "骨架里敌人在检查点之间走直线，等待类检查点忽略。（速度已按 PRTS 改为 moveSpeed × moveMultiplier，不再属于推断。）",
+    "basis": "骨架的简化。官方敌人在检查点之间按寻路走格子（level.routes[].allowDiagonalMove 等字段）；M3 用官方寻路替换。原先把 moveSpeed 当作每秒格数，与 PRTS「游戏数据基础」oldid=440563 不符（实际速度为 moveSpeed × move_multiplier，默认 0.5），已修正。",
     "status": "待查证"
   },
   {

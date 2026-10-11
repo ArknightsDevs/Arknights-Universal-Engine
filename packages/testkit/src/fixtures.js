@@ -14,7 +14,7 @@ export function tinyContent() {
   return {
     level: {
       id: 'tiny', width: 6, height: 3,
-      options: { maxLifePoint: 3, initialCost: 10, maxCost: 12, costIncreaseTime: 1, characterLimit: 2 },
+      options: { maxLifePoint: 3, initialCost: 10, maxCost: 12, costIncreaseTime: 1, characterLimit: 2, moveMultiplier: 1 },
       tiles: [[F, F, W, W, F, F], [R, R, R, R, R, E], [S, F, W, W, F, F]],
       routes: [{ start: { row: 2, col: 0 }, end: { row: 1, col: 5 }, motion: 'WALK',
         checkpoints: [{ type: 'MOVE', row: 1, col: 0, time: 0 }, { type: 'WAIT_FOR_SECONDS', row: 0, col: 0, time: 3 }] }],
