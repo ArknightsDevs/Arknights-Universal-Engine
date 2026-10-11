@@ -57,3 +57,4 @@ export { skillDefOf, skillBehaviors } from './skills.js';
 export { BRANCHES, coveredBranch, withTrait } from './traits.js';
 export { LEVELS, levelAt } from './levels.js';
 export { foeBehaviors, withFoeExtras, FOE_EXTRAS } from './foes.js';
+export { ROSTER, rosterSource, loadTraining, operatorAt } from './operators.js';
