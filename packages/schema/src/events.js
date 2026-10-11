@@ -1,5 +1,5 @@
 // Presentation events, version 4 (ADR 0053; version 2 adds a skill starting or ending, version 3 an element burst, version 4 a heal, version 5 a projectile launched, version 6 a player down and back, version 7 a cost request and its answer, version 8 a wave beginning, a predefined unit coming
-// into effect or leaving, and the end of the battle): what happened in a frame, for the renderer and the sound. They flow from
+// into effect or leaving, a co-op stage beginning and settled, and the end of the battle): what happened in a frame, for the renderer and the sound. They flow from
 // the simulation to the screen only; the simulation never reads them back.
 
 export const EVENTS_VERSION = 8;
@@ -24,6 +24,7 @@ export const EVENT_FIELDS = Object.freeze({
   wave: Object.freeze(['index']),
   predefine: Object.freeze(['key', 'on']),
   end: Object.freeze(['result']),
+  stage: Object.freeze(['index', 'on', 'stamps']),
 });
 
 /** @typedef {{ type: keyof typeof EVENT_FIELDS, [field: string]: string | number }} PresentationEvent */

@@ -41,7 +41,7 @@ export function targetsOf(w, c, op) {
   const keys = rangeKeys(grid, op, d.range, statsOf(op).rangeExtend);
   if (t.heal) return sortHealTargets(w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !statsOf(u).flags.healFree && inKeys(u, keys, grid)));
   const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id;
-  const cands = w.units.filter((u) => u.kind === KIND.ENEMY
+  const cands = w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true
     && ((held(u) && selectable(u, { canHitFly: true })) || (selectable(u, { canHitFly: t.antiAir }) && inKeys(u, keys, grid))));
   return sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary });
 }
@@ -164,16 +164,17 @@ export function shotsFly(w, c) {
 }
 
 /**
- * Who an enemy can attack (敌人攻击-1): a melee enemy only the unit blocking it; a ranged one every selectable
- * operator whose collider (radius 0.25) its attack radius reaches — distance ≤ radius + 0.25 — and the unit blocking
- * it in any case.
+ * Who an enemy can attack (敌人攻击-1, 合作-9): a melee enemy only the unit blocking it; a ranged one every selectable
+ * operator or neutral unit whose collider (radius 0.25) its attack radius reaches — distance ≤ radius + 0.25 — and
+ * the unit blocking it in any case.
  * @param {World} w @param {Unit} e @returns {Unit[]}
  */
 export function enemyTargets(w, e) {
   const blocker = e.blockedBy >= 0 ? w.units.find((u) => u.id === e.blockedBy) ?? null : null;
   if (e.base.applyWay === 'MELEE' || !(e.base.rangeRadius > 0)) return blocker ? [blocker] : [];
   const reach = e.base.rangeRadius + ALLY_COLLIDER_RADIUS, r2 = reach * reach;
-  const out = w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && (u === blocker || selectable(u))
+  const side = (/** @type {Unit} */ u) => u.kind === KIND.OPERATOR || (u.kind === KIND.ENEMY && u.base.neutral === true && u !== e);
+  const out = w.units.filter((u) => side(u) && u.hp > 0 && (u === blocker || selectable(u))
     && (u.x - e.x) * (u.x - e.x) + (u.y - e.y) * (u.y - e.y) <= r2);
   if (blocker && !out.includes(blocker)) out.push(blocker);
   return out;

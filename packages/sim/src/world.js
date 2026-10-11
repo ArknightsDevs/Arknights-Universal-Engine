@@ -6,11 +6,12 @@ import { seedState } from './rng.js';
 import { hashNumbers, HASH_START } from './hash.js';
 import { enemiesAct } from './enemies.js';
 import { newSchedule, visiblePredefines, tickWaves, checkEnd } from './waves.js';
+import { newStageState, tickStage, stageCount } from './stage.js';
 import { releaseAll } from './blocking.js';
 import { operatorsAttack, shotsFly } from './combat.js';
 import { applyCommand } from './commands.js';
 import { leaveField } from './deck.js';
-import { tickRevival, tickRequests } from './coop.js';
+import { tickRevival, tickRequests, neutralDown } from './coop.js';
 import { tickBuffs } from './buffs.js';
 import { STATUS_BEHAVIORS } from './status.js';
 import { BURST_BEHAVIORS } from './elements.js';
@@ -25,7 +26,7 @@ import { BURST_BEHAVIORS } from './elements.js';
 export function createWorld(c, o) {
   const { initialCost, maxLifePoint, costIncreaseTime } = c.level.options;
   return {
-    frame: 0, rng: seedState(o.seed), nextId: 1, sched: newSchedule(), predefined: visiblePredefines(c), result: -1, bornThisFrame: 0, units: [], shots: [],
+    frame: 0, rng: seedState(o.seed), nextId: 1, sched: newSchedule(), predefined: visiblePredefines(c), result: -1, stage: newStageState(), bornThisFrame: 0, units: [], shots: [],
     events: [],
     players: Array.from({ length: o.players }, () => ({ life: maxLifePoint, cost: initialCost, costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {}, revive: -1, downs: 0, ask: -1, askCd: 0 })),
   };
@@ -52,6 +53,8 @@ function removeDead(w, c) {
     if (u.hp > 0) continue;
     u.anim = ANIM.DIE;
     if (!reachedGoal.has(u.id)) w.events.push({ type: 'death', id: u.id });
+    if (!reachedGoal.has(u.id) && u.kind === KIND.ENEMY && u.base.neutral === true) neutralDown(w, c, u);
+    stageCount(w, c, u, reachedGoal.has(u.id));
     releaseAll(w, u.id);
     if (u.kind === KIND.OPERATOR) leaveField(w, c, u, false);
   }
@@ -76,6 +79,7 @@ export function step(w, c, commands = []) {
   gainCost(w, c);
   tickRevival(w, c);
   tickRequests(w);
+  tickStage(w, c);
   tickWaves(w, c);
   tickBuffs(w, buffBehaviors(c));
   enemiesAct(w, c);
@@ -114,13 +118,13 @@ function pushText(out, tag, s) {
 
 /**
  * The state hash (spec 同步-1): the frame, the random state, the id counter, the waves' progress, the predefined units in
- * effect, the result, the players, the units and the projectiles, all of their data.
+ * effect, the result, the co-op stages, the players, the units and the projectiles, all of their data.
  * @param {World} w @returns {number}
  */
 export function stateHash(w) {
   /** @type {number[]} */
   const nums = [];
-  pushValue(nums, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, players: w.players, units: w.units, shots: w.shots });
+  pushValue(nums, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, stage: w.stage, players: w.players, units: w.units, shots: w.shots });
   return hashNumbers(HASH_START, nums);
 }
 

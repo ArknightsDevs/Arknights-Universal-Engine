@@ -55,12 +55,45 @@ function goDown(w, seat) {
 }
 
 /**
- * An enemy reaches the goal at the end of its route (合作-1…合作-3): a 共同敌手 costs every player a life; otherwise
- * each seat the goal belongs to loses one — but a seat already down passes it to the mate, and its countdown starts
- * over. Returns the seats that lost a life.
+ * A neutral unit knocked down (合作-9): the seats its route's goal belongs to lose the lives its data says.
+ * @param {World} w @param {Content} c @param {Unit} u
+ */
+export function neutralDown(w, c, u) {
+  const n = u.base.deathLife;
+  if (n <= 0) return;
+  for (const s of goalSeats(c, w.players.length, c.level.routes[u.route].end)) loseLife(w, s, n);
+}
+
+/**
+ * A player loses all their life at once and goes down (合作-6), unless already down.
+ * @param {World} w @param {number} seat
+ */
+export function loseAll(w, seat) {
+  if (isDown(w.players[seat])) return;
+  w.players[seat].life = 0;
+  goDown(w, seat);
+}
+
+/**
+ * A down player comes back (合作-4, 合作-8): life full, their operators in play again.
+ * @param {World} w @param {Content} c @param {number} seat
+ */
+export function comeBack(w, c, seat) {
+  const p = w.players[seat];
+  p.revive = -1;
+  p.life = c.level.options.maxLifePoint;
+  for (const u of w.units) if (u.kind === KIND.OPERATOR && u.owner === seat) removeBuff(u, 'sidelined');
+  w.events.push({ type: 'revive', owner: seat });
+}
+
+/**
+ * An enemy reaches the goal at the end of its route (合作-1…合作-3, 目标-1): one that is unharmful costs nothing; a
+ * 共同敌手 costs every player a life; otherwise each seat the goal belongs to loses one — but a seat already down passes
+ * it to the mate, and its countdown starts over. Returns the seats that lost a life.
  * @param {World} w @param {Content} c @param {Unit} e @returns {number[]}
  */
 export function enemyAtGoal(w, c, e) {
+  if (e.unharmful) return [];
   const n = w.players.length, seats = goalSeats(c, n, c.level.routes[e.route].end);
   /** @type {number[]} */
   const hit = [];
@@ -86,11 +119,7 @@ export function enemyAtGoal(w, c, e) {
  */
 export function tickRevival(w, c) {
   w.players.forEach((p, seat) => {
-    if (!isDown(p) || --p.revive > 0) return;
-    p.revive = -1;
-    p.life = c.level.options.maxLifePoint;
-    for (const u of w.units) if (u.kind === KIND.OPERATOR && u.owner === seat) removeBuff(u, 'sidelined');
-    w.events.push({ type: 'revive', owner: seat });
+    if (isDown(p) && --p.revive <= 0) comeBack(w, c, seat);
   });
 }
 

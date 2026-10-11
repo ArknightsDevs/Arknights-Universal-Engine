@@ -1008,6 +1008,7 @@
                 "count": 1,
                 "preDelay": 6,
                 "interval": 69,
+                "unharmful": true,
                 "group": "g1",
                 "pack": "a1",
                 "weight": 33
@@ -1019,6 +1020,7 @@
                 "count": 1,
                 "preDelay": 42,
                 "interval": 30,
+                "unharmful": true,
                 "pack": "a1"
               },
               {
@@ -1028,6 +1030,7 @@
                 "count": 1,
                 "preDelay": 60,
                 "interval": 2,
+                "unharmful": true,
                 "pack": "a1"
               },
               {
@@ -1037,6 +1040,7 @@
                 "count": 2,
                 "preDelay": 70,
                 "interval": 24,
+                "unharmful": true,
                 "pack": "a1"
               },
               {
@@ -1046,6 +1050,7 @@
                 "count": 1,
                 "preDelay": 75,
                 "interval": 30,
+                "unharmful": true,
                 "hidden": "normal",
                 "pack": "a1"
               },
@@ -1095,7 +1100,9 @@
       "applyWay": "NONE",
       "motion": "WALK",
       "massLevel": 1,
-      "levelType": "NORMAL"
+      "levelType": "NORMAL",
+      "neutral": true,
+      "deathLife": 1
     }
   },
   "operators": {

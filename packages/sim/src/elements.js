@@ -71,7 +71,7 @@ export function epTaken(amount, s) {
 export function dealEp(w, u, el, amount) {
   if (u.hp <= 0 || !(amount > 0)) return 0;
   const s = statsOf(u);
-  if (s.invincible || u.hidden || s.flags.epImmune || bursting(u)) return 0;
+  if (s.invincible || u.hidden || s.flags.epImmune || u.base.neutral === true || bursting(u)) return 0;
   const taken = epTaken(amount, s), left = epOf(u, el) - taken;
   u.ep[el] = Math.max(0, left);
   if (left <= 0) burst(w, u, el);

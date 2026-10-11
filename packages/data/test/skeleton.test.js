@@ -54,6 +54,22 @@ const enemy = (/** @type {string} */ key, /** @type {string} */ name) => ({
 
 const makeEnemyDb = () => ({ enemies: [enemy('e_a', 'Alpha'), enemy('e_b', 'Beta'), enemy('e_x', 'Unused')] });
 
+test('[合作-9] an enemy in the neutral table is neutral; its talent dead.value gives the lives it costs when knocked down', async () => {
+  const { NEUTRAL_ENEMIES } = await import('../src/index.js');
+  assert.ok(Object.values(NEUTRAL_ENEMIES).every((v) => /^https:\/\/prts\.wiki\/.*oldid=\d+ 阵营=中立$/.test(v)), 'each with its citation');
+  const db = makeEnemyDb();
+  const civ = enemy('enemy_3001_upeopl', 'Civ');
+  /** @type {any} */ (civ.Value[0].enemyData).talentBlackboard = [{ key: 'dead.value', value: -1, valueStr: null }];
+  db.enemies.push(civ);
+  const level = makeLevel();
+  level.waves[1].fragments[1].actions[0].key = 'enemy_3001_upeopl';
+  const s = run({ level, enemyDb: db });
+  assert.deepEqual([s.enemies.enemy_3001_upeopl.neutral, s.enemies.enemy_3001_upeopl.deathLife], [true, 1]);
+  assert.equal(s.enemies.e_a.neutral, undefined);
+  /** @type {any} */ (civ.Value[0].enemyData).talentBlackboard = null;
+  assert.deepEqual([run({ level, enemyDb: db }).enemies.enemy_3001_upeopl.deathLife], [undefined], 'no talent: costs nothing');
+});
+
 const makeCharacters = () => ({
   char_500_noirc: {
     name: 'Noir', position: 'MELEE', profession: 'TANK', subProfessionId: 'protector', trait: null, skills: [],

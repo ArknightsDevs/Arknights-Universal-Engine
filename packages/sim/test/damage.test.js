@@ -10,6 +10,7 @@ import { makeBuff } from '../src/buffs.js';
 import { applyStatus } from '../src/status.js';
 import { seedState } from '../src/rng.js';
 import { newSchedule } from '../src/waves.js';
+import { newStageState } from '../src/stage.js';
 
 const SEED = 20261011;
 /** @type {any} */
@@ -28,7 +29,7 @@ function mk(id, base = {}) {
     atkCd: 0, blockedBy: -1, blockedAt: -1, born: 0, bornN: id, route: -1, leg: 0, path: [], pt: 0, wait: -1, hidden: false, frag: 0, wave: -1, skill: null, ep: {}, paid: 0, swing: null, anim: 0 };
 }
 /** @param {number} [seed] @returns {World} */
-const world = (seed = 1) => ({ frame: 0, rng: seedState(seed), nextId: 9, players: [], units: [], sched: newSchedule(), predefined: [], result: -1, bornThisFrame: 0, shots: [], events: [] });
+const world = (seed = 1) => ({ frame: 0, rng: seedState(seed), nextId: 9, players: [], units: [], sched: newSchedule(), predefined: [], result: -1, stage: newStageState(), bornThisFrame: 0, shots: [], events: [] });
 
 const amount = fc.double({ min: 0, max: 1e5, noNaN: true });
 const defence = fc.double({ min: 0, max: 5000, noNaN: true });

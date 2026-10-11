@@ -84,6 +84,7 @@
   ],
   "frag": [],
   "wave": [],
+  "unharmful": [],
   "skill": [],
   "sp": [
     "packages/sim/src/sp.js"

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { loadOracle } from '@aue/testkit';
 import { KIND } from '@aue/schema';
 import { newSchedule } from '../src/waves.js';
+import { newStageState } from '../src/stage.js';
 import { makeBuff, addBuff, removeBuff, tickUnitBuffs, tickBuffs, decayRate } from '../src/buffs.js';
 import { STATUS, applyStatus, statusBuff } from '../src/status.js';
 import { statsOf, activeBuffs } from '../src/attrs.js';
@@ -26,7 +27,7 @@ function mk(id, base = {}, kind = KIND.ENEMY) {
     atkCd: 0, blockedBy: -1, blockedAt: -1, born: 0, bornN: id, route: -1, leg: 0, path: [], pt: 0, wait: -1, hidden: false, frag: 0, wave: -1, skill: null, ep: {}, paid: 0, swing: null, anim: 0 };
 }
 /** @param {Unit[]} units @returns {World} */
-const world = (units) => ({ frame: 0, rng: 1, nextId: 9, players: [], units, sched: newSchedule(), predefined: [], result: -1, bornThisFrame: 0, shots: [], events: [] });
+const world = (units) => ({ frame: 0, rng: 1, nextId: 9, players: [], units, sched: newSchedule(), predefined: [], result: -1, stage: newStageState(), bornThisFrame: 0, shots: [], events: [] });
 /** Frames until the unit has no buff of the key, at most `max`. @param {Unit} u @param {string} key @param {Record<string, Behavior>} [beh] */
 function framesUntilGone(u, key, beh = {}, max = 10000) {
   const w = world([u]);

@@ -7,6 +7,7 @@ import { KIND } from '@aue/schema';
 import { makeEnemy } from './units.js';
 import { isDown } from './coop.js';
 import { weightedPick } from './rng.js';
+import { stageOf, startStage, resting } from './stage.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Wave} Wave @typedef {import('./types.js').WaveAction} WaveAction @typedef {import('./types.js').Schedule} Schedule */
@@ -75,12 +76,13 @@ function beginWave(w, c, at) {
  */
 function act(w, c, a, fragAt, wave) {
   if (a.type === 'SPAWN') {
-    const u = makeEnemy(w, c, { key: a.key, route: a.route, frag: fragAt, wave: a.dontBlockWave ? -1 : wave });
+    const u = makeEnemy(w, c, { key: a.key, route: a.route, frag: fragAt, wave: a.dontBlockWave ? -1 : wave, unharmful: a.unharmful });
     w.units.push(u);
     w.events.push({ type: 'spawn', id: u.id, key: u.key });
   } else if (a.type === 'ACTIVATE' && !w.predefined.includes(a.key)) {
     w.predefined.push(a.key);
     w.events.push({ type: 'predefine', key: a.key, on: 1 });
+    if (stageOf(c, a.key) >= 0) startStage(w, c, stageOf(c, a.key));
   } else if (a.type === 'WITHDRAW' && w.predefined.includes(a.key)) {
     w.predefined = w.predefined.filter((k) => k !== a.key);
     w.events.push({ type: 'predefine', key: a.key, on: 0 });
@@ -137,6 +139,7 @@ function advance(w, c) {
     return true;
   }
   if (s.step === 'frags') return runFragment(w, c, wave);
+  if (resting(w)) return false;
   const timeUp = wave.maxWait >= 0 && w.frame >= s.at + frames(wave.maxWait);
   if (waiting(w) && !timeUp) return false;
   w.sched = { ...s, step: 'post', at: timeUp && waiting(w) ? s.at + frames(wave.maxWait) : w.frame };
@@ -149,14 +152,16 @@ export function tickWaves(w, c) {
 }
 
 /**
- * Whether the battle has ended (结束-1), checked at the end of a frame: lost when every player is down, won when the
- * level's waves are all over. The first result stands.
+ * Whether the battle has ended (结束-1), checked at the end of a frame: lost when every player is down; won when the
+ * last co-op stage has passed or, in a level without stages, when the level's waves are all over. The first result
+ * stands.
  * @param {World} w @param {Content} c
  */
 export function checkEnd(w, c) {
   if (w.result >= 0) return;
+  const stages = c.level.stages ?? [];
   const lost = w.players.length > 0 && w.players.every(isDown);
-  const won = c.level.waves.length > 0 && w.sched.step === 'done';
+  const won = stages.length > 0 ? w.stage.passed === stages.length : c.level.waves.length > 0 && w.sched.step === 'done';
   if (!lost && !won) return;
   w.result = lost ? 0 : 1;
   w.events.push({ type: 'end', result: w.result });

@@ -36,6 +36,7 @@ export function baseOf(d) {
     moveSpeed: opt('moveSpeed'), tauntLevel: opt('tauntLevel'), massLevel: opt('massLevel'), epDamageResistance: opt('epDamageResistance'),
     epResistance: opt('epResistance'), motion: opt('motion'), immune: [...(d.immune ?? [])], dmgType: opt('dmgType'),
     rangeRadius: opt('rangeRadius'), applyWay: opt('applyWay'), maxEp: maxEpOf(r), shared: r.shared === true,
+    levelType: r.levelType ?? 'NORMAL', neutral: r.neutral === true, deathLife: r.deathLife ?? 0,
   };
 }
 
@@ -62,14 +63,15 @@ export function makeOperator(w, c, o) {
 
 /**
  * An enemy at the start of its route (spec 出怪-1): the centre of the start tile, moved by the route's spawn offset.
- * `frag` is the frame its fragment began (路线-1), `wave` the wave that waits for it (波次-3; −1 for none).
- * @param {World} w @param {Content} c @param {{ key: string, route: number, frag?: number, wave?: number }} e @returns {Unit}
+ * `frag` is the frame its fragment began (路线-1), `wave` the wave that waits for it (波次-3; −1 for none), `unharmful`
+ * whether it costs no life at the goal (目标-1).
+ * @param {World} w @param {Content} c @param {{ key: string, route: number, frag?: number, wave?: number, unharmful?: boolean }} e @returns {Unit}
  */
 export function makeEnemy(w, c, e) {
   const r = c.level.routes[e.route], start = r.start, off = r.spawnOffset ?? { x: 0, y: 0 };
   return {
     id: w.nextId++, kind: KIND.ENEMY, key: e.key, owner: -1, x: start.col + off.x, y: start.row + off.y,
     z: heightLevel(tileAt(c.level, start.row, start.col)), dir: DEFAULT_DIR, ...fresh(w, baseOf(c.enemies[e.key])), route: e.route, leg: 0,
-    frag: e.frag ?? w.frame, wave: e.wave ?? -1, anim: ANIM.MOVE, paid: 0,
+    frag: e.frag ?? w.frame, wave: e.wave ?? -1, ...(e.unharmful ? { unharmful: true } : {}), anim: ANIM.MOVE, paid: 0,
   };
 }

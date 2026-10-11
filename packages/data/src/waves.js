@@ -1,9 +1,13 @@
-// A level's waves, hidden groups and predefined units as the engine's (docs/spec/waves.md 波次-1, 波次-4, 波次-6).
+// A level's waves, hidden groups, predefined units and co-op stages as the engine's (docs/spec/waves.md 波次-1, 波次-4,
+// 波次-6; coop.md 合作-6, 合作-7).
 import { asArray, asInt, asNumber, asObject, asString, field } from './validate.js';
 
 /**
  * @typedef {{ type: 'SPAWN' | 'ACTIVATE' | 'WITHDRAW' | 'NONE', key: string, route: number, count: number, preDelay: number, interval: number,
- *   dontBlockWave?: boolean, hidden?: string, group?: string, pack?: string, weight?: number }} WaveAction
+ *   dontBlockWave?: boolean, hidden?: string, group?: string, pack?: string, weight?: number, unharmful?: boolean }} WaveAction
+ */
+/**
+ * @typedef {{ alias: string, objective: string, goal: number, advanced?: number, time: number, rest: number, enemy?: string, hpMax?: number }} Stage
  */
 /** @typedef {{ preDelay: number, actions: WaveAction[] }} Fragment */
 /** @typedef {{ preDelay: number, postDelay: number, maxWait: number, fragments: Fragment[] }} Wave */
@@ -40,6 +44,7 @@ export function readAction(raw, p, routeOf) {
     interval: asNumber(a.interval ?? 0, `${p}.interval`, 0, 1e6),
   };
   if (a.dontBlockWave === true) out.dontBlockWave = true;
+  if (a.isUnharmfulAndAlwaysCountAsKilled === true) out.unharmful = true;
   const hidden = optString(a.hiddenGroup, `${p}.hiddenGroup`), group = optString(a.randomSpawnGroupKey, `${p}.randomSpawnGroupKey`);
   const pack = optString(a.randomSpawnGroupPackKey, `${p}.randomSpawnGroupPackKey`);
   if (hidden) out.hidden = hidden;
@@ -112,3 +117,62 @@ export function predefinesOf(raw) {
     return [{ alias: asString(o.alias, `${p}.alias`), key: asString(field(asObject(field(o, 'inst', p), `${p}.inst`), 'characterKey', `${p}.inst`), `${p}.inst.characterKey`), hidden: o.hidden === true }];
   }));
 }
+
+/** The co-op stage controller (合作-6). */
+const STAGE_CONTROLLER = 'trap_179_muctrl';
+
+/**
+ * The objectives (合作-7): the blackboard keys of the minimum and advanced targets and of the time limit.
+ * @type {Readonly<Record<string, { goal: string, advanced?: string, enemy?: boolean }>>}
+ */
+const OBJECTIVES = Object.freeze({
+  protect: { goal: 'protect_y1', advanced: 'protect_y2' },
+  target: { goal: 'kill_y1', advanced: 'kill_y2', enemy: true },
+  kill: { goal: 'cnt_y1', advanced: 'cnt_y2' },
+  tower: { goal: 'tower_y1', advanced: 'tower_y2' },
+  car: { goal: 'distance_y1' },
+});
+
+/**
+ * One stage from its controller's blackboard (合作-6, 合作-7). The first stage (`basic`) has no advanced target; 生存's
+ * targets are its times and its limit the longer; 突击's are fractions of `hp_max`, its advanced target all of it.
+ * @param {string} alias @param {Record<string, number | string>} bb @param {string} p @returns {Stage}
+ */
+function readStage(alias, bb, p) {
+  const num = (/** @type {string} */ k) => asNumber(field(bb, k, p), `${p}.${k}`, 0, 1e9);
+  const objective = asString(field(bb, 'ability_name', p), `${p}.ability_name`), basic = bb.basic === 1, rest = bb.rest_time === undefined ? 0 : num('rest_time');
+  if (objective === 'survive') {
+    const x1 = num('time_x1'), x2 = num('time_x2');
+    return { alias, objective, goal: x1, ...(!basic && x2 > x1 ? { advanced: x2 } : {}), time: Math.max(x1, x2), rest };
+  }
+  if (objective === 'boss') {
+    const x = num('hp_x1');
+    return { alias, objective, goal: x, ...(!basic && x < 1 ? { advanced: 1 } : {}), time: num('time_x'), rest, hpMax: num('hp_max') };
+  }
+  const o = OBJECTIVES[objective];
+  if (!o) throw new RangeError(`${p}: unknown stage objective ${objective}`);
+  return {
+    alias, objective, goal: num(o.goal), ...(!basic && o.advanced && bb[o.advanced] !== undefined ? { advanced: num(o.advanced) } : {}),
+    time: num('time_x'), rest, ...(o.enemy ? { enemy: asString(field(bb, 'enemy_key', p), `${p}.enemy_key`) } : {}),
+  };
+}
+
+/**
+ * A level's co-op stages (合作-6): its stage controllers among the predefined units, in order, read from their
+ * blackboards.
+ * @param {unknown} raw level.predefines @returns {Stage[]}
+ */
+export function stagesOf(raw) {
+  if (raw === null || raw === undefined) return [];
+  const pd = asObject(raw, 'level.predefines');
+  return ['characterInsts', 'tokenInsts'].flatMap((k) => (Array.isArray(pd[k]) ? pd[k] : []).flatMap((x, i) => {
+    const p = `level.predefines.${k}[${i}]`, o = asObject(x, p);
+    if (asObject(field(o, 'inst', p), `${p}.inst`).characterKey !== STAGE_CONTROLLER) return [];
+    const bb = Object.fromEntries(asArray(field(o, 'overrideSkillBlackboard', p), `${p}.overrideSkillBlackboard`).map((b, j) => {
+      const e = asObject(b, `${p}.overrideSkillBlackboard[${j}]`);
+      return [asString(e.key, `${p}.overrideSkillBlackboard[${j}].key`), /** @type {number | string} */ (e.valueStr ?? e.value)];
+    }));
+    return [readStage(asString(field(o, 'alias', p), `${p}.alias`), bb, `${p}.overrideSkillBlackboard`)];
+  }));
+}
+

@@ -4,6 +4,7 @@
 import { asArray, asNumber, asObject, asString, field, wrapped, wrappedNumber } from './validate.js';
 import { extractRoutesAndWaves, extractTiles } from './skeleton-world.js';
 import { hiddenGroupsOf } from './waves.js';
+import { NEUTRAL_ENEMIES } from './neutral.js';
 
 export const SKELETON_OPERATORS = Object.freeze(['char_500_noirc', 'char_502_nblade', 'char_503_rang', 'char_122_beagle']);
 /** The skill level an operator reaches at elite 0 (技能-1): level 4, levels[3]. */
@@ -54,7 +55,7 @@ function immunities(at, path) {
  * One enemy at level 0.
  * @param {unknown} entry enemy_database entry
  * @param {string} key
- * @returns {Record<string, string | number | string[]>}
+ * @returns {Record<string, string | number | boolean | string[]>}
  */
 function readEnemy(entry, key) {
   const p = `enemyDb[${key}]`;
@@ -80,7 +81,21 @@ function readEnemy(entry, key) {
     ...definedNumber(at, 'epDamageResistance', ap),
     ...definedNumber(at, 'epResistance', ap),
     ...immunities(at, ap),
+    ...neutralOf(key, data, dp),
   };
+}
+
+/**
+ * Whether an enemy is neutral, and the lives it costs when knocked down (合作-9): from the neutral enemies table and its
+ * talent `dead.value`.
+ * @param {string} key @param {Record<string, unknown>} data @param {string} dp @returns {{ neutral?: true, deathLife?: number }}
+ */
+function neutralOf(key, data, dp) {
+  if (!Object.hasOwn(NEUTRAL_ENEMIES, key)) return {};
+  const talents = Array.isArray(data.talentBlackboard) ? data.talentBlackboard : [];
+  const dead = talents.map((t, i) => asObject(t, `${dp}.talentBlackboard[${i}]`)).find((t) => t.key === 'dead.value');
+  const value = dead ? asNumber(dead.value, `${dp}.talentBlackboard.dead.value`, -1e6, 1e6) : 0;
+  return { neutral: true, ...(value < 0 ? { deathLife: -value } : {}) };
 }
 
 /**
@@ -105,7 +120,7 @@ export function sharedEnemies(runesRaw) {
  * The enemies used, level 0 of their enemy_database entry.
  * @param {unknown} dbRaw enemy_database.json
  * @param {string[]} keys
- * @returns {Record<string, Record<string, string | number | string[]>>}
+ * @returns {Record<string, Record<string, string | number | boolean | string[]>>}
  */
 function extractEnemies(dbRaw, keys) {
   const list = asArray(field(asObject(dbRaw, 'enemyDb'), 'enemies', 'enemyDb'), 'enemyDb.enemies');

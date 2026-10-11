@@ -12,21 +12,29 @@
  * One action of a fragment (波次-1): SPAWN an enemy `key` on `route`; ACTIVATE or WITHDRAW the predefined unit whose
  * alias is `key`; NONE does nothing. Its i-th of `count` times comes `preDelay + i × interval` seconds after its
  * fragment starts (波次-2). `dontBlockWave`: its enemies need not be handled for the wave to end (波次-3); `hidden`:
- * its hidden group (波次-4); `group`, `pack`, `weight`: random alternatives (波次-5).
+ * its hidden group (波次-4); `group`, `pack`, `weight`: random alternatives (波次-5); `unharmful`: its enemies cost no life
+ * at the goal (目标-1).
  * @typedef {{ type: 'SPAWN' | 'ACTIVATE' | 'WITHDRAW' | 'NONE', key: string, route: number, count: number, preDelay: number, interval: number,
- *   dontBlockWave?: boolean, hidden?: string, group?: string, pack?: string, weight?: number }} WaveAction
+ *   dontBlockWave?: boolean, hidden?: string, group?: string, pack?: string, weight?: number, unharmful?: boolean }} WaveAction
  */
 /** A fragment (波次-1, 波次-2). @typedef {{ preDelay: number, actions: WaveAction[] }} Fragment */
 /** A wave (波次-1…波次-3); `maxWait` is maxTimeWaitingForNextWave, −1 for none. @typedef {{ preDelay: number, postDelay: number, maxWait: number, fragments: Fragment[] }} Wave */
 /** A predefined unit (波次-6). @typedef {{ alias: string, key: string, hidden: boolean }} Predefine */
 /**
+ * A co-op stage (合作-6, 合作-7): the alias of its controller, its objective, the minimum and advanced targets (for 突击 as
+ * fractions of `hpMax`; for 生存 in seconds), its time limit and the rest before it in seconds, the enemy 渗透 counts.
+ * @typedef {{ alias: string, objective: 'protect' | 'target' | 'kill' | 'survive' | 'boss' | 'tower' | 'car', goal: number, advanced?: number,
+ *   time: number, rest: number, enemy?: string, hpMax?: number }} Stage
+ */
+/**
  * A level's options; `costTransfer` is the most a cost request moves (合作-5; default 15).
  * @typedef {{ maxLifePoint: number, initialCost: number, maxCost: number, costIncreaseTime: number, characterLimit: number, moveMultiplier: number, costTransfer?: number }} LevelOptions
  */
 /**
- * A level: its map, options, routes, waves (波次-1), the hidden groups enabled (波次-4) and its predefined units (波次-6).
+ * A level: its map, options, routes, waves (波次-1), the hidden groups enabled (波次-4), its predefined units (波次-6) and
+ * its co-op stages (合作-6).
  * @typedef {import('./level.js').LevelMap & { id: string, options: LevelOptions, routes: Route[], waves: Wave[], hiddenGroups?: string[],
- *   predefines?: Predefine[] }} Level
+ *   predefines?: Predefine[], stages?: Stage[] }} Level
  */
 
 /** @typedef {'phys' | 'arts' | 'true' | 'elemental'} DamageType */
@@ -50,6 +58,8 @@
  * @property {string} [levelType] NORMAL, ELITE or BOSS (领袖)
  * @property {AttackTiming} [attack] its attack clip's timing (攻击-2); none: the attack lands as it starts
  * @property {boolean} [shared] a 共同敌手: it costs every player a life at any goal (合作-2)
+ * @property {boolean} [neutral] a neutral unit (合作-9)
+ * @property {number} [deathLife] the lives a neutral unit costs when knocked down (合作-9)
  */
 
 /**
@@ -126,6 +136,9 @@
  * @property {string} applyWay MELEE or RANGED
  * @property {number} maxEp maximum element value (元素-1)
  * @property {boolean} shared a 共同敌手 (合作-2)
+ * @property {string} levelType NORMAL, ELITE or BOSS (领袖, 合作-7)
+ * @property {boolean} neutral a neutral unit (合作-9)
+ * @property {number} deathLife the lives a neutral unit costs when knocked down (合作-9)
  */
 
 /**
@@ -181,6 +194,7 @@
  * @property {boolean} hidden it has disappeared (路线-4)
  * @property {number} frag the frame its spawn's fragment began
  * @property {number} wave the wave that must wait for it to be handled (波次-3), −1 for none
+ * @property {boolean} [unharmful] it costs no life at the goal (目标-1)
  * @property {SkillState | null} skill its skill, null when it has none (技能-1)
  * @property {Record<string, number>} ep element values below their maximum, by element (元素-1); none recorded is at its maximum
  * @property {number} paid the cost its deployment took, 0 for enemies (撤退-1)
@@ -229,6 +243,13 @@
  */
 
 /**
+ * The co-op stages' progress (合作-6, 合作-7): the current stage (−1 before the first), the frame its clock starts (after
+ * its rest), whether it is running, its count (rescued, knocked down) and whether a leader left the field, the team's
+ * stamps and the stages passed.
+ * @typedef {{ index: number, start: number, running: boolean, count: number, died: boolean, stamps: number, passed: number }} StageState
+ */
+
+/**
  * The waves' progress (波次-2, 波次-3): the current wave (−1 before the first), its step — `pre` its preDelay, `frags`
  * its fragments, `hold` waiting for its enemies, `post` its postDelay, `done` all waves over — and the frame the step's
  * timing counts from; the current fragment, the frame it started (−1 while its preDelay runs) and how often each of its
@@ -247,6 +268,7 @@
  * @property {Schedule} sched where the waves are (波次-2)
  * @property {string[]} predefined the aliases of the predefined units in effect (波次-6)
  * @property {number} result the battle's result (结束-1): −1 going on, 0 lost, 1 won
+ * @property {StageState} stage the co-op stages (合作-6)
  * @property {number} bornThisFrame units created so far in this frame
  * @property {Shot[]} shots projectiles in flight, in launch order (攻击-3)
  * @property {Record<string, string | number>[]} events this frame's presentation events (not part of the state)

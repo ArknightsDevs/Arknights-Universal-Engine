@@ -75,7 +75,7 @@ function takes(w, c, op, es) {
 export function tryBlock(w, c, e) {
   if (e.blockedBy >= 0) return true;
   const es = statsOf(e);
-  if (e.hidden || !blockable(es)) return false;
+  if (e.hidden || e.base.neutral === true || !blockable(es)) return false;
   const r2 = es.flying ? BLOCK_RADIUS_SQ.fly : BLOCK_RADIUS_SQ.ground;
   /** @type {Unit | null} */
   let best = null, bd = Infinity;
