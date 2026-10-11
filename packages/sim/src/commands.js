@@ -20,6 +20,7 @@ import { isDown, askCost, answerCost } from './coop.js';
 export function deployProblem(w, c, seat, cmd) {
   const d = Object.hasOwn(c.operators, cmd.op) ? c.operators[cmd.op] : null, p = w.players[seat];
   if (!d || !p) return 'unknown operator or seat';
+  if (c.decks && !c.decks[seat]?.includes(cmd.op)) return 'not in the deck';
   if (isDown(p)) return 'player down';
   if (p.deployed.includes(cmd.op)) return 'already deployed';
   if (p.deployed.length >= c.level.options.characterLimit) return 'deploy limit reached';

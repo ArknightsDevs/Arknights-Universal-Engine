@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import fc from 'fast-check';
 import {
   VIEW_VERSION, viewLength, writeView, readView, eventProblems, clientMessageProblem, commandProblem, snapshotProblem, PROTOCOL_VERSION, serverMessageProblem,
+  matchProblem, buildProblem, MAX_DECK, DIFFICULTIES,
 } from '../src/index.js';
 
 const SEED = 20261011;
@@ -56,7 +57,7 @@ test('client messages: exactly the well-formed ones are accepted', () => {
   }
   const bad = [
     [[], 'message is not an object'], [{ t: 'nope' }, 'unknown message type nope'], [{ t: 'constructor' }, 'unknown message type constructor'],
-    [{ ...HELLO, v: 2 }, 'protocol version 2, expected 3'], [{ ...HELLO, seat: 8 }, 'hello.seat out of range'], [{ ...HELLO, key: 'a b' }, 'hello.key is not an id'],
+    [{ ...HELLO, v: 3 }, 'protocol version 3, expected 4'], [{ ...HELLO, seat: 8 }, 'hello.seat out of range'], [{ ...HELLO, key: 'a b' }, 'hello.key is not an id'],
     [{ ...HELLO, since: 1.5 }, 'hello.since out of range'], [{ ...HELLO, admin: true }, 'unknown field admin'], [{ t: 'hash', frame: 1 }, 'missing field hash'],
     [{ t: 'hash', frame: 1, hash: -1 }, 'hash.hash is not a uint32'], [{ t: 'hash', frame: -1, hash: 1 }, 'hash.frame out of range'],
     [{ t: 'cmd', at: 2e6, cmd: DEPLOY }, 'cmd.at out of range'], [{ t: 'cmd', at: 1, cmd: { ...DEPLOY, row: 64 } }, 'deploy tile out of range'],
@@ -94,7 +95,7 @@ test('snapshot envelope v8', () => {
 
 test('server messages: well-formed ones pass; broken ones are reported, never thrown', () => {
   const ok = [
-    { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: { v: 8, frame: 0, data: {} } },
+    { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: { v: 8, frame: 0, data: {} }, match: null },
     { t: 'frames', from: 3, to: 5, cmds: [[4, 1, DEPLOY], [5, 0, { type: 'retreat', unit: 2 }]] },
     { t: 'restamp', from: 3, to: 7 }, { t: 'resync', snapshot: {} }, { t: 'error', code: 'x', message: 'y' },
     { t: 'control', fast: [1, 0], held: 0, asker: -1, resuming: 0 }, { t: 'frames', from: 1, to: 1, cmds: [[1, 1, { type: 'answer', accept: 1 }]] },
@@ -102,7 +103,7 @@ test('server messages: well-formed ones pass; broken ones are reported, never th
   for (const m of ok) assert.equal(serverMessageProblem(m), null, JSON.stringify(m));
   const bad = [
     [null, 'message is not an object'], [{ t: 'hello' }, 'unknown message type hello'],
-    [{ ...ok[0], v: 2 }, 'protocol version 2, expected 3'], [{ ...ok[0], seed: 1.5 }, 'welcome fields out of range'],
+    [{ ...ok[0], v: 3 }, 'protocol version 3, expected 4'], [{ ...ok[0], seed: 1.5 }, 'welcome fields out of range'],
     [{ ...ok[1], to: 2 }, 'frames range malformed'], [{ ...ok[1], cmds: {} }, 'frames.cmds is not an array'],
     [{ ...ok[1], cmds: [[4, 9, DEPLOY]] }, 'frames.cmds has a malformed entry'], [{ ...ok[1], cmds: [[4, 1, { type: 'x' }]] }, 'unknown command type x'],
     [{ t: 'restamp', from: -1, to: 1 }, 'restamp out of range'], [{ t: 'error', code: 1, message: 'y' }, 'error fields are not strings'],
@@ -112,4 +113,27 @@ test('server messages: well-formed ones pass; broken ones are reported, never th
   ];
   for (const [m, why] of bad) assert.equal(serverMessageProblem(m), why, JSON.stringify(m));
   fc.assert(fc.property(fc.jsonValue(), (v) => { const r = serverMessageProblem(v); return r === null || typeof r === 'string'; }), { seed: SEED, numRuns: 2000 });
+});
+
+test('[同步-9] match settings: exactly the well-formed ones pass; a welcome carries them or null', () => {
+  const build = { elite: 2, level: 90, potential: 6, trust: 200, skill: 2, skillLevel: 10 };
+  const match = { level: 'act1multi_01', difficulty: 'FOUR_STAR', seed: 1209492319, decks: [[{ id: 'char_122_beagle', build }], []] };
+  assert.equal(matchProblem(match), null);
+  assert.equal(buildProblem({ ...build, skill: -1, elite: 0, level: 1, potential: 1, trust: 0, skillLevel: 1 }), null);
+  const bad = [
+    [null, 'match is not an object'], [{ ...match, extra: 1 }, 'unknown field extra'], [{ ...match, level: 'a b' }, 'match.level is not an id'],
+    [{ ...match, difficulty: 'EASY' }, 'match.difficulty is not NORMAL or FOUR_STAR'], [{ ...match, seed: -1 }, 'match.seed is not a uint32'],
+    [{ ...match, decks: [] }, 'match.decks is not one deck per seat'], [{ ...match, decks: Array(9).fill([]) }, 'match.decks is not one deck per seat'],
+    [{ ...match, decks: [Array(MAX_DECK + 1).fill({ id: 'x', build })] }, `a deck is not a list of at most ${MAX_DECK}`],
+    [{ ...match, decks: [[1]] }, 'a deck entry is not an object'], [{ ...match, decks: [[{ id: '../x', build }]] }, 'deck entry id is not an id'],
+    [{ ...match, decks: [[{ id: 'a', build: { ...build, level: 91 } }]] }, 'build.level out of range'], [{ ...match, decks: [[{ id: 'a', build: [] }]] }, 'build is not an object'],
+    [{ ...match, decks: [[{ id: 'a', build: { ...build, x: 1 } }]] }, 'unknown field x'], [{ ...match, decks: [[{ id: 'a', build }, { id: 'a', build }]] }, 'a twice in one deck'],
+  ];
+  for (const [m, why] of bad) assert.equal(matchProblem(m), why, JSON.stringify(m));
+  assert.deepEqual(DIFFICULTIES, ['NORMAL', 'FOUR_STAR']);
+  const welcome = { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: null, match };
+  assert.equal(serverMessageProblem(welcome), null);
+  assert.equal(serverMessageProblem({ ...welcome, match: { ...match, seed: 1.5 } }), 'match.seed is not a uint32');
+  const { match: _m, ...noMatch } = welcome;
+  assert.equal(serverMessageProblem(noMatch), 'missing field match');
 });

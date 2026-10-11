@@ -6,14 +6,13 @@ import { createWorld, step, stateHash, takeSnapshot } from '@aue/sim';
 import { MAX_AHEAD, HASH_HISTORY, framesAt, PAUSE_ASK_MS, RESUME_MS } from './constants.js';
 
 /** @typedef {import('@aue/schema').Command} Command @typedef {import('@aue/schema').ServerMessage} ServerMessage */
+/** @typedef {import('@aue/schema').Match} Match */
 /** @typedef {{ seat: number, frame: number, ours: number, theirs: number }} Desync */
 /**
- * @typedef {object} HostOptions
- * @property {import('@aue/sim').Content} content
- * @property {number} seats
- * @property {number} seed
- * @property {(seat: number, msg: ServerMessage) => void} send
- * @property {(d: Desync) => void} [onDesync]
+ * The host's options: the content and the match settings it was made from (同步-9; none when the clients know the
+ * content otherwise), the seats, the seed, the transport, the desync report.
+ * @typedef {{ content: import('@aue/sim').Content, seats: number, seed: number, send: (seat: number, msg: ServerMessage) => void,
+ *   onDesync?: (d: Desync) => void, match?: Match | null }} HostOptions
  */
 
 export class LockstepHost {
@@ -69,7 +68,7 @@ export class LockstepHost {
   hello(seat, now) {
     this.rebase(now);
     this.connected.add(seat);
-    this.o.send(seat, { t: 'welcome', v: PROTOCOL_VERSION, seat, seed: this.o.seed, frame: this.sealed, snapshot: takeSnapshot(this.world) });
+    this.o.send(seat, { t: 'welcome', v: PROTOCOL_VERSION, seat, seed: this.o.seed, frame: this.sealed, snapshot: takeSnapshot(this.world), match: this.o.match ?? null });
     this.broadcastControl();
   }
 

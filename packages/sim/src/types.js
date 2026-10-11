@@ -110,7 +110,7 @@
  * An operator: `branch` is its profession branch (subProfessionId), `trait` the branch's trait (职业-1), `respawnTime`
  * its 再部署时间 in seconds (部署-3; default 60).
  * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
- *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, trait?: Partial<TraitDef>, respawnTime?: number }} OperatorDef
+ *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, trait?: Partial<TraitDef>, respawnTime?: number, char?: string }} OperatorDef
  */
 /**
  * Behaviours by key (ADR 0054, 0055): what a skill or a buff does beyond its data. Content brings them; the default is
@@ -118,7 +118,11 @@
  * @typedef {{ skills?: Record<string, import('./skills.js').SkillBehavior>, buffs?: Record<string, import('./buffs.js').Behavior>, traits?: Record<string, import('./traits.js').TraitBehavior>,
  *   foes?: Record<string, import('./foes.js').FoeBehavior> }} Behaviors
  */
-/** @typedef {{ level: Level, enemies: Record<string, EnemyDef>, operators: Record<string, OperatorDef>, behaviors?: Behaviors }} Content */
+/**
+ * The content of a battle: the level, enemies, operators, behaviours, and each seat's deck of operator keys when the
+ * match gives them (同步-9; none: every operator for every seat).
+ * @typedef {{ level: Level, enemies: Record<string, EnemyDef>, operators: Record<string, OperatorDef>, behaviors?: Behaviors, decks?: string[][] }} Content
+ */
 
 /**
  * A unit's base attributes (属性-1): the values its stats start from, with the Stronghold names; anything missing takes

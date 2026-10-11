@@ -12,6 +12,7 @@ import { LockstepClient } from '@aue/net';
  * @property {(msg: object, transfer?: Transferable[]) => void} post to the main thread
  * @property {() => number} now milliseconds
  * @property {(fn: () => void, ms: number) => unknown} later
+ * @property {(match: import('@aue/schema').Match) => Promise<import('@aue/sim').Content>} [content] the content of a match (同步-9)
  */
 /** @typedef {{ url: string, seat: number, key: string }} Target */
 
@@ -23,7 +24,11 @@ export class BattleSession {
     this.io = io;
     /** @type {Record<string, string | number>[]} */
     this.events = [];
-    this.client = new LockstepClient({ content, send: (m) => this.socket?.send(JSON.stringify(m)), onFrame: (_w, ev) => { this.events.push(...ev); } });
+    this.client = this.clientFor(content);
+    /** @type {string | null} the match the client's content was made from */
+    this.match = null;
+    /** @type {import('@aue/schema').ServerMessage[] | null} messages waiting while a match's content is made */
+    this.waiting = null;
     /** @type {SocketLike | null} */
     this.socket = null;
     /** @type {Target | null} */
@@ -35,6 +40,11 @@ export class BattleSession {
     this.known = new Set();
     /** @type {import('@aue/sim').World | null} the world the known ids belong to (a restore starts a new one) */
     this.knownWorld = null;
+  }
+
+  /** A lockstep client of this content. @param {import('@aue/sim').Content} content */
+  clientFor(content) {
+    return new LockstepClient({ content, send: (m) => this.socket?.send(JSON.stringify(m)), onFrame: (_w, ev) => { this.events.push(...ev); } });
   }
 
   /** Connects and starts the frame clock. @param {Target} target */
@@ -68,7 +78,37 @@ export class BattleSession {
     try { msg = JSON.parse(text); } catch { msg = null; }
     const why = serverMessageProblem(msg);
     if (why) { this.io.post({ type: 'net', state: 'bad-message', reason: why }); return; }
-    try { this.client.receive(/** @type {import('@aue/schema').ServerMessage} */ (msg)); } catch (e) {
+    const m = /** @type {import('@aue/schema').ServerMessage} */ (msg);
+    if (this.waiting) { this.waiting.push(m); return; }
+    if (m.t === 'welcome' && m.match && this.io.content && JSON.stringify(m.match) !== this.match) { this.makeContent(m, m.match, this.io.content); return; }
+    this.deliver(m);
+  }
+
+  /**
+   * A welcome with new match settings (同步-9): its content is made first; the messages meanwhile wait, then all go to a
+   * client of that content.
+   * @param {import('@aue/schema').ServerMessage} welcome @param {import('@aue/schema').Match} match
+   * @param {(match: import('@aue/schema').Match) => Promise<import('@aue/sim').Content>} make
+   */
+  makeContent(welcome, match, make) {
+    this.match = JSON.stringify(match);
+    this.waiting = [welcome];
+    make(match).then((content) => {
+      this.client = this.clientFor(content);
+      const queued = this.waiting ?? [];
+      this.waiting = null;
+      for (const q of queued) this.deliver(q);
+      this.io.post({ type: 'net', state: 'match', match });
+    }, (e) => {
+      this.waiting = null;
+      this.match = null;
+      this.io.post({ type: 'net', state: 'bad-message', reason: String(e instanceof Error ? e.message : e) });
+    });
+  }
+
+  /** A checked message to the lockstep client; one it cannot take is reported, not fatal. @param {import('@aue/schema').ServerMessage} m */
+  deliver(m) {
+    try { this.client.receive(m); } catch (e) {
       this.io.post({ type: 'net', state: 'bad-message', reason: String(e instanceof Error ? e.message : e) });
     }
   }

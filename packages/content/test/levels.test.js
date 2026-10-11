@@ -54,3 +54,23 @@ test('[波次-2] [合作-6] [合作-9] the real act1multi_01 plays out headless 
   assert.ok(frames < 30 * 150, 'nobody defends: lost before the first stage is settled');
   assert.equal(seen.end, 1);
 });
+
+test('[同步-9] [部署-2] a match\'s content: its level, each seat\'s deck at its trainings, keyed id#seat; only one\'s own deck deploys', async () => {
+  const { matchContent } = await import('../src/index.js');
+  const { createWorld: make, step: run, deployProblem } = await import('@aue/sim');
+  const low = { elite: 0, level: 1, potential: 1, trust: 0, skill: -1, skillLevel: 1 }, high = { elite: 1, level: 55, potential: 6, trust: 100, skill: 0, skillLevel: 7 };
+  const c = await matchContent({ level: 'act1multi_01', difficulty: 'FOUR_STAR', seed: 1, decks: [[{ id: 'char_122_beagle', build: low }], [{ id: 'char_122_beagle', build: high }, { id: 'char_500_noirc', build: low }]] });
+  assert.deepEqual(c.decks, [['char_122_beagle#0'], ['char_122_beagle#1', 'char_500_noirc#1']]);
+  const [a, b] = [c.operators['char_122_beagle#0'], c.operators['char_122_beagle#1']];
+  assert.ok(a && b && b.atk > a.atk && a.char === 'char_122_beagle' && a.skill === undefined && b.skill !== undefined);
+  assert.equal(c.level.options.maxLifePoint, 5, 'the difficulty applies');
+  const w = make(c, { seed: 1, players: 2 });
+  w.players.forEach((p) => { p.cost = 99; });
+  const deploy = (/** @type {string} */ op) => /** @type {const} */ ({ type: 'deploy', op, row: 2, col: 5, dir: 0 });
+  const tile = c.level.tiles.flatMap((row, r) => row.map((t, col) => ({ t, r, col }))).find((x) => x.t.buildable === 'MELEE' || x.t.buildable === 'ALL');
+  const at = (/** @type {string} */ op) => ({ ...deploy(op), row: tile?.r ?? 0, col: tile?.col ?? 0 });
+  assert.equal(deployProblem(w, c, 0, at('char_122_beagle#1')), 'not in the deck');
+  assert.equal(deployProblem(w, c, 0, at('char_122_beagle#0')), null);
+  run(w, c, [[0, at('char_122_beagle#0')]]);
+  assert.equal(w.units.filter((u) => u.owner === 0).length, 1);
+});

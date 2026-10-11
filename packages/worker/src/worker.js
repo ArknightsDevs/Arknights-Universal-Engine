@@ -4,7 +4,7 @@
 //   { type: 'debug' }                   reply with { type: 'debug', frame, hash, sealed, stats }
 //   { type: 'stop' }
 import { commandProblem } from '@aue/schema';
-import { skeletonContent } from '@aue/content';
+import { skeletonContent, matchContent } from '@aue/content';
 import { BattleSession } from './session.js';
 
 const scope = /** @type {any} */ (globalThis);
@@ -25,6 +25,7 @@ const session = new BattleSession(skeletonContent, {
   post: (msg, transfer) => scope.postMessage(msg, transfer ?? []),
   now: () => performance.now(),
   later: (fn, ms) => setTimeout(fn, ms),
+  content: matchContent,
 });
 
 scope.onmessage = (/** @type {MessageEvent} */ e) => {

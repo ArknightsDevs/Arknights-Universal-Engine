@@ -3,6 +3,10 @@ export { VIEW_VERSION, VIEW_HEADER, VIEW_PLAYER, VIEW_UNIT, KIND, ANIM, DIR, SKI
 export { EVENTS_VERSION, EVENT_FIELDS, eventProblems } from './events.js';
 export { PROTOCOL_VERSION, MAX_FRAME, MAX_SEAT, commandProblem, clientMessageProblem, serverMessageProblem } from './protocol.js';
 export { SNAPSHOT_VERSION, snapshotProblem } from './snapshot.js';
+export { MAX_DECK, DIFFICULTIES, matchProblem, buildProblem } from './match.js';
+/** @typedef {import('./protocol.js').Match} Match */
+/** @typedef {import('./protocol.js').Build} Build */
+/** @typedef {import('./protocol.js').DeckEntry} DeckEntry */
 
 /** @typedef {import('./protocol.js').Command} Command */
 /** @typedef {import('./protocol.js').DeployCommand} DeployCommand */

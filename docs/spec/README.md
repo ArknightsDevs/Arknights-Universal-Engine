@@ -53,7 +53,7 @@
 - [spine.md](spine.md)：Spine 3.8 二进制骨骼的读取，战斗用的动画时长和攻击时刻
 - [compat.md](compat.md)：Stronghold 兼容层：网格尺寸
 - [coop.md](coop.md)：合作规则：目标点归属、共同敌手、失守的目标点、失守与复活、费用请求
-- [lockstep.md](lockstep.md)：输入延迟、封口、追赶、哈希校验、重连、掉线暂停、二倍速、暂停与继续
+- [lockstep.md](lockstep.md)：输入延迟、封口、追赶、哈希校验、重连、掉线暂停、二倍速、暂停与继续、对局设定
 - [direction.md](direction.md)：四个方向、偏移旋转、位移的方向、并列先后
 - [body.md](body.md)：点单位与巨型单位所在的格、距离
 - [constants.md](constants.md)：最低伤害比例、碰撞半径、阻挡半径、攻速上下限、移动倍率

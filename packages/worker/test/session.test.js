@@ -102,3 +102,55 @@ test('bad server messages are reported and do not break the session', () => {
   r.t.run(500, (now) => r.host.tick(now));
   assert.equal(r.session.debug().hash, r.host.hashes.get(r.session.debug().frame));
 });
+
+test('[同步-9] a welcome with match settings: the content is made first, messages meanwhile wait, then the match plays', async () => {
+  const c = tinyContent(), made = { ...c, decks: [['guard']] }, t = clock(), posts = /** @type {any[]} */ ([]);
+  const match = { level: 'tiny', difficulty: /** @type {const} */ ('NORMAL'), seed: 5, decks: [[{ id: 'guard', build: { elite: 0, level: 1, potential: 1, trust: 0, skill: -1, skillLevel: 1 } }]] };
+  /** @type {any} */
+  let sock = null, release = /** @type {() => void} */ (() => {});
+  const host = new LockstepHost({ content: made, seats: 1, seed: 5, match, send: (_seat, msg) => sock?.onmessage?.(JSON.stringify(msg)) });
+  const session = new BattleSession(c, {
+    now: t.now, later: t.later, post: (m) => posts.push(m),
+    content: (m) => new Promise((resolve) => { assert.deepEqual(m, match); release = () => resolve(made); }),
+    connect: () => {
+      sock = { onopen: null, onmessage: null, onclose: null, close() {},
+        send(/** @type {string} */ text) { const m = JSON.parse(text); if (m.t === 'hello') host.hello(0, t.now()); else if (m.t === 'cmd') host.command(0, m.at, m.cmd); else if (m.t === 'hash') host.hash(0, m.frame, m.hash); } };
+      const s = sock;
+      t.later(() => s.onopen?.(), 1);
+      return s;
+    },
+  });
+  session.start({ url: 'ws://x', seat: 0, key: 'k' });
+  t.run(200, (now) => host.tick(now));
+  assert.equal(session.client.world, null, 'still making the content');
+  release();
+  await new Promise((r) => setImmediate(r));
+  t.run(600, (now) => host.tick(now));
+  assert.ok(posts.some((p) => p.type === 'net' && p.state === 'match'));
+  session.command({ type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 });
+  t.run(600, (now) => host.tick(now));
+  const d = session.debug();
+  assert.equal(d.hash, host.hashes.get(d.frame));
+  assert.equal(host.world.units.filter((u) => u.key === 'guard').length, 1);
+});
+
+test('[同步-9] match content that cannot be made is reported', async () => {
+  const c = tinyContent(), t = clock(), posts = /** @type {any[]} */ ([]);
+  const match = { level: 'nope', difficulty: /** @type {const} */ ('NORMAL'), seed: 5, decks: [[]] };
+  /** @type {any} */
+  let sock = null;
+  const host = new LockstepHost({ content: c, seats: 1, seed: 5, match, send: (_seat, msg) => sock?.onmessage?.(JSON.stringify(msg)) });
+  const session = new BattleSession(c, {
+    now: t.now, later: t.later, post: (m) => posts.push(m), content: () => Promise.reject(new Error('no level nope')),
+    connect: () => {
+      sock = { onopen: null, onmessage: null, onclose: null, close() {}, send(/** @type {string} */ text) { if (JSON.parse(text).t === 'hello') host.hello(0, t.now()); } };
+      const s = sock;
+      t.later(() => s.onopen?.(), 1);
+      return s;
+    },
+  });
+  session.start({ url: 'ws://x', seat: 0, key: 'k' });
+  t.run(50, (now) => host.tick(now));
+  await new Promise((r) => setImmediate(r));
+  assert.ok(posts.some((p) => p.type === 'net' && p.state === 'bad-message' && /no level nope/.test(p.reason)));
+});
