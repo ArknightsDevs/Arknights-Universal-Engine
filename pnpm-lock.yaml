@@ -94,6 +94,9 @@ importers:
       '@aue/schema':
         specifier: workspace:*
         version: link:../schema
+      '@aue/spine':
+        specifier: workspace:*
+        version: link:../spine
       three:
         specifier: 0.186.1
         version: 0.186.1

@@ -12,3 +12,4 @@ export { updateOrder } from './order.js';
 export { updateWorld } from './world.js';
 export { findAttachment, worldVertices, regionCorners, regionWorld, regionUVs, meshUVs, vertexCount } from './vertices.js';
 export { drawList, colorsOf } from './draw.js';
+/** @typedef {import('./skeleton.js').Skeleton} Skeleton @typedef {import('./atlas.js').Atlas} Atlas @typedef {import('./draw.js').Batch} Batch */

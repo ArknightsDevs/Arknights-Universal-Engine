@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@aue/schema": "workspace:*",
+    "@aue/spine": "workspace:*",
     "three": "0.186.1"
   },
   "devDependencies": {
