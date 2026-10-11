@@ -5,6 +5,7 @@ import { statsOf, activeBuffs } from './attrs.js';
 import { removeBuff } from './buffs.js';
 import { nextUint32 } from './rng.js';
 import { MIN_DAMAGE_RATIO } from './constants.js';
+import { hurtSp } from './sp.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').DamageType} DamageType */
@@ -138,7 +139,8 @@ function loseHpNow(w, src, t, amount) {
 
 /**
  * Deals a hit (伤害-7): nothing to a unit already at 0 HP; 生命流失 goes straight to the HP; nothing to an invincible
- * unit (无敌, 沉睡, disappeared: 路线-4); otherwise the target's defences, the source's multiplier, the target's 伤判 effects, then the HP.
+ * unit (无敌, 沉睡, disappeared: 路线-4); otherwise the hit counts for 受击回复 (技能-2), then the target's defences, the
+ * source's multiplier, the target's 伤判 effects, then the HP.
  * Returns the HP taken.
  * @param {World} w @param {Unit | null} src @param {Unit} target @param {Damage} dmg
  */
@@ -147,6 +149,7 @@ export function dealDamage(w, src, target, dmg) {
   if (dmg.hpLoss) return loseHpNow(w, src, target, dmg.amount);
   const ts = statsOf(target);
   if (ts.invincible || target.hidden) return 0;
+  hurtSp(target);
   const ss = src ? statsOf(src) : null;
   let amount = mitigate(dmg.amount, dmg.type, ts, penetration(ss, dmg.pen));
   if (ss) amount *= dealtMul(ss, dmg.type);

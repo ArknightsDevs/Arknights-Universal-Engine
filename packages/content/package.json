@@ -11,5 +11,8 @@
   },
   "dependencies": {
     "@aue/sim": "workspace:*"
+  },
+  "devDependencies": {
+    "@aue/testkit": "workspace:*"
   }
 }

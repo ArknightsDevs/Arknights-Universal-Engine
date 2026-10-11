@@ -4,6 +4,7 @@ import { KIND, ANIM } from '@aue/schema';
 import { tileAt } from './level.js';
 import { dirOfCode, DEFAULT_DIR } from './dir.js';
 import { statsOf } from './attrs.js';
+import { makeSkillState } from './skills.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Base} Base */
 /** @typedef {import('./types.js').Content} Content @typedef {import('./types.js').EnemyDef} EnemyDef @typedef {import('./types.js').OperatorDef} OperatorDef */
@@ -40,7 +41,7 @@ export function baseOf(d) {
  */
 function fresh(w, base) {
   const maxHp = statsOf({ base, buffs: [] }).maxHp;
-  return { base, buffs: [], hp: maxHp, maxHp, atkCd: 0, blockedBy: -1, blockedAt: -1, born: w.frame, bornN: ++w.bornThisFrame, path: [], pt: 0, wait: -1, hidden: false };
+  return { base, buffs: [], hp: maxHp, maxHp, atkCd: 0, blockedBy: -1, blockedAt: -1, born: w.frame, bornN: ++w.bornThisFrame, path: [], pt: 0, wait: -1, hidden: false, skill: null };
 }
 
 /**
@@ -51,6 +52,7 @@ export function makeOperator(w, c, o) {
   return {
     id: w.nextId++, kind: KIND.OPERATOR, key: o.key, owner: o.owner, x: o.col, y: o.row, z: heightLevel(tileAt(c.level, o.row, o.col)),
     dir: dirOfCode(o.dir), ...fresh(w, baseOf(c.operators[o.key])), route: -1, leg: 0, frag: 0, anim: ANIM.IDLE,
+    skill: c.operators[o.key].skill ? makeSkillState(/** @type {import('./types.js').SkillDef} */ (c.operators[o.key].skill)) : null,
   };
 }
 

@@ -9,6 +9,6 @@ const fields = Object.fromEntries(Object.entries(JSON.parse(readFileSync(new URL
 
 export default aueConfig({
   deterministic: ['packages/math/src/**', 'packages/sim/src/**', 'packages/content/src/**'],
-  fieldOwnership: { files: ['packages/sim/src/**'], fields },
+  fieldOwnership: { files: ['packages/sim/src/**', 'packages/content/src/**'], fields },
   exempt: [],
 });

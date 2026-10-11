@@ -1,5 +1,5 @@
 {
-  "$comment": "ADR 0045: the modules that may write each unit field (and each buff field) after the unit or buff is created. A field with an empty list is fixed at creation. Enforced by @aue/lint's field-ownership rule on packages/sim/src.",
+  "$comment": "ADR 0045: the modules that may write each unit field (and each buff and skill field) after the unit is created. A field with an empty list is fixed at creation. Enforced by @aue/lint's field-ownership rule on packages/sim/src and packages/content/src (content writes none: it acts through the skill context, ADR 0055).",
   "id": [],
   "kind": [],
   "key": [],
@@ -82,5 +82,27 @@
   "hidden": [
     "packages/sim/src/routes.js"
   ],
-  "frag": []
+  "frag": [],
+  "skill": [],
+  "sp": [
+    "packages/sim/src/sp.js"
+  ],
+  "slot": [
+    "packages/sim/src/sp.js"
+  ],
+  "active": [
+    "packages/sim/src/skills.js"
+  ],
+  "armed": [
+    "packages/sim/src/skills.js"
+  ],
+  "dur": [
+    "packages/sim/src/skills.js"
+  ],
+  "ammo": [
+    "packages/sim/src/skills.js"
+  ],
+  "at": [
+    "packages/sim/src/skills.js"
+  ]
 }

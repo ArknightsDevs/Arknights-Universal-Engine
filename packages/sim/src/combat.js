@@ -4,11 +4,12 @@ import { FPS } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { offsetTile } from './dir.js';
 import { statsOf, intervalFrames } from './attrs.js';
-import { rangeKeys, inKeys, selectable, sortEnemies, sortAllies } from './targeting.js';
+import { rangeKeys, inKeys, selectable, sortEnemies, sortAllies, firstN } from './targeting.js';
 import { dealDamage } from './damage.js';
 import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
+import { tickSkill, beforeAttack, afterAttack } from './skills.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell @typedef {import('./attrs.js').Stats} Stats */
@@ -24,45 +25,61 @@ export function rangeCell(op, off) {
 }
 
 /**
- * The enemy an operator attacks (索敌-1…索敌-3): of the selectable enemies with a tile in range — and, for a melee
- * operator, the enemies it blocks wherever they stand (阻挡-4) — the first in the official order. Melee operators cannot
- * select flying enemies.
- * @param {World} w @param {Content} c @param {Unit} op @returns {Unit | null}
+ * The enemies an operator can attack, in the official order (索敌-1…索敌-3): the selectable enemies with a tile in range
+ * and, for a melee operator, the enemies it blocks wherever they stand (阻挡-4). Melee operators cannot select flying
+ * enemies.
+ * @param {World} w @param {Content} c @param {Unit} op @returns {Unit[]}
  */
-export function pickTarget(w, c, op) {
+export function targetsOf(w, c, op) {
   const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], melee = d.position === 'MELEE';
   const keys = rangeKeys(grid, op, d.range, statsOf(op).rangeExtend);
   const cands = w.units.filter((u) => u.kind === KIND.ENEMY && selectable(u, { canHitFly: !melee })
     && ((melee && u.blockedBy === op.id) || inKeys(u, keys, grid)));
-  return sortEnemies(op, cands, { melee, pathDist: (e) => pathDistance(c, e) })[0] ?? null;
+  return sortEnemies(op, cands, { melee, pathDist: (e) => pathDistance(c, e) });
 }
 
+/** The enemy an operator attacks first (索敌-3). @param {World} w @param {Content} c @param {Unit} op @returns {Unit | null} */
+export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
+
 /**
- * Hits a target and starts the cooldown (伤害-6, 伤害-7): one hit of the attacker's attack, of its damage type.
- * @param {World} w @param {Unit} a @param {Stats} s @param {Unit} t
+ * Starts the cooldown and hits the targets (伤害-6, 伤害-7, 技能-5): each target takes `times` hits of the attack × the
+ * 攻击力倍率, of the attacker's damage type.
+ * @param {World} w @param {Unit} a @param {Stats} s @param {Unit[]} targets @param {{ scale: number, times: number }} [mods]
  */
-function strike(w, a, s, t) {
+function strike(w, a, s, targets, mods = { scale: 1, times: 1 }) {
   a.atkCd = intervalFrames(s.bat, s.aspd) - 1;
   a.anim = ANIM.ATTACK;
-  w.events.push({ type: 'attack', id: a.id, target: t.id });
-  dealDamage(w, a, t, { type: a.base.dmgType, amount: s.atk });
+  for (const t of targets) {
+    w.events.push({ type: 'attack', id: a.id, target: t.id });
+    for (let k = 0; k < mods.times; k++) dealDamage(w, a, t, { type: a.base.dmgType, amount: s.atk * mods.scale });
+  }
 }
 
 /**
- * Every operator's attack this frame (攻击-1). An operator first lets go of what its block count no longer holds
- * (阻挡-3). One that cannot act (晕眩, 冻结 …) neither attacks nor counts its cooldown down.
+ * One operator's attack (攻击-1, 技能-3…技能-5): with a target and the cooldown out, its skill may start or end, then it
+ * hits the first targets the skill's mods allow.
+ * @param {World} w @param {Content} c @param {Unit} op
+ */
+function operatorAttack(w, c, op) {
+  if (op.atkCd > 0) { op.atkCd--; return; }
+  if (targetsOf(w, c, op).length === 0) { op.anim = ANIM.IDLE; return; }
+  const mods = beforeAttack(w, c, op), targets = firstN(targetsOf(w, c, op), mods.targets);
+  strike(w, op, statsOf(op), targets, mods);
+  afterAttack(w, c, op, mods);
+}
+
+/**
+ * Every operator's turn this frame (攻击-1). It lets go of what its block count no longer holds (阻挡-3); its skill runs
+ * (技能-2…技能-4); then, if it can act (not 晕眩, 冻结 …), its attack — one that cannot act neither attacks nor counts
+ * its cooldown down.
  * @param {World} w @param {Content} c
  */
 export function operatorsAttack(w, c) {
   for (const op of w.units) {
     if (op.kind !== KIND.OPERATOR || op.hp <= 0) continue;
     enforceCapacity(w, op);
-    const s = statsOf(op);
-    if (s.disabled) continue;
-    if (op.atkCd > 0) { op.atkCd--; continue; }
-    const t = pickTarget(w, c, op);
-    if (t) strike(w, op, s, t);
-    else op.anim = ANIM.IDLE;
+    tickSkill(w, c, op);
+    if (!statsOf(op).disabled) operatorAttack(w, c, op);
   }
 }
 
@@ -94,6 +111,6 @@ export function enemyAttack(w, _c, e) {
   if (e.atkCd > 0) { e.atkCd--; return false; }
   const t = sortAllies(e, enemyTargets(w, e), FPS)[0];
   if (!t) return false;
-  strike(w, e, s, t);
+  strike(w, e, s, [t]);
   return true;
 }

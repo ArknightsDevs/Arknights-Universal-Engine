@@ -32,8 +32,26 @@
  * @typedef {OptionalStats & { name: string, maxHp: number, atk: number, def: number, res: number, moveSpeed: number, motion?: string,
  *   baseAttackTime?: number, blockCnt?: number, rangeRadius?: number, applyWay?: string }} EnemyDef
  */
-/** @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number, range: Cell[] }} OperatorDef */
-/** @typedef {{ level: Level, enemies: Record<string, EnemyDef>, operators: Record<string, OperatorDef> }} Content */
+/**
+ * A skill as the content gives it (技能-1): one level of a skill_table entry.
+ * @typedef {object} SkillDef
+ * @property {string} id
+ * @property {'AUTO' | 'MANUAL' | 'PASSIVE'} type
+ * @property {'time' | 'attack' | 'hurt' | 'none'} sp how it recovers SP
+ * @property {number} cost spCost
+ * @property {number} init initSp
+ * @property {number} charges maxChargeTime, at least 1
+ * @property {number} duration seconds; 0 or less: none
+ * @property {boolean} ammo durationType AMMO
+ * @property {Record<string, number>} bb the blackboard
+ */
+/** @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number, range: Cell[], skill?: SkillDef }} OperatorDef */
+/**
+ * Behaviours by key (ADR 0054, 0055): what a skill or a buff does beyond its data. Content brings them; the default is
+ * the generic one (技能-5).
+ * @typedef {{ skills?: Record<string, import('./skills.js').SkillBehavior>, buffs?: Record<string, import('./buffs.js').Behavior> }} Behaviors
+ */
+/** @typedef {{ level: Level, enemies: Record<string, EnemyDef>, operators: Record<string, OperatorDef>, behaviors?: Behaviors }} Content */
 
 /**
  * A unit's base attributes (属性-1): the values its stats start from, with the Stronghold names; anything missing takes
@@ -108,7 +126,24 @@
  * @property {number} wait frames left in its current wait, −1 when not waiting
  * @property {boolean} hidden it has disappeared (路线-4)
  * @property {number} frag the frame its spawn's fragment began
+ * @property {SkillState | null} skill its skill, null when it has none (技能-1)
  * @property {number} anim schema ANIM
+ */
+
+/**
+ * A unit's skill as it runs (技能-2…技能-4).
+ * @typedef {object} SkillState
+ * @property {string} id
+ * @property {string} spType time, attack, hurt or none
+ * @property {number} cost SP one use takes
+ * @property {number} cap the most SP it holds: cost × charges
+ * @property {number} sp whole points
+ * @property {number} slot the 技力冷却槽's progress, in points
+ * @property {boolean} active it is running (and blocks SP: 阻回)
+ * @property {boolean} armed a next-attack skill waiting for its attack
+ * @property {number} dur frames left of its duration, −1 for none
+ * @property {number} ammo shots left of an ammo skill
+ * @property {number} at the frame it started
  */
 
 /** @typedef {{ life: number, cost: number, costTimer: number, deployed: string[] }} Player */

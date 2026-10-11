@@ -1,8 +1,8 @@
-// The network messages, version 1 (ADR 0053). Messages from browsers are untrusted: the server accepts one only when
+// The network messages, version 2 (ADR 0053; version 2 adds the skill command). Messages from browsers are untrusted: the server accepts one only when
 // clientMessageProblem returns null — exact fields, integers in range, short ids, nothing else.
 import { isRecord, isInt, isId, keyProblem } from './checks.js';
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 /** Largest frame number (about 9.5 hours at 30 frames per second). */
 export const MAX_FRAME = 1_000_000;
@@ -11,7 +11,8 @@ export const MAX_SEAT = 7;
 
 /** @typedef {{ type: 'deploy', op: string, row: number, col: number, dir: number }} DeployCommand */
 /** @typedef {{ type: 'retreat', unit: number }} RetreatCommand */
-/** @typedef {DeployCommand | RetreatCommand} Command */
+/** @typedef {{ type: 'skill', unit: number }} SkillCommand */
+/** @typedef {DeployCommand | RetreatCommand | SkillCommand} Command */
 
 /** @type {Record<string, (c: Record<string, unknown>) => string | null>} */
 const COMMANDS = {
@@ -20,6 +21,7 @@ const COMMANDS = {
     ?? (!isInt(c.row, 0, 63) || !isInt(c.col, 0, 63) ? 'deploy tile out of range' : null)
     ?? (!isInt(c.dir, 0, 3) ? 'deploy.dir is not 0–3' : null),
   retreat: (c) => keyProblem(c, ['type', 'unit']) ?? (!isInt(c.unit, 1, 0x7fffffff) ? 'retreat.unit is not a unit id' : null),
+  skill: (c) => keyProblem(c, ['type', 'unit']) ?? (!isInt(c.unit, 1, 0x7fffffff) ? 'skill.unit is not a unit id' : null),
 };
 
 /** @param {unknown} c @returns {string | null} why the command is malformed, or null */

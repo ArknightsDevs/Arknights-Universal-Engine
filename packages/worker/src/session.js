@@ -1,7 +1,7 @@
 // A battle session in the worker (ADR 0009, 0053): the socket, the lockstep client, the frame clock, and the render
 // state posted to the main thread after each frame time. Everything that touches the platform comes in through `io`,
 // so the session runs the same in a Worker and in a Node test.
-import { serverMessageProblem } from '@aue/schema';
+import { serverMessageProblem, PROTOCOL_VERSION } from '@aue/schema';
 import { toView, stateHash } from '@aue/sim';
 import { LockstepClient } from '@aue/net';
 
@@ -49,7 +49,7 @@ export class BattleSession {
     const t = /** @type {Target} */ (this.target), s = this.io.connect(t.url);
     this.socket = s;
     s.onopen = () => {
-      s.send(JSON.stringify({ t: 'hello', v: 1, seat: t.seat, key: t.key, since: this.client.world?.frame ?? -1 }));
+      s.send(JSON.stringify({ t: 'hello', v: PROTOCOL_VERSION, seat: t.seat, key: t.key, since: this.client.world?.frame ?? -1 }));
       this.io.post({ type: 'net', state: 'open' });
     };
     s.onmessage = (text) => this.receive(text);

@@ -16,6 +16,8 @@ export * as targeting from './targeting.js';
 export * as blocking from './blocking.js';
 export * as routes from './routes.js';
 export * as paths from './paths.js';
+export * as skills from './skills.js';
+export * as sp from './sp.js';
 export { nextUint32, seedState } from './rng.js';
 export { hashNumbers, HASH_START } from './hash.js';
 
@@ -23,4 +25,6 @@ export { hashNumbers, HASH_START } from './hash.js';
 /** @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Buff} Buff */
+/** @typedef {import('./types.js').SkillDef} SkillDef */
+/** @typedef {import('./skills.js').SkillBehavior} SkillBehavior */
 /** @typedef {import('@aue/schema').Command} Command */

@@ -1,0 +1,213 @@
+// Skills (docs/spec/skills.md): SP by the slot, by attacking and by being hit; starting by command, on its own and at
+// deployment; durations, ammo, next-attack skills and charges; the generic effects of the blackboard.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { tinyContent } from '@aue/testkit';
+import { createWorld, step } from '../src/index.js';
+import { kindOf, makeSkillState, statMods, skillMods, STAT_KEYS } from '../src/skills.js';
+import { gainSp, timeSp, hurtSp } from '../src/sp.js';
+import { makeEnemy } from '../src/units.js';
+import { applyStatus } from '../src/status.js';
+import { dealDamage } from '../src/damage.js';
+import { makeBuff } from '../src/buffs.js';
+import { statsOf } from '../src/attrs.js';
+
+/** @typedef {import('../src/types.js').SkillDef} SkillDef @typedef {import('../src/types.js').Unit} Unit @typedef {import('../src/types.js').World} World */
+
+/** @param {Partial<SkillDef>} o @returns {SkillDef} */
+const sk = (o) => ({ id: 'test', type: 'MANUAL', sp: 'time', cost: 5, init: 0, charges: 1, duration: 0, ammo: false, bb: {}, ...o });
+
+/**
+ * The tiny level without spawns: the guard (atk 50, 1 s) deployed at (1, 1) facing right with the skill, and a rooted
+ * dummy at (1, 2) in its range (def 0, a billion HP). Returns the world, content, guard and dummy.
+ * @param {SkillDef} skill @param {number} [dummies]
+ */
+function arena(skill, dummies = 1) {
+  const c = tinyContent();
+  c.operators.guard.skill = skill;
+  c.level.spawns = [];
+  const w = createWorld(c, { seed: 1, players: 2 });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 }]]);
+  const guard = w.units[0];
+  for (let i = 0; i < dummies; i++) {
+    const foe = makeEnemy(w, c, { key: 'slime', route: 0 });
+    foe.x = 2; foe.y = 1;
+    foe.base = { ...foe.base, maxHp: 1e9, def: 0 };
+    foe.hp = 1e9; foe.maxHp = 1e9;
+    applyStatus(foe, 'root', {});
+    w.units.push(foe);
+  }
+  return { w, c, guard };
+}
+/** Runs n frames, collecting events with their frame. @param {World} w @param {any} c @param {number} n @param {any[]} [cmds] */
+function run(w, c, n, cmds = []) {
+  /** @type {any[]} */
+  const out = [];
+  for (let i = 0; i < n; i++) for (const e of step(w, c, i === 0 ? cmds : [])) out.push({ ...e, f: w.frame - 1 });
+  return out;
+}
+
+test('[技能-1] kinds from the data: passive, ammo, duration, next attack, instant', () => {
+  assert.equal(kindOf(sk({ type: 'PASSIVE', duration: 10 })), 'passive');
+  assert.equal(kindOf(sk({ ammo: true, bb: { 'attack@trigger_time': 4 } })), 'ammo');
+  assert.equal(kindOf(sk({ duration: 20, bb: { atk: 1 } })), 'duration');
+  assert.equal(kindOf(sk({ type: 'AUTO', sp: 'attack', duration: -1, bb: { atk_scale: 1.9 } })), 'next', '强力击');
+  assert.equal(kindOf(sk({ type: 'AUTO', bb: { cost: 6 } })), 'instant', '冲锋号令');
+  assert.deepEqual(makeSkillState(sk({ init: 9, cost: 3, charges: 2 })), { id: 'test', spType: 'time', cost: 3, cap: 6, sp: 6, slot: 0, active: false, armed: false, dur: -1, ammo: 0, at: -1 });
+});
+
+test('[技能-2] the SP slot: a point per 1 / speed seconds, the overflow kept, paused when full or during the skill', () => {
+  const st = makeSkillState(sk({ cost: 10 }));
+  /** @param {number} rate @param {number} n */
+  const frames = (rate, n) => { const at = []; for (let f = 1; at.length < n; f++) { const b = st.sp; timeSp(st, rate); if (st.sp > b) at.push(f); } return at; };
+  assert.deepEqual(frames(1, 2), [30, 60]);
+  st.sp = 0; st.slot = 0;
+  assert.deepEqual(frames(1.5, 3), [20, 40, 60]);
+  st.sp = 0; st.slot = 0;
+  assert.deepEqual(frames(0.7, 3), [43, 86, 129], 'the overflow of each slot carries over (42.86, 85.71, 128.57)');
+  st.sp = 9; st.slot = 0;
+  for (let i = 0; i < 40; i++) timeSp(st, 1);
+  assert.equal(st.sp, 10);
+  const slot = st.slot;
+  for (let i = 0; i < 40; i++) timeSp(st, 1);
+  assert.equal(st.slot, slot, 'full: the slot keeps its progress');
+  st.sp = 0; st.active = true;
+  timeSp(st, 1);
+  assert.equal(gainSp(st, 3), 0, '阻回');
+  assert.equal(st.slot, slot);
+});
+
+test('[技能-2] by attacking: one point an attack, none for the skill\'s own attacks; by being hit, one a hit', () => {
+  const a = arena(sk({ type: 'AUTO', sp: 'attack', cost: 3, duration: -1, bb: { atk_scale: 2 } }));
+  const ev = run(a.w, a.c, 30 * 8 + 2);
+  const hits = ev.filter((e) => e.type === 'hit').map((e) => e.damage);
+  assert.deepEqual(hits.slice(0, 8), [50, 50, 50, 100, 50, 50, 50, 100], 'a cost-3 next-attack skill: every fourth attack');
+  const h = arena(sk({ sp: 'hurt', cost: 4 }));
+  const g = h.guard, foe = h.w.units[1];
+  g.buffs.push(makeBuff({ key: 'shield', shieldHits: 1 }), makeBuff({ key: 'dodge', mods: { dodgePhys: 1 } }));
+  for (let i = 0; i < 2; i++) dealDamage(h.w, foe, g, { type: 'phys', amount: 10 });
+  assert.equal(g.skill?.sp, 2, 'dodged and blocked hits count');
+  dealDamage(h.w, foe, g, { type: 'phys', amount: 10, hpLoss: true });
+  applyStatus(g, 'invincible', { frames: 5 });
+  dealDamage(h.w, foe, g, { type: 'phys', amount: 10 });
+  assert.equal(g.skill?.sp, 2, 'no point for 生命流失 or while invincible');
+  hurtSp(g); hurtSp(g); hurtSp(g);
+  assert.equal(g.skill?.sp, 4, 'up to the cap');
+});
+
+test('[技能-3] the skill command: the seat\'s own operator, a MANUAL skill, ready, able to act, not silenced', () => {
+  const a = arena(sk({ cost: 2, init: 2, duration: 1, bb: { atk: 1 } }));
+  const id = a.guard.id, cmd = (/** @type {number} */ seat) => [[seat, { type: 'skill', unit: id }]];
+  run(a.w, a.c, 1, cmd(1));
+  assert.equal(a.guard.skill?.active, false, 'another seat');
+  applyStatus(a.guard, 'stun', { frames: 3 });
+  run(a.w, a.c, 1, cmd(0));
+  assert.equal(a.guard.skill?.active, false, 'stunned');
+  a.guard.buffs = [];
+  applyStatus(a.guard, 'silence', { frames: 3 });
+  run(a.w, a.c, 1, cmd(0));
+  assert.equal(a.guard.skill?.active, false, 'silenced');
+  a.guard.buffs = [];
+  const ev = run(a.w, a.c, 1, cmd(0));
+  assert.equal(a.guard.skill?.active, true);
+  assert.deepEqual(ev.filter((e) => e.type === 'skill').map((e) => [e.id, e.active]), [[id, 1]]);
+  assert.equal(statsOf(a.guard).atk, 100, 'atk +100 %');
+  const b = arena(sk({ cost: 2, init: 1 }));
+  run(b.w, b.c, 1, [[0, { type: 'skill', unit: b.guard.id }]]);
+  assert.equal(b.guard.skill?.sp, 1, 'not ready: nothing taken');
+  const auto = arena(sk({ type: 'AUTO', cost: 9, init: 9, duration: 5 }));
+  auto.guard.skill && (auto.guard.skill.sp = 0);
+  run(auto.w, auto.c, 1, [[0, { type: 'skill', unit: auto.guard.id }]]);
+  assert.equal(auto.guard.skill?.active, false, 'an AUTO skill takes no command');
+});
+
+test('[技能-3] AUTO: an instant skill starts when ready; others when about to attack; PASSIVE at deployment', () => {
+  const a = arena(sk({ type: 'AUTO', cost: 2, init: 0, bb: { cost: 6 } }), 0);
+  a.c.level.options.maxCost = 99;
+  const before = a.w.players[0].cost;
+  const ev = run(a.w, a.c, 60);
+  assert.deepEqual(ev.filter((e) => e.type === 'skill').map((e) => e.f), [59, 59], 'instant: on and off in the frame it is ready');
+  assert.equal(a.w.players[0].cost - before, 6 + 2, '+6 from the skill, +2 over 60 frames');
+  const b = arena(sk({ type: 'AUTO', cost: 1, init: 1, duration: 2, bb: { atk: 1 } }), 0);
+  run(b.w, b.c, 90);
+  assert.equal(b.guard.skill?.active, false, 'no target, no start');
+  const p = arena(sk({ type: 'PASSIVE', sp: 'none', cost: 0, duration: 10, bb: { atk: 0.3, def: 0.3 } }), 0);
+  assert.equal(p.guard.skill?.active, true);
+  assert.equal(statsOf(p.guard).atk, 65);
+  run(p.w, p.c, 300);
+  assert.equal(p.guard.skill?.active, false);
+  assert.equal(statsOf(p.guard).atk, 50);
+});
+
+test('[技能-4] a duration runs n frames from the frame it starts; stun does not stop it; no SP meanwhile', () => {
+  const a = arena(sk({ cost: 1, init: 1, duration: 1, bb: { attack_speed: 100 } }), 0);
+  run(a.w, a.c, 1, [[0, { type: 'skill', unit: a.guard.id }]]);
+  const started = a.w.frame - 1;
+  applyStatus(a.guard, 'stun', { frames: 10 });
+  /** @type {number[]} */
+  const on = [];
+  for (let i = 0; i < 40; i++) { if (a.guard.skill?.active) on.push(a.w.frame); step(a.w, a.c); }
+  assert.equal(on.length, 30, 'still running before frames started+1 … started+30; it ends in the turn of started+30');
+  assert.equal(on[0], started + 1);
+  assert.equal(on[29], started + 30);
+  assert.equal(a.guard.skill?.sp, 0, 'the slot did not run while it was active');
+});
+
+test('[技能-4] ammo: each skill attack takes a shot; out of ammo it ends at the next attack, which is a normal one', () => {
+  const a = arena(sk({ cost: 1, init: 1, ammo: true, bb: { 'attack@trigger_time': 2, 'attack@atk_scale': 3 } }));
+  const ev = run(a.w, a.c, 30 * 4, [[0, { type: 'skill', unit: a.guard.id }]]);
+  const hits = ev.filter((e) => e.type === 'hit').map((e) => e.damage), skill = ev.filter((e) => e.type === 'skill');
+  assert.deepEqual(hits.slice(0, 4), [150, 150, 50, 50]);
+  const firstNormal = ev.filter((e) => e.type === 'hit')[2].f;
+  assert.equal(skill[1].f, firstNormal, 'it ended at the third attack');
+});
+
+test('[技能-4] charges: SP holds cost × charges; two uses back to back', () => {
+  const a = arena(sk({ cost: 2, init: 9, charges: 2, bb: { cost: 1 } }), 0);
+  assert.equal(a.guard.skill?.sp, 4);
+  const before = a.w.players[0].cost;
+  run(a.w, a.c, 1, [[0, { type: 'skill', unit: a.guard.id }]]);
+  run(a.w, a.c, 1, [[0, { type: 'skill', unit: a.guard.id }]]);
+  assert.equal(a.guard.skill?.sp, 0);
+  assert.equal(a.w.players[0].cost - before, 2);
+});
+
+test('[技能-5] the blackboard: attribute keys as mods, attack keys as the mods of the skill\'s attacks', () => {
+  assert.deepEqual(statMods({ atk: 0.5, attack_speed: 30, def: -0.2, block_cnt: 1, times: 2, unknown: 9 }), { atkPct: 0.5, defPct: -0.2, aspd: 30, blockCnt: 1 });
+  assert.equal(Object.keys(STAT_KEYS).length, 16);
+  assert.deepEqual(skillMods({ 'attack@atk_scale': 2.3, 'attack@max_target': 3 }), { scale: 2.3, times: 1, targets: 3, skill: true });
+  const a = arena(sk({ cost: 1, init: 1, duration: 5, bb: { atk_scale: 1.5, times: 2, max_target: 2 } }), 3);
+  const ev = run(a.w, a.c, 2, [[0, { type: 'skill', unit: a.guard.id }]]);
+  const hits = ev.filter((e) => e.type === 'hit');
+  assert.equal(new Set(hits.map((e) => e.target)).size, 2, 'two targets');
+  assert.deepEqual(hits.map((e) => e.damage), [75, 75, 75, 75], 'two hits each at 150 %');
+});
+
+test('[技能-6] a behaviour by skill id: its trigger, start, tick, attack and end, acting only through the context', () => {
+  /** @type {string[]} */
+  const seen = [];
+  const a = arena(sk({ id: 'probe', type: 'AUTO', cost: 1, init: 1, duration: 1, bb: { power: 7 } }));
+  const foe = /** @type {Unit} */ (a.w.units[1]);
+  /** @type {import('../src/skills.js').SkillBehavior} */
+  const probe = {
+    trigger: 'attack',
+    start(ctx) {
+      seen.push(`start ${ctx.kind} ${ctx.bb.power}`);
+      ctx.addBuff(ctx.self, { key: 'probe', mods: { atkFlat: 10 } });
+      ctx.applyStatus(foe, 'stun', { frames: 100 });
+      ctx.gainCost(1);
+    },
+    tick(ctx) { if (ctx.frame === ctx.self.skill?.at) return; if (!seen.includes('tick')) seen.push('tick'); },
+    attack(ctx, mods) { seen.push(`attack ${ctx.stats(ctx.self).atk}`); return { ...mods, scale: 2 }; },
+    end(ctx) {
+      seen.push(`end ${ctx.dealDamage(foe, { type: 'true', amount: 5 })} ${ctx.heal(ctx.self, 1)}`);
+      ctx.removeBuff(ctx.self, 'probe');
+    },
+  };
+  a.c.behaviors = { skills: { probe } };
+  const ev = run(a.w, a.c, 40);
+  assert.deepEqual(seen, ['start duration 7', 'attack 60', 'tick', 'end 5 0']);
+  assert.equal(ev.find((e) => e.type === 'hit')?.damage, 120, 'its attack mods: 60 atk × 2');
+  assert.equal(foe.buffs.find((b) => b.key === 'stun')?.src, a.guard.id, 'the status names the skill\'s operator as its source');
+  assert.equal(statsOf(a.guard).atk, 50);
+});

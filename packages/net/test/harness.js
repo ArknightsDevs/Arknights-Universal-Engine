@@ -1,6 +1,6 @@
 // A deterministic simulated network for lockstep tests: one host, two clients, per-seat one-way latency, messages
 // passed through JSON like a socket, client messages validated as the server will validate them, and drops.
-import { clientMessageProblem } from '@aue/schema';
+import { clientMessageProblem, PROTOCOL_VERSION } from '@aue/schema';
 import { stateHash } from '@aue/sim';
 import { tinyContent } from '@aue/testkit';
 import { LockstepHost, LockstepClient, framesAt } from '../src/index.js';
@@ -52,7 +52,7 @@ function deliver(queue, t) {
 function drops(s, env, t) {
   for (const d of s.drops ?? []) {
     if (d.from === t) env.host.bye(d.seat, t);
-    if (d.to === t) env.toHost(d.seat, { t: 'hello', v: 1, seat: d.seat, key: `seat${d.seat}`, since: env.clients[d.seat].world?.frame ?? -1 });
+    if (d.to === t) env.toHost(d.seat, { t: 'hello', v: PROTOCOL_VERSION, seat: d.seat, key: `seat${d.seat}`, since: env.clients[d.seat].world?.frame ?? -1 });
   }
 }
 
@@ -67,7 +67,7 @@ function scripted(s, env, t) {
  * @param {Scenario} s @param {any} env
  */
 function runScenario(s, env) {
-  for (const seat of [0, 1]) env.toHost(seat, { t: 'hello', v: 1, seat, key: `seat${seat}`, since: -1 });
+  for (const seat of [0, 1]) env.toHost(seat, { t: 'hello', v: PROTOCOL_VERSION, seat, key: `seat${seat}`, since: -1 });
   for (let t = 0; t <= s.ms; t++) {
     env.setNow(t);
     deliver(env.queue, t);

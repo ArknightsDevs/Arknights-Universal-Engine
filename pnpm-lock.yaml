@@ -38,6 +38,10 @@ importers:
       '@aue/sim':
         specifier: workspace:*
         version: link:../sim
+    devDependencies:
+      '@aue/testkit':
+        specifier: workspace:*
+        version: link:../testkit
 
   packages/data: {}
 

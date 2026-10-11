@@ -134,5 +134,29 @@
     "stronghold": "server/sim/ai.js compileRoute：只认 MOVE、WAIT、DISAPPEAR、APPEAR；巡逻点和片段等待在它的数据构建里另行转换，没有检查点偏移。",
     "reason": "PRTS「作战机制」oldid=433935 写明了这几种指令的含义；促融共竞关卡用到它们（巡逻点 1091 个、片段等待 350 个、带偏移的 MOVE 1180 个）。",
     "status": "有效"
+  },
+  {
+    "id": "DIF-0018",
+    "clause": "技能-2",
+    "ours": "技力是整数，自动回复按技力冷却槽：每帧进度加 速度 ÷ 30，剩余不到 10⁻⁵ 秒时得 1 点并保留多出的进度；满或阻回时暂停。",
+    "stronghold": "server/sim/skills.js gainSp：每帧加 spRecovery × dt 的小数技力，到消耗时（容差 1e-9）技能就绪。",
+    "reason": "PRTS「技能」oldid=420458：技力「最小单位为1点，不存在小数部分」，自动回复来自技力冷却槽，完成判定为剩余冷却时间小于 10⁻⁵ 秒。两者就绪的帧通常相同。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0019",
+    "clause": "技能-4",
+    "ours": "弹药技能打完最后一发后仍在运行，到下次攻击才退出，那一次是普通攻击。",
+    "stronghold": "server/sim/skills.js onAttackPerformed：弹药减到 0 时立即结束技能。",
+    "reason": "PRTS「技能」oldid=420458：「当下次普通攻击时弹药不高于0，则会退出技能状态」。差别在技能 Buff 多保留到下次攻击，以及技力从那时才重新积累。",
+    "status": "有效"
+  },
+  {
+    "id": "DIF-0020",
+    "clause": "技能-2",
+    "ours": "受击回复也计入被闪避的攻击。",
+    "stronghold": "server/sim/damage.js：闪避的攻击不触发受击回复。",
+    "reason": "PRTS「技能」oldid=420458 写的是「每次被攻击时」，没有排除闪避（INF-0032）。",
+    "status": "有效"
   }
 ]

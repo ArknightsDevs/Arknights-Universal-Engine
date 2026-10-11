@@ -63,7 +63,7 @@ export function step(w, c, commands = []) {
   for (const [seat, cmd] of commands) applyCommand(w, c, seat, cmd);
   gainCost(w, c);
   spawnDue(w, c);
-  tickBuffs(w);
+  tickBuffs(w, c.behaviors?.buffs ?? {});
   enemiesAct(w, c);
   operatorsAttack(w, c);
   removeDead(w);

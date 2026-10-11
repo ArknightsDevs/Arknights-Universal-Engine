@@ -7,3 +7,5 @@ export const skeletonContent = /** @type {any} */ (skeleton);
 
 /** Where the skeleton's data comes from: the ArknightsGameData commit it was generated at. */
 export const skeletonSource = skeleton.source;
+
+export { skillDefOf, skillBehaviors } from './skills.js';

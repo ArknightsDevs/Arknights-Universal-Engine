@@ -1,0 +1,104 @@
+# 技能
+
+实现见 `packages/sim/src/skills.js`（技能运行）和 `packages/sim/src/sp.js`（技力），官方技能的数据转换和行为见 `packages/content/src/skills.js`。
+
+### 技能-1 技能数据与种类
+
+技能来自 skill_table 的一级数据：
+
+- 触发类型：自动、手动、被动；
+- 技力回复方式：自动回复、攻击回复、受击回复；
+- 技力消耗、初始技力、充能次数（maxChargeTime，至少 1）；
+- 持续时间（秒）、持续类型（弹药或普通）；
+- blackboard（键和数值）。
+
+按数据分成五种：
+
+| 种类 | 条件 |
+|---|---|
+| 被动 | 触发类型为被动 |
+| 弹药 | 持续类型为弹药（AMMO） |
+| 持续 | 持续时间大于 0 |
+| 下次攻击 | 没有持续时间，blackboard 有攻击类的键（技能-5） |
+| 立即 | 其余 |
+
+- 来源：数据：skill_table[].levels[]（skillType、spData、duration、durationType、blackboard）；[PRTS「技能」oldid=420458](https://prts.wiki/index.php?title=%E6%8A%80%E8%83%BD&oldid=420458)「触发条件」：自动触发、手动触发、被动；种类的划分为推断 INF-0031
+
+### 技能-2 技力
+
+- **整数**：技力是整数，不超过上限 = 技力消耗 × 充能次数。部署时（每次部署）获得初始技力。
+- **自动回复**：每个技力点来自一个「技力冷却槽」。槽在技力自然回复速度为 1 时 1 秒填满。
+  - 每帧，槽的进度加上「技力自然回复速度 ÷ 30」。
+  - 剩余时间（1 − 进度）÷ 速度小于 10⁻⁵ 秒时，槽算填满：得 1 点技力，进度减 1，多出的部分保留。
+  - 技力已满或阻回时，槽保留进度，暂停计时。
+- **攻击回复**：干员每进行一次不由技能发动的攻击，得 1 点。一次攻击打多个目标也只算一次。
+- **受击回复**：干员每受到一次伤害（伤害-7），得 1 点。无敌、消失时受到的伤害不算；被闪避、被护盾或屏障挡下的也算；生命流失不算。
+- **阻回**：技能运行期间不回复技力。
+
+- 来源：[PRTS「技能」oldid=420458](https://prts.wiki/index.php?title=%E6%8A%80%E8%83%BD&oldid=420458)：自动回复「通常每秒回复1点技力」，技力冷却槽、「当前剩余冷却时间 < 10^-5秒（0.1毫秒）时，视为冷却完成」、阻回或技力条已满时保留剩余冷却时间并暂停计时，「对技力自然回复速度的修改实际上是对技力冷却槽的修改」，「其最小单位为1点，不存在小数部分」，攻击回复「每次攻击时回复1点技力」，受击回复「每次被攻击时回复1点技力」，「仅在携带者入场时，技能会预先充入"初始技力"」，充能技能「当前技力上限等于该技能技力需求的X倍」；攻击和受击的计法为推断 INF-0032
+
+### 技能-3 发动
+
+- **共同条件**：技能没在运行，技力不少于技力消耗，干员能行动（不处于晕眩、冻结、沉睡、浮空），没有被沉默。
+- **手动**：玩家的技能指令（协议第 2 版：`{ type: 'skill', unit }`）在执行帧的指令阶段生效。只能对自己在场的干员发出，技能必须是手动的；不满足条件的指令被忽略。
+- **自动**：在干员每帧的回合里检查。
+  - 立即类技能（没有攻击类的键）一满足条件就发动；
+  - 其他自动技能在干员即将攻击时（冷却结束、有目标）发动，这次攻击就算技能的攻击。
+  - 内容的行为可以指定发动时机。
+- **被动**：部署时发动。
+
+- 来源：[PRTS「技能」oldid=420458](https://prts.wiki/index.php?title=%E6%8A%80%E8%83%BD&oldid=420458)：自动触发「技能在满足给定条件后自动触发」，手动触发「需要玩家交互以触发」；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 晕眩「无法移动、阻挡、攻击及使用技能」；[PRTS「异常效果」oldid=440606](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=440606) 沉默「无法触发可沉默的技能与能力」；自动技能的发动时机为推断 INF-0033
+
+### 技能-4 运行与结束
+
+发动时扣除技力消耗；有充能的技能保留剩下的技力。各种技能的运行和结束：
+
+- **持续**：持续时间换成 n 帧（时间-2）。从发动那一帧起运行，n 帧后在干员的回合开始时结束。晕眩不停止计时。
+- **弹药**：弹药数取 blackboard 的 `attack@trigger_time`，没有时取 `cnt`，再没有时为 1。技能的每次攻击用掉一发。弹药不多于 0 时，到下次攻击才退出技能，这次攻击是普通攻击。持续时间大于 0 的弹药技能，时间到了也结束。
+- **下次攻击**：等待干员的下一次攻击，用技能的攻击修正打完这一次就结束。
+- **立即**：发动当时起作用，同一帧结束。
+- **被动**：有持续时间的按持续结束，没有的一直运行。
+
+技能开始和结束时各产生一个表现事件（事件第 2 版：`skill`，active 为 1 或 0）。
+
+- 来源：[PRTS「技能」oldid=420458](https://prts.wiki/index.php?title=%E6%8A%80%E8%83%BD&oldid=420458)：「触发技能后，触发技能的单位将消耗相应的技力」，「绝大多数技能结束时，因技力在处理时被消耗，其技力将从0开始重新积累」，弹药技能「当下次普通攻击时弹药不高于0，则会退出技能状态」；弹药的键和各种技能的帧计法为推断 INF-0034
+
+### 技能-5 通用效果
+
+没有专门行为的技能，按 blackboard 起作用：
+
+- **属性键**：技能运行期间（持续、弹药、被动），在干员身上加一个 Buff，修饰器如下表。
+
+  | 键 | 修饰器 | 类型 |
+  |---|---|---|
+  | `atk` | `atkPct` | 直接乘算 |
+  | `def` | `defPct` | 直接乘算 |
+  | `max_hp` | `hpPct` | 直接乘算 |
+  | `move_speed` | `movePct` | 直接乘算 |
+  | `attack_speed` | `aspd` | 直接加算 |
+  | `magic_resistance` | `resFlat` | 直接加算 |
+  | `block_cnt` | `blockCnt` | 直接加算 |
+  | `base_attack_time` | `batFlat` | 直接加算 |
+  | `sp_recovery_per_sec` | `spRecoveryFlat` | 直接加算 |
+  | `hp_recovery_per_sec` | `hpRegen` | 直接加算 |
+  | `ability_range_forward_extend` | `rangeExtend` | 直接加算 |
+  | `taunt_level` | `taunt` | 直接加算 |
+
+  另外四种穿透（`def_penetrate`、`def_penetrate_fixed`、`magic_resist_penetrate`、`magic_resist_penetrate_fixed`）也按直接加算。
+- **攻击键**：技能发动的攻击中，`atk_scale`（或 `attack@atk_scale`）是攻击力倍率（伤害-6），`times`（或 `attack@times`）是每个目标受到的次数，`max_target`（或 `attack@max_target`）是目标数（索敌-3 取前 n 个）。
+- **立即技能的 `cost`**：拥有者立刻获得这么多费用，不超过上限。
+
+- 来源：数据：battle/buff_template_data 中官方属性修饰器的类型分布（ATK 388 个中 MULTIPLIER 337 个；ATTACK_SPEED 214 个中 ADDITION 196 个；DEF 以 MULTIPLIER 为主；MAX_HP 以 MULTIPLIER 为主；MAGIC_RESISTANCE、BLOCK_CNT、SP_RECOVERY_PER_SEC、BASE_ATTACK_TIME、ABILITY_RANGE_FORWARD_EXTEND、TAUNT_LEVEL、各种穿透以 ADDITION 为主）；[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「倍率」：攻击力倍率；键到效果的对应为推断 INF-0035
+
+### 技能-6 行为接口
+
+内容可以按技能 id 提供行为：发动时机，以及开始、每帧、结束和改动攻击修正时做的事。行为只能通过上下文作用：
+
+- 读取干员、blackboard 和属性；
+- 加减 Buff、施加异常状态；
+- 造成伤害、治疗；
+- 给拥有者费用。
+
+没有行为的技能用通用效果（技能-5）。内容代码不能直接写单位字段，由 lint 检查（ADR 0045）。
+
+- 来源：设计决定，见 [ADR 0055](../adr/0055-sdk-prepared-now-built-after-mvp.md)；生命回复（skcom_heal_self）「立即恢复最大生命的{heal_scale}」见数据：skill_table

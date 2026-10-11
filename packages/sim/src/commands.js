@@ -4,6 +4,7 @@ import { KIND } from '@aue/schema';
 import { tileAt, buildableFor } from './level.js';
 import { makeOperator } from './units.js';
 import { releaseAll } from './blocking.js';
+import { onDeploy, commandSkill } from './skills.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -32,6 +33,7 @@ function deploy(w, c, seat, cmd) {
   p.deployed.push(cmd.op);
   w.units.push(u);
   w.events.push({ type: 'deploy', id: u.id, key: u.key, owner: seat });
+  onDeploy(w, c, u);
 }
 
 /** Retreat: a player's own operator leaves the field (spec 撤退-1). @param {World} w @param {number} seat @param {number} unit */
@@ -47,5 +49,6 @@ function retreat(w, seat, unit) {
 /** Applies one command of a seat. @param {World} w @param {Content} c @param {number} seat @param {Command} cmd */
 export function applyCommand(w, c, seat, cmd) {
   if (cmd.type === 'deploy') deploy(w, c, seat, cmd);
+  else if (cmd.type === 'skill') commandSkill(w, c, seat, cmd.unit);
   else retreat(w, seat, cmd.unit);
 }
