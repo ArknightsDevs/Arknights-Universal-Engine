@@ -1,0 +1,19 @@
+# --- dependencies -------------------------------------------------------------------------------------
+node_modules/
+
+# --- game assets never live here: they are in the separate assets repository ---------------------------
+*.skel
+*.atlas
+*.ab
+*.bundle
+*.wav
+*.ogg
+*.mp3
+
+# --- caches, coverage, logs, local outputs -------------------------------------------------------------
+.cache/
+coverage/
+*.log
+*.tsbuildinfo
+.DS_Store
+Thumbs.db

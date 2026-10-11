@@ -1,0 +1,14 @@
+{
+  "name": "@aue/simcheck",
+  "version": "0.0.0",
+  "private": true,
+  "description": "the cross-engine check (shared with Duel Channel and Stronghold Protocol)",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "aue": {
+    "node": true
+  }
+}

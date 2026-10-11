@@ -1,0 +1,11 @@
+{
+  "name": "@aue/net",
+  "version": "0.0.0",
+  "private": true,
+  "description": "lockstep: client (worker) and server sides, protocol",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  }
+}

@@ -1,0 +1,91 @@
+name: Bug 反馈
+description: 模拟、渲染、数据解析或构建出现了错误。
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请在上方起一个能说明问题的标题，例如「近战单位被阻挡时撤退会重复结算一次」。
+
+        > [!important]
+        > - 一个 issue 只报告**一个**问题。
+        > - 使用方法、接入求助请发到 [Discussions 的 Q&A](../discussions/categories/q-a)。
+        > - 规则或数值与官方不一致，请用「规则与官方不一致」模板。
+        > - 不需要附带游戏素材文件。截图和录屏可以。
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 检查清单
+      options:
+        - label: 我已更新到 main 分支的最新提交（`git pull`、`pnpm install`），问题仍然存在。
+          required: true
+        - label: 我已在 [Issues](../issues?q=is%3Aissue) 中搜索过，没有找到相同的问题。
+          required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: 出现在哪个包
+      options:
+        - "@aue/math"
+        - "@aue/sim（模拟）"
+        - "@aue/content"
+        - "@aue/data"
+        - "@aue/spine"
+        - "@aue/render"
+        - "@aue/ui"
+        - "@aue/net（联机 / 锁步）"
+        - "@aue/worker"
+        - "@aue/simcheck / @aue/testkit"
+        - 构建 / CI
+        - 不确定
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 实际结果
+      description: 发生了什么。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望的行为
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重现步骤
+      description: 怎样操作能再次触发。模拟问题请附上能重放的输入：关卡、阵容、种子、操作序列与出问题的帧号。
+      placeholder: |
+        1. 加载关卡 …
+        2. 在第 … 帧部署 …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: 环境
+      description: 版本（提交号，`git rev-parse --short HEAD`）、系统、浏览器及版本、Node 版本、pnpm 版本。
+      placeholder: |
+        提交：9c0885d
+        系统：Windows 11
+        浏览器：Chrome 154
+        Node：24.18
+        pnpm：10.0
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 控制台 / 日志（可选）
+      description: 浏览器控制台的错误（F12 → Console）、测试或检查脚本的输出。会自动按代码格式显示。
+      render: shell
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图 / 录屏（可选，建议）
+      description: 直接粘贴或拖动到这里上传。

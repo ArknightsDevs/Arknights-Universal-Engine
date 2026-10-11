@@ -1,0 +1,11 @@
+{
+  "name": "@aue/spine",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Spine 3.8: reading, animation, meshes (no GPU)",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  }
+}

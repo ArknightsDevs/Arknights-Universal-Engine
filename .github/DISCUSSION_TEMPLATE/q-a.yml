@@ -1,0 +1,31 @@
+title: "[求助] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先看看 [README](../blob/main/README.md) 和 `docs/` 里的文档有没有答案。请不要上传游戏素材文件。
+  - type: dropdown
+    id: topic
+    attributes:
+      label: 关于
+      options:
+        - 安装 / 构建
+        - 接入引擎（模拟、渲染、联机）
+        - 数据与内容
+        - 规则与规格
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: 问题
+      description: 你想做什么、做了哪些步骤、遇到了什么（报错原文、截图）。
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 环境（可选）
+      placeholder: 提交号、系统、浏览器、Node 与 pnpm 版本

@@ -1,0 +1,21 @@
+{
+  "name": "@aue/lint",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The shared ESLint setup of AUE and the projects built on it: maintainability limits, determinism rules, package boundaries.",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "aue": {
+    "node": true
+  },
+  "dependencies": {
+    "@eslint/js": "^10.0.1",
+    "globals": "^17.12.0"
+  },
+  "peerDependencies": {
+    "eslint": ">=10"
+  }
+}

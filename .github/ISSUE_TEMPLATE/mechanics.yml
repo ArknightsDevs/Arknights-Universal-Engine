@@ -1,0 +1,42 @@
+name: 规则与官方不一致
+description: 某条规则、数值、技能或敌人行为和官方实际表现不同。
+title: "[规则]: "
+labels: ["mechanics"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        本项目的每条规则在 `docs/spec/` 里都有带编号的条款和来源，按推断实现的部分也在那里标明。请先看一下有没有已知说明，并在下面写出条款编号。
+
+        > [!important]
+        > 请给出**可以核对的官方依据**：PRTS 页面（带 oldid 的永久链接）、游戏数据表的文件与字段、实机录像链接与时间点。没有官方依据的反馈无法处理。不要上传游戏素材文件。
+  - type: input
+    id: rule
+    attributes:
+      label: 哪条规则
+      placeholder: 例如：阻挡数为 0 的单位是否仍被阻挡 / 技能结束时的回复结算顺序
+    validations:
+      required: true
+  - type: input
+    id: clause
+    attributes:
+      label: 相关条款编号（可选）
+      description: docs/spec/ 里的条款编号，不知道可以留空。
+  - type: textarea
+    id: official
+    attributes:
+      label: 官方表现与依据
+      description: 官方是怎样的，依据是什么（PRTS 链接和 oldid、数据表路径与字段、录像时间点）。
+    validations:
+      required: true
+  - type: textarea
+    id: ours
+    attributes:
+      label: 本项目的表现
+      description: 本项目里是怎样的。请附上能重放的输入：关卡、阵容、种子、操作序列。
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 补充（可选）
