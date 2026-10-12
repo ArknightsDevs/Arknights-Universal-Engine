@@ -1,6 +1,6 @@
 // @aue/render: the three.js battle renderer (ADR 0025–0028): the official camera, terrain from a map theme's tile kit
 // (or flat textures), units as Spine figures (or cards where no model is loaded).
-export { createBattleRenderer, loadTextures, loadSpineModels, loadTileKit } from './renderer.js';
+export { createBattleRenderer, loadTextures, loadSpineModels, loadTileKit, pixelRatioOf } from './renderer.js';
 export { kitKey, kitPattern, KIT_ALIAS, KIT_LIGHT } from './kit.js';
 export { HIGHLIGHT, highlightFactor } from './highlight.js';
 export { RANGE } from './range.js';

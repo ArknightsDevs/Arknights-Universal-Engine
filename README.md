@@ -9,7 +9,15 @@
 
 一个**确定性、帧同步**的《明日方舟》战斗引擎，跑在浏览器和 Node 上。第一个基于它的玩法平台是 [促融共竞（Icebreaker-Games）](https://github.com/Cloudnyco/Icebreaker-Games)：双人实时合作。
 
-**现状**：起步阶段（里程碑 M0）。工程骨架、检查工具和第一条机制规范（时间与帧）已经就位，战斗内核还没开始写。
+**现状**（2026-10-12，最新标签 v0.0.6）：战斗内核、帧同步和画面已经能在两个浏览器里打完整局合作对局。
+
+- **战斗内核**：属性与 Buff、异常状态、伤害与伤判、索敌、阻挡、官方寻路与路线、波次与关卡、合作规则、技能、元素、职业分支特性（58/72）、天赋、敌人能力；钩子总线与定时器。可玩的合作关卡：act1multi_01、act1multi_06、act2multi_rm01。
+- **帧同步**：服务器仲裁、断同步恢复、重连、二倍速与暂停、开局等待协作者；带 kit 的对局从第 0 帧重放（协议第 7 版）。
+- **画面**：three.js 真 3D，自己实现的 Spine 3.8，地块套件、部署高亮、攻击范围、攻击与角色特效、部署预览；画面开销由玩家设置（ADR 0059）。
+- **战斗界面**：自己的界面引擎，原样式的战斗界面（素材由维护者另行准备，见 ADR 0018）。
+- **干员内容**：兼容层原样运行 Stronghold Protocol 的干员 kit（ADR 0058），逐个 kit 对照后启用；目前启用推进之王。
+
+各项决定见 [docs/adr/](docs/adr/)，机制规范见 [docs/spec/](docs/spec/)。
 
 ## 原则
 
@@ -41,10 +49,10 @@
 | `@aue/net` | 帧同步 |
 | `@aue/worker` | 后台线程入口 |
 | `@aue/simcheck` | 跨引擎一致性检查 |
-| `@aue/testkit` | 差分对照、测试生成器（仅开发用） |
+| `@aue/testkit` | 差分对照、测试生成器、检查工具（仅开发用） |
 | `@aue/lint` | 共享的 ESLint 规则 |
 
-其他项目这样引用：`github:Cloudnyco/Arknights-Universal-Engine#<标签>&path:/packages/<包>`，需要用 pnpm 安装。
+其他项目以 git 子模块引用本仓库的发布标签，用 pnpm 工作区安装（见 [ADR 0052](docs/adr/0052-engine-as-git-submodule.md)）。
 
 ## 开发
 
@@ -52,9 +60,11 @@
 
 ```sh
 pnpm install
-pnpm run ci        # lint、类型检查、测试和覆盖率、依赖 / 规范 / 登记表检查
+pnpm run ci        # 取差分对照，lint、类型检查、声明文件、测试和覆盖率、依赖 / 规范 / 登记表检查
 pnpm test          # 只跑测试
 ```
+
+`pnpm run ci` 的第一步把固定版本的 Stronghold Protocol 取到 `.cache/oracle/`（或 `AUE_STRONGHOLD_DIR`），供差分对照和 kit 测试使用。
 
 参与方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 

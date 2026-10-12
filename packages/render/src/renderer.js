@@ -30,7 +30,18 @@ import { spineModel } from './spine.js';
  *   textures
  * @property {import('./fx/player.js').FxPack | null} [effects] the units' attack effects (渲染-10…渲染-12); none without
  * @property {Record<string, number>} [skills] each operator's skill (1-based) by its key, for its skill's own effects
+ * @property {number} [pixelScale] the player's 清晰度 (渲染-15): the canvas's pixel ratio is the device's times this (default 1)
+ * @property {boolean} [attackEffects] whether the attacks' effects are drawn (渲染-15; default true)
  */
+
+/** The events that set off attack effects (渲染-10, 渲染-11); the player may turn them off (渲染-15). */
+const ATTACK_EVENTS = new Set(['attack', 'shot', 'hit', 'heal']);
+
+/**
+ * The canvas's pixel ratio (渲染-15): the device's (1 when unknown) times the player's 清晰度, held to 0.25…2.
+ * @param {number | undefined} device @param {number} scale
+ */
+export const pixelRatioOf = (device, scale) => (device || 1) * Math.min(2, Math.max(0.25, Number.isFinite(scale) ? scale : 1));
 
 /** The textures without the start and end tiles' markers when the effects draw them (渲染-12). @param {RendererOptions} o */
 const terrainTextures = (o) => (o.effects?.data.named?.tile_start ? new Map([...o.textures].filter(([k]) => !/^tile:tile_(start|end)/.test(k))) : o.textures);
@@ -67,9 +78,10 @@ export function createBattleRenderer(o) {
   const overlays = createOverlays(o.bars === false ? new Map() : o.textures, o.leaders);
   const ray = new THREE.Raycaster();
 
+  let scale = o.pixelScale ?? 1, attackFx = o.attackEffects !== false;
   const resize = () => {
     const w = o.canvas.clientWidth, h = o.canvas.clientHeight;
-    renderer.setPixelRatio(globalThis.devicePixelRatio || 1);
+    renderer.setPixelRatio(pixelRatioOf(globalThis.devicePixelRatio, scale));
     renderer.setSize(w, h, false);
     applyPose(camera, o.view ?? DEFAULT_VIEW, w / Math.max(1, h));
   };
@@ -77,6 +89,10 @@ export function createBattleRenderer(o) {
 
   return {
     resize,
+    /** The player's 清晰度 (渲染-15). @param {number} s */
+    setPixelScale(s) { scale = s; resize(); },
+    /** Whether the attacks' effects are drawn from now on (渲染-15). @param {boolean} on */
+    setAttackEffects(on) { attackFx = on; },
     /**
      * @param {import('@aue/schema').View} view @param {Record<string, string>} keys content keys of units (at least of those
      *   not given before)
@@ -86,7 +102,7 @@ export function createBattleRenderer(o) {
       units.update(view, keys, field, performance.now(), events);
       overlays.update(view, keys, field, units.shows);
       clock.seen(view.frame, performance.now());
-      effects?.update(view, keys, events);
+      effects?.update(view, keys, attackFx ? events : events.filter((e) => !ATTACK_EVENTS.has(String(e.type))));
     },
     /** Highlights the tiles (keys row × width + col) the selected operator can be deployed on (渲染-8); null for none. @param {Iterable<number> | null} keys */
     highlight: (keys) => highlight.set(keys),

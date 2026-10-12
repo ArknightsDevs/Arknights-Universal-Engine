@@ -11,6 +11,7 @@ Copyright (C) 2026 Arknights Universal Engine contributors
 - 范围：`packages/`、`tools/`、`docs/` 下的代码与文字，以及根目录的配置文件。
 - 通过 pnpm 安装的第三方库各自保留原许可证。
 - 本项目不包含 Spine 官方运行时：Spine 3.8 运行时由本项目自己实现（见 [ADR 0028](docs/adr/0028-own-spine-runtime.md)）。
+- 兼容层（`packages/content/src/compat/`）载入 [Stronghold Protocol](https://github.com/sganggs/Stronghold-Protocol)（GPL-3.0-or-later，版权归其作者）一个固定提交里的干员 kit（见 [ADR 0058](docs/adr/0058-stronghold-kits-in-matches.md)）。它们不在本仓库中：差分对照和对局使用时另行取得，原样使用，只改写其中的导入路径。
 
 ## 2. 不属于本项目、不受 GPL 约束的内容
 

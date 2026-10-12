@@ -72,3 +72,4 @@
 | [0056](0056-testkit-parses-sources-with-espree.md) | testkit 用 espree 解析源码 | 已采纳 | 验证 |
 | [0057](0057-hook-bus-and-timers.md) | 内核的钩子总线与定时器 | 已采纳 | 模拟内核 |
 | [0058](0058-stronghold-kits-in-matches.md) | Stronghold 的 kit 作为固定版本的脚本 mod 进入对局 | 已采纳 | 模拟内核 |
+| [0059](0059-player-chosen-performance.md) | 画面开销由玩家选择，不设统一预算 | 已采纳 | 渲染 |
