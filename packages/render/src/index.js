@@ -13,3 +13,4 @@ export { cameraPose, applyPose, toThree, tileWorld, screenOf, adapt, DEFAULT_VIE
 export { tileKeys } from './terrain.js';
 export { unitTextureKey } from './units.js';
 export { SHADOW } from './shadows.js';
+export { createPlacing, INDICATOR } from './placing.js';

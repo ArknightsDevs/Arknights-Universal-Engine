@@ -1,5 +1,5 @@
 // The battle renderer: a three.js scene of systems — terrain (a map theme's tile kit, or flat textures), the units'
-// shadows, units (Spine figures or cards), the attack effects — under the official camera, then the overlays (HP and SP
+// shadows, units (Spine figures or cards), the operator being placed, the attack effects — under the official camera, then the overlays (HP and SP
 // bars) over it with the depth cleared (ADR 0027). The page owns the loop: it calls update() with each render state
 // from the worker and render() once per animation frame.
 import * as THREE from 'three';
@@ -12,6 +12,7 @@ import { createEffects } from './effects.js';
 import { FPS } from './figure.js';
 import { createUnits } from './units.js';
 import { createOverlays } from './overlays.js';
+import { createPlacing } from './placing.js';
 import { spineModel } from './spine.js';
 
 /**
@@ -19,7 +20,7 @@ import { spineModel } from './spine.js';
  * @property {HTMLCanvasElement} canvas
  * @property {import('./terrain.js').TerrainLevel} level
  * @property {Map<string, THREE.Texture>} textures keyed 'tile:<key>', 'avatar:<charId>', 'enemy:<enemyKey>', 'ui:bar', 'ui:shadow',
- *   'ui:range'
+ *   'ui:range', 'ui:directionRing', 'ui:directionArrow'
  * @property {readonly number[]} [view] the level's camera view vector
  * @property {import('./units.js').Models} [models] Spine models by content key (operators by character id)
  * @property {Set<string>} [leaders] content keys of leader enemies (red HP bars)
@@ -61,7 +62,8 @@ export function createBattleRenderer(o) {
   const terrain = o.kit ? createKitTerrain(o.level, o.kit, terrainTextures(o), patch) : createTerrain(o.level, o.textures, patch);
   const units = createUnits(o.textures, o.models), field = { ...o.level, highland: o.kit?.kit.highland };
   const range = createRange(field, o.textures.get('ui:range')), effects = o.effects ? createEffects(o.effects, field, { skills: o.skills }) : null, clock = battleClock();
-  scene.add(terrain.object, range.object, units.shadows, units.object, ...(effects ? [effects.object] : []));
+  const placing = createPlacing(o.textures, o.models ?? new Map(), field);
+  scene.add(terrain.object, range.object, units.shadows, placing.object, units.object, ...(effects ? [effects.object] : []));
   const overlays = createOverlays(o.bars === false ? new Map() : o.textures, o.leaders);
   const ray = new THREE.Raycaster();
 
@@ -90,9 +92,12 @@ export function createBattleRenderer(o) {
     highlight: (keys) => highlight.set(keys),
     /** Shows an attack range (渲染-9): tile keys, healing or not; null for none. @param {Iterable<number> | null} keys @param {boolean} [heal] */
     range: (keys, heal) => range.show(keys, heal),
+    /** Shows the operator being placed (渲染-14); null for none. @param {import('./placing.js').Placing | null} p */
+    placing: (p) => placing.set(p),
     render() {
       range.tick(performance.now() / 1000);
       units.pose(camera);
+      placing.pose(camera);
       overlays.pose(camera);
       effects?.step(clock.delta(performance.now()), camera);
       renderer.info.reset();
@@ -118,7 +123,7 @@ export function createBattleRenderer(o) {
     shows: (id) => units.shows(id),
     /** What the last frame drew and what the GPU holds (for measuring): draw calls, triangles, geometries, textures and their estimated bytes. */
     stats: () => drawStats(renderer, [scene, overlays.scene]),
-    dispose() { terrain.dispose(); range.dispose(); highlight.dispose(); units.dispose(); overlays.dispose(); effects?.dispose(); renderer.dispose(); },
+    dispose() { terrain.dispose(); range.dispose(); highlight.dispose(); units.dispose(); placing.dispose(); overlays.dispose(); effects?.dispose(); renderer.dispose(); },
   };
 }
 
