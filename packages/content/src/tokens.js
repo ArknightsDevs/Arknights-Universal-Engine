@@ -121,19 +121,65 @@ function withEffects(rec, page) {
   };
 }
 
+/** A count of copies a skill gives (召唤-8): after 获得 or 可以使用, a number of 个 or 枚. */
+const GIVES = /(?:获得|可以使用)(一|两|二|三|四|五|\d+|\{cnt(?::[^}]*)?\})(?:个|枚)/;
+/** @type {Readonly<Record<string, number>>} */
+const WORD = Object.freeze({ 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5 });
+
 /**
- * A summon at its owner's training as @aue/sim reads it (召唤-2…召唤-4, 召唤-7): its record, with its PRTS position and
- * effects, and `summon` — its limits, what the owner's deployment adds to its card, 部署占用数, 再部署策略, whether it stays
- * when the owner leaves.
+ * When the clause a skill gives copies in says it happens (召唤-8): 技能结束时 at the skill's end, 部署后 at its owner's
+ * deployment, else at its start.
+ * @param {string} text @param {number} at
+ * @returns {'start' | 'end' | 'deploy'}
+ */
+function givenWhen(text, at) {
+  const clause = text.slice(0, at).split(/[\n；。]|\\n/).at(-1) ?? '';
+  return clause.includes('技能结束时') ? 'end' : clause.includes('部署后') ? 'deploy' : 'start';
+}
+
+/**
+ * The copies of a summon its owner's skill gives (召唤-8): when the skill the owner brings summons it, its description
+ * at the skill's level — a count of 个 or 枚 after 获得 or 可以使用 (the blackboard's cnt for {cnt}), or 获得 and the
+ * summon's name for one — and when; null for none.
+ * @param {Training} owner @param {Build} b @param {string} id @param {string} name
+ * @returns {{ n: number, at: 'start' | 'end' | 'deploy' } | null}
+ */
+export function grantAt(owner, b, id, name) {
+  const slot = b.skill >= 0 ? owner.skills[b.skill] : null;
+  if (!slot || slot.token !== id) return null;
+  const lv = slot.levels[Math.min(Math.max(1, b.skillLevel), slot.levels.length) - 1];
+  const text = (lv.description ?? '').replace(/<[^>]*>/g, ''), m = GIVES.exec(text);
+  if (m) {
+    const cnt = lv.blackboard.find((e) => e.key === 'cnt')?.value ?? 0;
+    return { n: m[1].startsWith('{') ? cnt : WORD[m[1]] ?? Number(m[1]), at: givenWhen(text, m.index) };
+  }
+  const i = text.indexOf(`获得${name}`);
+  return i >= 0 ? { n: 1, at: givenWhen(text, i) } : null;
+}
+
+/**
+ * A summon at its owner's training as @aue/sim reads it (召唤-2…召唤-4, 召唤-7, 召唤-8): its record, with its PRTS position
+ * and effects, and `summon` — its limits, what the owner's deployment adds to its card, what its skill gives and when,
+ * 部署占用数, 再部署策略, whether it stays when the owner leaves.
  * @param {Training} token @param {string} id @param {Training} owner @param {Build} b @returns {import('@aue/sim').OperatorDef}
  */
 export function tokenAt(token, id, owner, b) {
   const tb = tokenBuild(token, b), mod = tokenModule(owner, b, id), page = Object.hasOwn(SUMMON_PAGES, id) ? SUMMON_PAGES[id] : null;
   return {
     ...withEffects(recordAt(token, tb, mod), page), ...(page?.position ? { position: /** @type {'MELEE' | 'RANGED'} */ (page.position) } : {}),
-    summon: {
-      ...limitsAt(token, tb, mod), supply: supplyAt(owner, b, id), occupy: page?.occupy ?? 0, respawn: page?.respawn ?? 'default',
-      ...(page?.stays ? { stays: true } : {}), ...(page?.ownerRange ? { ownerRange: true } : {}),
-    },
+    summon: { ...limitsAt(token, tb, mod), ...cardOf(token, id, owner, b), occupy: page?.occupy ?? 0, respawn: page?.respawn ?? 'default',
+      ...(page?.stays ? { stays: true } : {}), ...(page?.ownerRange ? { ownerRange: true } : {}) },
   };
+}
+
+/**
+ * What fills a summon's card (召唤-4, 召唤-8): its owner's deployment — the talent's count and what the skill gives then
+ * — and what the skill gives at its start or end.
+ * @param {Training} token @param {string} id @param {Training} owner @param {Build} b
+ * @returns {{ supply: number, grant?: { n: number, at: 'start' | 'end' } }}
+ */
+function cardOf(token, id, owner, b) {
+  const g = grantAt(owner, b, id, token.name), supply = supplyAt(owner, b, id);
+  if (!g || g.n <= 0) return { supply };
+  return g.at === 'deploy' ? { supply: supply + g.n } : { supply, grant: { n: g.n, at: g.at } };
 }

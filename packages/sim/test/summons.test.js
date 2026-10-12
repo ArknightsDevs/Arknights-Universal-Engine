@@ -164,3 +164,24 @@ test('[召唤-4] a summon that may only stand in its owner\'s attack range: refu
   assert.equal(deployProblem(w, ranged, 0, deploy({ op: 'tentacle', col: 4 })), 'outside the summoner\'s range');
   assert.equal(deployProblem(w, ranged, 0, deploy({ op: 'tentacle', col: 3 })), null);
 });
+
+test('[召唤-8] the owner\'s skill gives copies at its start or its end, up to the hold limit; such a summon has a card', () => {
+  const skill = { id: 's', type: /** @type {const} */ ('MANUAL'), sp: /** @type {const} */ ('time'), cost: 1, init: 1, charges: 1, duration: 2, ammo: false, bb: {} };
+  const given = {
+    ...c, operators: { ...c.operators, guard: { ...c.operators.guard, skill },
+      drone: summon('guard', {}, { supply: 0, occupy: 0, holdLimit: 1, grant: { n: 1, at: 'start' } }),
+      post: summon('guard', {}, { supply: 0, occupy: 0, holdLimit: 3, grant: { n: 2, at: 'end' } }) },
+  };
+  const w = createWorld(given, { seed: 1, players: 1 });
+  w.players[0].cost = 99;
+  step(w, given, [[0, deploy({})]]);
+  assert.equal(deployProblem(w, given, 0, deploy({ op: 'drone', col: 3 })), 'none held', 'a card, no copy yet');
+  const guard = unitsOf(w, 'guard')[0];
+  step(w, given, [[0, { type: 'skill', unit: guard.id }]]);
+  assert.deepEqual([card(w, 'drone').held, card(w, 'post').held], [1, 0], 'at the start');
+  for (let i = 0; i < 61; i++) step(w, given);
+  assert.deepEqual([card(w, 'drone').held, card(w, 'post').held], [1, 2], 'at the end');
+  for (let i = 0; i < 31; i++) step(w, given);
+  step(w, given, [[0, { type: 'skill', unit: guard.id }]]);
+  assert.equal(card(w, 'drone').held, 1, 'not above the hold limit');
+});

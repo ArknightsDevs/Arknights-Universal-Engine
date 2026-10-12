@@ -168,9 +168,9 @@
 /**
  * A summon's card rules (召唤-3, 召唤-4): its limits on the field and held, what its owner's deployment adds (0: no card),
  * whether it takes a place in the deploy limit (部署占用数), its 再部署策略, whether it stays when its owner leaves (召唤-5),
- * whether it may only stand in its owner's attack range.
+ * whether it may only stand in its owner's attack range, the copies its owner's skill gives at its start or end (召唤-8).
  * @typedef {{ deployLimit: number, holdLimit: number, supply: number, occupy: number, respawn: 'default' | 'unique' | 'queue', stays?: boolean,
- *   ownerRange?: boolean }} SummonDef
+ *   ownerRange?: boolean, grant?: { n: number, at: 'start' | 'end' } }} SummonDef
  */
 /**
  * A deployment talent (部署-8): SP between `sp[0]` and below `sp[1]`, a heal of every operator (`value` HP or `scale` × the

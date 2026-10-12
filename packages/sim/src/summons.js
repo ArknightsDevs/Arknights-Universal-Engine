@@ -15,6 +15,9 @@ import { emit } from './bus.js';
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Player} Player @typedef {import('./types.js').SummonCard} SummonCard @typedef {import('./types.js').OperatorDef} OperatorDef */
 
+/** Whether a summon has a card (召唤-4, 召唤-8): its owner's deployment or skill gives copies. @param {import('./types.js').SummonDef | undefined} s */
+export const hasCard = (s) => !!s && (s.supply > 0 || (s.grant?.n ?? 0) > 0);
+
 /** A player's card for a summon: the one recorded, or an empty one (召唤-4). @param {Player} p @param {string} key @returns {SummonCard} */
 export const summonCardOf = (p, key) => (p.summons && Object.hasOwn(p.summons, key) ? p.summons[key] : { held: 0, ready: 0, cooling: 0 });
 
@@ -46,7 +49,7 @@ export function occupying(w, c, seat, free) {
  */
 export function summonProblem(w, c, seat, key) {
   const d = c.operators[key], s = /** @type {import('./types.js').SummonDef} */ (d.summon), card = summonCardOf(w.players[seat], key);
-  if (s.supply <= 0) return 'no card for this summon';
+  if (!hasCard(s)) return 'no card for this summon';
   if (!summonerOf(w, c, seat, key)) return 'summoner not on the field';
   if (card.held < 1) return 'none held';
   if (s.respawn === 'unique' && onField(w, seat, key).length > 0) return 'already deployed';
@@ -121,15 +124,30 @@ export function supplySummons(w, c, owner) {
 }
 
 /**
+ * An owner's skill gives copies (召唤-8): at its start or at its end, each summon of the owner its skill gives gains
+ * them, up to its hold limit.
+ * @param {World} w @param {Content} c @param {Unit} owner @param {'start' | 'end'} at
+ */
+export function grantSummons(w, c, owner, at) {
+  const p = w.players[owner.owner];
+  for (const [key, d] of Object.entries(c.operators)) {
+    const s = d.summon;
+    if (d.summoner !== owner.key || !s?.grant || s.grant.at !== at) continue;
+    const card = summonCardOf(p, key);
+    setCard(p, key, { ...card, held: Math.min(s.holdLimit, card.held + s.grant.n) });
+  }
+}
+
+/**
  * A summon leaves the field (召唤-4): no refund, no penalty; under 唯一 its copy comes back and the card cools down from
  * now, under 队列 its copy starts cooling; under 默认 the copy is spent.
  * @param {World} w @param {Content} c @param {Unit} u
  */
 export function summonLeft(w, c, u) {
   const p = w.players[u.owner], d = c.operators[u.key], s = d.summon, card = summonCardOf(p, u.key);
-  if (!s || s.supply <= 0) return;
-  if (s.respawn === 'unique') setCard(p, u.key, { ...card, held: Math.min(s.holdLimit, card.held + 1), ready: w.frame + secondsToFrames(d.respawnTime ?? 0) });
-  if (s.respawn === 'queue') setCard(p, u.key, { ...card, cooling: Math.min(s.holdLimit, card.cooling + 1), ready: card.cooling > 0 ? card.ready : w.frame + secondsToFrames(d.respawnTime ?? 0) });
+  if (!hasCard(s)) return;
+  if (s?.respawn === 'unique') setCard(p, u.key, { ...card, held: Math.min(s.holdLimit, card.held + 1), ready: w.frame + secondsToFrames(d.respawnTime ?? 0) });
+  if (s?.respawn === 'queue') setCard(p, u.key, { ...card, cooling: Math.min(s.holdLimit, card.cooling + 1), ready: card.cooling > 0 ? card.ready : w.frame + secondsToFrames(d.respawnTime ?? 0) });
 }
 
 /**

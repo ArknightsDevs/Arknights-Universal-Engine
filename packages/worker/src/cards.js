@@ -36,7 +36,7 @@ export function summonCards(w, c, seat) {
   const out = {};
   for (const [key, d] of Object.entries(c.operators)) {
     const s = d.summon;
-    if (!s || s.supply <= 0 || !mine.has(d.summoner ?? '')) continue;
+    if (!s || !summons.hasCard(s) || !mine.has(d.summoner ?? '')) continue;
     const card = summons.summonCardOf(p, key), there = w.units.filter((u) => u.kind === KIND.OPERATOR && u.owner === seat && u.key === key && u.hp > 0).length;
     const open = summons.summonerOf(w, c, seat, key) !== null, unique = s.respawn === 'unique';
     out[key] = { cost: d.cost, ready: card.ready, held: card.held, cooling: card.cooling, shown: open && (card.held > 0 || card.cooling > 0 || unique),

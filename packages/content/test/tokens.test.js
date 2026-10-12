@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ROSTER, loadTraining } from '../src/operators.js';
-import { TOKENS, SUMMON_PAGES, loadToken, tokenAt, tokenBuild, limitsAt, supplyAt, effectsOf } from '../src/tokens.js';
+import { TOKENS, SUMMON_PAGES, loadToken, tokenAt, tokenBuild, limitsAt, supplyAt, effectsOf, grantAt } from '../src/tokens.js';
 
 /** @param {Partial<import('../src/operators.js').Build>} o @returns {import('../src/operators.js').Build} */
 const build = (o) => ({ elite: 2, level: 90, potential: 1, trust: 0, skill: 0, skillLevel: 7, ...o });
@@ -85,7 +85,7 @@ test('[召唤-4] the card: the talent cnt that names the summon, or talent 0\'s 
   assert.equal(supplyAt(ironmn, build({ elite: 1, level: 1, skill: 1 }), 'token_10027_ironmn_pile2'), 3);
   assert.equal(supplyAt(await loadTraining('char_4215_buddy'), build({}), 'token_10063_buddy_bddg'), 0);
   const pile = tokenAt(await loadToken('token_10027_ironmn_pile2'), 'token_10027_ironmn_pile2', ironmn, build({ elite: 1, level: 1, skill: 1 }));
-  assert.deepEqual(pile.summon, { deployLimit: 2, holdLimit: 2, supply: 3, occupy: 0, respawn: 'default' });
+  assert.deepEqual(pile.summon, { deployLimit: 2, holdLimit: 2, supply: 3, occupy: 0, respawn: 'default', grant: { n: 1, at: 'end' } });
   const mon3tr = tokenAt(await loadToken('token_10002_kalts_mon3tr'), 'token_10002_kalts_mon3tr', await loadTraining('char_003_kalts'), build({}));
   assert.deepEqual(mon3tr.summon, { deployLimit: 1, holdLimit: 1, supply: 1, occupy: 1, respawn: 'unique' });
   assert.equal(SUMMON_PAGES.token_10070_aphris_pc.respawn, 'queue');
@@ -101,4 +101,22 @@ test('[召唤-7] a summon holds what its page says: not attacked, 禁疗, 无敌
   assert.deepEqual(effectsOf(SUMMON_PAGES.token_10002_kalts_mon3tr), { flags: { healFree: true }, immune: [] });
   assert.deepEqual(effectsOf(SUMMON_PAGES.token_10064_wang_stone1).flags, { untargetable: true }, 'a device');
   assert.deepEqual(effectsOf(null), { flags: {}, immune: [] });
+});
+
+test('[召唤-8] what the owner\'s skill gives and when, read from its description at its level', async () => {
+  const silent = await loadTraining('char_108_silent'), ling = await loadTraining('char_2023_ling'), wang = await loadTraining('char_2027_wang');
+  assert.deepEqual(grantAt(silent, build({ elite: 2, level: 80, skill: 1 }), 'token_10000_silent_healrb', '医疗探机'), { n: 1, at: 'start' });
+  assert.equal(grantAt(silent, build({ elite: 2, level: 80, skill: 0 }), 'token_10000_silent_healrb', '医疗探机'), null, 'its other skill gives none');
+  assert.deepEqual(grantAt(ling, build({ skill: 2 }), 'token_10020_ling_soul3', '“弦惊”'), { n: 1, at: 'end' });
+  assert.equal(grantAt(ling, build({ skill: 1 }), 'token_10020_ling_soul2', '“逍遥”'), null);
+  const cnt = wang.skills[2]?.levels[6].blackboard.find((e) => e.key === 'cnt')?.value;
+  assert.deepEqual(grantAt(wang, build({ skill: 2 }), 'token_10064_wang_stone1', '棋子'), { n: cnt, at: 'start' });
+  assert.deepEqual(grantAt(await loadTraining('char_1052_kalts2'), build({ skill: 2 }), 'token_10068_kalts2_mtship', '战术锚点'), { n: 1, at: 'start' });
+  assert.equal(grantAt(await loadTraining('char_1045_svash2'), build({ skill: 0 }), 'token_10057_svash2_eagle1', '风雪之眼'), null, '立刻获得{cost}点部署费用 gives no copy');
+  const angel = await loadTraining('char_1041_angel2'), target = await loadToken('token_10056_angel2_target');
+  assert.deepEqual(grantAt(angel, build({ skill: 2 }), 'token_10056_angel2_target', target.name), { n: 1, at: 'deploy' });
+  const s = tokenAt(target, 'token_10056_angel2_target', angel, build({ skill: 2 }));
+  assert.deepEqual([s.summon?.supply, s.summon?.grant], [1, undefined], 'given at the deployment: part of the supply');
+  const drone = tokenAt(await loadToken('token_10000_silent_healrb'), 'token_10000_silent_healrb', silent, build({ elite: 2, level: 80, skill: 1 }));
+  assert.deepEqual([drone.summon?.supply, drone.summon?.grant], [0, { n: 1, at: 'start' }]);
 });
