@@ -96,3 +96,30 @@ test('[钩子-1] [钩子-2] handlers and timers are no state: the hash and the s
   assert.equal(stateHash(a), stateHash(b));
   assert.equal('bus' in /** @type {any} */ (takeSnapshot(b).data), false);
 });
+
+test('[钩子-3] deploy after an operator is deployed and when an enemy appears; enemySpawn; death when units leave', () => {
+  const c = tinyContent(), w = createWorld(c, { seed: 1, players: 1 }), seen = /** @type {string[]} */ ([]);
+  on(w, 'deploy', (x) => seen.push(`deploy:${x.unit.key}:${x.initial}`));
+  on(w, 'enemySpawn', (x) => seen.push(`spawn:${x.enemy.key}`));
+  on(w, 'death', (x) => seen.push(`death:${x.unit.key}:${x.reason}:${w.units.includes(x.unit)}`));
+  step(w, c, [[0, { type: 'deploy', op: 'sniper', row: 0, col: 2, dir: 0 }]]);
+  assert.deepEqual(seen, ['deploy:sniper:false']);
+  while (!seen.some((s) => s.startsWith('spawn'))) step(w, c);
+  assert.deepEqual(seen.slice(1), ['deploy:slime:false', 'spawn:slime'], 'the enemy’s deploy, then enemySpawn');
+  const op = /** @type {any} */ (w.units.find((u) => u.key === 'sniper'));
+  step(w, c, [[0, { type: 'retreat', unit: op.id }]]);
+  assert.equal(seen.at(-1), 'death:sniper:retreat:false', 'retreated: off the field already');
+  const e = /** @type {any} */ (w.units.find((u) => u.key === 'slime'));
+  e.hp = 0;
+  step(w, c);
+  assert.equal(seen.at(-1), 'death:slime:killed:true', 'killed: at the frame’s end, still listed while its handlers run');
+});
+
+test('[钩子-4] a new world is handed to the content’s setup before its first frame', () => {
+  const c = /** @type {any} */ (tinyContent()), seen = /** @type {string[]} */ ([]);
+  c.behaviors = { world: (/** @type {any} */ w) => { seen.push(`setup@${w.frame}`); on(w, 'battleStart', () => seen.push('start')); } };
+  const w = createWorld(c, { seed: 1, players: 1 });
+  step(w, c);
+  assert.deepEqual(seen, ['setup@0', 'start']);
+});
+

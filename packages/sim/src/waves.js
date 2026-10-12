@@ -9,6 +9,7 @@ import { isDown } from './coop.js';
 import { weightedPick } from './rng.js';
 import { stageOf, startStage, resting } from './stage.js';
 import { foeSpawn } from './foes.js';
+import { emit } from './bus.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Wave} Wave @typedef {import('./types.js').WaveAction} WaveAction @typedef {import('./types.js').Schedule} Schedule */
@@ -81,6 +82,8 @@ function act(w, c, a, fragAt, wave) {
     w.units.push(u);
     w.events.push({ type: 'spawn', id: u.id, key: u.key });
     foeSpawn(w, c, u);
+    emit(w, 'deploy', { unit: u, initial: false });
+    emit(w, 'enemySpawn', { enemy: u });
   } else if (a.type === 'ACTIVATE' && !w.predefined.includes(a.key)) {
     w.predefined.push(a.key);
     w.events.push({ type: 'predefine', key: a.key, on: 1 });

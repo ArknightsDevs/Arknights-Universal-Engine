@@ -1,8 +1,8 @@
 // Stronghold records of the engine's operators (docs/spec/compat.md 兼容-3): an operator's training data at a build as
 // the chess record and the def a Stronghold kit receives — the operator's own attributes at that training (without
 // its talents, which the kit applies), its range, trait, talents (with its module's changes) and the skills it has
-// unlocked at their levels, the selected one as `skill` — the shape of Stronghold's 自选 records (shared/diy.js,
-// shared/loadoutRecord.js), at any training instead of its fixed forms.
+// unlocked at their levels, the selected one as `skill`, its module choices and the record without a module (`…Base`) —
+// the shape of Stronghold's 自选 records (shared/diy.js, shared/loadoutRecord.js), at any training instead of its fixed forms.
 import rangeTable from '../../data/ranges.json' with { type: 'json' };
 import { coveredBranch, BRANCHES } from '../traits.js';
 import { statsAt, moduleAt } from '../operators.js';
@@ -57,7 +57,7 @@ const talentRecord = (c, index) => ({
 function talentRecords(t, b, mod) {
   /** @type {(Rec | null)[]} */
   const out = talentsAt(t, b).map((c, i) => (c ? talentRecord(/** @type {any} */ (c), i) : null));
-  for (const c of partsOf(mod, 'TALENT').flatMap((p) => p.talents).filter((x) => unlockedAt(x, b))) {
+  for (const c of talentChanges(mod, b)) {
     const rec = changedTalent(c.index >= 0 ? out[c.index] : null, c);
     if (c.index >= 0) out[c.index] = rec; else out.push(rec);
   }
@@ -69,6 +69,36 @@ function talentRecords(t, b, mod) {
  * @param {ReturnType<typeof moduleAt>} mod @param {string} kind
  */
 const partsOf = (mod, kind) => (mod?.parts ?? []).filter((p) => p.target.startsWith(kind) && !p.token && !p.gameTag && !p.mapTag);
+
+/**
+ * A module level's talent changes at a build: of each talent part, the last unlocked candidate for each talent (a
+ * part's candidates are its potential steps).
+ * @param {ReturnType<typeof moduleAt>} mod @param {Build} b
+ */
+function talentChanges(mod, b) {
+  return partsOf(mod, 'TALENT').flatMap((p) => {
+    const last = new Map(p.talents.filter((c) => unlockedAt(c, b)).map((c) => [c.index, c]));
+    return [...last.values()];
+  });
+}
+
+/**
+ * The module choices of a training as Stronghold's records list them (兼容-3): each module unlocked at the build, at its
+ * module level — its flat attributes, its trait (null for none) and its talent changes, each as the module states it.
+ * @param {Training} t @param {Build} b @returns {Rec[]}
+ */
+function moduleRecords(t, b) {
+  return t.modules.flatMap((m, i) => {
+    if (!unlockedAt({ ...m, potential: 0 }, b)) return [];
+    const lv = moduleAt(t, { ...b, module: i }), trait = partsOf(lv, 'TRAIT').some((p) => p.trait.some((c) => unlockedAt(c, b)));
+    return [{
+      uniEquipId: m.id, name: m.name, typeName: m.type, isDefault: i === b.module, level: lv?.level ?? 1, attr: { ...(lv?.stats ?? {}) },
+      traitOverride: trait ? traitRecord(t, b, lv) : null,
+      talentChanges: talentChanges(lv, b).map((c) => ({ talentIndex: c.index, name: c.name ?? null, desc: c.upgrade ?? '', bb: { ...c.bb },
+        bbStr: { ...(c.text ?? {}) }, rangeGrid: gridOf(c.rangeId), tokenKey: null, hidden: !!c.hidden })),
+    }];
+  });
+}
 
 /**
  * A talent as a module changes it (兼容-3): the module's values win, the talent's other keys stay; a change of no
@@ -88,6 +118,10 @@ function traitRecord(t, b, mod) {
   return { desc: '', bb: { ...bb } };
 }
 
+/** Attributes as a record's `stats`. @param {ReturnType<typeof statsAt>} s */
+const statsRecord = (s) => ({ maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: s.cost, blockCnt: s.blockCnt, bat: s.baseAttackTime, aspd: s.aspd,
+  respawnTime: s.respawnTime, spRecovery: 1, hpRecoveryPerSec: 0, moveSpeed: 1, tauntLevel: s.tauntLevel, massLevel: s.massLevel });
+
 /**
  * An operator's chess record at a build (兼容-3), as Stronghold's 自选 record of `charId` in the slot `diyFor`.
  * @param {string} charId @param {Training} t @param {Build} b @returns {Rec}
@@ -99,11 +133,9 @@ export function recordOf(charId, t, b) {
     chessId: `aue_${charId}`, baseId: `aue_${charId}`, charId, diyFor: `aue_${charId}`, name: t.name, rarity: t.rarity, tier: t.rarity,
     profession: t.profession, subProfessionId: t.branch, position: t.position,
     status: { phase: b.elite, level: b.level, skillLevel: b.skillLevel, equipLevel: m ? (b.moduleLevel ?? 1) : 0 },
-    stats: { maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: s.cost, blockCnt: s.blockCnt, bat: s.baseAttackTime, aspd: s.aspd,
-      respawnTime: s.respawnTime, spRecovery: 1, hpRecoveryPerSec: 0, moveSpeed: 1, tauntLevel: s.tauntLevel, massLevel: s.massLevel },
-    rangeGrid: t.phases[b.elite].range.map((c) => [c.row, c.col]), dmgType: t.profession === 'MEDIC' ? 'HEAL' : arts ? 'MAGICAL' : 'PHYSICAL',
+    stats: statsRecord(s), rangeGrid: t.phases[b.elite].range.map((c) => [c.row, c.col]), dmgType: t.profession === 'MEDIC' ? 'HEAL' : arts ? 'MAGICAL' : 'PHYSICAL',
     trait: traitRecord(t, b, mod), talents: talentRecords(t, b, mod), skills, skill: sel,
-    modules: t.modules.map((x) => ({ uniEquipId: x.id, name: x.name, typeName: x.type })),
+    modules: moduleRecords(t, b), statsBase: statsRecord(statsAt(t, b, null)), traitBase: traitRecord(t, b, null), talentsBase: talentRecords(t, b, null),
     module: m ? { id: m.id, name: m.name, type: m.type, level: b.moduleLevel ?? 1, active: true } : { id: null, name: null, type: null, level: 0, active: false },
     tokens: [...new Set(t.talents.flat().map((c) => c.token).filter(Boolean))],
   };

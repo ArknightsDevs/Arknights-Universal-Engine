@@ -68,6 +68,18 @@ test('[兼容-3] an operator’s record at a build: its own attributes, range, t
   assert.equal(gridOf('nope'), null);
 });
 
+test('[兼容-3] the module choices as each module states them, and the record without a module', async () => {
+  const t = await loadTraining('char_112_siege'), b = { elite: 2, level: 90, potential: 6, trust: 100, skill: 2, skillLevel: 10, module: 0, moduleLevel: 3 };
+  const rec = recordOf('char_112_siege', t, b), [x, y] = rec.modules;
+  assert.deepEqual([x.uniEquipId, x.typeName, x.isDefault, x.level, y.typeName, y.isDefault], ['uniequip_002_siege', 'SOL-X', true, 3, 'SOL-Y', false]);
+  assert.equal(rec.statsBase.atk + x.attr.atk, rec.stats.atk, 'its flat attributes');
+  assert.deepEqual([x.traitOverride?.bb, y.traitOverride, rec.traitBase.bb, rec.trait.bb], [{ atk: 0.08, def: 0.08 }, null, {}, { atk: 0.08, def: 0.08 }]);
+  assert.deepEqual(x.talentChanges.map((/** @type {any} */ c) => [c.talentIndex, c.bb]), [[0, { atk: 0.08, def: 0.08 }]], 'the last unlocked step, as the module states it');
+  assert.deepEqual([rec.talentsBase[0].bb, rec.talents[0].bb], [{ atk: 0.1, def: 0.1 }, { atk: 0.08, def: 0.08 }], 'without the module; merged with it');
+  assert.deepEqual(y.talentChanges.map((/** @type {any} */ c) => [c.talentIndex, c.hidden, c.bb]), [[-1, true, { runtime_cost: -4 }], [1, false, { sp: 3 }], [-1, true, { sp: 1 }]]);
+  assert.deepEqual(recordOf('char_112_siege', t, { elite: 1, level: 1, potential: 1, trust: 0, skill: 0, skillLevel: 1 }).modules, [], 'none unlocked');
+});
+
 test('[兼容-3] the def a kit receives: the record normalised, with the loadout', async () => {
   const t = await loadTraining('char_1035_wisdel'), def = defOf('char_1035_wisdel', t, { elite: 2, level: 90, potential: 5, trust: 100, skill: 1, skillLevel: 7 });
   assert.deepEqual([def.charId, def.diyFor, def.skill.id, def.skill.skillType, def.loadout.skillIndex, def.loadout.potential, def.loadout.moduleId], [

@@ -29,6 +29,8 @@ export * as waves from './waves.js';
 export * as stage from './stage.js';
 export * as foes from './foes.js';
 export * as bus from './bus.js';
+/** Unit kinds, for content (which does not depend on @aue/schema). */
+export { KIND } from '@aue/schema';
 export { nextUint32, seedState, draw, weightedPick } from './rng.js';
 export { BEHAVIOR_API_VERSION, CONTEXT_MEMBERS, SKILL_CONTEXT_MEMBERS } from './api.js';
 export { hashNumbers, HASH_START, contentHash, canonicalJson } from './hash.js';
@@ -38,6 +40,8 @@ export { teamFits } from './aura.js';
 /** @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Buff} Buff */
+/** @typedef {import('./types.js').SkillState} SkillState */
+/** @typedef {import('./dir.js').Dir} Dir */
 /** @typedef {import('./types.js').SkillDef} SkillDef */
 /** @typedef {import('./skills.js').SkillBehavior} SkillBehavior */
 /** @typedef {import('./types.js').TraitDef} TraitDef */

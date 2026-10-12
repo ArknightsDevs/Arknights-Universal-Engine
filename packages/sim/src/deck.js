@@ -4,6 +4,7 @@
 import { secondsToFrames } from '@aue/math';
 import { traitOfDef, gainCost } from './traits.js';
 import { releaseAll } from './blocking.js';
+import { emit } from './bus.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Player} Player @typedef {import('./types.js').Card} Card */
@@ -44,4 +45,5 @@ export function withdraw(w, c, u) {
   releaseAll(w, u.id);
   leaveField(w, c, u, true);
   w.events.push({ type: 'retreat', id: u.id });
+  emit(w, 'death', { unit: u, reason: 'retreat', killer: null });
 }

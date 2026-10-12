@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
 import { createWorld, step } from '../src/index.js';
 import { kindOf, makeSkillState, statMods, skillMods, STAT_KEYS, beforeAttack } from '../src/skills.js';
-import { gainSp, timeSp, hurtSp } from '../src/sp.js';
+import { gainSp, forceSp, timeSp, hurtSp } from '../src/sp.js';
 import { makeEnemy } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
 import { dealDamage } from '../src/damage.js';
@@ -57,7 +57,7 @@ test('[技能-1] kinds from the data: passive, ammo, duration, next attack, inst
   assert.deepEqual(makeSkillState(sk({ init: 9, cost: 3, charges: 2 })), { id: 'test', spType: 'time', cost: 3, cap: 6, sp: 6, slot: 0, active: false, armed: false, dur: -1, ammo: 0, at: -1 });
 });
 
-test('[技能-2] the SP slot: a point per 1 / speed seconds, the overflow kept, paused when full or during the skill', () => {
+test('[技能-2] the SP slot: a point per 1 / speed seconds, the overflow kept, paused when full or during the skill; SP ignoring 阻回', () => {
   const st = makeSkillState(sk({ cost: 10 }));
   /** @param {number} rate @param {number} n */
   const frames = (rate, n) => { const at = []; for (let f = 1; at.length < n; f++) { const b = st.sp; timeSp(st, rate); if (st.sp > b) at.push(f); } return at; };
@@ -76,6 +76,7 @@ test('[技能-2] the SP slot: a point per 1 / speed seconds, the overflow kept, 
   timeSp(st, 1);
   assert.equal(gainSp(st, 3), 0, '阻回');
   assert.equal(st.slot, slot);
+  assert.deepEqual([forceSp(st, 3), st.sp, forceSp(st, 20), st.sp, forceSp(st, 1)], [3, 3, 7, 10, 0], 'ignoring 阻回: during the skill too, up to the cap');
 });
 
 test('[技能-2] by attacking: one point an attack, none for the skill\'s own attacks; by being hit, one a hit', () => {

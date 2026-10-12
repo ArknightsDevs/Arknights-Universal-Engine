@@ -189,9 +189,9 @@
  */
 /**
  * Behaviours by key (ADR 0054, 0055): what a skill or a buff does beyond its data. Content brings them; the default is
- * the generic one (技能-5).
+ * the generic one (技能-5). `world` sets up a new world's hooks and timers (钩子-4).
  * @typedef {{ skills?: Record<string, import('./skills.js').SkillBehavior>, buffs?: Record<string, import('./buffs.js').Behavior>, traits?: Record<string, import('./traits.js').TraitBehavior>,
- *   foes?: Record<string, import('./foes.js').FoeBehavior> }} Behaviors
+ *   foes?: Record<string, import('./foes.js').FoeBehavior>, world?: (w: World, c: Content) => void }} Behaviors
  */
 /**
  * The content of a battle: the level, enemies, operators, behaviours, and each seat's deck of operator keys when the

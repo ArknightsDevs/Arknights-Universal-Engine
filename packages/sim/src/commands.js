@@ -8,6 +8,7 @@ import { traitDeploy, traitOfDef, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
 import { cardOf, deployCost, withdraw } from './deck.js';
 import { isDown, askCost, answerCost } from './coop.js';
+import { emit } from './bus.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -63,6 +64,7 @@ function deploy(w, c, seat, cmd) {
   modeDeploy(u, traitOf(c, u));
   deployTalents(w, c, u);
   onDeploy(w, c, u);
+  emit(w, 'deploy', { unit: u, initial: false });
 }
 
 /**

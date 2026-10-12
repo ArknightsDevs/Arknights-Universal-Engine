@@ -27,16 +27,20 @@ import { emit, runTimers } from './bus.js';
 /** @typedef {import('@aue/schema').Command} Command */
 
 /**
- * A new world at frame 0 (spec 费用-1: each player starts with the level's initial cost and life).
+ * A new world at frame 0 (spec 费用-1: each player starts with the level's initial cost and life), its hooks and timers
+ * set up by the content (钩子-4).
  * @param {Content} c @param {{ seed: number, players: number }} o @returns {World}
  */
 export function createWorld(c, o) {
   const { initialCost, maxLifePoint, costIncreaseTime } = c.level.options;
-  return {
+  /** @type {World} */
+  const w = {
     frame: 0, rng: seedState(o.seed), nextId: 1, sched: newSchedule(), predefined: visiblePredefines(c), result: -1, stage: newStageState(), bornThisFrame: 0, units: [], shots: [], blasts: [], bolts: [],
     events: [],
     players: Array.from({ length: o.players }, () => ({ life: maxLifePoint, cost: initialCost, costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {}, revive: -1, downs: 0, ask: -1, askCd: 0 })),
   };
+  c.behaviors?.world?.(w, c);
+  return w;
 }
 
 /** Each player gains 1 cost every costIncreaseTime, up to maxCost (spec 费用-1). @param {World} w @param {Content} c */
@@ -58,6 +62,7 @@ function removeDead(w, c) {
   const reachedGoal = new Set(w.events.filter((e) => e.type === 'goal').map((e) => e.id));
   for (const u of w.units) {
     if (u.hp > 0) continue;
+    emit(w, 'death', { unit: u, reason: reachedGoal.has(u.id) ? 'leak' : 'killed', killer: null });
     u.anim = ANIM.DIE;
     if (!reachedGoal.has(u.id)) w.events.push({ type: 'death', id: u.id });
     if (!reachedGoal.has(u.id) && u.kind === KIND.ENEMY && u.base.neutral === true) neutralDown(w, c, u);

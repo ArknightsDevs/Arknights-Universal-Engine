@@ -13,7 +13,15 @@ export const SLOT_EPSILON = 1e-5;
  * @param {SkillState} st @param {number} n
  */
 export function gainSp(st, n) {
-  if (st.active || st.sp >= st.cap) return 0;
+  return st.active ? 0 : forceSp(st, n);
+}
+
+/**
+ * Adds whole points up to the cap even during the skill: SP that ignores 阻回 (技能-2). Returns the points gained.
+ * @param {SkillState} st @param {number} n
+ */
+export function forceSp(st, n) {
+  if (!(n > 0) || st.sp >= st.cap) return 0;
   const g = Math.min(n, st.cap - st.sp);
   st.sp += g;
   return g;
