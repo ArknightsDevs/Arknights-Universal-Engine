@@ -56,20 +56,24 @@ test('[钩子-1] nesting deeper than 32 emits runs no handler', () => {
   assert.equal(busOf(w).skipped, 1);
 });
 
-test('[钩子-2] after k frames: at the start of frame F + k (0 counts as 1); every n: F + n then each n, or F + 1 when immediate', () => {
+test('[钩子-2] after k frames: at the start of frame F + k (0 counts as 1); every n: F + n then each n, or at the next timers’ run when immediate', () => {
   const c = tinyContent(), w = createWorld(c, { seed: 1, players: 1 }), runs = /** @type {string[]} */ ([]);
   step(w, c);
-  step(w, c); // registered during frame 2
+  step(w, c); // registered before frame 2 runs
   after(w, 3, (x) => runs.push(`after3@${x.frame}`));
   after(w, 0, (x) => runs.push(`after0@${x.frame}`));
   const rep = every(w, 2, (x) => runs.push(`every2@${x.frame}`));
   every(w, 4, (x) => runs.push(`now4@${x.frame}`), { immediate: true });
   for (let i = 0; i < 6; i++) step(w, c); // frames 2 … 7
-  assert.deepEqual(runs, ['after0@3', 'now4@3', 'every2@4', 'after3@5', 'every2@6', 'now4@7']);
+  assert.deepEqual(runs, ['now4@2', 'after0@3', 'every2@4', 'after3@5', 'every2@6', 'now4@6']);
   rep.cancel();
   runs.length = 0;
   for (let i = 0; i < 4; i++) step(w, c); // frames 8 … 11
-  assert.deepEqual(runs, ['now4@11'], 'every2 cancelled: no more');
+  assert.deepEqual(runs, ['now4@10'], 'every2 cancelled: no more');
+  every(w, 3, (x) => runs.push(`late@${x.frame}`), { immediate: true });
+  runs.length = 0;
+  step(w, c);
+  assert.deepEqual(runs, ['late@12'], 'registered after frame 11 ran: at frame 12');
   const order = /** @type {string[]} */ ([]);
   after(w, 2, () => order.push('b'));
   after(w, 1, () => order.push('a'));

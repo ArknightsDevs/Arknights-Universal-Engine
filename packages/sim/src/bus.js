@@ -85,13 +85,14 @@ export function after(w, frames, fn, o = {}) {
 }
 
 /**
- * Schedules a call every `frames` frames (at least 1) (钩子-2): the first after one interval, or at the next frame's
- * start when `immediate`.
+ * Schedules a call every `frames` frames (at least 1) (钩子-2): the first after one interval, or, when `immediate`, at
+ * the next running of the timers — this frame's when they have not run yet (a battle's setup, a command), else the next
+ * frame's.
  * @param {World} w @param {number} frames @param {(w: World, t: Timer) => void} fn @param {{ owner?: unknown, immediate?: boolean }} [o] @returns {Timer}
  */
 export function every(w, frames, fn, o = {}) {
   const interval = Math.max(1, Math.trunc(frames));
-  return addTimer(w, w.frame + (o.immediate ? 1 : interval), interval, fn, o.owner);
+  return addTimer(w, w.frame + (o.immediate ? 0 : interval), interval, fn, o.owner);
 }
 
 /** @param {World} w @param {number} due @param {number} interval @param {(w: World, t: Timer) => void} fn @param {unknown} owner */
