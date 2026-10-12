@@ -218,6 +218,8 @@ export class ShBattle {
   foesInRadius(x, y, r, centre = false) { return field.foesInRadius(this, x, y, r, centre); }
   /** @param {number} r @param {number} c */
   unitAt(r, c) { return field.unitAt(this, r, c); }
+  /** @param {number} x @param {number} y @param {number} r @param {number | null} [ownerId] @param {{ includeDevices?: boolean }} [o] */
+  alliesInRadius(x, y, r, ownerId = null, o = {}) { return field.alliesInRadius(this, x, y, r, { ownerId, includeDevices: !!o.includeDevices }); }
   /** @param {ShUnit} unit */
   alliesInGrid(unit) { return field.alliesInGrid(this, unit); }
   /** @param {Iterable<number> | null | undefined} keys @param {ShUnit | null} healer @param {boolean} [element] */

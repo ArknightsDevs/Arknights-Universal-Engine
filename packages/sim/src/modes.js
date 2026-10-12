@@ -32,10 +32,13 @@ export function mayAttack(c, op) {
   return !t.noAttack && !statsOf(op).flags.noAttack && (!t.attackInSkill || inSkill(op));
 }
 
-/** Whether an operator's normal attacks heal now (职业-2, 职业-12): a healer's always, a skill healer's while the skill runs. @param {Content} c @param {Unit} op */
+/** Whether an operator is a healer now (职业-2): its trait heals and no buff turns its attacks on enemies (`attackFoes`). @param {Content} c @param {Unit} op */
+export const healerNow = (c, op) => traitOf(c, op).heal && !statsOf(op).flags.attackFoes;
+
+/** Whether an operator's normal attacks heal now (职业-2, 职业-12): a healer's (healerNow), a skill healer's while the skill runs. @param {Content} c @param {Unit} op */
 export function healsNow(c, op) {
   const t = traitOf(c, op);
-  return t.heal || (t.skillHeal > 0 && inSkill(op));
+  return healerNow(c, op) || (t.skillHeal > 0 && inSkill(op));
 }
 
 /**

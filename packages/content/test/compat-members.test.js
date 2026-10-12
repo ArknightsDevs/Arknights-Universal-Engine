@@ -235,3 +235,9 @@ test('[兼容-4] a kit sets a unit\'s HP outright (伤害-9) and has a unit bloc
   e.blockedBy = null;
   assert.equal(slime.blockedBy, -1);
 });
+
+test('[兼容-4] allies within a radius by their centres, of one player when asked', () => {
+  const { box, guard } = match({ kind: 'duration', duration: 30 });
+  const b = /** @type {ShBattle} */ (box.b), u = b.unitOf(guard);
+  assert.deepEqual([b.alliesInRadius(guard.x, guard.y, 0.5), b.alliesInRadius(guard.x + 2, guard.y, 1), b.alliesInRadius(guard.x, guard.y, 1, 1)], [[u], [], []]);
+});

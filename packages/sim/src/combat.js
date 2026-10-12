@@ -21,7 +21,7 @@ import { tickSkill, beforeAttack, attackMods, afterAttack } from './skills.js';
 import { palsyInterrupts, inflict } from './status.js';
 import { draw } from './rng.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
-import { mayAttack, healsNow, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale } from './modes.js';
+import { mayAttack, healsNow, healerNow, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale } from './modes.js';
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitAsk } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, PALSY_CUT_FRAMES } from './swing.js';
 
@@ -263,7 +263,7 @@ function land(w, c, a) {
   const sw = /** @type {Swing} */ (a.swing);
   a.swing = null;
   if (palsyInterrupts(a)) { a.anim = ANIM.IDLE; return; }
-  const op = a.kind === KIND.OPERATOR, heals = op && (traitOf(c, a).heal || !!sw.mods.heal);
+  const op = a.kind === KIND.OPERATOR, heals = op && (healerNow(c, a) || !!sw.mods.heal);
   const reached = deliverAll(w, c, a, sw, !!heals);
   const noAmmo = reached.length > 0 && (!!emit(w, 'attack', { attacker: a, targets: reached, isSkill: !!sw.mods.skill, noAmmo: false }).noAmmo || !!sw.free);
   if (op) operatorLanded(w, c, a, { sw, reached: reached.length, heals: !!heals, noAmmo });
@@ -407,7 +407,7 @@ export function attackNow(w, c, op, given = null, o = {}) {
  */
 function critMods(w, c, op, mods) {
   let out = mods;
-  if (mods.heal || traitOf(c, op).heal) return out;
+  if (mods.heal || healerNow(c, op)) return out;
   for (const k of c.operators[op.key].critTalents ?? []) {
     if (draw(w) >= k.prob) continue;
     out = { ...out, scale: out.scale * k.scale, ...(k.stun ? { hitStatus: { key: 'stun', seconds: k.stun } } : {}), ...(k.more ? { more: (out.more ?? 0) + k.more } : {}) };

@@ -115,6 +115,13 @@ function kindOf(spec) {
   return instant && spec.attack && !spec.attack.noAttack ? /** @type {const} */ ('next') : undefined;
 }
 
+/**
+ * Whether a spec's attack turns a healer's on enemies (职业-2): it deals damage of a type and does not heal (Stronghold's
+ * effectiveProfile drops the profile's heal then).
+ * @param {Record<string, any> | undefined} a
+ */
+const foes = (a) => !!a && ['phys', 'arts', 'true'].includes(a.dmgType) && !a.heal;
+
 /** A spec attack's 倍率 over `scale`: its atkScale, × a numeric dmgMul. @param {Record<string, any>} a @param {number} scale */
 const scaleOf = (a, scale) => (Number.isFinite(a.atkScale) ? a.atkScale : scale) * (typeof a.dmgMul === 'number' && Number.isFinite(a.dmgMul) ? a.dmgMul : 1);
 
@@ -156,7 +163,7 @@ export const SPEC_BEHAVIOR = Object.freeze({
     const { b, p, spec } = r;
     // Stronghold counts the activation before onStart (a kit compares it later); kits.js counts the others at skillStart
     if (p.skill) { p.skill.activations++; p.skill.counted = true; }
-    const flags = { ...spec.flags, ...(spec.attack?.noAttack ? { noAttack: true } : {}) };
+    const flags = { ...spec.flags, ...(spec.attack?.noAttack ? { noAttack: true } : {}), ...(foes(spec.attack) ? { attackFoes: true } : {}) };
     if (spec.mods || Object.keys(flags).length) b.giveBuff(p, { key: 'skill', mods: modsOf(spec.mods), flags: flagsOf(flags) });
     call(b, p, spec.onStart, 'skill.onStart');
   },

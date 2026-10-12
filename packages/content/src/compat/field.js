@@ -43,6 +43,17 @@ export function foesInRadius(b, x, y, r, centre = false) {
   return enemiesInRadius(b, x, y, r, centre).filter((e) => { const f = attrs.statsOf(/** @type {Unit} */ (e.u)).flags; return !f.untargetable && !f.stealth; });
 }
 
+/**
+ * The allies on the field within `r` of (x, y) by their centres, as Stronghold's: not hidden, devices only when asked, of
+ * one player when `ownerId` is given.
+ * @param {ShBattle} b @param {number} x @param {number} y @param {number} r @param {{ ownerId?: number | null, includeDevices?: boolean }} [o]
+ */
+export function alliesInRadius(b, x, y, r, o = {}) {
+  const r2 = r * r + 1e-9;
+  return b.allyUnits.filter((a) => a.alive && !a.hidden && (o.includeDevices || a.kind !== 'device') && (o.ownerId == null || a.ownerId === o.ownerId)
+    && (a.x - x) * (a.x - x) + (a.y - y) * (a.y - y) <= r2);
+}
+
 /** The ally on a tile, or null. @param {ShBattle} b @param {number} r @param {number} c */
 export function unitAt(b, r, c) {
   return b.allyUnits.find((a) => a.alive && a.tileR === r && a.tileC === c) ?? null;

@@ -91,6 +91,19 @@ test('[职业-2] a healer heals the ally in range with the lowest HP ratio, neve
   assert.equal(ev.filter((e) => e.type === 'hit').length, 0, 'it hits no enemy');
 });
 
+test('[职业-2] a healer under a buff with attackFoes attacks the enemies in range instead', () => {
+  const { w, c, foe } = arena((cc) => {
+    cc.operators.medic = { ...cc.operators.sniper, name: 'medic', atk: 100, trait: { heal: true }, range: [{ row: 0, col: 0 }, { row: 0, col: 1 }] };
+  });
+  run(w, c, 1, [deploy('medic', 2, 2)]);
+  const medic = /** @type {Unit} */ (w.units[0]), e = foe(2, 3, { maxHp: 1e6, def: 0 });
+  assert.deepEqual(targetsOf(w, c, medic), [], 'no one hurt: no target');
+  medic.buffs.push(makeBuff({ key: 'skill', flags: { attackFoes: true } }));
+  assert.deepEqual(targetsOf(w, c, medic), [e]);
+  run(w, c, 60);
+  assert.ok(e.hp < 1e6, 'it hit the enemy');
+});
+
 test('[职业-3] targets: the 阻挡数 (blocked first, then others in range), every candidate, or the skill\'s if more', () => {
   const { w, c, foe } = arena((cc) => {
     cc.operators.guard.trait = { targets: 'blockCnt' };
