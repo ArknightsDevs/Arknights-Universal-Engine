@@ -73,6 +73,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   phalanx: { dmgType: ARTS, trait: (bb) => ({ antiAir: true, filter: 'ALL', targets: 'all', attackInSkill: true, idleMods: { defPct: bb.def ?? 2, resFlat: bb.magic_resistance ?? 20 } }) },
   splashcaster: { dmgType: ARTS, trait: () => ({ splash: { radius: 1.1, scale: 1, ground: false } }) },
   primcaster: { dmgType: ARTS },
+  // arts, air too; init_atk_scale on a new target, delta_atk_scale more for each attack on the same, at most max_atk_scale (职业-12)
+  funnel: { dmgType: ARTS, trait: (bb) => ({ antiAir: true, funnel: { init: bb.init_atk_scale ?? 0.2, delta: bb.delta_atk_scale ?? 0.15, max: bb.max_atk_scale ?? 1.1 } }) },
   // stores up to times attacks of energy when it has no target, and sends them with its next attack (职业-12)
   mystic: { dmgType: ARTS, trait: (bb) => ({ store: bb.times ?? 3 }) },
   // jumps among max_target enemies within 1.7 tiles, 85 % of the hit before; each hit 停顿 (职业-11)

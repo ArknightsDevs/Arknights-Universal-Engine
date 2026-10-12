@@ -137,6 +137,8 @@
  * @property {{ max: number, scale: number } | null} bullets each attack spends a bullet at this 倍率; it reloads one at a time (职业-12)
  * @property {number} store the most attack energy it stores when it has no target (0: none; 职业-12)
  * @property {number} epHeal its heals also restore each element value by this share of the heal (职业-12)
+ * @property {{ init: number, delta: number, max: number } | null} funnel its attack's 倍率: `init` on a new target, `delta` more
+ *   for each attack on the one it attacked last, at most `max` (职业-12)
  * @property {boolean} noAttack it makes no normal attacks (职业-13)
  * @property {boolean} free it does not count towards the deploy limit (部署-2, 职业-13)
  * @property {number} regenAura the operators in its attack range gain 生命回复速度 of this share of its attack (职业-13)

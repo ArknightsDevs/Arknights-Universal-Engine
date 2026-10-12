@@ -168,13 +168,13 @@ export class ShUnit {
   markDirty() {}
   /**
    * What its attacks may select, as Stronghold's profile names it: an operator's trait (职业-1) — flying units when it can
-   * hit them; an enemy's none.
+   * hit them, its funnel's 倍率 (职业-12); an enemy's none.
    * @returns {Record<string, any>}
    */
   get profile() {
     if (!this.u || this.u.kind !== KIND.OPERATOR) return {};
     const t = traits.traitOf(this.b.c, this.u);
-    return { canHitFly: t.antiAir, heal: t.heal, dmgType: this.u.base.dmgType };
+    return { canHitFly: t.antiAir, heal: t.heal, dmgType: this.u.base.dmgType, ...(t.funnel ? { funnel: { ...t.funnel } } : {}) };
   }
   get sp() { return this.skill?.sp ?? 0; }
   get spMax() { return this.skill?.spCost ?? 0; }

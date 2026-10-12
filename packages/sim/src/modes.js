@@ -39,7 +39,8 @@ export function healsNow(c, op) {
 }
 
 /**
- * The buffs an operator's mode starts with at deployment (职业-12): full bullets, no stored energy, the charge, and the
+ * The buffs an operator's mode starts with at deployment (职业-12): full bullets, no stored energy, the charge, the
+ * funnel's count (no target yet), and the
  * modifiers while its skill does not run (it does not at deployment).
  * @param {Unit} op @param {import('./types.js').TraitDef} t
  */
@@ -47,7 +48,25 @@ export function modeDeploy(op, t) {
   if (t.bullets) addBuff(op, makeBuff({ key: 'bullets', src: op.id, value: t.bullets.max }));
   if (t.store > 0) addBuff(op, makeBuff({ key: 'energy', src: op.id }));
   if (t.charge) addBuff(op, makeBuff({ key: 'charge', src: op.id, every: secondsToFrames(1), fixed: true }));
+  if (t.funnel) addBuff(op, makeBuff({ key: 'funnel', src: op.id, value: -1 }));
   skillIdle(op, t);
+}
+
+/**
+ * The 倍率 of an operator's attack on a target by its funnel (职业-12), counted as the attack reaches it: the trait's
+ * `init` on another target than the last (its `funnel` buff keeps that one's id), `delta` more for each attack on the
+ * same, at most `max`; 1 without one.
+ * @param {Content} c @param {Unit} a @param {Unit} t
+ */
+export function funnelScale(c, a, t) {
+  const f = traitOf(c, a).funnel, b = f ? held(a, 'funnel') : null;
+  if (!f || !b) return 1;
+  if (b.value === t.id) count(b, 1);
+  else {
+    retune(a, b, t.id, {});
+    count(b, -b.n);
+  }
+  return Math.min(f.max, f.init + f.delta * b.n);
 }
 
 /**

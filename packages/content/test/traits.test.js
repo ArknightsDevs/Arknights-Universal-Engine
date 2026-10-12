@@ -11,11 +11,11 @@ import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, oper
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
 
-test('[职业-7] the covered branches are 59 of the 72 official ones', () => {
+test('[职业-7] the covered branches are 60 of the 72 official ones', () => {
   assert.equal(Object.keys(ALL).length, 72);
   for (const b of Object.keys(BRANCHES)) assert.ok(Object.hasOwn(ALL, b), b);
-  assert.equal(Object.keys(BRANCHES).length, 59);
-  assert.ok(coveredBranch('fastshot') && !coveredBranch('funnel') && !coveredBranch('toString'));
+  assert.equal(Object.keys(BRANCHES).length, 60);
+  assert.ok(coveredBranch('fastshot') && coveredBranch('funnel') && !coveredBranch('loopshooter') && !coveredBranch('toString'));
 });
 
 test('[职业-7] an operator record takes its branch\'s damage type and trait; the blackboard moves into the trait', () => {
@@ -26,9 +26,11 @@ test('[职业-7] an operator record takes its branch\'s damage type and trait; t
   assert.deepEqual(withTrait({ ...base, position: 'RANGED', branch: 'corecaster' }).dmgType, 'arts');
   assert.deepEqual(withTrait({ ...base, position: 'RANGED', branch: 'slower', traitBb: { sluggish: 0.8 } }).trait?.hitStatus, { key: 'sluggish', seconds: 0.8 });
   assert.deepEqual(withTrait({ ...base, position: 'RANGED', branch: 'ringhealer' }).trait, { heal: true, targets: 3, bb: {} });
-  const funnel = withTrait({ ...base, position: 'RANGED', branch: 'funnel', traitBb: { max_stack_cnt: 6 } });
-  assert.equal(funnel.trait, undefined, 'not covered: the position\'s defaults');
-  assert.deepEqual(traits.traitOfDef(funnel).antiAir, true);
+  const funnel = withTrait({ ...base, position: 'RANGED', branch: 'funnel', traitBb: { init_atk_scale: 0.35, delta_atk_scale: 0.15, max_atk_scale: 1.2 } });
+  assert.deepEqual([funnel.dmgType, funnel.trait?.antiAir, funnel.trait?.funnel], ['arts', true, { init: 0.35, delta: 0.15, max: 1.2 }]);
+  const loop = withTrait({ ...base, position: 'RANGED', branch: 'loopshooter', traitBb: { max_stack_cnt: 6 } });
+  assert.equal(loop.trait, undefined, 'not covered: the position\'s defaults');
+  assert.deepEqual(traits.traitOfDef(loop).antiAir, true);
 });
 
 test('[职业-7] the skeleton\'s operators carry their branches: 铁卫, 尖兵, 速射手', () => {

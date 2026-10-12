@@ -21,7 +21,7 @@ import { tickSkill, beforeAttack, attackMods, afterAttack } from './skills.js';
 import { palsyInterrupts, inflict } from './status.js';
 import { draw } from './rng.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
-import { mayAttack, healsNow, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder } from './modes.js';
+import { mayAttack, healsNow, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale } from './modes.js';
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, PALSY_CUT_FRAMES } from './swing.js';
 
@@ -163,14 +163,14 @@ function areaOf(w, a, t, area) {
 }
 
 /**
- * An operator's attack against one target (职业-8, 职业-11): its amount × the trait's 倍率 for enemies it does not
- * block and its zone's 倍率, and the trait's splash, aftershock and chain; an enemy's as it is.
+ * An operator's attack against one target (职业-8, 职业-11, 职业-12): its amount × the trait's 倍率 for enemies it does
+ * not block, its zone's 倍率 and its funnel's, and the trait's splash, aftershock and chain; an enemy's as it is.
  * @param {Content} c @param {Unit} a @param {Unit} t @param {Load} load @returns {Load}
  */
 function loadFor(c, a, t, load) {
   if (a.kind !== KIND.OPERATOR) return load;
   const tr = traitOf(c, a);
-  return { ...load, amount: load.amount * traitScale(c, a, t), splash: tr.splash, aftershock: tr.aftershock, chain: tr.chain };
+  return { ...load, amount: load.amount * traitScale(c, a, t) * funnelScale(c, a, t), splash: tr.splash, aftershock: tr.aftershock, chain: tr.chain };
 }
 
 /**

@@ -205,3 +205,14 @@ test('[部署-8] [随机-1] deployment talents: SP (one draw when it is a range)
   assert.ok(Number.isInteger(st.sp) && st.sp >= 7 && st.sp <= 15, String(st.sp));
   assert.deepEqual([mate.hp, g.buffs.find((b) => b.key === 'deployShield')?.shieldHits], [600, 3]);
 });
+
+test('[职业-12] funnel: init on a new target, delta more for each attack on the same, at most max; another target starts over', () => {
+  const { w, foe, put, run } = arena((c) => { c.operators.sniper = { ...c.operators.sniper, trait: { funnel: { init: 0.2, delta: 0.15, max: 1.1 } } }; });
+  const op = put('sniper', 2, 2), first = foe(1, 2);
+  const dmg = () => run(400).filter((x) => x.type === 'hit' && x.id === op.id).map((x) => Math.round(Number(x.damage) * 10) / 10);
+  assert.deepEqual(dmg().slice(0, 8), [6, 10.5, 15, 19.5, 24, 28.5, 33, 33], 'ATK 30: 20 % up by 15 to 110 %');
+  w.units.splice(w.units.indexOf(first), 1);
+  foe(1, 3);
+  assert.deepEqual(dmg().slice(0, 2), [6, 10.5]);
+  assert.equal(buffOf(op, 'funnel')?.value, w.units.at(-1)?.id, 'the target it counts for');
+});
