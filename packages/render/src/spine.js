@@ -8,8 +8,8 @@ import { newPose, setupPose, applyAnimation, updateOrder, updateWorld, drawList,
 /** @typedef {import('@aue/spine').Skeleton} Skeleton @typedef {import('@aue/spine').Atlas} Atlas */
 /** @typedef {{ skeleton: Skeleton, atlas: Atlas, textures: THREE.Texture[], pma: boolean }} SpineModel */
 
-/** Skeleton units per tile (渲染-2; INF-0080). */
-export const SKELETON_SCALE = 1 / 400;
+/** Tiles per skeleton unit (渲染-2): the skeleton data's 0.01 × the battle prefab's 0.27. */
+export const SKELETON_SCALE = 0.01 * 0.27;
 
 /** The blend factors of a blend mode (骨骼-16): normal, additive, multiply, screen; premultiplied or straight textures. @param {number} mode @param {boolean} pma */
 export function blendFactors(mode, pma) {
