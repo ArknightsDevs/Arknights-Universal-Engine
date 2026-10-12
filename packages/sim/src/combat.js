@@ -5,12 +5,13 @@ import { FPS, secondsToFrames } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { offsetTile } from './dir.js';
 import { statsOf, intervalFrames } from './attrs.js';
-import { rangeKeys, inKeys, selectable, sortEnemies, sortAllies, firstN } from './targeting.js';
+import { inKeys, selectable, sortEnemies, sortAllies, firstN } from './targeting.js';
 import { dealDamage, heal } from './damage.js';
 import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
 import { blockingImmunity } from './upkeep.js';
 import { zoneScale, chainOf, woundedInRange } from './chain.js';
+import { reachKeys } from './reach.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
 import { foeTargets, foeAttack, foeHit, isFoeOf } from './foes.js';
 import { makeBuff } from './buffs.js';
@@ -45,7 +46,7 @@ export function rangeCell(op, off) {
  */
 export function targetsOf(w, c, op) {
   const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], t = traitOfDef(d);
-  const keys = rangeKeys(grid, op, d.range, statsOf(op).rangeExtend);
+  const keys = reachKeys(c, op);
   if (healsNow(c, op)) return healOrder(c, op, w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal && inKeys(u, keys, grid)));
   const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id;
   const cands = w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true

@@ -5,7 +5,8 @@
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune } from './buffs.js';
-import { rangeKeys, inKeys } from './targeting.js';
+import { inKeys } from './targeting.js';
+import { reachKeys } from './reach.js';
 import { traitOf } from './traits.js';
 import { statMods } from './skills.js';
 
@@ -32,8 +33,7 @@ function shareOf(c, op, base) {
 function regenAura(c, src, ops, want) {
   const share = traitOf(c, src).regenAura;
   if (!(share > 0)) return;
-  const grid = { rows: c.level.height, cols: c.level.width }, keys = rangeKeys(grid, src, c.operators[src.key].range, statsOf(src).rangeExtend);
-  const amount = shareOf(c, src, share) * statsOf(src).atk;
+  const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src), amount = shareOf(c, src, share) * statsOf(src).atk;
   for (const u of ops) if (inKeys(u, keys, grid)) want.get(u)?.set(`aura:${src.id}`, { src: src.id, value: amount, mods: { hpRegen: amount } });
 }
 
@@ -62,7 +62,7 @@ function fieldTalents(c, src, ops, want) {
 function rangeTalents(c, src, units, want) {
   const talents = c.operators[src.key].rangeTalents ?? [];
   if (talents.length === 0) return;
-  const grid = { rows: c.level.height, cols: c.level.width }, keys = rangeKeys(grid, src, c.operators[src.key].range, statsOf(src).rangeExtend);
+  const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src);
   talents.forEach((t, i) => {
     for (const u of units) {
       const fits = t.side === 'enemy' ? u.kind === KIND.ENEMY && u.base.neutral !== true : u.kind === KIND.OPERATOR && (!t.ranged || c.operators[u.key].position === 'RANGED');

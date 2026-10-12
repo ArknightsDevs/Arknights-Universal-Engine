@@ -11,6 +11,7 @@ import { applyStatus } from '../src/status.js';
 import { dealDamage } from '../src/damage.js';
 import { makeBuff } from '../src/buffs.js';
 import { statsOf } from '../src/attrs.js';
+import { reachKeys } from '../src/reach.js';
 
 /** @typedef {import('../src/types.js').SkillDef} SkillDef @typedef {import('../src/types.js').Unit} Unit @typedef {import('../src/types.js').World} World */
 
@@ -239,4 +240,18 @@ test('[技能-7] the skill command closes a running closable skill — duration 
   run(fixed.w, fixed.c, 1, [[0, { type: 'skill', unit: fixed.guard.id }]]);
   run(fixed.w, fixed.c, 1, [[0, { type: 'skill', unit: fixed.guard.id }]]);
   assert.equal(fixed.guard.skill?.active, true, 'not closable: it runs on');
+});
+
+test('[技能-8] while a skill with a range runs, the operator attacks within it; one reaching the whole map reaches everywhere', () => {
+  const c = /** @type {any} */ (tinyContent());
+  c.level.waves = [];
+  c.operators.guard = { ...c.operators.guard, range: [{ row: 0, col: 0 }], skill: sk({ cost: 1, init: 1, duration: 10, range: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }] }) };
+  const w = createWorld(c, { seed: 1, players: 1 });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 }]]);
+  const g = w.units[0];
+  assert.deepEqual([...reachKeys(c, g)], [1 * 6 + 1]);
+  step(w, c, [[0, { type: 'skill', unit: g.id }]]);
+  assert.deepEqual([...reachKeys(c, g)].sort((a, b) => a - b), [7, 8, 9]);
+  c.operators.guard.skill = { ...c.operators.guard.skill, range: undefined, rangeAll: true };
+  assert.equal(reachKeys(c, g).size, 18);
 });

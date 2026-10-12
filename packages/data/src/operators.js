@@ -157,6 +157,8 @@ function levelOf(raw, p) {
     spData: { spType: field(sp, 'spType', `${p}.spData`), spCost: field(sp, 'spCost', `${p}.spData`), initSp: field(sp, 'initSp', `${p}.spData`), maxChargeTime: field(sp, 'maxChargeTime', `${p}.spData`) },
     blackboard: (Array.isArray(o.blackboard) ? o.blackboard : []).map((b, k) => { const e = asObject(b, `${p}.blackboard[${k}]`); return { key: e.key, value: e.value }; }),
     stoppable: CLOSABLE.test(typeof o.description === 'string' ? o.description : ''),
+    rangeId: o.rangeId === null || o.rangeId === undefined ? null : asString(o.rangeId, `${p}.rangeId`),
+    description: typeof o.description === 'string' ? o.description : '',
   };
 }
 

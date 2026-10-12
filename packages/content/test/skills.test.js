@@ -46,3 +46,15 @@ test('[技能-7] a skill whose description says it can be stopped or closed at w
   const { description: _, ...bare } = level;
   assert.equal(skillDefOf('x', bare).stoppable, false, 'no description');
 });
+
+test('[技能-8] the attack range while a skill runs: its level range when the description changes the range; the whole map', async () => {
+  const { loadTraining, operatorAt } = await import('../src/index.js');
+  const e2 = (/** @type {number} */ skill) => ({ elite: 2, level: 1, potential: 1, trust: 0, skill, skillLevel: 7 });
+  const sntlla = operatorAt(await loadTraining('char_341_sntlla'), e2(1)).skill, glaze = operatorAt(await loadTraining('char_302_glaze'), e2(1)).skill;
+  assert.ok(sntlla && sntlla.range && sntlla.range.length > 0, '寒芒克洛丝 S2: 攻击范围扩大');
+  assert.deepEqual([glaze && glaze.rangeAll, glaze && glaze.range], [true, undefined], '安比尔 S2: 攻击范围扩大至整个战场');
+  assert.deepEqual([def('skcom_atk_up[3]').range, def('skcom_atk_up[3]').rangeAll], [undefined, undefined]);
+  assert.deepEqual(skillDefOf('x', { ...LEVELS['skcom_atk_up[3]'], description: '攻击范围缩小', rangeId: '0-1' }).range, [{ row: 0, col: 0 }]);
+  assert.deepEqual(skillDefOf('x', { ...LEVELS['skcom_atk_up[3]'], description: '治疗周围的友方', rangeId: 'x-4' }).range, undefined, 'a range that is not the attack range');
+  assert.throws(() => skillDefOf('x', { ...LEVELS['skcom_atk_up[3]'], description: '攻击范围扩大', rangeId: 'nope' }), /no range nope/);
+});

@@ -5,6 +5,7 @@ import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { DEFAULT_DIR } from './dir.js';
 import { rangeKeys, inKeys, selectable, sortHealTargets, precisionKey } from './targeting.js';
+import { reachKeys } from './reach.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Chain} Chain @typedef {import('./types.js').TraitDef} TraitDef */
@@ -79,6 +80,6 @@ export function chainOf(w, c, first, ch, how) {
  * @param {World} w @param {Content} c @param {Unit} op @returns {Unit | null}
  */
 export function woundedInRange(w, c, op) {
-  const grid = gridOf(c), d = c.operators[op.key], keys = rangeKeys(grid, op, d.range, statsOf(op).rangeExtend);
+  const grid = gridOf(c), keys = reachKeys(c, op);
   return sortHealTargets(w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal && inKeys(u, keys, grid)))[0] ?? null;
 }

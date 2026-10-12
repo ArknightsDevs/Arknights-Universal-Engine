@@ -88,6 +88,8 @@
  * @property {boolean} ammo durationType AMMO
  * @property {Record<string, number>} bb the blackboard
  * @property {boolean} [stoppable] the player may close it while it runs (技能-7)
+ * @property {Cell[]} [range] the operator's attack range while it runs (技能-8)
+ * @property {boolean} [rangeAll] while it runs the operator's attack reaches the whole map (技能-8)
  */
 /**
  * A branch trait as the simulation reads it (职业-1…职业-6): anything left out takes the default of the operator's

@@ -1,6 +1,7 @@
 // Skills of the official content (docs/spec/skills.md 技能-1, 技能-6): one skill_table level as the engine's skill, and
 // the behaviours of common skills the generic one does not cover, written against the native interface (ADR 0055) —
 // they act only through the context, never on the units directly.
+import rangeTable from '../data/ranges.json' with { type: 'json' };
 
 /** @typedef {import('@aue/sim').SkillDef} SkillDef @typedef {import('@aue/sim').SkillBehavior} SkillBehavior */
 
@@ -15,6 +16,7 @@ const SP_TYPES = Object.freeze({ INCREASE_WITH_TIME: 'time', INCREASE_WHEN_ATTAC
  * @property {{ spType: string | number, spCost: number, initSp: number, maxChargeTime: number }} spData
  * @property {{ key: string, value: number }[]} blackboard
  * @property {string} [description]
+ * @property {string | null} [rangeId] the range of the skill's level (技能-8)
  * @property {boolean} [stoppable] whether the player may close it, when the data says so already (技能-7)
  */
 
@@ -32,8 +34,27 @@ export function skillDefOf(id, level) {
   return {
     id, type, sp, cost: level.spData.spCost, init: level.spData.initSp, charges: Math.max(1, level.spData.maxChargeTime),
     duration: level.duration, ammo: level.durationType === 'AMMO', bb: Object.fromEntries(level.blackboard.map((b) => [b.key, b.value])),
-    stoppable: level.stoppable ?? CLOSABLE.test(level.description ?? ''),
+    stoppable: level.stoppable ?? CLOSABLE.test(level.description ?? ''), ...rangeOf(level),
   };
+}
+
+/** A description that says the attack range changes (技能-8). */
+const NEW_RANGE = /攻击范围(?:扩大|改变|缩小)/u;
+/** A description that says the attack range reaches the whole map (技能-8). */
+const WHOLE_MAP = /攻击范围扩大至整个战场/u;
+
+/**
+ * A skill level's attack range while it runs (技能-8): the whole map when its description says so; the level's range
+ * (range_table, 干员-8) when the description says the attack range grows, changes or shrinks; else none.
+ * @param {SkillLevel} level @returns {{ rangeAll?: true, range?: { row: number, col: number }[] }}
+ */
+function rangeOf(level) {
+  const text = (level.description ?? '').replace(/<[^>]*>/g, '');
+  if (WHOLE_MAP.test(text)) return { rangeAll: true };
+  if (!NEW_RANGE.test(text) || !level.rangeId) return {};
+  const cells = /** @type {Record<string, { row: number, col: number }[]>} */ (rangeTable.ranges)[level.rangeId];
+  if (!cells) throw new RangeError(`no range ${level.rangeId}`);
+  return { range: cells };
 }
 
 /** 生命回复 (skcom_heal_self): heals the operator for heal_scale of its maximum HP at once. @type {SkillBehavior} */
