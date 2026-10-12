@@ -122,11 +122,11 @@ test('[阻挡-2] [阻挡-3] the block count holds weights; when it drops, the la
   assert.equal(blockLoad(w, op), 3);
   w.frame = 2;
   addBuff(op, makeBuff({ key: 'less', mods: { blockCnt: -1 } }));
-  enforceCapacity(w, op);
+  enforceCapacity(w, c, op);
   assert.deepEqual(heldBy(w, op).map((e) => e.id), [a.id], 'b (weight 2) was blocked later');
   assert.ok(tryBlock(w, c, d), 'one slot left for d');
   addBuff(op, makeBuff({ key: 'none', mods: { blockCnt: -9 } }));
-  enforceCapacity(w, op);
+  enforceCapacity(w, c, op);
   assert.deepEqual(heldBy(w, op), []);
 });
 
@@ -274,8 +274,24 @@ test('[阻挡-1] [阻挡-3] content blocks an enemy at once — no radius or cou
   assert.equal(blockBy(w, far, gA), true);
   assert.deepEqual([far.blockedBy, far.blockedAt, heldBy(w, gA)], [gA.id, 1, [far]]);
   assert.equal(blockBy(w, far, w.units[0]), true, 'already its');
-  enforceCapacity(w, gA);
+  enforceCapacity(w, c, gA);
   assert.equal(far.blockedBy, -1, 'a block count of 0 lets it go');
   w.units.splice(w.units.indexOf(far), 1);
   assert.equal(blockBy(w, far, gA), false, 'not on the field');
+});
+
+test('[阻挡-2] [敌人攻击-1] 起飞 (liftoff): flyers only, from high ground too, at its liftoffBlock; no ground enemy selects it', () => {
+  const c = field(1);
+  c.operators.gA.trait = { liftoffBlock: 2 };
+  const w = worldWith(c, [['gA', 2, 7]]), op = w.units[0];
+  addBuff(op, makeBuff({ key: 'up', flags: { liftoff: true } }));
+  assert.ok(!tryBlock(w, c, enemyAt(w, c, 'e1', 7.2, 2)), 'no ground enemy');
+  const f1 = enemyAt(w, c, 'e1', 7.3, 2), f2 = enemyAt(w, c, 'e1', 6.8, 2), f3 = enemyAt(w, c, 'e1', 7, 2.4);
+  for (const f of [f1, f2, f3]) f.base.motion = 'FLY';
+  assert.deepEqual([tryBlock(w, c, f1), tryBlock(w, c, f2), tryBlock(w, c, f3)], [true, true, false], 'two flyers, from high ground');
+  const shooter = enemyAt(w, c, 'e1', 8, 2);
+  shooter.base = { ...shooter.base, applyWay: 'RANGED', rangeRadius: 3 };
+  assert.deepEqual(enemyTargets(w, shooter), [], 'a ground enemy cannot select it');
+  shooter.base.motion = 'FLY';
+  assert.deepEqual(enemyTargets(w, shooter), [op], 'a flying one can');
 });

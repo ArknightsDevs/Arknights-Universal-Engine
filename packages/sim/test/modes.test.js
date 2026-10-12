@@ -272,3 +272,15 @@ test('[职业-12] [钩子-3] boomerangs: out to the target, back to the thrower,
   const back = w.shots.filter((s) => s.src === op.id);
   assert.ok(back.every((s) => s.ret === 1), 'a target that left: the boomerang comes back from where it is');
 });
+
+test('[职业-12] up in the air while the skill does not run: flags, flying enemies only; the skill\'s attacks splash', () => {
+  const { foe, put, run } = arena((c) => {
+    c.operators.sniper = { ...c.operators.sniper, skill: skill(5), trait: { idleFlags: { liftoff: true }, idleAirOnly: true, skillSplash: { radius: 1.1, scale: 1, ground: false } } };
+  });
+  const op = put('sniper', 2, 2), a = foe(1, 2), b = foe(1, 3);
+  assert.equal(buffOf(op, 'idle')?.flags.liftoff, true);
+  assert.equal(run(60).filter((x) => x.type === 'hit' && x.id === op.id).length, 0, 'ground enemies: no attack');
+  const hits = run(90, [{ type: 'skill', unit: op.id }]).filter((x) => x.type === 'hit' && x.id === op.id).map((x) => x.target);
+  assert.ok(hits.includes(a.id) && hits.includes(b.id), 'in the skill: the ground enemy and the one splashed');
+  assert.equal(buffOf(op, 'idle'), undefined, 'landed');
+});

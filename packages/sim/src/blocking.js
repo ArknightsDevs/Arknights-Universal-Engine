@@ -25,11 +25,13 @@ export function heldBy(w, op) {
 export const blockLoad = (w, op) => heldBy(w, op).reduce((n, e) => n + statsOf(e).blockCnt, 0);
 
 /**
- * Whether a unit blocks enemies of this kind of motion (阻挡-2): flying enemies only with `blockFly`; ground enemies
- * from a ground tile (not high ground) that every unit may pass.
+ * Whether a unit blocks enemies of this kind of motion (阻挡-2): one that took off (起飞, flag `liftoff`) flying enemies
+ * only, from any tile; otherwise flying enemies only with `blockFly`, ground enemies from a ground tile (not high
+ * ground) that every unit may pass.
  * @param {Content} c @param {Unit} op @param {Stats} os @param {boolean} flying
  */
 function blocksMotion(c, op, os, flying) {
+  if (os.flags.liftoff) return flying;
   if (flying) return !!os.flags.blockFly;
   const t = tileAt(c.level, op.y, op.x);
   return !!t && t.height !== 'HIGHLAND' && t.passable === 'ALL';
@@ -75,9 +77,19 @@ function deployOffset(w, op, e) {
  * @param {World} w @param {Content} c @param {Unit} op @param {Stats} es
  */
 function takes(w, c, op, es) {
-  const os = statsOf(op);
-  if (op.hp <= 0 || !canBlock(os) || !blocksMotion(c, op, os, es.flying) || os.blockCnt <= 0) return false;
-  return blockLoad(w, op) + es.blockCnt <= os.blockCnt;
+  const os = statsOf(op), cap = blockCap(c, op);
+  if (op.hp <= 0 || !canBlock(os) || !blocksMotion(c, op, os, es.flying) || cap <= 0) return false;
+  return blockLoad(w, op) + es.blockCnt <= cap;
+}
+
+/**
+ * The block count a unit has now (阻挡-2): its 阻挡数, or, while it took off, its trait's `liftoffBlock` when it has one
+ * (巡空者, 职业-12).
+ * @param {Content} c @param {Unit} op
+ */
+function blockCap(c, op) {
+  const s = statsOf(op), n = s.flags.liftoff && op.kind === KIND.OPERATOR ? c.operators[op.key]?.trait?.liftoffBlock : undefined;
+  return typeof n === 'number' ? n : s.blockCnt;
 }
 
 /**
@@ -116,9 +128,9 @@ export function keepOrRelease(w, e) {
   if (!op || op.hp <= 0 || !canBlock(statsOf(op)) || e.hidden || !blockable(statsOf(e))) release(e);
 }
 
-/** A unit whose block count dropped below what it holds lets go of the latest blocked first (阻挡-3). @param {World} w @param {Unit} op */
-export function enforceCapacity(w, op) {
-  const held = heldBy(w, op), cap = statsOf(op).blockCnt;
+/** A unit whose block count dropped below what it holds lets go of the latest blocked first (阻挡-3). @param {World} w @param {Content} c @param {Unit} op */
+export function enforceCapacity(w, c, op) {
+  const held = heldBy(w, op), cap = blockCap(c, op);
   let load = held.reduce((n, e) => n + statsOf(e).blockCnt, 0);
   while (load > cap && held.length) {
     const e = /** @type {Unit} */ (held.pop());

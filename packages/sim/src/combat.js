@@ -5,7 +5,7 @@ import { FPS, secondsToFrames } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { offsetTile } from './dir.js';
 import { statsOf, intervalFrames } from './attrs.js';
-import { inKeys, selectable, sortEnemies, sortAllies, firstN } from './targeting.js';
+import { inKeys, selectable, sortEnemies, sortAllies, firstN, evadesGround } from './targeting.js';
 import { dealDamage, heal } from './damage.js';
 import { emit, hasHook } from './bus.js';
 import { pathDistance } from './routes.js';
@@ -21,7 +21,7 @@ import { tickSkill, beforeAttack, attackMods, afterAttack } from './skills.js';
 import { palsyInterrupts, inflict } from './status.js';
 import { draw } from './rng.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
-import { mayAttack, healsNow, healerNow, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale } from './modes.js';
+import { mayAttack, healsNow, healerNow, inSkill, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale } from './modes.js';
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitAsk } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_CUT_FRAMES } from './swing.js';
 
@@ -50,9 +50,9 @@ export function targetsOf(w, c, op) {
   const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], t = traitOfDef(d);
   const keys = reachKeys(c, op);
   if (healsNow(c, op)) return healOrder(c, op, w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal && inKeys(u, keys, grid)));
-  const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id;
+  const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id, air = t.idleAirOnly && !inSkill(op);
   const cands = w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true
-    && ((held(u) && selectable(u, { canHitFly: true })) || (selectable(u, { canHitFly: t.antiAir }) && inKeys(u, keys, grid))));
+    && ((held(u) && selectable(u, { canHitFly: true })) || (selectable(u, { canHitFly: t.antiAir }) && inKeys(u, keys, grid) && (!air || statsOf(u).flying))));
   return sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary });
 }
 
@@ -156,7 +156,7 @@ const loadOf = (a, mods) => ({
 function areaOf(w, a, t, area) {
   const [r, col] = tileOf(t);
   return w.units.filter((u) => {
-    if (u.hp <= 0 || u.hidden || !isFoeOf(u, a)) return false;
+    if (u.hp <= 0 || u.hidden || !isFoeOf(u, a) || evadesGround(a, u)) return false;
     const [ur, uc] = tileOf(u), dr = Math.abs(ur - r), dc = Math.abs(uc - col);
     return area === 'square' ? Math.max(dr, dc) <= 1 : dr + dc <= 1;
   });
@@ -170,7 +170,7 @@ function areaOf(w, a, t, area) {
 function loadFor(c, a, t, load) {
   if (a.kind !== KIND.OPERATOR) return load;
   const tr = traitOf(c, a);
-  return { ...load, amount: load.amount * traitScale(c, a, t) * funnelScale(c, a, t), splash: tr.splash, aftershock: tr.aftershock, chain: tr.chain };
+  return { ...load, amount: load.amount * traitScale(c, a, t) * funnelScale(c, a, t), splash: tr.skillSplash && inSkill(a) ? tr.skillSplash : tr.splash, aftershock: tr.aftershock, chain: tr.chain };
 }
 
 /**
@@ -424,7 +424,7 @@ function critMods(w, c, op, mods) {
 export function operatorsAttack(w, c) {
   for (const op of w.units) {
     if (op.kind !== KIND.OPERATOR || op.hp <= 0) continue;
-    enforceCapacity(w, op);
+    enforceCapacity(w, c, op);
     blockingImmunity(w, op, traitOf(c, op).immuneBlocking);
     tickSkill(w, c, op);
     skillIdle(op, traitOf(c, op));
@@ -454,7 +454,7 @@ export function enemyTargets(w, e) {
   if (e.base.applyWay === 'MELEE' || !(e.base.rangeRadius > 0)) return blocker ? [blocker] : [];
   const reach = e.base.rangeRadius + ALLY_COLLIDER_RADIUS, r2 = reach * reach;
   const side = (/** @type {Unit} */ u) => u.kind === KIND.OPERATOR || (u.kind === KIND.ENEMY && u.base.neutral === true && u !== e);
-  const out = w.units.filter((u) => side(u) && u.hp > 0 && (u === blocker || selectable(u))
+  const out = w.units.filter((u) => side(u) && u.hp > 0 && (u === blocker || selectable(u)) && !evadesGround(e, u)
     && (u.x - e.x) * (u.x - e.x) + (u.y - e.y) * (u.y - e.y) <= r2);
   if (blocker && !out.includes(blocker)) out.push(blocker);
   return out;

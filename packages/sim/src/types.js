@@ -131,6 +131,11 @@
  * @property {number} healOnHit a hit of its attack that deals damage heals the most wounded operator in its range by this share of it (职业-11)
  * @property {boolean} attackInSkill it makes normal attacks only while its skill runs (职业-12)
  * @property {Record<string, number>} idleMods modifiers while its skill does not run (职业-12)
+ * @property {Record<string, boolean>} idleFlags flags while its skill does not run (职业-12)
+ * @property {boolean} idleAirOnly while its skill does not run, its normal attack selects only flying enemies and those it
+ *   blocks (职业-12)
+ * @property {Splash | null} skillSplash its attack's splash while its skill runs (职业-12)
+ * @property {number} liftoffBlock its block count while it took off (起飞), 0 for its 阻挡数 (阻挡-2, 职业-12)
  * @property {{ atk: number, steps: number, init?: number } | null} charge while its skill does not run, a step a second up to
  *   `steps`, each `atk` ÷ `steps` attack (直接乘算), from the steps of `init` attack at deployment; back to 0 after the
  *   skill ran (职业-12)

@@ -63,6 +63,11 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   siegesniper: { trait: () => ({ filter: 'MASS_DES' }) },
   aoesniper: { trait: () => ({ splash: { radius: 1, scale: 1, ground: false } }) },
   bombarder: { trait: (bb) => ({ antiAir: false, splash: { radius: 0.9, scale: 1, ground: true }, aftershock: bb['attack@append_atk_scale'] ?? 0.5 }) },
+  // air too; blocks 2 flying enemies once it took off (职业-12)
+  skywalker: { trait: () => ({ antiAir: true, liftoffBlock: 2 }) },
+  // air too, the blocked first; up in the air (起飞) while its skill does not run, attacking only flying enemies and those it
+  // blocks; its skill's attacks splash 1.1 (职业-12)
+  skybreaker: { trait: () => ({ antiAir: true, blockedFirst: true, idleFlags: { liftoff: true }, idleAirOnly: true, skillSplash: { radius: 1.1, scale: 1, ground: false } }) },
   // its attacks throw boomerangs, out at 15 and back at 3.75 tiles a second; it attacks again once it caught them all (职业-12)
   loopshooter: { trait: () => ({ boomerang: { out: 15, back: 3.75 } }) },
   // value bullets at atk_scale, reloaded one at a time (职业-12)

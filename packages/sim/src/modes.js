@@ -20,7 +20,7 @@ import { heal } from './damage.js';
 const held = (u, key) => u.buffs.find((b) => b.key === key) ?? null;
 
 /** Whether an operator's skill runs. @param {Unit} op */
-const inSkill = (op) => !!op.skill && op.skill.active;
+export const inSkill = (op) => !!op.skill && op.skill.active;
 
 /**
  * Whether an operator may make a normal attack now (职业-12, 职业-13): never one that makes none, nor one a buff's flag
@@ -90,14 +90,15 @@ export function deployTalents(w, c, op) {
 }
 
 /**
- * The modifiers while an operator's skill does not run (职业-12): a buff `idle` while it does not, none while it does.
+ * The modifiers and flags while an operator's skill does not run (职业-12): a buff `idle` while it does not, none while
+ * it does.
  * At the start of the operator's turn, after its skill's.
  * @param {Unit} op @param {import('./types.js').TraitDef} t
  */
 export function skillIdle(op, t) {
-  if (Object.keys(t.idleMods).length === 0) return;
+  if (Object.keys(t.idleMods).length === 0 && Object.keys(t.idleFlags).length === 0) return;
   const has = !!held(op, 'idle');
-  if (!inSkill(op) && !has) addBuff(op, makeBuff({ key: 'idle', src: op.id, mods: t.idleMods }));
+  if (!inSkill(op) && !has) addBuff(op, makeBuff({ key: 'idle', src: op.id, mods: t.idleMods, flags: t.idleFlags }));
   else if (inSkill(op) && has) removeBuff(op, 'idle');
 }
 

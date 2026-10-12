@@ -1,5 +1,6 @@
 // Targeting (docs/spec/targeting.md): the tiles of a range, who can be selected, and the official order of candidates —
 // 阻挡, then 仇恨值 compared at a precision of 0.1, then the order they appeared in — by a stable insertion sort.
+import { KIND } from '@aue/schema';
 import { offsetTile } from './dir.js';
 import { bodyKeys } from './body.js';
 import { statsOf } from './attrs.js';
@@ -46,6 +47,12 @@ export function selectable(u, sel = {}) {
   if (f.camou && !sel.ignoreCamou) return false;
   return !s.flying || !!sel.canHitFly;
 }
+
+/**
+ * 对地规避 of a unit that took off (起飞, flag `liftoff`, 阻挡-2): an enemy that is not flying cannot select it.
+ * @param {Unit} src @param {Unit} u
+ */
+export const evadesGround = (src, u) => src.kind === KIND.ENEMY && !statsOf(src).flying && !!statsOf(u).flags.liftoff;
 
 /** 仇恨值 of an enemy-type unit (索敌-3): 10⁸ × 嘲讽等级 − clamp(路径距离, −10⁸, 10⁸). @param {number} taunt @param {number} dist */
 export const enemyHatred = (taunt, dist) => 1e8 * taunt - Math.min(1e8, Math.max(-1e8, dist));
