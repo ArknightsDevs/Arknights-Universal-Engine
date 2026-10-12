@@ -1,0 +1,121 @@
+// Images drawn on a canvas once and cached as data URLs (docs/spec/ui.md 界面-4): a sprite tinted by a colour (multiply,
+// the sprite's own alpha kept), a nine-slice drawn at a size (its borders shrink in proportion when the size is smaller
+// than they are, like Unity's), a stencil writer's shape as a mask. Before a sprite's image has loaded, or without a
+// 2D canvas, the sprite's own file is used.
+
+/** @typedef {import('./node.js').Ctx} Ctx */
+
+const WHITE = 0.995, MAX_CACHE = 600;
+
+/** The URL of a sprite's file. @param {Ctx} ctx @param {string} key */
+export const spriteFile = (ctx, key) => ctx.base + (ctx.pack.sprites[key]?.uri ?? '');
+
+/** Whether a colour leaves a sprite as it is. @param {readonly number[]} c */
+const isWhite = (c) => c[0] > WHITE && c[1] > WHITE && c[2] > WHITE;
+
+/** Caches a drawn image. @param {Ctx} ctx @param {string} key @param {string} url */
+function remember(ctx, key, url) {
+  if (ctx.cache.size > MAX_CACHE) ctx.cache.delete(/** @type {string} */ (ctx.cache.keys().next().value));
+  ctx.cache.set(key, url);
+  return url;
+}
+
+/** A canvas of a size, scaled by q, or null without a 2D context. @param {Ctx} ctx @param {number} w @param {number} h @param {number} q */
+function canvas2d(ctx, w, h, q) {
+  const c = /** @type {HTMLCanvasElement} */ (ctx.doc.createElement('canvas'));
+  c.width = Math.max(1, Math.round(w * q)); c.height = Math.max(1, Math.round(h * q));
+  const x = c.getContext?.('2d');
+  if (!x) return null;
+  x.scale(q, q);
+  return { c, x };
+}
+
+/** Multiplies what is drawn by a colour, keeping its alpha. @param {CanvasRenderingContext2D} x @param {HTMLCanvasElement} c @param {readonly number[]} rgb */
+function multiply(x, c, rgb) {
+  const copy = /** @type {HTMLCanvasElement} */ (c.ownerDocument.createElement('canvas'));
+  copy.width = c.width; copy.height = c.height;
+  copy.getContext('2d')?.drawImage(c, 0, 0);
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.globalCompositeOperation = 'multiply';
+  x.fillStyle = `rgb(${rgb[0] * 255},${rgb[1] * 255},${rgb[2] * 255})`;
+  x.fillRect(0, 0, c.width, c.height);
+  x.globalCompositeOperation = 'destination-in';
+  x.drawImage(copy, 0, 0);
+}
+
+/**
+ * A sprite tinted by a colour (multiply). @param {Ctx} ctx @param {string} key @param {readonly number[]} rgb
+ */
+export function tintedUri(ctx, key, rgb) {
+  const file = spriteFile(ctx, key), im = ctx.imgs.get(key);
+  if (isWhite(rgb) || !im) return file;
+  const ck = `t|${key}|${rgb.slice(0, 3).map((v) => v.toFixed(2)).join(',')}`;
+  const hit = ctx.cache.get(ck);
+  if (hit) return hit;
+  const d = canvas2d(ctx, im.width, im.height, 1);
+  if (!d) return file;
+  d.x.drawImage(im, 0, 0);
+  multiply(d.x, d.c, rgb);
+  return remember(ctx, ck, d.c.toDataURL());
+}
+
+/**
+ * Draws an image nine-sliced into (X, Y, W, H): corners at their size (all shrunk in proportion when they do not fit),
+ * edges stretched along, the centre stretched.
+ * @param {CanvasRenderingContext2D} x @param {HTMLImageElement} img @param {number[]} slice [left, right, top, bottom]
+ * @param {number[]} box [X, Y, W, H]
+ */
+export function drawNine(x, img, slice, box) {
+  const [L, R, T, B] = slice, [X, Y, W, H] = box, iw = img.width, ih = img.height;
+  const kx = L + R > W ? W / (L + R) : 1, ky = T + B > H ? H / (T + B) : 1;
+  const sx = [0, L, iw - R, iw], sy = [0, T, ih - B, ih];
+  const dx = [X, X + L * kx, X + W - R * kx, X + W], dy = [Y, Y + T * ky, Y + H - B * ky, Y + H];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+    const sw = sx[i + 1] - sx[i], sh = sy[j + 1] - sy[j], dw = dx[i + 1] - dx[i], dh = dy[j + 1] - dy[j];
+    if (sw > 0 && sh > 0 && dw > 0 && dh > 0) x.drawImage(img, sx[i], sy[j], sw, sh, dx[i], dy[j], dw, dh);
+  }
+}
+
+/**
+ * A nine-sliced sprite at a size (whole pixels, drawn at twice the size), tinted.
+ * @param {Ctx} ctx @param {string} key @param {number[]} slice @param {readonly number[]} rgb @param {number[]} size
+ */
+export function slicedUri(ctx, key, slice, rgb, size) {
+  const im = ctx.imgs.get(key);
+  if (!im) return spriteFile(ctx, key);
+  const W = Math.max(1, Math.round(size[0])), H = Math.max(1, Math.round(size[1]));
+  const ck = `s|${key}|${rgb.slice(0, 3).map((v) => v.toFixed(2)).join(',')}|${W}x${H}`;
+  const hit = ctx.cache.get(ck);
+  if (hit) return hit;
+  const d = canvas2d(ctx, W, H, 2);
+  if (!d) return spriteFile(ctx, key);
+  d.x.imageSmoothingQuality = 'high';
+  drawNine(d.x, im, slice, [0, 0, W, H]);
+  if (!isWhite(rgb)) multiply(d.x, d.c, rgb);
+  return remember(ctx, ck, d.c.toDataURL());
+}
+
+/**
+ * A stencil writer's shape in a group of w × h (its box inside the group) as a white image: its sprite (sliced when it
+ * is), else the shape its material draws — a circle, a rounded rect (UV units of the rect) —, else an ellipse for a
+ * round name, else the rect. Null without a canvas.
+ * @param {Ctx} ctx @param {import('./node.js').UiNode} k the writer @param {number[]} box [x, y, w, h] in the group
+ * @param {number} w @param {number} h
+ */
+export function stencilUri(ctx, k, box, w, h) {
+  const d = canvas2d(ctx, w, h, 2);
+  if (!d) return null;
+  const x = d.x, [X, Y, W, H] = box, im = k.n.comps.img, img = im?.ref ? ctx.imgs.get(im.ref) : undefined;
+  x.fillStyle = '#fff';
+  if (img) x.drawImage(img, X, Y, W, H);
+  else {
+    const mat = /** @type {import('./paint.js').Material | undefined} */ (k.n.comps.mat ?? im?.mat), sh = mat?.shape ?? [];
+    x.beginPath();
+    if (mat?.kind === 'circle') x.ellipse(X + W / 2, Y + H / 2, W * sh[0], H * sh[0], 0, 0, Math.PI * 2);
+    else if (mat?.kind === 'rect') x.roundRect(X + (W - W * sh[0]) / 2, Y + (H - H * sh[1]) / 2, W * sh[0], H * sh[1], Math.min(W, H) * sh[2]);
+    else if (/circle|round|avatar/i.test(k.n.name)) x.ellipse(X + W / 2, Y + H / 2, W / 2, H / 2, 0, 0, Math.PI * 2);
+    else x.rect(X, Y, W, H);
+    x.fill();
+  }
+  return d.c.toDataURL();
+}
