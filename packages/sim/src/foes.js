@@ -11,6 +11,8 @@ import { selectable, sortAllies, friendly } from './targeting.js';
 import { tileOf } from './body.js';
 import { tileAt } from './level.js';
 import { board, alight, detour, wayKeys } from './routes.js';
+import { release } from './blocking.js';
+import { spawnDevice } from './devices.js';
 import { keyAt } from './paths.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
@@ -71,6 +73,9 @@ export const BOLT_RADIUS = 0.3;
  * @property {(u: Unit) => boolean} onWay whether a unit's tile is on its way to the end of the move it is on, its own tile
  *   included (寻路-2)
  * @property {(row: number, col: number) => void} detour makes the centre of a tile the next point of the move it is on (路线-6)
+ * @property {() => void} release its block ends (阻挡-3)
+ * @property {(key: string) => boolean} placeDevice places a device of the level's record `key` on its tile (装置-5): whether
+ *   it stands there
  */
 
 /**
@@ -158,6 +163,8 @@ function contextOf(w, c, e, of) {
     resetSkills: () => { for (const s of defOf(c, e).skills ?? []) ab[`${s.key}.cd`] = secondsToFrames(s.initCooldown); },
     onWay: (u) => wayKeys(c, e).includes(keyAt(c.level, u.x, u.y)),
     detour: (row, col) => { detour(c, e, row, col); },
+    release: () => { release(e); },
+    placeDevice: (key) => { const [r, col] = tileOf(e); return spawnDevice(w, c, key, r, col); },
   };
 }
 

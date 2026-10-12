@@ -5,6 +5,7 @@
 import { moreFoeBehaviors } from './abilities.js';
 import { prisonerBehaviors } from './prisoners.js';
 import { avengerBehaviors } from './avenger.js';
+import { hoverBehaviors } from './hover.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -34,6 +35,8 @@ export const FOE_EXTRAS = Object.freeze({
   enemy_1117_liiprr_2: { talents: { liberty: { arts: 1 } }, source: `${PRTS}%E7%A5%9E%E5%B0%84%E6%89%8B%E5%9B%9A%E7%8A%AF&oldid=436533` },
   // 传奇重犯: 自身首次切换至解放状态时，使场上所有【囚犯】敌人切换至解放状态
   enemy_1121_lifbos_2: { talents: { liberty: { all: 1 } }, source: `${PRTS}%E4%BC%A0%E5%A5%87%E9%87%8D%E7%8A%AF&oldid=435683` },
+  // 山海众掌令使: 未被阻挡时，在经过的首个可部署的“玉门天灾工事”上部署30级的山海密语仪 (the data has no talent for it)
+  enemy_1297_ymflag_2: { talents: { PlaceFlag: {} }, source: `${PRTS}%E5%B1%B1%E6%B5%B7%E4%BC%97%E6%8E%8C%E4%BB%A4%E4%BD%BF&oldid=436476` },
 });
 
 /**
@@ -179,7 +182,7 @@ const PowerHit = Object.freeze({
 });
 
 /** Behaviours by talent or skill name. @type {Readonly<Record<string, FoeBehavior>>} */
-export const foeBehaviors = Object.freeze({ boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors });
+export const foeBehaviors = Object.freeze({ boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors });
 
 /**
  * Talents with no behaviour of their own that are still covered (关卡-2): `dead` is the data's 生命 loss of a neutral

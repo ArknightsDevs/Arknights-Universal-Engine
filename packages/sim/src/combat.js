@@ -468,7 +468,7 @@ export function enemyTargets(w, e) {
  */
 export function enemyAttack(w, c, e) {
   const s = statsOf(e);
-  if (s.disabled || s.atk <= 0 || e.hidden) { e.swing = null; return false; }
+  if (s.disabled || s.atk <= 0 || e.hidden || s.flags.noAttack) { e.swing = null; return false; }
   const swinging = e.swing !== null;
   if (e.swing) advanceSwing(w, c, e);
   if (e.atkCd > 0) { e.atkCd--; return swinging; }

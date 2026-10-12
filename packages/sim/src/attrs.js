@@ -137,8 +137,8 @@ export const intervalFrames = (bat, aspd) => secondsAtSpeedToFrames(bat, Math.mi
 
 /**
  * The flags of the active buffs a unit is not immune to — by its data, or by a buff's flag `immune:<flag>` — and what
- * they add up to (状态-5, 状态-7): flying (浮空 lifts, 缚地 grounds), invincible (无敌, 沉睡), disabled (cannot attack
- * or use skills) and immobile.
+ * they add up to (状态-5, 状态-7): flying (浮空 lifts, 缚地 grounds, 近地悬浮 `hover` lifts), invincible (无敌, 沉睡),
+ * disabled (cannot attack or use skills) and immobile.
  * @param {Partial<Base>} base @param {Record<string, boolean>} raw
  */
 function flagsOf(base, raw) {
@@ -146,7 +146,7 @@ function flagsOf(base, raw) {
   /** @type {Record<string, boolean>} */
   const flags = {};
   for (const k of Object.keys(raw)) if (!immune.has(k)) flags[k] = true;
-  const flying = flags.levitate ? true : flags.groundbind ? false : base.motion === 'FLY';
+  const flying = flags.levitate ? true : flags.groundbind ? false : flags.hover ? true : base.motion === 'FLY';
   const disabled = !!(flags.stun || flags.freeze || flags.sleep || flags.levitate || flags.palsyShake || flags.sidelined);
   return { flags, flying, invincible: !!(flags.invincible || flags.sleep), disabled, immobile: disabled || !!(flags.root || flags.groundbind) };
 }
