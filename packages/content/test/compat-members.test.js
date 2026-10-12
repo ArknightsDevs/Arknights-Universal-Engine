@@ -221,3 +221,17 @@ test('[兼容-4] a player as kits read it: its cost and its units; none for a se
   const b = /** @type {ShBattle} */ (box.b), p = /** @type {any} */ (b.getPlayer(0));
   assert.deepEqual([p.dp, p.units.includes(b.unitOf(guard)), p.mirror, b.getPlayer(5)], [w.players[0].cost, true, false, null]);
 });
+
+test('[兼容-4] a kit sets a unit\'s HP outright (伤害-9) and has a unit block an enemy at once (阻挡-1) or release it', () => {
+  const { w, c, box, guard } = match({ kind: 'duration', duration: 30 });
+  const b = /** @type {ShBattle} */ (box.b), u = b.unitOf(guard);
+  /** @type {any} */
+  let slime;
+  for (let i = 0; i < 900 && !(slime = w.units.find((x) => x.key === 'slime')); i++) step(w, c);
+  const e = b.unitOf(slime);
+  u.hp = 123;
+  e.blockedBy = u;
+  assert.deepEqual([guard.hp, slime.blockedBy, e.blockedBy], [123, guard.id, u]);
+  e.blockedBy = null;
+  assert.equal(slime.blockedBy, -1);
+});

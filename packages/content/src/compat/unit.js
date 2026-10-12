@@ -3,7 +3,7 @@
 // to the engine's unit while it is deployed, unbound in between — so the hooks its kit installs once see every
 // deployment. An enemy is the engine's unit itself. Fields Stronghold's kits keep their own state in (`mem`, `trait`)
 // live here, outside the engine's state (ADR 0057).
-import { KIND, attrs, body, traits, buffs, status, damage, dir, elements, routes, reachKeys, setRange, setAtkCd } from '@aue/sim';
+import { KIND, attrs, body, traits, buffs, status, damage, blocking, dir, elements, routes, reachKeys, setRange, setAtkCd } from '@aue/sim';
 import { ShSkill } from './skill.js';
 import { STATUS_NAME, buffKeyOf, buffNameOf, shFlagsOf } from './mods.js';
 import { STAND_INS } from './standins.js';
@@ -102,6 +102,8 @@ export class ShUnit {
   /** @returns {import('@aue/sim').Dir} */
   get dir() { return this.u ? this.u.dir : 'RIGHT'; }
   get hp() { return this.u ? this.u.hp : 0; }
+  /** A kit may set it outright (伤害-9). */
+  set hp(v) { if (this.u) damage.setHp(this.u, Number(v)); }
   get hitArea() { return /** @type {any} */ (this.u?.base)?.hitArea ?? null; }
   get hidden() { return !!this.u?.hidden; }
   /** The extra tiles content gave its attack (攻击-1), or null. */
@@ -149,6 +151,12 @@ export class ShUnit {
   get blockedBy() {
     const id = this.u?.blockedBy ?? -1;
     return id >= 0 ? this.b.unitById(id) : null;
+  }
+  /** A kit may have a unit block it at once (阻挡-1), or release it with none (阻挡-3). @param {ShUnit | null} v */
+  set blockedBy(v) {
+    const u = this.u;
+    if (u && v?.u) blocking.blockBy(this.b.w, u, v.u);
+    else if (u) blocking.release(u);
   }
   /** An operator's attack range now (索敌-1, 技能-8): its tile keys. */
   get rangeKeySet() { return this.u && this.u.kind === KIND.OPERATOR ? reachKeys(this.b.c, this.u) : new Set(); }

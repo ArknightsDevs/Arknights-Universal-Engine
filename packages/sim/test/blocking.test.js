@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { oracleDir, tinyContent } from '@aue/testkit';
 import { KIND } from '@aue/schema';
 import { makeOperator, makeEnemy } from '../src/units.js';
-import { tryBlock, keepOrRelease, enforceCapacity, heldBy, blockLoad } from '../src/blocking.js';
+import { tryBlock, keepOrRelease, enforceCapacity, heldBy, blockLoad, blockBy } from '../src/blocking.js';
 import { enemyTargets } from '../src/combat.js';
 import { applyStatus } from '../src/status.js';
 import { addBuff, makeBuff } from '../src/buffs.js';
@@ -267,4 +267,15 @@ test('[敌人攻击-1] [阻挡-3] the guard falls: it leaves, may be deployed ag
   assert.ok(w.units.every((u) => u.blockedBy === -1));
   for (let f = 0; f < 600; f++) step(w, c);
   assert.ok(w.players[0].life < 3, 'they reached the goal');
+});
+
+test('[阻挡-1] [阻挡-3] content blocks an enemy at once — no radius or count — and 阻挡-3 releases it as any other', () => {
+  const c = field(0, 2), w = worldWith(c, [['gA', 3, 5]]), gA = w.units[0], far = enemyAt(w, c, 'e2', 15, 3);
+  assert.equal(blockBy(w, far, gA), true);
+  assert.deepEqual([far.blockedBy, far.blockedAt, heldBy(w, gA)], [gA.id, 1, [far]]);
+  assert.equal(blockBy(w, far, w.units[0]), true, 'already its');
+  enforceCapacity(w, gA);
+  assert.equal(far.blockedBy, -1, 'a block count of 0 lets it go');
+  w.units.splice(w.units.indexOf(far), 1);
+  assert.equal(blockBy(w, far, gA), false, 'not on the field');
 });

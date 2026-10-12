@@ -7,7 +7,7 @@ import { secondsToFrames } from '@aue/math';
 import { KIND, bus, buffs, status, traits, blocking, displacement, draw, weightedPick, setExtraRange, attackNow } from '@aue/sim';
 import { withGrid } from './grid.js';
 import { ShUnit } from './unit.js';
-import { STATUS_NAME, statusKeyOf, modsOf, flagsOf, buffKeyOf } from './mods.js';
+import { STATUS_NAME, ELEMENT_NAME, statusKeyOf, modsOf, flagsOf, buffKeyOf } from './mods.js';
 import { KIT_BUFF, hooksOf, runHook } from './buffhooks.js';
 import { STAND_INS, giveStandIn } from './standins.js';
 import { ShProjectiles } from './projectiles.js';
@@ -32,6 +32,17 @@ const RULES = { extend: 'extend', stack: 'stack', independent: 'independent' };
 const sh = (b, u) => (u ? b.unitOf(u) : null);
 
 /**
+ * An element hit's damage info as Stronghold's (兼容-4): its element by Stronghold's name; the amount, multiplier and
+ * cancel read and write the engine's.
+ * @param {Record<string, any>} d
+ */
+const elementDmg = (d) => ({
+  type: 'element', element: ELEMENT_NAME[d.element] ?? d.element, isAttack: false, isSkill: false, tags: [],
+  get amount() { return d.amount; }, set amount(v) { d.amount = v; }, get mul() { return d.mul; }, set mul(v) { d.mul = v; },
+  get cancel() { return d.cancel; }, set cancel(v) { d.cancel = v; },
+});
+
+/**
  * An engine event's context as Stronghold's (兼容-4), by event: units as ShUnits, `frames` as `dt` seconds; the damage
  * info is the engine's own (the same names, ADR 0012); what a handler may change reads and writes the engine's context.
  * @type {Record<string, (b: ShBattle, k: Record<string, any>) => Record<string, any>>}
@@ -54,6 +65,8 @@ const SHAPES = {
   attack: (b, k) => ({ attacker: sh(b, k.attacker), targets: k.targets.map((/** @type {Unit} */ t) => b.unitOf(t)), isSkill: k.isSkill }),
   skillStart: (b, k) => ({ unit: sh(b, k.unit), skill: sh(b, k.unit)?.skill ?? null, reason: k.reason }),
   skillEnd: (b, k) => ({ unit: sh(b, k.unit), skill: sh(b, k.unit)?.skill ?? null, reason: k.reason }),
+  elementHit: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), dmg: elementDmg(k.dmg) }),
+  elementBurst: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), element: ELEMENT_NAME[k.element] ?? k.element }),
   merchantPay: (b, k) => ({ unit: sh(b, k.unit), get cost() { return k.cost; }, set cost(v) { k.cost = v; }, get cancel() { return k.cancel; }, set cancel(v) { k.cancel = v; } }),
   beforeStatus: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), status: STATUS_NAME[k.status] ?? k.status,
     get duration() { return k.frames < 0 ? Infinity : k.frames * TICK; }, set duration(v) { k.frames = v === Infinity ? -1 : secondsToFrames(Math.max(0, Number(v) || 0)); },

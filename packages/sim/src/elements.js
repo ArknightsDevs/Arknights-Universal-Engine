@@ -9,6 +9,7 @@ import { inflict } from './status.js';
 import { dealDamage } from './damage.js';
 import { loseSp } from './sp.js';
 import { MIN_DAMAGE_RATIO } from './constants.js';
+import { emit } from './bus.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff */
 /** @typedef {'SANITY' | 'WATER' | 'FIRE' | 'DARK' | 'ANGER'} Element */
@@ -62,17 +63,27 @@ export function epTaken(amount, s) {
   return a * s.epTakenMul;
 }
 
+/** The units whose burst is beginning (its `elementBurst` handlers run): they take no 元素损伤 meanwhile (元素-3). @type {WeakSet<Unit>} */
+const beginning = new WeakSet();
+
+/** Whether a unit takes no 元素损伤 now (元素-2 step 1). @param {Unit} u */
+const unaffected = (u) => {
+  const s = statsOf(u);
+  return u.hp <= 0 || s.invincible || u.hidden || s.flags.epImmune || u.base.neutral === true || bursting(u) || beginning.has(u);
+};
+
 /**
  * Deals 元素损伤 (元素-2, 元素-3): nothing to a unit at 0 HP, invincible, disappeared, immune to elements (元素免疫) or
- * in a burst; otherwise the element's value drops by what the unit takes, and at 0 the burst begins — the burst of
- * `src`, the unit that dealt it (元素-4). Returns the amount taken.
+ * in a burst; otherwise the `elementHit` event (钩子-3: its handlers may change the amount or its multiplier, or cancel
+ * it), then the element's value drops by what the unit takes, and at 0 the burst begins — the burst of `src`, the unit
+ * that dealt it (元素-4). Returns the amount taken.
  * @param {World} w @param {Unit} u @param {Element} el @param {number} amount @param {Unit | null} [src]
  */
 export function dealEp(w, u, el, amount, src = null) {
-  if (u.hp <= 0 || !(amount > 0)) return 0;
-  const s = statsOf(u);
-  if (s.invincible || u.hidden || s.flags.epImmune || u.base.neutral === true || bursting(u)) return 0;
-  const taken = epTaken(amount, s), left = epOf(u, el) - taken;
+  if (!(amount > 0) || unaffected(u)) return 0;
+  const dmg = emit(w, 'elementHit', { source: src, target: u, dmg: { type: 'element', element: el, amount, mul: 1, cancel: false } }).dmg;
+  if (dmg.cancel || unaffected(u) || !(dmg.amount * dmg.mul > 0)) return 0;
+  const taken = epTaken(dmg.amount * dmg.mul, statsOf(u)), left = epOf(u, el) - taken;
   u.ep[el] = Math.max(0, left);
   if (left <= 0) burst(w, u, el, src);
   return taken;
@@ -140,11 +151,16 @@ const BURSTS = Object.freeze({
 });
 
 /**
- * The burst (元素-3, 元素-4): a burst buff that locks the element values for the burst's time and carries what lasts
- * as long — with the burst's source, the unit whose 元素损伤 set it off —, then the effects that come at once.
+ * The burst (元素-3, 元素-4): the `elementBurst` event (钩子-3; a unit it leaves at 0 HP, or in another burst, has its
+ * values back at their maximum and nothing more), then a burst buff that locks the element values for the burst's time
+ * and carries what lasts as long — with the burst's source, the unit whose 元素损伤 set it off —, then the effects that
+ * come at once.
  * @param {World} w @param {Unit} u @param {Element} el @param {Unit | null} src
  */
 function burst(w, u, el, src) {
+  beginning.add(u);
+  try { emit(w, 'elementBurst', { source: src, target: u, element: el }); } finally { beginning.delete(u); }
+  if (u.hp <= 0 || bursting(u)) { u.ep = {}; return; }
   const s = BURSTS[el][character(u) ? 0 : 1], frames = secondsToFrames(s.secs);
   addBuff(u, makeBuff({ key: burstKey(el), src: src ? src.id : -1, left: frames, value: frames, every: s.ticks ? FPS : 0, fixed: true, mods: s.mods }));
   w.events.push({ type: 'burst', id: u.id, el: ELEMENTS.indexOf(el) + 1 });

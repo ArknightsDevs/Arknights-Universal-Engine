@@ -5,7 +5,7 @@ import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import { loadOracle } from '@aue/testkit';
-import { mitigate, penetration, dealtMul, takenMul, takeDamage, dealDamage, heal, setShield } from '../src/damage.js';
+import { mitigate, penetration, dealtMul, takenMul, takeDamage, dealDamage, heal, setShield, setHp } from '../src/damage.js';
 import { makeBuff } from '../src/buffs.js';
 import { applyStatus } from '../src/status.js';
 import { seedState } from '../src/rng.js';
@@ -213,4 +213,14 @@ test('[伤害-8] content may set what a shield holds: at least 0; a buff that is
   u.buffs.push(makeBuff({ key: 'only', shield: 20 }));
   setShield(u, u.buffs[1], 0);
   assert.deepEqual(u.buffs.map((b) => b.key), ['m'], 'only a shield, now empty: gone');
+});
+
+test('[伤害-9] content sets HP outright: between 0 and the maximum, no event', () => {
+  const u = mk(1, { maxHp: 1000 });
+  setHp(u, 1500);
+  assert.equal(u.hp, 1000);
+  setHp(u, -5);
+  assert.equal(u.hp, 0);
+  setHp(u, 420.5);
+  assert.equal(u.hp, 420.5);
 });

@@ -18,7 +18,7 @@ export const statusKeyOf = (key) => STATUS_KEY[key] ?? key;
 export const ELEMENT = Object.freeze({ neural: 'SANITY', erosion: 'WATER', burn: 'FIRE', apoptosis: 'DARK' });
 
 /** The engine's elements → Stronghold's names. @type {Readonly<Record<string, string>>} */
-const ELEMENT_NAME = Object.freeze(Object.fromEntries(Object.entries(ELEMENT).map(([k, v]) => [v, k])));
+export const ELEMENT_NAME = Object.freeze(Object.fromEntries(Object.entries(ELEMENT).map(([k, v]) => [v, k])));
 
 /** A buff key as the engine names it: Stronghold's `<element>Burst` is the engine's `burst:<ELEMENT>` (元素-3). @param {string} key */
 export function buffKeyOf(key) {

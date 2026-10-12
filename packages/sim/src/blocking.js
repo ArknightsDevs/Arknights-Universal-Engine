@@ -35,6 +35,20 @@ function blocksMotion(c, op, os, flying) {
   return !!t && t.height !== 'HIGHLAND' && t.passable === 'ALL';
 }
 
+/**
+ * Content makes an enemy blocked by a unit at once (阻挡-1): one on the field with HP left that nothing blocks yet — no
+ * block radius or count is checked; 阻挡-3 then releases it as any other. Whether `by` blocks it now.
+ * @param {World} w @param {Unit} e @param {Unit} by
+ */
+export function blockBy(w, e, by) {
+  if (e.kind !== KIND.ENEMY || e.hp <= 0 || !w.units.includes(e) || !w.units.includes(by)) return false;
+  if (e.blockedBy < 0) {
+    e.blockedBy = by.id;
+    e.blockedAt = w.frame;
+  }
+  return e.blockedBy === by.id;
+}
+
 /** Releases an enemy (阻挡-3). @param {Unit} e */
 export function release(e) {
   e.blockedBy = -1;

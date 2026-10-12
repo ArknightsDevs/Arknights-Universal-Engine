@@ -5,7 +5,7 @@ import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent, loadOracle, oneWave, spawnAt } from '@aue/testkit';
 import { KIND } from '@aue/schema';
-import { createWorld, step, stateHash, takeSnapshot, restoreSnapshot } from '../src/index.js';
+import { createWorld, step, stateHash, takeSnapshot, restoreSnapshot, bus } from '../src/index.js';
 import { dealEp, epOf, epTaken, currentElement, bursting, rampageDamage, ELEMENTS, LEADER_MAX_EP } from '../src/elements.js';
 import { makeEnemy } from '../src/units.js';
 import { applyStatus, palsyInterrupts, PALSY_DECAY_FRAMES, PALSY_SHAKE_FRAMES } from '../src/status.js';
@@ -353,4 +353,17 @@ test('[元素-2] the intake equals the oracle\'s elementIntake: exactly with no 
     if (d === 0) assert.equal(mine, theirs);
     else assert.ok(Math.abs(mine - theirs) <= 1e-12 * theirs, `${a} ${d} ${m}: ${mine} vs ${theirs}`);
   }
+});
+
+test('[元素-2] [元素-3] [钩子-3] elementHit before each 元素损伤 (its amount and multiplier changed, or cancelled); elementBurst as a burst begins', () => {
+  const { w, slime, guard } = arena();
+  const seen = /** @type {any[]} */ ([]);
+  bus.on(w, 'elementHit', (k) => { seen.push(['hit', k.dmg.element, k.dmg.amount, k.source === guard]); if (k.dmg.amount === 300) k.dmg.cancel = true; else k.dmg.mul = 2; });
+  bus.on(w, 'elementBurst', (k) => { seen.push(['burst', k.element, k.target === slime, bursting(slime)]); assert.equal(dealEp(w, slime, 'FIRE', 5000, guard), 0, 'nothing while it begins'); });
+  assert.equal(dealEp(w, slime, 'WATER', 100, guard), 200);
+  assert.equal(dealEp(w, slime, 'WATER', 300, guard), 0, 'cancelled');
+  assert.equal(epOf(slime, 'WATER'), 800);
+  dealEp(w, slime, 'WATER', 400, guard);
+  assert.deepEqual(seen, [['hit', 'WATER', 100, true], ['hit', 'WATER', 300, true], ['hit', 'WATER', 400, true], ['burst', 'WATER', true, false]]);
+  assert.equal(bursting(slime), true, 'the burst buff after its handlers');
 });

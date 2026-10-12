@@ -229,6 +229,15 @@ export function dealDamage(w, src, target, dmg) {
 }
 
 /**
+ * Content sets a unit's HP outright (伤害-9): between 0 and its maximum — neither damage nor a heal, no event; a unit set
+ * to 0 leaves at the frame's end as any whose HP ran out.
+ * @param {Unit} u @param {number} hp
+ */
+export function setHp(u, hp) {
+  u.hp = Math.min(statsOf(u).maxHp, Math.max(0, Number(hp) || 0));
+}
+
+/**
  * Heals (伤害-11): the amount times the healer's 治疗倍率 and the target's 受到治疗倍率, nothing under 禁疗, never above
  * the maximum HP; a `heal` handler may change the amount before it is applied (钩子-3). A unit no ally may heal
  * (`noAllyHeal`, 职业-9) takes heals only from itself, and those even under 禁疗. Returns the HP restored.
