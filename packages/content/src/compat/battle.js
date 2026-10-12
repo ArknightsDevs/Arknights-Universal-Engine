@@ -10,6 +10,7 @@ import { ShUnit } from './unit.js';
 import { STATUS_NAME, statusKeyOf, modsOf, flagsOf, buffKeyOf } from './mods.js';
 import { KIT_BUFF, hooksOf, runHook } from './buffhooks.js';
 import { STAND_INS, giveStandIn } from './standins.js';
+import { ShProjectiles } from './projectiles.js';
 import * as field from './field.js';
 import * as summoning from './summons.js';
 import { ShGrid } from './tiles.js';
@@ -98,6 +99,8 @@ export class ShBattle {
     /** @type {Record<string, any> | null} the kit of the token spawnToken is placing (summons.js) */
     this.pendingKit = null;
     this.rng = makeRng(w);
+    /** the kits' own shots (projectiles.js) */
+    this.projectiles = new ShProjectiles(this);
     /** Stronghold's data source as kits read it: raw summon records (summons.js rawToken). */
     this.data = Object.freeze({ rawToken: (/** @type {string} */ id) => summoning.rawToken(this, id) });
   }
@@ -233,6 +236,9 @@ export class ShBattle {
     const from = o.from ? { x: Number(o.from.x), y: Number(o.from.y) } : { x: e.x, y: e.y };
     return displacement.push(this.w, this.c, e.u, Number(force), { from, dir: o.dir ?? null, fixed: !!o.fixed, anyAngle: !!o.fixedAngle, toward: !!o.inward, effect: !!o.effect }) ? 1 : 0;
   }
+
+  /** A kit's shot (projectiles.js). @param {Record<string, any>} p */
+  addProjectile(p) { return this.projectiles.add(p); }
 
   /** Stronghold's _unblock: one enemy no longer blocked (阻挡-3). @param {ShUnit} e */
   _unblock(e) { if (e?.u) blocking.release(e.u); }

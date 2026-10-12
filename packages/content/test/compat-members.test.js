@@ -189,3 +189,17 @@ test('[兼容-4] the targets an attack would take, the tiles a way crosses, a un
   const way = b.grid.findPath(1, 0, 1, 3);
   assert.deepEqual([way?.[0], way?.at(-1), b.grid.findPath(1, 0, 99, 99)], [[1, 0], [1, 3], null]);
 });
+
+test('[兼容-4] a kit\'s shots: to a point at its speed, homing on a unit, a fizzle when the target leaves unless hitDead', () => {
+  const { w, c, box, guard } = match({ kind: 'duration', duration: 30 });
+  const b = /** @type {ShBattle} */ (box.b), u = b.unitOf(guard), got = /** @type {any[]} */ ([]);
+  b.addProjectile({ from: { x: 0, y: 1 }, to: { x: 3, y: 1 }, speed: 3, onHit: (/** @type {any} */ x) => got.push(['point', w.frame, x.x, x.target]) });
+  b.addProjectile({ from: { x: 0, y: 1 }, target: u, speed: 30, onHit: (/** @type {any} */ x) => got.push(['unit', x.target === u]) });
+  run(w, c, 40);
+  assert.deepEqual(got, [['unit', true], ['point', 30, 3, null]], 'a second at 3 tiles a second; the fast one first');
+  b.addProjectile({ from: { x: 0, y: 1 }, target: u, speed: 1, onHit: () => got.push(['fizzled?', false]) });
+  b.addProjectile({ from: { x: 0, y: 1 }, target: u, speed: 1, hitDead: true, onHit: (/** @type {any} */ x) => got.push(['dead', x.target]) });
+  b.retreat(u);
+  run(w, c, 90);
+  assert.deepEqual(got.slice(2), [['dead', null]]);
+});

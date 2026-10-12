@@ -36,6 +36,7 @@ export function kitsWorld(kits, seen) {
     bus.on(w, 'attackHit', onAttackHit);
     bus.on(w, 'attack', onAttackDone, { priority: FIRST });
     bus.on(w, 'hit', onSpecHit, { priority: FIRST });
+    bus.on(w, 'tick', (k) => b.projectiles.update(k.frames / 30), { priority: FIRST });
     const decks = c.decks ?? w.players.map(() => Object.keys(c.operators));
     decks.forEach((deck, seat) => {
       for (const key of deck) if (Object.hasOwn(kits, key)) install(b, seat, key, kits[key]);
