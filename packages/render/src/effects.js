@@ -3,9 +3,11 @@
 // a melee hit lands or a shot leaves, once a frame for a unit. A shot carries its projectile's trail effect, flying from
 // the attacker's chest to the target's along the projectile's arc at its speed, and stops when it hits. The hit effect
 // plays at the target's chest. An effect is placed as its prefab says: as it is, mirrored with the unit's facing, or
-// turned toward the attack's direction. Effects keep battle time: they follow 2× and pause.
+// turned toward the attack's direction. While an operator's skill runs, its attacks take the skill's own effects.
+// Besides the attacks (渲染-12): the start and end tiles carry their marker effects, a unit its statuses' effects for as
+// long as it has them, and deploying and dying play theirs. Effects keep battle time: they follow 2× and pause.
 import * as THREE from 'three';
-import { KIND, DIR } from '@aue/schema';
+import { KIND, DIR, SKILL_STATE, STATUS_BIT } from '@aue/schema';
 import { toThree, tileWorld } from './camera.js';
 import { FxInstance, rootAt, rootAlong, rootToward, effectLead } from './fx/player.js';
 
@@ -14,9 +16,16 @@ import { FxInstance, rootAt, rootAlong, rootToward, effectLead } from './fx/play
  * lead from which a start effect plays with the attack, the most effects at once, a projectile's speed when its prefab
  * gives none (tiles a second), and the longest a projectile flies past its time.
  */
-export const FX = Object.freeze({ chest: 0.4, early: 0.15, max: 160, speed: 10, overtime: 1 });
+export const FX = Object.freeze({ chest: 0.4, head: 0.8, early: 0.15, max: 160, speed: 10, overtime: 1 });
 
-/** @typedef {import('./fx/player.js').FxPack} FxPack @typedef {{ feet: number[], facing: number, dir: number[], seen: number }} Place */
+/** How high an effect starts by its prefab's spawn location (渲染-12): 2 the chest, 4 the head, the others the feet. */
+const LIFT = /** @type {Record<number, number>} */ ({ 2: FX.chest, 4: FX.head });
+
+/**
+ * @typedef {import('./fx/player.js').FxPack} FxPack
+ * @typedef {{ feet: number[], facing: number, dir: number[], kind: number, running: boolean, seen: number }} Place
+ * @typedef {{ width: number, height: number, highland?: number, tiles?: { key: string, height: string }[][] }} FxLevel
+ */
 /** How an effect is turned: the unit's facing (±1) and a direction on the ground. @typedef {{ facing: number, dir: number[] }} Way */
 
 /** A direction on the ground of each deploy direction (schema DIR), in three.js (north −z). */
@@ -33,6 +42,17 @@ function rootFor(e, o, way) {
 }
 /** @typedef {{ inst: FxInstance, src: number, target: number, pos: number[], d0: number, h0: number, arc: number, speed: number, t: number, T: number }} Flight */
 
+/** The marker effect of a start or end tile (渲染-12), or null: co-op end tiles take the first co-op end marker. @param {string} key @param {Record<string, string>} named */
+function markerOf(key, named) {
+  if (key.startsWith('tile_start')) return named.tile_start ?? null;
+  if (key === 'tile_end_cooperate') return named.tile_end_coop_1 ?? named.tile_end ?? null;
+  return key.startsWith('tile_end') ? named.tile_end ?? null : null;
+}
+
+const NOWHERE = Object.freeze({ facing: 1, dir: [1, 0, 0] });
+/** The tile markers' render order: after the range (−2), before the shadows (−1) and the units. */
+const MARKER_ORDER = -1.9;
+
 /** The camera's axes in the world. @param {THREE.Camera} camera */
 export function cameraAxes(camera) {
   const e = camera.matrixWorld.elements;
@@ -41,9 +61,11 @@ export function cameraAxes(camera) {
 
 
 class Effects {
-  /** @param {FxPack} pack @param {{ width: number, height: number, highland?: number }} level */
-  constructor(pack, level) {
-    this.pack = pack; this.level = level; this.object = new THREE.Group();
+  /** @param {FxPack} pack @param {FxLevel} level @param {{ skills?: Record<string, number> }} [o] each operator's skill (1-based) by its key */
+  constructor(pack, level, o = {}) {
+    this.pack = pack; this.level = level; this.object = new THREE.Group(); this.skills = o.skills ?? {};
+    /** @type {Record<string, string>} effects by role */ this.named = pack.data.named ?? {};
+    /** @type {Map<string, { inst: FxInstance, id: number, lift: number }>} a unit's status effects by `id:bit` */ this.statuses = new Map();
     this.leads = new Map(Object.keys(pack.data.fx).map((k) => [k, effectLead(pack.data.fx[k])]));
     /** @type {FxInstance[]} */ this.live = [];
     /** @type {Flight[]} */ this.flights = [];
@@ -53,22 +75,37 @@ class Effects {
     this.frame = 0;
     /** the models' up (the camera's): the chest is above the feet along it */
     this.up = [0, 0.5, -Math.sqrt(3) / 2];
+    this.markers();
   }
 
-  /** @param {number[]} feet */
-  chest(feet) { return feet.map((v, i) => v + this.up[i] * FX.chest); }
+  /** The start and end tiles' marker effects, lasting, drawn before the units (after the range, before the shadows). */
+  markers() {
+    (this.level.tiles ?? []).forEach((cols, row) => cols.forEach((t, col) => {
+      const n = markerOf(t.key, this.named);
+      if (n) this.play(n, toThree(tileWorld(this.level, col, row, t.height === 'HIGHLAND' ? 1 : 0)), NOWHERE, 'loop', MARKER_ORDER);
+    }));
+  }
 
-  /** @param {string | undefined} name @param {number[]} o @param {Way} way @param {string} kind */
-  play(name, o, way, kind) {
+  /** A place lifted along the models' up. @param {number[]} feet @param {number} lift */
+  lifted(feet, lift) { return feet.map((v, i) => v + this.up[i] * lift); }
+
+  /** @param {number[]} feet */
+  chest(feet) { return this.lifted(feet, FX.chest); }
+
+  /** @param {string | undefined} name @param {number[]} o @param {Way} way @param {string} kind @param {number} [order] */
+  play(name, o, way, kind, order) {
     const fx = this.pack.data.fx;
     if (!name || !fx[name] || this.live.length >= FX.max) return null;
-    const e = fx[name], i = new FxInstance(e, kind === 'trail' ? rootAlong(o, way.dir) : rootFor(e, o, way), { kind, tex: this.pack.textures });
+    const e = fx[name], i = new FxInstance(e, kind === 'trail' ? rootAlong(o, way.dir) : rootFor(e, o, way), { kind, tex: this.pack.textures, order });
     this.live.push(i); this.object.add(i.group);
     return i;
   }
 
-  /** A unit's effects by its content key. @param {number} id */
-  by(id) { return this.pack.data.by[this.keys.get(id) ?? '']; }
+  /** A unit's attack effects by its content key; its skill's own while the skill runs. @param {number} id */
+  by(id) {
+    const key = this.keys.get(id) ?? '', E = this.pack.data.by[key], slot = this.skills[key];
+    return E && slot && E.m?.[slot] && this.places.get(id)?.running ? E.m[slot] : E;
+  }
 
   /** Whether a unit's start effect keeps time with its attack clip. @param {any} E */
   early(E) { return !!(E && E.s && (this.leads.get(E.s) ?? 0) >= FX.early); }
@@ -135,9 +172,34 @@ class Effects {
     for (const u of view.units) {
       const old = this.places.get(u.id), feet = toThree(tileWorld(this.level, u.x, u.y, u.z)), op = u.kind === KIND.OPERATOR;
       const facing = op ? (u.dir === DIR.LEFT ? -1 : 1) : old ? Math.sign(feet[0] - old.feet[0]) || old.facing : 1;
-      this.places.set(u.id, { feet, facing, dir: op ? DIR_VEC[u.dir] ?? [1, 0, 0] : [facing, 0, 0], seen: view.frame });
+      this.places.set(u.id, { feet, facing, dir: op ? DIR_VEC[u.dir] ?? [1, 0, 0] : [facing, 0, 0], kind: u.kind, running: u.skill === SKILL_STATE.RUNNING, seen: view.frame });
     }
     for (const [id, p] of this.places) if (view.frame - p.seen > 30) this.places.delete(id);
+    this.trackStatuses(view);
+  }
+
+  /** Each shown status a unit has plays its effect for as long as it lasts (渲染-12). @param {import('@aue/schema').View} view */
+  trackStatuses(view) {
+    const seen = new Set();
+    for (const u of view.units) {
+      for (const [name, bit] of Object.entries(STATUS_BIT)) {
+        const k = `${u.id}:${bit}`, n = this.named[`status_${name}`], at = this.places.get(u.id);
+        if (!(u.status & bit) || !n || !at) continue;
+        seen.add(k);
+        if (this.statuses.has(k)) continue;
+        const lift = LIFT[this.pack.data.fx[n]?.sl] ?? 0, inst = this.play(n, this.lifted(at.feet, lift), { facing: at.facing, dir: at.dir }, 'loop');
+        if (inst) this.statuses.set(k, { inst, id: u.id, lift });
+      }
+    }
+    for (const [k, s] of this.statuses) if (!seen.has(k)) { s.inst.stop(); this.statuses.delete(k); }
+  }
+
+  /** A unit deploying or dying (渲染-12): its effect at its feet. @param {string} type @param {number} id */
+  role(type, id) {
+    const at = this.places.get(id);
+    if (!at) return;
+    const n = type === 'deploy' ? this.named.deploy : at.kind === KIND.OPERATOR ? this.named.die_operator : this.named.die_enemy;
+    this.play(n, at.feet, { facing: at.facing, dir: at.dir }, 'start');
   }
 
   /**
@@ -153,6 +215,7 @@ class Effects {
       if (e.type === 'attack') this.start(id, target, true);
       else if (e.type === 'shot') this.shot(id, target);
       else if (e.type === 'hit' || e.type === 'heal') this.hit(id, target);
+      else if (e.type === 'deploy' || e.type === 'death') this.role(String(e.type), id);
     }
   }
 
@@ -161,6 +224,7 @@ class Effects {
     const cam = cameraAxes(camera);
     this.up = cam.up;
     this.fly(dt);
+    for (const s of this.statuses.values()) { const at = this.places.get(s.id); if (at) s.inst.R = { ...s.inst.R, o: this.lifted(at.feet, s.lift) }; }
     this.live = this.live.filter((i) => {
       i.step(dt);
       if (i.done) { this.object.remove(i.group); i.dispose(); return false; }
@@ -171,11 +235,14 @@ class Effects {
 
   count() { return this.live.length; }
 
-  dispose() { for (const i of this.live) i.dispose(); this.live = []; this.flights = []; this.object.clear(); }
+  dispose() { for (const i of this.live) i.dispose(); this.live = []; this.flights = []; this.statuses.clear(); this.object.clear(); }
 }
 
-/** The effects system for a level. @param {FxPack} pack @param {{ width: number, height: number, highland?: number }} level */
-export const createEffects = (pack, level) => new Effects(pack, level);
+/**
+ * The effects system for a level. @param {FxPack} pack @param {FxLevel} level
+ * @param {{ skills?: Record<string, number> }} [o] each operator's skill (1-based) by its content key
+ */
+export const createEffects = (pack, level, o) => new Effects(pack, level, o);
 
 /**
  * Loads an effect pack (渲染-10): its data and its textures (data URIs; repeating unless the pack clamps them; used as

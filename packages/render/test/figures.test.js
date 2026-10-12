@@ -54,7 +54,7 @@ test('[渲染-4] facing: operators use the back facing up and mirror facing left
 
 test('[渲染-1] [渲染-2] units: a figure for a unit with a model, standing at its feet, facing the camera, not writing depth', () => {
   const level = tinyContent().level, u = createUnits(new Map(), new Map([['slime', { front: tinyModel() }]]));
-  const view = { frame: 3, players: [], units: [{ id: 1, kind: 1, owner: -1, x: 1, y: 1, z: 0, dir: 0, hp: 1, maxHp: 1, anim: ANIM.MOVE, sp: -1, spCost: 0, skill: 0, skillLeft: -1 }] };
+  const view = { frame: 3, players: [], units: [{ id: 1, kind: 1, owner: -1, x: 1, y: 1, z: 0, dir: 0, hp: 1, maxHp: 1, anim: ANIM.MOVE, sp: -1, spCost: 0, skill: 0, skillLeft: -1, status: 0 }] };
   u.update(view, { 1: 'slime' }, level, 0);
   assert.equal(u.count(), 1);
   const camera = new THREE.PerspectiveCamera();

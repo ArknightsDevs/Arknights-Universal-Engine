@@ -25,8 +25,12 @@ import { spineModel } from './spine.js';
  * @property {Set<string>} [leaders] content keys of leader enemies (red HP bars)
  * @property {import('./kit.js').LoadedKit | null} [kit] the map theme's tile kit (渲染-7); without one the tiles are flat
  *   textures
- * @property {import('./fx/player.js').FxPack | null} [effects] the units' attack effects (渲染-10, 渲染-11); none without
+ * @property {import('./fx/player.js').FxPack | null} [effects] the units' attack effects (渲染-10…渲染-12); none without
+ * @property {Record<string, number>} [skills] each operator's skill (1-based) by its key, for its skill's own effects
  */
+
+/** The textures without the start and end tiles' markers when the effects draw them (渲染-12). @param {RendererOptions} o */
+const terrainTextures = (o) => (o.effects?.data.named?.tile_start ? new Map([...o.textures].filter(([k]) => !/^tile:tile_(start|end)/.test(k))) : o.textures);
 
 /** Battle time from the frames the renderer is given: 30 a second, interpolated up to a frame past the last. */
 function battleClock() {
@@ -50,9 +54,9 @@ export function createBattleRenderer(o) {
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera();
   scene.background = new THREE.Color(0x404040);
   const highlight = createHighlight(o.level), patch = highlight.patch;
-  const terrain = o.kit ? createKitTerrain(o.level, o.kit, o.textures, patch) : createTerrain(o.level, o.textures, patch);
+  const terrain = o.kit ? createKitTerrain(o.level, o.kit, terrainTextures(o), patch) : createTerrain(o.level, o.textures, patch);
   const units = createUnits(o.textures, o.models), field = { ...o.level, highland: o.kit?.kit.highland };
-  const range = createRange(field, o.textures.get('ui:range')), effects = o.effects ? createEffects(o.effects, field) : null, clock = battleClock();
+  const range = createRange(field, o.textures.get('ui:range')), effects = o.effects ? createEffects(o.effects, field, { skills: o.skills }) : null, clock = battleClock();
   scene.add(terrain.object, range.object, units.shadows, units.object, ...(effects ? [effects.object] : []));
   const overlays = createOverlays(o.textures, o.leaders);
   const ray = new THREE.Raycaster();

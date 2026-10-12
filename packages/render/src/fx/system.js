@@ -74,12 +74,12 @@ export class FxSystem {
     this.place();
     /** @type {number[] | null} */
     this.shM = p.shape.on && p.shape.rot.some((/** @type {number} */ a) => a) ? euler(p.shape.rot) : null;
-    // emitting until: a projectile's looping systems until it lands, a start or hit effect's for a second; a system
-    // with bursts only until its last burst
+    // emitting until: a projectile's looping systems until it lands, a lasting effect's (a tile, a status) until it is
+    // stopped, a start or hit effect's for a second; a system with bursts only until its last burst
     const rateOn = (p.rate && (p.rate.sc > 0 || p.rate.mn > 0)) || (p.rateD && p.rateD.sc > 0), dur = Math.max(0.01, p.dur);
     const lastBurst = Math.max(0, ...(p.bursts || []).map((/** @type {any} */ b) => (b.cycles > 0 ? b.t + (b.cycles - 1) * b.iv : dur)));
     const once = rateOn ? dur : Math.min(dur, lastBurst + 0.25);
-    this.end = p.loop ? (inst.kind === 'trail' ? Infinity : rateOn ? Math.min(1, dur) : once) : once;
+    this.end = p.loop ? (inst.kind === 'trail' || inst.kind === 'loop' ? Infinity : rateOn ? Math.min(1, dur) : once) : once;
     /** @type {any} */
     this.lastR = null;
   }

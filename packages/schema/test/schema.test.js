@@ -10,10 +10,10 @@ import {
 } from '../src/index.js';
 
 const SEED = 20261011;
-const fixture = JSON.parse(readFileSync(new URL('fixtures/view-v2.json', import.meta.url), 'utf8'));
+const fixture = JSON.parse(readFileSync(new URL('fixtures/view-v3.json', import.meta.url), 'utf8'));
 
-test('render state v2: the layout is the fixture, number by number, and reads back', () => {
-  assert.equal(VIEW_VERSION, 2);
+test('render state v3: the layout is the fixture, number by number, and reads back', () => {
+  assert.equal(VIEW_VERSION, 3);
   const a = writeView(fixture.view);
   assert.deepEqual(Array.from(a), fixture.numbers);
   assert.deepEqual(readView(a), fixture.view);

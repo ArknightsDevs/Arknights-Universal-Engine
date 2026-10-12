@@ -198,7 +198,9 @@ function brighten(p, C) {
 
 export class FxInstance {
   /**
-   * @param {any} e the effect's data @param {Root} R @param {{ kind: string, speed?: number, tex: Map<string, THREE.Texture>, rand?: () => number }} o
+   * @param {any} e the effect's data @param {Root} R
+   * @param {{ kind: string, speed?: number, tex: Map<string, THREE.Texture>, rand?: () => number, order?: number }} o `order`: the render
+   *   order its renderers start from (after the units by default)
    */
   constructor(e, R, o) {
     this.e = e; this.R = R; this.kind = o.kind; this.sp = o.speed || 1; this.tex = o.tex; this.rand = o.rand || Math.random;
@@ -214,8 +216,8 @@ export class FxInstance {
     this.sysAt = e.ps.map((/** @type {any} */ p) => (has(p) ? new FxSystem(p, this) : null));
     // drawn in the prefab's order, a higher sorting fudge further back
     this.drawn = this.sysAt.filter((s) => s !== null).sort((a, b) => (b.p.render.fudge || 0) - (a.p.render.fudge || 0)).map((s) => new FxDrawn(s, this));
-    [...this.drawn.flatMap((d) => d.meshes), ...this.trails.map((t) => t.b.mesh), ...this.meshes.map((m) => m.b.mesh)].forEach((m, i) => { m.renderOrder = 10 + i; this.group.add(m); });
-    this.cap = o.kind === 'trail' ? Infinity : Math.min(3, Math.max(0.3, e.d));
+    [...this.drawn.flatMap((d) => d.meshes), ...this.trails.map((t) => t.b.mesh), ...this.meshes.map((m) => m.b.mesh)].forEach((m, i) => { m.renderOrder = (o.order ?? 10) + i * 0.001; this.group.add(m); });
+    this.cap = o.kind === 'trail' || o.kind === 'loop' ? Infinity : Math.min(3, Math.max(0.3, e.d));
     this.hold = Math.min(this.cap, Math.max(0.05, ...[...e.ps, ...e.tr, ...(e.mr || [])].map((d) => (d.an && !d.an.loop ? d.an.L : 0))));
   }
 

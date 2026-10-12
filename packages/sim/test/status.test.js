@@ -5,11 +5,12 @@
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadOracle } from '@aue/testkit';
-import { KIND } from '@aue/schema';
+import { KIND, STATUS_BIT } from '@aue/schema';
 import { newSchedule } from '../src/waves.js';
 import { newStageState } from '../src/stage.js';
 import { makeBuff, addBuff, removeBuff, tickUnitBuffs, tickBuffs, decayRate } from '../src/buffs.js';
 import { STATUS, applyStatus, statusBuff } from '../src/status.js';
+import { statusBits } from '../src/view.js';
 import { statsOf, activeBuffs } from '../src/attrs.js';
 
 /** @type {any} */
@@ -197,6 +198,19 @@ test('[状态-5] the catalogue: what each status does to the stats', () => {
   const p = mk(5);
   for (let i = 0; i < 5; i++) applyStatus(p, 'palsy', {});
   assert.deepEqual(p.buffs.map((b) => [b.stacks, b.left]), [[3, -1]]);
+});
+
+test('[渲染-12] [状态-5] the render state shows the statuses a unit has, an enemy freeze or cold as freeze or cold; others nothing', () => {
+  const u = mk(1), enemy = mk(2);
+  assert.equal(statusBits(u), 0);
+  applyStatus(u, 'stun', { frames: 30 });
+  applyStatus(u, 'freeze', { frames: 30, src: enemy });
+  applyStatus(u, 'healFree', { frames: 30 });
+  assert.equal(statusBits(u), STATUS_BIT.stun | STATUS_BIT.freeze);
+  const v = mk(3);
+  applyStatus(v, 'fragile', { frames: 30, value: 0.2 });
+  applyStatus(v, 'levitate', { frames: 30 });
+  assert.equal(statusBits(v), STATUS_BIT.fragile | STATUS_BIT.levitate);
 });
 
 test('[状态-5] modifiers that mean the same as the oracle\'s catalogue are its values', () => {

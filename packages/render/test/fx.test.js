@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { KIND, DIR } from '@aue/schema';
+import { KIND, DIR, SKILL_STATE, STATUS_BIT } from '@aue/schema';
 import { mm, evalKeys, grad, startColor, trackAt, trackValue, scroll, uvThrough, euler, rot } from '../src/fx/curves.js';
 import { FxSystem, shapePoint } from '../src/fx/system.js';
 import { FxBatch, fxMaterial, quad, strip, particleAxes } from '../src/fx/geometry.js';
@@ -136,6 +136,28 @@ test(`[渲染-11] events: waiting starts with the attack, a shot's trail flies a
   assert.deepEqual(hits[0].R.ey, [-1, 0, 0], 'type 2: its y turned toward the attack (west)');
   assert.deepEqual(hits[1].R.ex, [1, 0, 0], 'type 1: not mirrored, the attack goes east');
   assert.ok(Math.abs(hits[1].R.o[1] - FX.chest * cam.up.y) < 1e-9 || hits[1].R.o[1] > 0, 'at the chest, above the feet along the camera up');
+  fx.dispose();
+});
+
+test('[渲染-12] markers on the start and end tiles, a skill\'s own hit, deploying and dying, a status while it lasts', () => {
+  const tex = new Map([['a', new THREE.Texture()]]), e = (/** @type {Record<string, any>} */ o = {}) => ({ d: 0.5, ps: [sys()], tr: [], ...o });
+  const lasting = e({ ps: [sys({ loop: true, rate: C(5), bursts: [] })] });
+  const data = { by: { op: { h: 'hitA', m: { 2: { h: 'hitS' } } } }, named: { tile_start: 'mk', tile_end_coop_1: 'mk2', deploy: 'dep', die_enemy: 'die', status_stun: 'stun' },
+    fx: { hitA: e(), hitS: e(), mk: lasting, mk2: lasting, dep: e(), die: e(), stun: { ...lasting, sl: 4 } } };
+  const road = (/** @type {string} */ key) => ({ key, height: 'LOWLAND' });
+  const fx = createEffects({ data, textures: tex }, { width: 3, height: 1, tiles: [[road('tile_start_cooperate'), road('tile_road'), road('tile_end_cooperate')]] }, { skills: { op: 2 } });
+  assert.equal(fx.count(), 2, 'a marker on each end tile');
+  const unit = (/** @type {Record<string, any>} */ o) => ({ owner: 0, z: 0, dir: DIR.RIGHT, hp: 1, maxHp: 1, anim: 0, sp: -1, spCost: 0, skill: 0, skillLeft: -1, status: 0, y: 0, ...o });
+  const view = (/** @type {number} */ frame, /** @type {number} */ status) => /** @type {any} */ ({ frame, players: [], units: [
+    unit({ id: 1, kind: KIND.OPERATOR, x: 1, skill: SKILL_STATE.RUNNING }), unit({ id: 2, kind: KIND.ENEMY, owner: -1, x: 2, status })] });
+  fx.update(view(1, STATUS_BIT.stun), { 1: 'op', 2: 'foe' }, [{ type: 'deploy', id: 1, key: 'op', owner: 0 }, { type: 'hit', id: 1, target: 2 }]);
+  const named = (/** @type {string} */ n) => fx.live.filter((i) => i.e === data.fx[/** @type {keyof typeof data.fx} */ (n)]);
+  assert.deepEqual([named('dep').length, named('hitS').length, named('hitA').length, fx.statuses.size], [1, 1, 0, 1], 'the skill runs: its own hit');
+  const stun = [...fx.statuses.values()][0].inst;
+  assert.ok(Math.abs(stun.R.o[1] - FX.head * fx.up[1]) < 1e-9, 'spawn location 4: at the head');
+  fx.update(view(2, 0), {}, [{ type: 'death', id: 2 }]);
+  assert.ok(stun.stopped && fx.statuses.size === 0, 'the status gone: its effect stops');
+  assert.equal(named('die').length, 1);
   fx.dispose();
 });
 
