@@ -58,6 +58,25 @@ test('[波次-2] [合作-6] [合作-9] the real act1multi_01 plays out headless 
   assert.equal(seen.end, 1);
 });
 
+test('[波次-6] [装置-1] [地图-2] [地图-3] the real IG-S-2 plays out headless the same way twice: barricades from the start, 山海密语仪 brought in, enemies over the 工事', () => {
+  const c = levelContent('act1multi_hard-02', 'NORMAL');
+  assert.deepEqual([c.level.works, c.level.blockEdges?.length], [{ dealt: 1.3, taken: 0.7 }, 55]);
+  /** @returns {[number, Record<string, number>, number, number]} */
+  const play = () => {
+    const w = createWorld(c, { seed: 77, players: 2 });
+    const barricades = w.units.filter((u) => u.key === 'trap_097_hstone').length;
+    /** @type {Record<string, number>} */
+    const seen = {};
+    for (let f = 0; f < 30 * 300 && w.result < 0; f++) for (const e of step(w, c)) seen[e.type] = (seen[e.type] ?? 0) + 1;
+    return [stateHash(w), seen, w.frame, barricades];
+  };
+  const [h1, seen, frames, barricades] = play(), [h2] = play();
+  assert.equal(h1, h2);
+  assert.equal(barricades, 3);
+  assert.ok(seen.spawn > 10 && seen.goal > 0 && seen.predefine >= 1, JSON.stringify(seen));
+  assert.ok(frames < 30 * 300 && seen.end === 1, 'nobody defends: lost');
+});
+
 test('[同步-9] [部署-2] a match\'s content: its level, each seat\'s deck at its trainings, keyed id#seat; only one\'s own deck deploys', async () => {
   const { matchContent } = await import('../src/index.js');
   const { createWorld: make, step: run, deployProblem } = await import('@aue/sim');
@@ -78,8 +97,9 @@ test('[同步-9] [部署-2] a match\'s content: its level, each seat\'s deck at 
   assert.equal(w.units.filter((u) => u.owner === 0).length, 1);
 });
 
-test('[关卡-2] more co-op levels: act2multi_rm01 and act1multi_06 load; act1multi_rm07 waits for its enemies\' abilities, act1multi_02 for its sight system', () => {
-  assert.deepEqual(['act1multi_01', 'act1multi_02', 'act1multi_06', 'act1multi_rm07', 'act2multi_rm01'].every((id) => id in LEVELS), true);
+test('[关卡-2] more co-op levels: act2multi_rm01, act1multi_06 and act1multi_hard-02 load; act1multi_rm07 waits for its enemies\' abilities, act1multi_02 for its sight system', () => {
+  assert.deepEqual(['act1multi_01', 'act1multi_02', 'act1multi_06', 'act1multi_hard-02', 'act1multi_rm07', 'act2multi_rm01'].every((id) => id in LEVELS), true);
+  assert.deepEqual(['NORMAL', 'FOUR_STAR'].map((d) => levelAt('act1multi_hard-02', /** @type {any} */ (d)).level.code), ['IG-S-2', 'IG-S-2']);
   assert.deepEqual(['NORMAL', 'FOUR_STAR'].map((d) => levelAt('act2multi_rm01', /** @type {any} */ (d)).level.stages?.map((s) => s.objective)), [['protect', 'protect'], ['protect', 'protect']]);
   assert.deepEqual(['NORMAL', 'FOUR_STAR'].map((d) => levelAt('act1multi_06', /** @type {any} */ (d)).level.stages?.length), [2, 2], 'act1multi_06 now loads');
   assert.throws(() => levelAt('act1multi_rm07', 'NORMAL'), /enemy abilities not supported yet: warn, Awake/);
