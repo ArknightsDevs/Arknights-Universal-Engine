@@ -147,7 +147,7 @@ export async function loadTileKit(index, baseUrl, levelId) {
 }
 
 /**
- * @typedef {{ version: number, models: Record<string, Record<string, { skel: string, atlas: string, pages: Record<string, string>, pma: boolean }>> }} SpineIndex
+ * @typedef {{ version: number, models: Record<string, Record<string, { skel: string, atlas: string, pages: Record<string, string>, pma: boolean, scale?: number, stretchY?: number }>> }} SpineIndex
  */
 
 /**
@@ -164,7 +164,8 @@ export async function loadSpineModels(index, baseUrl, ids) {
     for (const [side, m] of Object.entries(index.models[id])) {
       const [skel, atlas] = await Promise.all([fetch(url(m.skel)).then((r) => r.arrayBuffer()), fetch(url(m.atlas)).then((r) => r.text())]);
       const pages = new Map(await Promise.all(Object.entries(m.pages).map(async ([name, file]) => /** @type {[string, THREE.Texture]} */ ([name, await loader.loadAsync(url(file))]))));
-      sides[side] = spineModel(new Uint8Array(skel), atlas, pages, m.pma);
+      const model = spineModel(new Uint8Array(skel), atlas, pages, m.pma), k = m.scale ?? 1;
+      sides[side] = m.scale || m.stretchY ? { ...model, scale: [k, k * (m.stretchY ?? 1)] } : model;
     }
     out.set(id, sides);
   }));

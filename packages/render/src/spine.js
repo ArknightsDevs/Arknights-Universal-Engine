@@ -6,7 +6,10 @@ import * as THREE from 'three';
 import { newPose, setupPose, applyAnimation, updateOrder, updateWorld, drawList, readSkeleton, readAtlas, animationTimes } from '@aue/spine';
 
 /** @typedef {import('@aue/spine').Skeleton} Skeleton @typedef {import('@aue/spine').Atlas} Atlas */
-/** @typedef {{ skeleton: Skeleton, atlas: Atlas, textures: THREE.Texture[], pma: boolean }} SpineModel */
+/**
+ * A Spine model; `scale` multiplies its drawn size across and up (渲染-2: a battle prefab's own scale over the standard).
+ * @typedef {{ skeleton: Skeleton, atlas: Atlas, textures: THREE.Texture[], pma: boolean, scale?: [number, number] }} SpineModel
+ */
 
 /** Tiles per skeleton unit (渲染-2): the skeleton data's 0.01 × the battle prefab's 0.27. */
 export const SKELETON_SCALE = 0.01 * 0.27;
@@ -61,9 +64,11 @@ function material(map, mode, pma) {
 /**
  * The geometry arrays of a list of batches (渲染-2): positions in tiles (x mirrored when flipped), UVs, colors,
  * indices, and one group per batch.
- * @param {import('@aue/spine').Batch[]} batches @param {number} scale @param {boolean} flip
+ * @param {import('@aue/spine').Batch[]} batches @param {number | [number, number]} scale tiles a skeleton unit (across, up)
+ * @param {boolean} flip
  */
 export function figureArrays(batches, scale, flip) {
+  const [sx, sy] = typeof scale === 'number' ? [scale, scale] : scale;
   const n = batches.reduce((s, b) => s + b.positions.length / 2, 0), m = batches.reduce((s, b) => s + b.indices.length, 0);
   const position = new Float32Array(n * 3), uv = new Float32Array(n * 2), light = new Float32Array(n * 4), dark = new Float32Array(n * 4);
   const index = new Uint32Array(m), groups = [];
@@ -71,8 +76,8 @@ export function figureArrays(batches, scale, flip) {
   for (const b of batches) {
     const count = b.positions.length / 2;
     for (let i = 0; i < count; i++) {
-      position[(v + i) * 3] = b.positions[i * 2] * scale * (flip ? -1 : 1);
-      position[(v + i) * 3 + 1] = b.positions[i * 2 + 1] * scale;
+      position[(v + i) * 3] = b.positions[i * 2] * sx * (flip ? -1 : 1);
+      position[(v + i) * 3 + 1] = b.positions[i * 2 + 1] * sy;
     }
     uv.set(b.uvs, v * 2);
     light.set(b.light, v * 4);
@@ -85,11 +90,12 @@ export function figureArrays(batches, scale, flip) {
 }
 
 /**
- * A figure of a Spine model: show(animation, time, loop, flip) poses it and refills its geometry.
- * @param {SpineModel} model @param {number} [scale]
+ * A figure of a Spine model: show(animation, time, loop, flip) poses it and refills its geometry; drawn at `scale` tiles
+ * a skeleton unit times the model's own scale. @param {SpineModel} model @param {number} [scale]
  */
 export function createFigure(model, scale = SKELETON_SCALE) {
   const s = model.skeleton, p = newPose(s), order = updateOrder(s), geometry = new THREE.BufferGeometry();
+  const size = /** @type {[number, number]} */ ([scale * (model.scale?.[0] ?? 1), scale * (model.scale?.[1] ?? 1)]);
   /** @type {Map<string, THREE.ShaderMaterial>} */
   const mats = new Map();
   const mesh = /** @type {THREE.Mesh<THREE.BufferGeometry, THREE.Material[]>} */ (new THREE.Mesh(geometry, []));
@@ -114,7 +120,7 @@ export function createFigure(model, scale = SKELETON_SCALE) {
       const anim = byName.get(name);
       if (anim) applyAnimation(p, s, anim, time, loop);
       updateWorld(p, s, order);
-      const a = figureArrays(drawList(p, s, model.atlas, { active: order.active, pma: model.pma }), scale, flip);
+      const a = figureArrays(drawList(p, s, model.atlas, { active: order.active, pma: model.pma }), size, flip);
       geometry.setAttribute('position', new THREE.BufferAttribute(a.position, 3));
       geometry.setAttribute('uv', new THREE.BufferAttribute(a.uv, 2));
       geometry.setAttribute('light', new THREE.BufferAttribute(a.light, 4));

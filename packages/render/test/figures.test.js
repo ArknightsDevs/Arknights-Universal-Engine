@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { tinyContent } from '@aue/testkit';
 import { ANIM, DIR } from '@aue/schema';
-import { figureArrays, blendFactors, animationRoles, roleOf, operatorFacing, enemyFacing, SKELETON_SCALE } from '../src/index.js';
+import { figureArrays, blendFactors, animationRoles, roleOf, operatorFacing, enemyFacing, SKELETON_SCALE, createFigure } from '../src/index.js';
 import { createUnits } from '../src/units.js';
 import { tinyModel } from './model.js';
 
@@ -50,6 +50,17 @@ test('[渲染-4] facing: operators use the back facing up and mirror facing left
   assert.equal(enemyFacing(false, -0.1), true);
   assert.equal(enemyFacing(true, 0.1), false);
   assert.equal(enemyFacing(true, 0), true);
+});
+
+test('[渲染-2] a model drawn at its own scale: across and up apart (a prefab scaled and stretched)', () => {
+  const a = figureArrays([batch(0, 0)], [0.01, 0.02], false);
+  assert.deepEqual([...a.position.slice(3, 9)], [1, 0, 0, 1, 4, 0]);
+  const plain = createFigure(tinyModel()), scaled = createFigure({ ...tinyModel(), scale: [0.8, 1.2] });
+  plain.show('Idle', 0, true, false); scaled.show('Idle', 0, true, false);
+  const top = (/** @type {ReturnType<typeof createFigure>} */ f) => /** @type {THREE.BufferAttribute} */ (/** @type {THREE.Mesh} */ (f.object).geometry.getAttribute('position')).getY(1);
+  assert.ok(Math.abs(top(scaled) - top(plain) * 1.2) < 1e-6);
+  assert.equal(SKELETON_SCALE, 0.0027);
+  plain.dispose(); scaled.dispose();
 });
 
 test('[渲染-1] [渲染-2] units: a figure for a unit with a model, standing at its feet, facing the camera, not writing depth', () => {
