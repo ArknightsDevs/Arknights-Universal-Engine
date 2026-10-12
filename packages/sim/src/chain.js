@@ -4,7 +4,7 @@
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { DEFAULT_DIR } from './dir.js';
-import { rangeKeys, inKeys, selectable, sortHealTargets, precisionKey } from './targeting.js';
+import { rangeKeys, inKeys, selectable, sortHealTargets, precisionKey, hostile } from './targeting.js';
 import { reachKeys } from './reach.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
@@ -35,7 +35,7 @@ const dist2 = (a, b) => (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
 function nextFoe(w, at, ch, seen, antiAir) {
   let best = null, bestD = Infinity;
   for (const u of w.units) {
-    if (u.kind !== KIND.ENEMY || u.base.neutral === true || u.hp <= 0 || seen.has(u.id) || !selectable(u, { canHitFly: antiAir })) continue;
+    if (!hostile(u) || u.hp <= 0 || seen.has(u.id) || !selectable(u, { canHitFly: antiAir })) continue;
     const d = dist2(at, u);
     if (d <= ch.radius * ch.radius && d < bestD) { best = u; bestD = d; }
   }

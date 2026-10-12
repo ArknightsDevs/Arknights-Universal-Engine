@@ -5,7 +5,7 @@ import { FPS, secondsToFrames } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { offsetTile } from './dir.js';
 import { statsOf, intervalFrames } from './attrs.js';
-import { inKeys, selectable, sortEnemies, sortAllies, firstN, evadesGround } from './targeting.js';
+import { inKeys, selectable, sortEnemies, sortAllies, firstN, evadesGround, hostile, friendly } from './targeting.js';
 import { dealDamage, heal } from './damage.js';
 import { emit, hasHook } from './bus.js';
 import { pathDistance } from './routes.js';
@@ -51,7 +51,7 @@ export function targetsOf(w, c, op) {
   const keys = reachKeys(c, op);
   if (healsNow(c, op)) return healOrder(c, op, w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal && inKeys(u, keys, grid)));
   const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id, air = t.idleAirOnly && !inSkill(op);
-  const cands = w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true
+  const cands = w.units.filter((u) => hostile(u)
     && ((held(u) && selectable(u, { canHitFly: true })) || (selectable(u, { canHitFly: t.antiAir }) && inKeys(u, keys, grid) && (!air || statsOf(u).flying))));
   return fortressTargets(w, c, op, sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary }));
 }
@@ -190,7 +190,7 @@ export function traitScale(c, a, t) {
  * @param {World} w @param {Unit} t @param {import('./types.js').Splash} s @returns {Unit[]}
  */
 function splashOf(w, t, s) {
-  return w.units.filter((u) => u !== t && u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0 && !u.hidden
+  return w.units.filter((u) => u !== t && hostile(u) && u.hp > 0 && !u.hidden
     && !(s.ground && statsOf(u).flying) && (u.x - t.x) * (u.x - t.x) + (u.y - t.y) * (u.y - t.y) <= s.radius * s.radius);
 }
 
@@ -444,8 +444,8 @@ export function shotsFly(w, c) {
 }
 
 /**
- * Who an enemy can attack (敌人攻击-1, 合作-9): a melee enemy only the unit blocking it; a ranged one every selectable
- * operator or neutral unit whose collider (radius 0.25) its attack radius reaches — distance ≤ radius + 0.25 — and
+ * Who an enemy can attack (敌人攻击-1, 合作-9, 装置-2): a melee enemy only the unit blocking it; a ranged one every
+ * selectable operator, neutral unit or device of ours whose collider (radius 0.25) its attack radius reaches — distance ≤ radius + 0.25 — and
  * the unit blocking it in any case.
  * @param {World} w @param {Unit} e @returns {Unit[]}
  */
@@ -453,8 +453,7 @@ export function enemyTargets(w, e) {
   const blocker = e.blockedBy >= 0 ? w.units.find((u) => u.id === e.blockedBy) ?? null : null;
   if (e.base.applyWay === 'MELEE' || !(e.base.rangeRadius > 0)) return blocker ? [blocker] : [];
   const reach = e.base.rangeRadius + ALLY_COLLIDER_RADIUS, r2 = reach * reach;
-  const side = (/** @type {Unit} */ u) => u.kind === KIND.OPERATOR || u.kind === KIND.DEVICE || (u.kind === KIND.ENEMY && u.base.neutral === true && u !== e);
-  const out = w.units.filter((u) => side(u) && u.hp > 0 && (u === blocker || selectable(u)) && !evadesGround(e, u)
+  const out = w.units.filter((u) => u !== e && friendly(u) && u.hp > 0 && (u === blocker || selectable(u)) && !evadesGround(e, u)
     && (u.x - e.x) * (u.x - e.x) + (u.y - e.y) * (u.y - e.y) <= r2);
   if (blocker && !out.includes(blocker)) out.push(blocker);
   return out;

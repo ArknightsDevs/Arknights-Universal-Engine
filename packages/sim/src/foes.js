@@ -7,7 +7,7 @@ import { addBuff, removeBuff, makeBuff, retune } from './buffs.js';
 import { inflict } from './status.js';
 import { dealDamage, heal } from './damage.js';
 import { dealEp } from './elements.js';
-import { selectable, sortAllies } from './targeting.js';
+import { selectable, sortAllies, friendly } from './targeting.js';
 import { tileOf } from './body.js';
 import { tileAt } from './level.js';
 import { board, alight } from './routes.js';
@@ -82,8 +82,8 @@ export const BOLT_RADIUS = 0.3;
 /** The squared distance between two points. @param {{ x: number, y: number }} a @param {{ x: number, y: number }} b */
 const dist2 = (a, b) => (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
 
-/** The units an enemy may attack (敌人攻击-1, 合作-9): operators and neutral units. @param {Unit} u @param {Unit} e */
-export const isFoeOf = (u, e) => u !== e && (u.kind === KIND.OPERATOR || (u.kind === KIND.ENEMY && u.base.neutral === true));
+/** The units an enemy may attack (敌人攻击-1, 合作-9, 装置-2): operators, neutral units and our devices. @param {Unit} u @param {Unit} e */
+export const isFoeOf = (u, e) => u !== e && friendly(u);
 
 /** @param {Content} c @param {Unit} e @returns {EnemyDef} */
 const defOf = (c, e) => c.enemies[e.key];
@@ -254,7 +254,7 @@ function take(w, src, t, p) {
 function firstHit(w, b, step) {
   let hit = /** @type {Unit | null} */ (null), at = Infinity;
   for (const u of w.units) {
-    if (u.hp <= 0 || u.hidden || !(u.kind === KIND.OPERATOR || u.base.neutral === true) || !selectable(u, { ignoreCamou: true, canHitFly: true })) continue;
+    if (u.hp <= 0 || u.hidden || !friendly(u) || !selectable(u, { ignoreCamou: true, canHitFly: true })) continue;
     const along = (u.x - b.x) * b.dx + (u.y - b.y) * b.dy, off = Math.abs((u.x - b.x) * b.dy - (u.y - b.y) * b.dx);
     if (along >= -BOLT_RADIUS && along <= step + BOLT_RADIUS && off <= BOLT_RADIUS && along < at) { at = along; hit = u; }
   }
@@ -297,7 +297,7 @@ function blow(w) {
     const src = b.src >= 0 ? w.units.find((u) => u.id === b.src) ?? null : null;
     w.events.push({ type: 'blast', x: b.x, y: b.y });
     for (const u of [...w.units]) {
-      if (u.hp <= 0 || u.hidden || !(u.kind === KIND.OPERATOR || u.base.neutral === true)) continue;
+      if (u.hp <= 0 || u.hidden || !friendly(u)) continue;
       if (statsOf(u).flying && !b.air) continue;
       if (dist2(u, b) <= b.radius * b.radius) take(w, src, u, b);
     }

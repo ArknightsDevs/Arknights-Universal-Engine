@@ -6,6 +6,7 @@ import act1multi06 from '../data/levels/act1multi_06.json' with { type: 'json' }
 import act1multiRm07 from '../data/levels/act1multi_rm07.json' with { type: 'json' };
 import act2multiRm01 from '../data/levels/act2multi_rm01.json' with { type: 'json' };
 import { uncoveredAbilities } from './foes.js';
+import { profiledDevices } from './devices.js';
 
 /** @typedef {'NORMAL' | 'FOUR_STAR'} Difficulty */
 /** @typedef {import('@aue/sim').EnemyDef} EnemyDef */
@@ -39,8 +40,8 @@ function multiplied(key, e, muls) {
 
 /**
  * A level at a difficulty (关卡-2), as @aue/sim's level and enemies; `attack` adds each enemy's attack timing.
- * Throws for a level with runes not supported at that difficulty, or whose enemies there have abilities with no
- * behaviour yet.
+ * Throws for a level with runes not supported at that difficulty, whose enemies there have abilities with no
+ * behaviour yet, or with devices not profiled yet (装置-3).
  * @param {string} id @param {Difficulty} difficulty @param {(key: string) => object} [attack]
  * @param {Readonly<Record<string, any>>} [levels] the extracted levels to take it from (LEVELS)
  * @returns {{ level: import('@aue/sim').Content['level'], enemies: Record<string, EnemyDef>, blockAdd: number, devices: Record<string, import('@aue/sim').DeviceDef> }}
@@ -58,10 +59,12 @@ export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
   const used = new Set(waves.flatMap((/** @type {any} */ w) => w.fragments.flatMap((/** @type {any} */ f) => f.actions.filter((/** @type {any} */ a) => a.type === 'SPAWN').map((/** @type {any} */ a) => a.key))));
   const missing = uncoveredAbilities(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([, e]) => /** @type {EnemyDef} */ (e)));
   if (missing.length > 0) throw new RangeError(`level ${id} at ${difficulty}: enemy abilities not supported yet: ${missing.join(', ')}`);
+  const dev = profiledDevices(raw.devices ?? {});
+  if (dev.missing.length > 0) throw new RangeError(`level ${id}: devices not supported yet: ${dev.missing.join(', ')}`);
   return {
     level: { ...raw.level, waves, hiddenGroups: d.hiddenGroups, options: { ...raw.level.options, ...(d.lifePoint !== undefined ? { maxLifePoint: d.lifePoint } : {}), ...(d.maxCost !== undefined ? { maxCost: d.maxCost } : {}) } },
     enemies: Object.fromEntries(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([k, e]) => [k, { ...multiplied(k, /** @type {EnemyDef} */ (e), d.enemyMul), ...attack(k) }])),
     blockAdd: d.blockAdd ?? 0,
-    devices: raw.devices ?? {},
+    devices: dev.devices,
   };
 }

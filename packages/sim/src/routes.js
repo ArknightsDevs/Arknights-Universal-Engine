@@ -247,10 +247,12 @@ function stepsFrom(m, route, legs, i, k) {
 /**
  * An enemy's 路径距离 for 仇恨值 (索敌-6). When its tile can reach the target point of its current (or next) move: the
  * 终点距离 from its tile, plus the projection of the vector from its position to its tile centre onto the direction it
- * heads (可负). Otherwise — off the map, or cut off — the straight distance to that target point.
+ * heads (可负). Otherwise — off the map, or cut off — the straight distance to that target point. A unit with no route
+ * (a device, 装置-3) has 0.
  * @param {Content} c @param {Unit} e
  */
 export function pathDistance(c, e) {
+  if (e.route < 0) return 0;
   const m = c.level, route = m.routes[e.route], legs = legsOf(route), k = keyAt(m, e.x, e.y);
   let i = e.leg;
   while (legs[i].t !== 'move') i++;

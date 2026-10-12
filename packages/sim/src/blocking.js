@@ -5,6 +5,7 @@ import { statsOf } from './attrs.js';
 import { tileAt } from './level.js';
 import { tileOf } from './body.js';
 import { BLOCK_RADIUS_SQ } from './constants.js';
+import { friendly } from './targeting.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./attrs.js').Stats} Stats */
@@ -106,7 +107,7 @@ export function tryBlock(w, c, e) {
   /** @type {Unit | null} */
   let best = null, bd = Infinity;
   for (const op of w.units) {
-    if (op.kind !== KIND.OPERATOR && op.kind !== KIND.DEVICE) continue;
+    if (op.kind === KIND.ENEMY || !friendly(op)) continue;
     const dx = e.x - op.x, dy = e.y - op.y, d2 = dx * dx + dy * dy;
     if (d2 < r2 && d2 < bd && takes(w, c, op, es)) { best = op; bd = d2; }
   }

@@ -21,9 +21,10 @@
 /** A wave (波次-1…波次-3); `maxWait` is maxTimeWaitingForNextWave, −1 for none. @typedef {{ preDelay: number, postDelay: number, maxWait: number, fragments: Fragment[] }} Wave */
 /** A predefined unit (波次-6): its tile and facing when the data gives them. @typedef {{ alias: string, key: string, hidden: boolean, row?: number, col?: number, dir?: string }} Predefine */
 /**
- * A device's record (关卡-6, 装置-1): its name, attributes and its talents' blackboard.
+ * A device's record (关卡-6, 装置-1): its name, attributes and its talents' blackboard; its side when it is the enemies'
+ * (装置-3), the statuses it is immune to, and the modifiers it gives every enemy while on the field (装置-4).
  * @typedef {{ name: string, maxHp: number, atk: number, def: number, res: number, blockCnt: number, baseAttackTime: number, aspd: number, tauntLevel: number,
- *   massLevel: number, talentBb: Record<string, number> }} DeviceDef
+ *   massLevel: number, talentBb: Record<string, number>, side?: 'ENEMY', immune?: string[], enemyMods?: Record<string, number> }} DeviceDef
  */
 /**
  * A co-op stage (合作-6, 合作-7): the alias of its controller, its objective, the minimum and advanced targets (for 突击 as
@@ -253,6 +254,7 @@
  * @property {boolean} neutral a neutral unit (合作-9)
  * @property {number} deathLife the lives a neutral unit costs when knocked down (合作-9)
  * @property {number} lifeCost the lives an enemy costs at the goal (目标-1: lifePointReduce, default 1)
+ * @property {boolean} [hostile] a device on the enemies' side (装置-3)
  */
 
 /**

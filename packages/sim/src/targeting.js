@@ -48,6 +48,12 @@ export function selectable(u, sel = {}) {
   return !s.flying || !!sel.canHitFly;
 }
 
+/** Whether operators fight a unit (装置-3): an enemy that is not neutral (合作-9), or a device on the enemies' side. @param {Unit} u */
+export const hostile = (u) => (u.kind === KIND.ENEMY && u.base.neutral !== true) || (u.kind === KIND.DEVICE && u.base.hostile === true);
+
+/** Whether enemies fight a unit (敌人攻击-1, 合作-9, 装置-2, 装置-3): an operator, a neutral unit, or a device on our side. @param {Unit} u */
+export const friendly = (u) => u.kind === KIND.OPERATOR || (u.kind === KIND.ENEMY && u.base.neutral === true) || (u.kind === KIND.DEVICE && u.base.hostile !== true);
+
 /**
  * 对地规避 of a unit that took off (起飞, flag `liftoff`, 阻挡-2): an enemy that is not flying cannot select it.
  * @param {Unit} src @param {Unit} u

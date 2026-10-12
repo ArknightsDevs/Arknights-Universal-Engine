@@ -1,11 +1,12 @@
-// Auras (docs/spec/traits.md 职业-13, docs/spec/field.md 部署-5, 部署-6): an operator that raises the 生命回复速度 of
-// every operator in its attack range by a share of its attack, an operator's talents for every operator of a profession
-// or faction, and its talents for the units in its attack range, while it is on the field — a buff per aura on each of
-// them, kept in step every frame, gone with the aura's source.
+// Auras (docs/spec/traits.md 职业-13, docs/spec/field.md 部署-5, 部署-6, docs/spec/devices.md 装置-4): an operator that
+// raises the 生命回复速度 of every operator in its attack range by a share of its attack, an operator's talents for every
+// operator of a profession or faction, its talents for the units in its attack range, and a device's modifiers for
+// every enemy, while the source is on the field — a buff per aura on each of them, kept in step every frame, gone with
+// the aura's source.
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune } from './buffs.js';
-import { inKeys } from './targeting.js';
+import { inKeys, hostile } from './targeting.js';
 import { reachKeys } from './reach.js';
 import { traitOf } from './traits.js';
 import { statMods } from './skills.js';
@@ -65,16 +66,27 @@ function rangeTalents(c, src, units, want) {
   const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src);
   talents.forEach((t, i) => {
     for (const u of units) {
-      const fits = t.side === 'enemy' ? u.kind === KIND.ENEMY && u.base.neutral !== true : u.kind === KIND.OPERATOR && (!t.ranged || c.operators[u.key].position === 'RANGED');
+      const fits = t.side === 'enemy' ? hostile(u) : u.kind === KIND.OPERATOR && (!t.ranged || c.operators[u.key].position === 'RANGED');
       if (fits && inKeys(u, keys, grid)) want.get(u)?.set(`range:${src.id}:${i}`, { src: src.id, value: 0, mods: t.mods });
     }
   });
 }
 
 /**
- * Every aura this frame, before the operators' turns (职业-13, 部署-5, 部署-6): each operator on the field gives its
- * regen aura, its on-field team talents and its in-range talents as buffs; a unit out of an aura's reach, or whose
- * source left, loses its buff.
+ * A device's modifiers for every enemy on the field, neutral units aside (装置-4): one buff per device, so the devices'
+ * modifiers stack.
+ * @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
+ */
+function deviceAura(c, src, units, want) {
+  const mods = c.devices?.[src.key]?.enemyMods;
+  if (!mods) return;
+  for (const u of units) if (u.kind === KIND.ENEMY && u.base.neutral !== true) want.get(u)?.set(`aura:${src.id}`, { src: src.id, value: 0, mods });
+}
+
+/**
+ * Every aura this frame, before the operators' turns (职业-13, 部署-5, 部署-6, 装置-4): each operator on the field gives
+ * its regen aura, its on-field team talents and its in-range talents as buffs, each device its modifiers for the
+ * enemies; a unit out of an aura's reach, or whose source left, loses its buff.
  * @param {World} w @param {Content} c
  */
 export function auras(w, c) {
@@ -86,6 +98,7 @@ export function auras(w, c) {
     fieldTalents(c, src, ops, want);
     rangeTalents(c, src, units, want);
   }
+  for (const src of units) if (src.kind === KIND.DEVICE) deviceAura(c, src, units, want);
   for (const u of w.units) sync(u, want.get(u) ?? new Map());
 }
 

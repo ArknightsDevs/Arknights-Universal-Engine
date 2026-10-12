@@ -1,10 +1,16 @@
-// Devices (docs/spec/devices.md 装置-1, 装置-2) on the tiny level: a visible barricade on the road from the start, a hidden
+// Devices (docs/spec/devices.md 装置-1…装置-4) on the tiny level: a visible barricade on the road from the start, a hidden
 // device that a wave brings and takes away; the barricade blocks the slime, which attacks it, and no operator stands on it.
+// An enemy-side device is the operators' target and no enemy's; its modifiers reach every enemy.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent, oneWave, spawnAt } from '@aue/testkit';
 import { KIND } from '@aue/schema';
 import { createWorld, step } from '../src/index.js';
+import { hostile, friendly, sortEnemies } from '../src/targeting.js';
+import { pathDistance } from '../src/routes.js';
+import { enemyTargets } from '../src/combat.js';
+import { applyStatus } from '../src/status.js';
+import { statsOf } from '../src/attrs.js';
 
 const record = (/** @type {number} */ blockCnt) => ({ name: 'd', maxHp: 500, atk: 0, def: 0, res: 0, blockCnt, baseAttackTime: 1, aspd: 100, tauntLevel: 0, massLevel: 0, talentBb: {} });
 const act = (/** @type {string} */ type, /** @type {string} */ key, /** @type {number} */ at) => ({ type, key, route: -1, count: 1, preDelay: at, interval: 0 });
@@ -39,4 +45,46 @@ test('[装置-2] a device blocks ground enemies, which attack it; no operator is
   assert.ok(blocked, 'the slime was blocked by it');
   for (let f = 0; f < 900 && w.units.includes(wall); f++) step(w, c);
   assert.equal(w.units.includes(wall), false, 'attacked down to 0 HP, it left');
+});
+
+test('[装置-3] an enemy-side device: operators attack it, after the enemies (嘲讽等级 −1, 路径距离 0); it blocks no one and enemies leave it alone', () => {
+  const c = /** @type {any} */ (tinyContent());
+  c.level.predefines = [{ alias: 'flag#1', key: 'flag', hidden: false, row: 1, col: 4, dir: 'UP' }];
+  c.devices = { flag: { ...record(0), side: 'ENEMY', tauntLevel: -1 } };
+  c.level.waves = [oneWave([spawnAt(0, 'slime')])];
+  c.enemies.slime = { ...c.enemies.slime, maxHp: 1e6 };
+  const w = createWorld(c, { seed: 1, players: 1 }), flag = /** @type {any} */ (w.units.find((u) => u.kind === KIND.DEVICE));
+  assert.deepEqual([hostile(flag), friendly(flag), flag.base.hostile], [true, false, true]);
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 3, dir: 0 }]]);
+  for (let f = 0; f < 20; f++) step(w, c);
+  assert.ok(flag.hp < 500, `the guard hits it while no enemy is near: ${flag.hp}`);
+  const slime = /** @type {any} */ (w.units.find((u) => u.kind === KIND.ENEMY));
+  assert.equal(pathDistance(c, flag), 0);
+  assert.deepEqual(sortEnemies(/** @type {any} */ (w.units.find((u) => u.kind === KIND.OPERATOR)), [flag, slime], { blockedFirst: false, pathDist: (e) => pathDistance(c, e) }), [slime, flag]);
+  for (let f = 0; f < 600; f++) { step(w, c); assert.notEqual(slime.blockedBy, flag.id); }
+  assert.equal(enemyTargets(w, { ...slime, base: { ...slime.base, applyWay: 'RANGED', rangeRadius: 9 } }).includes(flag), false, 'not even a ranged enemy targets it');
+});
+
+test('[装置-3] a device is immune to the statuses its record lists', () => {
+  const c = /** @type {any} */ (tinyContent());
+  c.level.predefines = [{ alias: 'wall#1', key: 'wall', hidden: false, row: 1, col: 3, dir: 'UP' }];
+  c.devices = { wall: { ...record(20), immune: ['stun', 'sleep'] } };
+  const w = createWorld(c, { seed: 1, players: 1 }), wall = /** @type {any} */ (w.units.find((u) => u.kind === KIND.DEVICE));
+  applyStatus(wall, 'stun', { frames: 30 });
+  applyStatus(wall, 'sleep', { frames: 30 });
+  assert.deepEqual([statsOf(wall).flags.stun, statsOf(wall).flags.sleep], [undefined, undefined]);
+});
+
+test('[装置-4] each device on the field gives every enemy its modifiers, one buff per device, gone with the device', () => {
+  const c = /** @type {any} */ (tinyContent());
+  c.level.predefines = [{ alias: 'flag#1', key: 'flag', hidden: false, row: 0, col: 4, dir: 'UP' }, { alias: 'flag#2', key: 'flag', hidden: false, row: 2, col: 4, dir: 'UP' }];
+  c.devices = { flag: { ...record(0), side: 'ENEMY', enemyMods: { aspd: 25, moveMul: 1.15 } } };
+  c.level.waves = [oneWave([spawnAt(0, 'slime')])];
+  const w = createWorld(c, { seed: 1, players: 1 });
+  for (let f = 0; f < 3; f++) step(w, c);
+  const slime = /** @type {any} */ (w.units.find((u) => u.kind === KIND.ENEMY)), s = statsOf(slime);
+  assert.deepEqual([s.aspd, Math.round(s.moveSpeed * 1e6) / 1e6], [150, Math.round(1.15 * 1.15 * 1e6) / 1e6], 'two devices stack');
+  /** @type {any} */ (w.units.find((u) => u.alias === 'flag#1')).hp = 0;
+  for (let f = 0; f < 2; f++) step(w, c);
+  assert.deepEqual([statsOf(slime).aspd, statsOf(slime).moveSpeed], [125, 1.15], 'one left');
 });

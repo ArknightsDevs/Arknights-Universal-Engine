@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { createWorld, step, stateHash, paths } from '@aue/sim';
 import { levelContent, levelAt, LEVELS, matchContent } from '../src/index.js';
 import { uncoveredAbilities } from '../src/foes.js';
+import { profiledDevices } from '../src/devices.js';
 import hard02 from '../data/levels/act1multi_hard-02.json' with { type: 'json' };
 
 const raw = LEVELS.act1multi_01;
@@ -119,4 +120,14 @@ test('[地图-2] the 工事 levels: every edge between a 工事 and a walkable t
       for (let j = 1; j < pts.length; j++) assert.ok(paths.routeTiles(m, k(pts[j - 1]), k(pts[j])), `${id}: ${JSON.stringify(pts[j - 1])} → ${JSON.stringify(pts[j])}`);
     }
   }
+});
+
+test('[装置-3] [装置-4] the official devices: 城防路障 immune to its statuses, 山海密语仪 the enemies\' with its blackboard\'s modifiers; a device without a profile refused', () => {
+  const { devices, missing } = profiledDevices(/** @type {any} */ (hard02).devices);
+  assert.deepEqual(missing, ['trap_103_ymdgct']);
+  assert.deepEqual(devices.trap_097_hstone.immune, ['stun', 'freeze', 'cold', 'silence', 'sleep']);
+  const flag = devices.trap_096_gflag;
+  assert.deepEqual([flag.side, flag.enemyMods, flag.tauntLevel, flag.maxHp], ['ENEMY', { aspd: 25, moveMul: 1.15 }, -1, 6000]);
+  const only = { ...hard02, devices: { trap_103_ymdgct: /** @type {any} */ (hard02).devices.trap_103_ymdgct }, enemies: {}, level: { ...hard02.level, waves: [] } };
+  assert.throws(() => levelAt('x', 'NORMAL', undefined, { x: only }), /devices not supported yet: trap_103_ymdgct/);
 });

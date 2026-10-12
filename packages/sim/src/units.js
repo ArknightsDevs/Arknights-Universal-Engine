@@ -98,7 +98,7 @@ export function makeDevice(w, c, p) {
   const d = /** @type {Record<string, import('./types.js').DeviceDef>} */ (c.devices)[p.key], row = p.row ?? 0, col = p.col ?? 0;
   return {
     id: w.nextId++, kind: KIND.DEVICE, key: p.key, owner: -1, x: col, y: row, z: heightLevel(tileAt(c.level, row, col)), dir: /** @type {import('./dir.js').Dir} */ (p.dir ?? DEFAULT_DIR),
-    ...fresh(w, baseOf(/** @type {any} */ (d))), route: -1, leg: 0, frag: 0, wave: -1, ab: {}, anim: ANIM.IDLE, paid: 0, alias: p.alias,
+    ...fresh(w, { ...baseOf(/** @type {any} */ (d)), ...(d.side === 'ENEMY' ? { hostile: true } : {}) }), route: -1, leg: 0, frag: 0, wave: -1, ab: {}, anim: ANIM.IDLE, paid: 0, alias: p.alias,
   };
 }
 

@@ -6,7 +6,7 @@ import { KIND } from '@aue/schema';
 import { statsOf, intervalFrames } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune, count } from './buffs.js';
 import { ELEMENTS, epOf, currentElement } from './elements.js';
-import { precisionKey, insertionSort, selectable } from './targeting.js';
+import { precisionKey, insertionSort, selectable, hostile } from './targeting.js';
 import { tileOf } from './body.js';
 import { traitOf, traitAsk } from './traits.js';
 import { launch } from './swing.js';
@@ -181,7 +181,7 @@ const fortressMelee = (op, t) => t.blockedBy === op.id || (tileOf(t)[0] === tile
 export function fortressTargets(w, c, op, found) {
   if (!(traitOf(c, op).fortress > 0)) return found;
   const [r, col] = tileOf(op);
-  const own = w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && !found.includes(u) && selectable(u)
+  const own = w.units.filter((u) => hostile(u) && !found.includes(u) && selectable(u)
     && tileOf(u)[0] === r && tileOf(u)[1] === col);
   return [...found, ...own];
 }
