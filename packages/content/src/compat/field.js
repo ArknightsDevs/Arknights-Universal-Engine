@@ -4,6 +4,7 @@
 // (battle.js) call these; units are the kits' (unit.js).
 import { KIND, attrs, body, damage, traits, elements, deck, blocking, routes, paths } from '@aue/sim';
 import { canTargetEnemy } from './sh/targeting.js';
+import { localOrder } from './sh/dir.js';
 import { ELEMENT } from './mods.js';
 
 /** @typedef {import('./battle.js').ShBattle} ShBattle @typedef {import('./unit.js').ShUnit} ShUnit @typedef {import('@aue/sim').Unit} Unit */
@@ -153,4 +154,30 @@ export function groundPathTiles(b) {
     for (let j = 1; j < pts.length; j++) for (const k of paths.routeTiles(lv, pts[j - 1], pts[j], { diagonal: r.allowDiagonal ?? true }) ?? []) out.add(k);
   });
   return out;
+}
+
+/** Lexicographic a < b of two local (row, col) offsets; none to beat ⇒ true (Stronghold's localBefore). @param {number[]} a @param {number[] | null} b */
+const localBefore = (a, b) => !b || a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
+
+/**
+ * Stronghold's tactical point (战术点) for a unit's reinforcements, ported: a free walkable ground tile of its attack
+ * range — on an enemy ground path first (groundPathTiles), then the nearest (Chebyshev; the smaller sideways offset in
+ * its facing frame breaks ties), then the lowest local (row, col) offset. [row, col], or null for none.
+ * @param {ShBattle} b @param {ShUnit} unit @returns {[number, number] | null}
+ */
+export function findTacticalPoint(b, unit) {
+  if (!unit?.u) return null;
+  const onPath = groundPathTiles(b), cols = b.c.level.width;
+  /** @type {[number, number] | null} */
+  let best = null, bo = /** @type {number[] | null} */ (null);
+  let bp = 2, bd = Infinity;
+  for (const k of unit.rangeKeys) {
+    const r = Math.floor(k / cols), c = k % cols;
+    if (!b.grid.groundPassable(r, c) || !b.grid.canStand(r, c) || isReservedTile(b, r, c)) continue;
+    const o = localOrder(r - unit.tileR, c - unit.tileC, unit.dir), d = Math.max(Math.abs(r - unit.tileR), Math.abs(c - unit.tileC)) + 0.01 * Math.abs(o[0]);
+    if (!(d > 0)) continue;
+    const p = onPath.has(k) ? 0 : 1;
+    if (p < bp || (p === bp && (d < bd - 1e-9 || (Math.abs(d - bd) <= 1e-9 && localBefore(o, bo))))) { bp = p; bd = d; bo = o; best = [r, c]; }
+  }
+  return best;
 }

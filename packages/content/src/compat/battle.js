@@ -252,6 +252,9 @@ export class ShBattle {
   /** The ground tiles the field's enemies walk on (field.js). */
   groundPathTiles() { return field.groundPathTiles(this); }
 
+  /** Stronghold's tactical point for a unit's reinforcements (field.js). @param {ShUnit} unit */
+  findTacticalPoint(unit) { return field.findTacticalPoint(this, unit); }
+
   /** Stronghold's range cache (`(unit)`): the engine's range is computed when read. */
   refreshRange() {}
 
