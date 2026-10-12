@@ -107,16 +107,16 @@ const atkOf = (a, pct) => (pct ? statsOf({ ...a, buffs: [...a.buffs, makeBuff({ 
 const loadOf = (a, mods) => ({ type: mods.type ?? a.base.dmgType, amount: atkOf(a, mods.atkPct) * mods.scale, times: mods.times, element: mods.element ?? '', ep: mods.ep ?? 0 });
 
 /**
- * The units a cross-shaped splash reaches (敌能-7): those an enemy may attack on the target's tile and the four tiles
- * next to it.
- * @param {World} w @param {Unit} a @param {Unit} t @returns {Unit[]}
+ * The units an enemy's tile splash reaches (敌能-7, 敌能-8): those it may attack on the target's tile and the four tiles
+ * next to it (a cross), or the eight around it (a square).
+ * @param {World} w @param {Unit} a @param {Unit} t @param {'cross' | 'square'} area @returns {Unit[]}
  */
-function crossOf(w, a, t) {
+function areaOf(w, a, t, area) {
   const [r, col] = tileOf(t);
   return w.units.filter((u) => {
     if (u.hp <= 0 || u.hidden || !isFoeOf(u, a)) return false;
-    const [ur, uc] = tileOf(u);
-    return Math.abs(ur - r) + Math.abs(uc - col) <= 1;
+    const [ur, uc] = tileOf(u), dr = Math.abs(ur - r), dc = Math.abs(uc - col);
+    return area === 'square' ? Math.max(dr, dc) <= 1 : dr + dc <= 1;
   });
 }
 
@@ -200,7 +200,7 @@ function land(w, c, a) {
   let reached = 0;
   for (const id of sw.targets) {
     const t = w.units.find((u) => u.id === id);
-    if (t && t.hp > 0 && !t.hidden) { deliver(w, c, a, t, { load, heals: !!heals, cross: !!sw.mods.cross }); reached++; }
+    if (t && t.hp > 0 && !t.hidden) { deliver(w, c, a, t, { load, heals: !!heals, area: sw.mods.square ? 'square' : sw.mods.cross ? 'cross' : null }); reached++; }
   }
   if (op) operatorLanded(w, c, a, { sw, reached, heals: !!heals });
   const ch = sw.mods.channel;
@@ -232,14 +232,14 @@ function selfHeal(w, c, a, reached) {
 }
 
 /**
- * One locked target of a landing attack (攻击-2, 攻击-3, 职业-2, 敌能-7): a healer's heals, a cross splash's hits around
- * it, a ranged attacker's projectile, or the hits.
- * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t @param {{ load: Load, heals: boolean, cross: boolean }} how
+ * One locked target of a landing attack (攻击-2, 攻击-3, 职业-2, 敌能-7, 敌能-8): a healer's heals, a tile splash's hits
+ * around it, a ranged attacker's projectile, or the hits.
+ * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t @param {{ load: Load, heals: boolean, area: 'cross' | 'square' | null }} how
  */
 function deliver(w, c, a, t, how) {
   const load = loadFor(c, a, t, how.load);
   if (how.heals) heals(w, c, a, t, { load, jumps: load.chain ? chainOf(w, c, t, load.chain, { heals: true, antiAir: true }) : [] });
-  else if (how.cross) for (const u of crossOf(w, a, t)) hitTarget(w, c, a, u, load);
+  else if (how.area) for (const u of areaOf(w, a, t, how.area)) hitTarget(w, c, a, u, load);
   else if (shoots(c, a, how.heals)) launch(w, a, t, load);
   else impact(w, c, a, t, load);
 }

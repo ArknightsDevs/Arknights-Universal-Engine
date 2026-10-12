@@ -124,3 +124,11 @@ test('[敌能-16] 载客: an enemy within 0.5 goes aboard; the first 云梯 lets
   run(again.w, again.c, 1);
   assert.equal(again.es[1].hidden, false, 'it left the field: they alight');
 });
+
+test('[敌能-8] 匪帮轰击者 unblocked: its ranged attack at 50 % hits the target and the eight tiles around it', () => {
+  const { w, c, es: [e], ops } = arena([['enemy_1359_ekulsr', 0, 4]], [['guard', 1, 2], ['sniper', 2, 3]]);
+  const ev = run(w, c, 160).filter((x) => x.type === 'hit' && x.id === e.id);
+  const first = ev.filter((x) => x.f === ev[0].f);
+  assert.deepEqual(first.map((x) => x.target).sort((a, b) => a - b), ops.map((o) => o.id).sort((a, b) => a - b), 'both in the 3 × 3 around the target');
+  assert.ok(first.every((x) => x.damage < attrs.statsOf(e).atk * 0.5 + 1));
+});

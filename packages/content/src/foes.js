@@ -19,6 +19,9 @@ export const FOE_EXTRAS = Object.freeze({
   enemy_1385_winbom_2: { talents: { Boom: { radius: 1.55, delay: 0, arts: 1, air: 1, sourced: 1 } }, source: `${PRTS}%E2%80%9C%E5%96%B7%E7%88%86%E7%BD%90%E2%80%9D&oldid=435425` },
   // 帝国前锋精锐: 未被阻挡时可进行远程攻击，远程攻击造成攻击力50%的物理伤害，不会攻击飞行单位
   enemy_1113_empace: { talents: { ranged: { scale: 0.5 } }, source: `${PRTS}%E5%B8%9D%E5%9B%BD%E5%89%8D%E9%94%8B%E7%B2%BE%E9%94%90&oldid=435717` },
+  // 匪帮轰击者/匪帮轰击者头目: 未被阻挡时可进行远程攻击，对目标及周围8格内的我方单位造成攻击力50%的物理伤害
+  enemy_1359_ekulsr: { talents: { ranged: { scale: 0.5, square: 1 } }, source: `${PRTS}%E5%8C%AA%E5%B8%AE%E8%BD%B0%E5%87%BB%E8%80%85&oldid=435794` },
+  enemy_1359_ekulsr_2: { talents: { ranged: { scale: 0.5, square: 1 } }, source: `${PRTS}%E5%8C%AA%E5%B8%AE%E8%BD%B0%E5%87%BB%E8%80%85%E5%A4%B4%E7%9B%AE&oldid=435795` },
   // 速射轻弩手/速射劲弩手: 向目标方向发射3支弩箭，每支弩箭对击中的首个目标造成攻击力100%的物理伤害
   enemy_1403_gunsho: { skills: { CrossAttack: { bolts: 3, arts: 0, charge: 0, hold: 0, hide: 0 } }, source: `${PRTS}%E9%80%9F%E5%B0%84%E8%BD%BB%E5%BC%A9%E6%89%8B&oldid=436612` },
   enemy_1403_gunsho_2: { skills: { CrossAttack: { bolts: 3, arts: 0, charge: 0, hold: 0, hide: 0 } }, source: `${PRTS}%E9%80%9F%E5%B0%84%E5%8A%B2%E5%BC%A9%E6%89%8B&oldid=436611` },
@@ -90,7 +93,7 @@ const ranged = Object.freeze({
     const top = Math.max(...near.map((u) => ctx.stats(u).taunt)), tied = near.filter((u) => ctx.stats(u).taunt === top);
     return tied.some((u) => u.base.neutral) ? tied.filter((u) => u.base.neutral) : near;
   },
-  attack: (ctx, mods) => (ctx.blocked ? mods : { ...mods, scale: mods.scale * ctx.bb.scale }),
+  attack: (ctx, mods) => (ctx.blocked ? mods : { ...mods, scale: mods.scale * ctx.bb.scale, ...(ctx.bb.square ? { square: true } : {}) }),
 });
 
 /** A direction along a row or column from the enemy to a unit in line. @param {{ x: number, y: number }} a @param {{ x: number, y: number }} b */
