@@ -53,10 +53,15 @@ export class ShUnit {
   #skill;
 
   /**
-   * @param {ShBattle} b @param {{ kind: 'op' | 'enemy' | 'token' | 'device', key: string, ownerId: number, def: Record<string, any> | null, unit?: Unit }} o
+   * @param {ShBattle} b
+   * @param {{ kind: 'op' | 'enemy' | 'token' | 'device', key: string, ownerId: number, def: Record<string, any> | null, unit?: Unit, ownerUnit?: ShUnit | null }} o
    */
   constructor(b, o) {
     this.b = b; this.#kind = o.kind; this.defId = o.key; this.def = o.def; this.ownerId = o.ownerId;
+    /** @type {ShUnit | null} a token's owner (召唤-6) */
+    this.ownerUnit = o.ownerUnit ?? null;
+    /** @type {Record<string, any>} an operator's summons' defs, by summon id (兼容-3) */
+    this.tokenDefs = {};
     /** @type {Unit | null} the engine's unit while deployed */
     this.u = o.unit ?? null;
     this.side = o.kind === 'enemy' ? 'enemy' : 'ally';
@@ -65,7 +70,7 @@ export class ShUnit {
     /** @type {Record<string, any>[]} buffs that outlive a deployment (`persist`), given again at each */
     this.persist = [];
     this.deploySeq = 0;
-    this.#skill = o.kind === 'op' ? new ShSkill(this, null) : null;
+    this.#skill = o.kind === 'op' || o.kind === 'token' ? new ShSkill(this, null) : null;
     /** @type {any} the kit installed for it */
     this.kit = null;
     this.stats = { dmg: 0, kills: 0, heal: 0, taken: 0, attacks: 0 };

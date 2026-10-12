@@ -1,0 +1,530 @@
+{
+ "$comment": "The summons' PRTS 召唤物信息 fields (docs/spec/summons.md 召唤-4, 召唤-5): 部署占用数 (occupy), 再部署策略 (respawn), 实体类型 装置 (device), 部署位置 where it differs from the data (position), and stays — it does not leave with its owner (召唤-5); each with its page and revision.",
+ "source": {
+  "wiki": "https://prts.wiki",
+  "fetched": "2026-10-12"
+ },
+ "summons": {
+  "token_10000_silent_healrb": {
+   "page": "医疗探机",
+   "oldid": 421855,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true,
+   "stays": true
+  },
+  "token_10001_deepcl_tentac": {
+   "page": "触手",
+   "oldid": 418223,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10002_kalts_mon3tr": {
+   "page": "Mon3tr(凯尔希的召唤物)",
+   "oldid": 391711,
+   "occupy": 1,
+   "respawn": "unique",
+   "device": false
+  },
+  "token_10003_cgbird_bird": {
+   "page": "幻影",
+   "oldid": 418219,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10004_otter_motter": {
+   "page": "机械水獭",
+   "oldid": 418226,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10005_mgllan_drone1": {
+   "page": "龙腾.F",
+   "oldid": 384271,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10005_mgllan_drone2": {
+   "page": "龙腾.L",
+   "oldid": 384272,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10005_mgllan_drone3": {
+   "page": "龙腾.A",
+   "oldid": 384270,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10006_vodfox_doll": {
+   "page": "诅咒娃娃",
+   "oldid": 383963,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10007_phatom_twin": {
+   "page": "镜中虚影",
+   "oldid": 418221,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10008_cqbw_box": {
+   "page": "此面向敌",
+   "oldid": 410522,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10009_weedy_cannon": {
+   "page": "工程蓄水炮",
+   "oldid": 396481,
+   "occupy": 0,
+   "respawn": "unique",
+   "device": true
+  },
+  "token_10010_folivo_car": {
+   "page": "移动摄影器",
+   "oldid": 420557,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10011_beewax_oblisk": {
+   "page": "沙之碑",
+   "oldid": 386834,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10012_rosmon_shield": {
+   "page": "迷迭香的战术装备",
+   "oldid": 416121,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10013_robin_mine": {
+   "page": "“夹子”",
+   "oldid": 410518,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10014_bstalk_crab": {
+   "page": "磐蟹护卫队",
+   "oldid": 406207,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10015_dusk_drgn": {
+   "page": "“小自在”",
+   "oldid": 384052,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10016_rfrost_mine": {
+   "page": "迎宾踏垫",
+   "oldid": 410526,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10017_skadi2_dedant": {
+   "page": "斯卡蒂的海嗣",
+   "oldid": 383959,
+   "occupy": 0,
+   "respawn": "unique",
+   "device": true
+  },
+  "token_10018_robrta_mach": {
+   "page": "全自动造型仪",
+   "oldid": 383960,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10019_nearl2_sword": {
+   "page": "“耀阳”",
+   "oldid": 410520,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10020_ling_soul1": {
+   "page": "“清平”",
+   "oldid": 384260,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10020_ling_soul2": {
+   "page": "“逍遥”",
+   "oldid": 384262,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10020_ling_soul3": {
+   "page": "“弦惊”",
+   "oldid": 384261,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10021_blkngt_hypnos": {
+   "page": "眠兽",
+   "oldid": 406210,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10022_kazema_shadow": {
+   "page": "纸偶",
+   "oldid": 384050,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10023_windft_wrench": {
+   "page": "可靠电池",
+   "oldid": 383971,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10024_ebnhlz_rcube": {
+   "page": "旧日残影",
+   "oldid": 384268,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10025_doroth_recttp": {
+   "page": "共振装置",
+   "oldid": 410525,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10026_bgsnow_subbow": {
+   "page": "“打字机”",
+   "oldid": 386116,
+   "occupy": 0,
+   "respawn": "unique",
+   "device": true
+  },
+  "token_10027_ironmn_pile1": {
+   "page": "白铁™多功能平台(极致火力)",
+   "oldid": 384014,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10027_ironmn_pile2": {
+   "page": "白铁™多功能平台(高效补给)",
+   "oldid": 384015,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10027_ironmn_pile3": {
+   "page": "铁钳号·原型机",
+   "oldid": 384048,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10028_vigil_wolf": {
+   "page": "狼群",
+   "oldid": 406212,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10029_slent2_protrb": {
+   "page": "夜灯",
+   "oldid": 384255,
+   "occupy": 0,
+   "respawn": "unique",
+   "device": true
+  },
+  "token_10030_mlyss_wtrman": {
+   "page": "流形",
+   "oldid": 406214,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10031_swire2_gdtrap": {
+   "page": "香槟炸弹",
+   "oldid": 384259,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10032_jesca2_jckshd": {
+   "page": "机动盾牌",
+   "oldid": 386829,
+   "occupy": 0,
+   "respawn": "unique",
+   "device": false
+  },
+  "token_10033_ela_grzmot": {
+   "page": "雷鸣地雷",
+   "oldid": 386129,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10034_ray_sndbst": {
+   "page": "沙地兽",
+   "oldid": 384254,
+   "occupy": 0,
+   "respawn": "unique",
+   "device": true
+  },
+  "token_10035_wisdel_wward": {
+   "page": "魂灵之影",
+   "oldid": 386827,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10036_lasher_mcbird": {
+   "page": "发条羽兽",
+   "oldid": 386125,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10037_mitm_trshrb": {
+   "page": "樱桃三号",
+   "oldid": 406216,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10039_ulpia_block": {
+   "page": "从不混淆的方向",
+   "oldid": 386136,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10040_siege2_vlion": {
+   "page": "黄金盟誓",
+   "oldid": 386127,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10041_cathy_catsld": {
+   "page": "爬行号·防护单元",
+   "oldid": 386131,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10042_tecno_puppet": {
+   "page": "木偶舞者",
+   "oldid": 386130,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10043_necras_skeltn": {
+   "page": "悲叹的仆役",
+   "oldid": 390510,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10044_wulfen_mine": {
+   "page": "矿石“杀手”",
+   "oldid": 410519,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10045_alanna_crane": {
+   "page": "小螺帽",
+   "oldid": 386134,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10050_monstr_prosts": {
+   "page": "重构体",
+   "oldid": 392951,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10051_radian_tower1": {
+   "page": "戴乌",
+   "oldid": 401539,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10052_radian_tower2": {
+   "page": "赛柯",
+   "oldid": 401540,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10053_radian_tower3": {
+   "page": "桑特拉",
+   "oldid": 401541,
+   "occupy": 1,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10054_phatm2_encdool": {
+   "page": "本能的召唤",
+   "oldid": 440206,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10055_phatm2_mndclv": {
+   "page": "迷狂牢笼",
+   "oldid": 416797,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10056_angel2_target": {
+   "page": "投递坐标",
+   "oldid": 392949,
+   "occupy": 0,
+   "respawn": "unique",
+   "device": false
+  },
+  "token_10057_svash2_eagle1": {
+   "page": "风雪之眼",
+   "oldid": 388650,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10057_svash2_eagle2": {
+   "page": "风雪之眼",
+   "oldid": 388650,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10057_svash2_eagle3": {
+   "page": "风雪之眼",
+   "oldid": 388650,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10058_sbell2_icetgt": {
+   "page": "保护目标（冻结状态）",
+   "oldid": 386146,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10059_nasti_nstdef": {
+   "page": "“质检专员”",
+   "oldid": 386119,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10060_nasti_nstchr": {
+   "page": "“监工专员”",
+   "oldid": 423361,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10061_nasti_nstbld": {
+   "page": "“应急承重小组”",
+   "oldid": 428403,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10063_buddy_bddg": {
+   "page": "牙猎犬",
+   "oldid": 401131,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10064_wang_stone1": {
+   "page": "棋子",
+   "oldid": 424125,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true,
+   "position": "ALL"
+  },
+  "token_10065_demetr_dmtpos": {
+   "page": "牵绊",
+   "oldid": 440211,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  },
+  "token_10066_closur_ourbase": {
+   "page": "指挥中心",
+   "oldid": 408488,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10067_toledo_tldptm": {
+   "page": "征服者传说",
+   "oldid": 439755,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false,
+   "occupyUnknown": true
+  },
+  "token_10068_kalts2_mtship": {
+   "page": "战术锚点",
+   "oldid": 393092,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10069_mcnist_mcgraf": {
+   "page": "结构性原理",
+   "oldid": 416148,
+   "occupy": 0,
+   "respawn": "default",
+   "device": false
+  },
+  "token_10070_aphris_pc": {
+   "page": "中继器",
+   "oldid": 410601,
+   "occupy": 0,
+   "respawn": "queue",
+   "device": true
+  },
+  "token_10071_aglna2_agairp": {
+   "page": "“一会儿见！”",
+   "oldid": 440212,
+   "occupy": 0,
+   "respawn": "default",
+   "device": true
+  }
+ }
+}

@@ -15,10 +15,11 @@ import { oracleDir, STRONGHOLD, oneWave, spawnAt } from '@aue/testkit';
 import { createWorld, step, bus, status } from '@aue/sim';
 import { KIT_FILES } from '../src/index.js';
 import { loadUnderGrid } from '../src/compat/grid.js';
-import { defOf } from '../src/compat/records.js';
+import { defOf, tokenDefOf } from '../src/compat/records.js';
 import { kitsBehaviors } from '../src/compat/kits.js';
 import { STATUS_NAME } from '../src/compat/mods.js';
 import { loadTraining, operatorAt } from '../src/operators.js';
+import { TOKENS, loadToken, tokenAt } from '../src/tokens.js';
 
 const SECONDS = 40;
 /** @param {number} x */
@@ -100,8 +101,15 @@ const startWhenReady = (u) => /** @type {any[]} */ (u?.skill && !u.skill.active 
 async function ourRun(charId, factory, skill, module) {
   const t = await loadTraining(charId), b = { elite: 2, level: 60, potential: 6, trust: 0, skill, skillLevel: 7, ...(module >= 0 ? { module, moduleLevel: 3 } : {}) };
   const c = /** @type {any} */ ({ level: level(), enemies: { dummy: { name: 'dummy', maxHp: 1e7, atk: 0, def: 0, res: 0, moveSpeed: 1, massLevel: 1 } }, operators: { op: bare(operatorAt(t, b)) }, decks: [['op']] });
+  /** @type {Record<string, any>} */
+  const tokens = {};
+  for (const id of (t.tokens ?? []).filter((x) => Object.hasOwn(TOKENS, x))) {
+    const token = await loadToken(id);
+    c.operators[`${id}#0`] = { ...bare(tokenAt(token, id, t, b)), char: id, summoner: 'op' };
+    tokens[id] = tokenDefOf(id, token, t, b);
+  }
   const box = /** @type {{ b: any }} */ ({ b: null });
-  c.behaviors = kitsBehaviors({ op: { factory: /** @type {any} */ (factory), def: defOf(charId, t, b) } }, (x) => { box.b = x; });
+  c.behaviors = kitsBehaviors({ op: { factory: /** @type {any} */ (factory), def: defOf(charId, t, b), tokens } }, (x) => { box.b = x; });
   const w = createWorld(c, { seed: 7, players: 1 }), log = { hits: /** @type {number[]} */ ([]), heals: /** @type {number[]} */ ([]), starts: 0, statuses: /** @type {Set<string>} */ (new Set()) };
   bus.on(w, 'enemySpawn', (k) => { status.applyStatus(k.enemy, 'root', {}); }, { priority: 1e9 });
   const op = () => w.units.find((x) => x.key === 'op');

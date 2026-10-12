@@ -23,6 +23,7 @@ export * as sp from './sp.js';
 export * as elements from './elements.js';
 export * as traits from './traits.js';
 export * as deck from './deck.js';
+export * as summons from './summons.js';
 export * as swing from './swing.js';
 export * as coop from './coop.js';
 export * as waves from './waves.js';
@@ -30,7 +31,7 @@ export * as stage from './stage.js';
 export * as foes from './foes.js';
 export * as bus from './bus.js';
 /** Unit kinds, for content (which does not depend on @aue/schema). */
-export { KIND } from '@aue/schema';
+export { KIND, DIR } from '@aue/schema';
 export { nextUint32, seedState, draw, weightedPick } from './rng.js';
 export { BEHAVIOR_API_VERSION, CONTEXT_MEMBERS, SKILL_CONTEXT_MEMBERS } from './api.js';
 export { hashNumbers, HASH_START, contentHash, canonicalJson } from './hash.js';

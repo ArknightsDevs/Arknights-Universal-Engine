@@ -1,0 +1,305 @@
+{
+ "source": {
+  "repo": "Kengxxiao/ArknightsGameData",
+  "commit": "17759cc8cdf37388414145d16262a3a06f3ab25e",
+  "server": "zh_CN"
+ },
+ "tokens": {
+  "token_10000_silent_healrb": {
+   "name": "医疗探机",
+   "position": "ALL"
+  },
+  "token_10001_deepcl_tentac": {
+   "name": "触手",
+   "position": "MELEE"
+  },
+  "token_10002_kalts_mon3tr": {
+   "name": "Mon3tr",
+   "position": "MELEE"
+  },
+  "token_10003_cgbird_bird": {
+   "name": "幻影",
+   "position": "MELEE"
+  },
+  "token_10004_otter_motter": {
+   "name": "机械水獭",
+   "position": "MELEE"
+  },
+  "token_10005_mgllan_drone1": {
+   "name": "龙腾.F",
+   "position": "ALL"
+  },
+  "token_10005_mgllan_drone2": {
+   "name": "龙腾.L",
+   "position": "MELEE"
+  },
+  "token_10005_mgllan_drone3": {
+   "name": "龙腾.A",
+   "position": "RANGED"
+  },
+  "token_10006_vodfox_doll": {
+   "name": "诅咒娃娃",
+   "position": "ALL"
+  },
+  "token_10007_phatom_twin": {
+   "name": "镜中虚影",
+   "position": "MELEE"
+  },
+  "token_10008_cqbw_box": {
+   "name": "此面向敌",
+   "position": "ALL"
+  },
+  "token_10009_weedy_cannon": {
+   "name": "工程蓄水炮",
+   "position": "ALL"
+  },
+  "token_10010_folivo_car": {
+   "name": "移动摄影器",
+   "position": "MELEE"
+  },
+  "token_10011_beewax_oblisk": {
+   "name": "沙之碑",
+   "position": "MELEE"
+  },
+  "token_10012_rosmon_shield": {
+   "name": "迷迭香的战术装备",
+   "position": "MELEE"
+  },
+  "token_10013_robin_mine": {
+   "name": "“夹子”",
+   "position": "MELEE"
+  },
+  "token_10014_bstalk_crab": {
+   "name": "磐蟹护卫队",
+   "position": "MELEE"
+  },
+  "token_10015_dusk_drgn": {
+   "name": "“小自在”",
+   "position": "MELEE"
+  },
+  "token_10016_rfrost_mine": {
+   "name": "迎宾踏垫",
+   "position": "MELEE"
+  },
+  "token_10017_skadi2_dedant": {
+   "name": "斯卡蒂的海嗣",
+   "position": "ALL"
+  },
+  "token_10018_robrta_mach": {
+   "name": "全自动造型仪",
+   "position": "ALL"
+  },
+  "token_10019_nearl2_sword": {
+   "name": "“耀阳”",
+   "position": "MELEE"
+  },
+  "token_10020_ling_soul1": {
+   "name": "“清平”",
+   "position": "MELEE"
+  },
+  "token_10020_ling_soul2": {
+   "name": "“逍遥”",
+   "position": "RANGED"
+  },
+  "token_10020_ling_soul3": {
+   "name": "“弦惊”",
+   "position": "MELEE"
+  },
+  "token_10021_blkngt_hypnos": {
+   "name": "眠兽",
+   "position": "MELEE"
+  },
+  "token_10022_kazema_shadow": {
+   "name": "纸偶",
+   "position": "MELEE"
+  },
+  "token_10023_windft_wrench": {
+   "name": "可靠电池",
+   "position": "ALL"
+  },
+  "token_10024_ebnhlz_rcube": {
+   "name": "旧日残影",
+   "position": "ALL"
+  },
+  "token_10025_doroth_recttp": {
+   "name": "共振装置",
+   "position": "MELEE"
+  },
+  "token_10026_bgsnow_subbow": {
+   "name": "“打字机”",
+   "position": "RANGED"
+  },
+  "token_10027_ironmn_pile1": {
+   "name": "白铁™多功能平台",
+   "position": "ALL"
+  },
+  "token_10027_ironmn_pile2": {
+   "name": "白铁™多功能平台",
+   "position": "ALL"
+  },
+  "token_10027_ironmn_pile3": {
+   "name": "铁钳号·原型机",
+   "position": "MELEE"
+  },
+  "token_10028_vigil_wolf": {
+   "name": "狼群",
+   "position": "MELEE"
+  },
+  "token_10029_slent2_protrb": {
+   "name": "夜灯",
+   "position": "ALL"
+  },
+  "token_10030_mlyss_wtrman": {
+   "name": "流形",
+   "position": "ALL"
+  },
+  "token_10031_swire2_gdtrap": {
+   "name": "香槟炸弹",
+   "position": "MELEE"
+  },
+  "token_10032_jesca2_jckshd": {
+   "name": "机动盾牌",
+   "position": "MELEE"
+  },
+  "token_10033_ela_grzmot": {
+   "name": "雷鸣地雷",
+   "position": "MELEE"
+  },
+  "token_10034_ray_sndbst": {
+   "name": "沙地兽",
+   "position": "ALL"
+  },
+  "token_10035_wisdel_wward": {
+   "name": "魂灵之影",
+   "position": "ALL"
+  },
+  "token_10036_lasher_mcbird": {
+   "name": "发条羽兽",
+   "position": "RANGED"
+  },
+  "token_10037_mitm_trshrb": {
+   "name": "樱桃三号",
+   "position": "MELEE"
+  },
+  "token_10039_ulpia_block": {
+   "name": "从不混淆的方向",
+   "position": "MELEE"
+  },
+  "token_10040_siege2_vlion": {
+   "name": "黄金盟誓",
+   "position": "MELEE"
+  },
+  "token_10041_cathy_catsld": {
+   "name": "爬行号·防护单元",
+   "position": "ALL"
+  },
+  "token_10042_tecno_puppet": {
+   "name": "木偶舞者",
+   "position": "MELEE"
+  },
+  "token_10043_necras_skeltn": {
+   "name": "悲叹的仆役",
+   "position": "MELEE"
+  },
+  "token_10044_wulfen_mine": {
+   "name": "矿石“杀手”",
+   "position": "MELEE"
+  },
+  "token_10045_alanna_crane": {
+   "name": "小螺帽",
+   "position": "ALL"
+  },
+  "token_10050_monstr_prosts": {
+   "name": "重构体",
+   "position": "MELEE"
+  },
+  "token_10051_radian_tower1": {
+   "name": "戴乌",
+   "position": "MELEE"
+  },
+  "token_10052_radian_tower2": {
+   "name": "赛柯",
+   "position": "MELEE"
+  },
+  "token_10053_radian_tower3": {
+   "name": "桑特拉",
+   "position": "RANGED"
+  },
+  "token_10054_phatm2_encdool": {
+   "name": "本能的召唤",
+   "position": "MELEE"
+  },
+  "token_10055_phatm2_mndclv": {
+   "name": "迷狂牢笼",
+   "position": "MELEE"
+  },
+  "token_10056_angel2_target": {
+   "name": "投递坐标",
+   "position": "MELEE"
+  },
+  "token_10057_svash2_eagle1": {
+   "name": "风雪之眼",
+   "position": "MELEE"
+  },
+  "token_10057_svash2_eagle2": {
+   "name": "风雪之眼",
+   "position": "MELEE"
+  },
+  "token_10057_svash2_eagle3": {
+   "name": "风雪之眼",
+   "position": "MELEE"
+  },
+  "token_10058_sbell2_icetgt": {
+   "name": "保护目标（冻结状态）",
+   "position": "MELEE"
+  },
+  "token_10059_nasti_nstdef": {
+   "name": "“质检专员”",
+   "position": "ALL"
+  },
+  "token_10060_nasti_nstchr": {
+   "name": "“监工专员”",
+   "position": "ALL"
+  },
+  "token_10061_nasti_nstbld": {
+   "name": "“应急承重小组”",
+   "position": "ALL"
+  },
+  "token_10063_buddy_bddg": {
+   "name": "牙猎犬",
+   "position": "MELEE"
+  },
+  "token_10064_wang_stone1": {
+   "name": "棋子",
+   "position": "MELEE"
+  },
+  "token_10065_demetr_dmtpos": {
+   "name": "牵绊",
+   "position": "MELEE"
+  },
+  "token_10066_closur_ourbase": {
+   "name": "指挥中心",
+   "position": "ALL"
+  },
+  "token_10067_toledo_tldptm": {
+   "name": "征服者传说",
+   "position": "MELEE"
+  },
+  "token_10068_kalts2_mtship": {
+   "name": "战术锚点",
+   "position": "RANGED"
+  },
+  "token_10069_mcnist_mcgraf": {
+   "name": "结构性原理",
+   "position": "MELEE"
+  },
+  "token_10070_aphris_pc": {
+   "name": "中继器",
+   "position": "ALL"
+  },
+  "token_10071_aglna2_agairp": {
+   "name": "“一会儿见！”",
+   "position": "MELEE"
+  }
+ }
+}

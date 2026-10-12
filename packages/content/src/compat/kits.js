@@ -9,8 +9,10 @@ import { battles, SPEC_BEHAVIOR, onAttackHit, onAttackDone } from './specs.js';
 
 /** @typedef {import('@aue/sim').World} World @typedef {import('@aue/sim').Content} Content @typedef {import('@aue/sim').Unit} Unit */
 /**
- * A kit for an operator key: Stronghold's factory and the def it is built from (records.js defOf).
- * @typedef {{ factory: (bb: Record<string, any>, chess: Record<string, any>, def: Record<string, any>) => any, def: Record<string, any> }} KitEntry
+ * A kit for an operator key: Stronghold's factory and the def it is built from (records.js defOf), and its summons' defs
+ * by summon id (records.js tokenDefOf).
+ * @typedef {{ factory: (bb: Record<string, any>, chess: Record<string, any>, def: Record<string, any>) => any, def: Record<string, any>,
+ *   tokens?: Record<string, Record<string, any>> }} KitEntry
  */
 
 /** Runs before every other handler of the same event. */
@@ -40,6 +42,7 @@ export function kitsWorld(kits, seen) {
 /** An operator's piece and its kit, installed once. @param {ShBattle} b @param {number} seat @param {string} key @param {KitEntry} entry */
 function install(b, seat, key, entry) {
   const def = entry.def, piece = new ShUnit(b, { kind: 'op', key, ownerId: seat, def });
+  piece.tokenDefs = entry.tokens ?? {};
   b.pieces.set(`${seat}|${key}`, piece);
   const kit = b.safe(() => entry.factory(def.skill?.bb ?? {}, def.raw, def), 'kit', piece);
   if (!kit) return;
@@ -49,9 +52,18 @@ function install(b, seat, key, entry) {
   for (const t of kit.talents ?? []) b.safe(() => t.install?.(b, piece), 'talent', piece);
 }
 
-/** A deployment binds the operator's piece to its engine unit and gives its lasting buffs again. @param {ShBattle} b @param {Unit} u */
+/**
+ * A deployment binds the operator's piece to its engine unit and gives its lasting buffs again; a summon becomes its
+ * token, with the kit it was spawned with.
+ * @param {ShBattle} b @param {Unit} u
+ */
 function bind(b, u) {
   if (u.kind !== KIND.OPERATOR) return;
+  if (u.summoner !== undefined) {
+    b.unitOf(u);
+    battles.set(u, b);
+    return;
+  }
   const piece = b.pieces.get(`${u.owner}|${u.key}`);
   if (!piece) return;
   piece.u = u;
@@ -67,6 +79,6 @@ function bind(b, u) {
  * @returns {{ world: (w: World, c: Content) => void, skills: Record<string, import('@aue/sim').SkillBehavior> }}
  */
 export function kitsBehaviors(kits, seen) {
-  const ids = Object.values(kits).map((e) => e.def.skill?.id).filter((id) => typeof id === 'string');
+  const ids = Object.values(kits).flatMap((e) => [e.def.skill?.id, ...Object.values(e.tokens ?? {}).map((d) => d.skill?.id)]).filter((id) => typeof id === 'string');
   return { world: kitsWorld(kits, seen), skills: Object.fromEntries(ids.map((id) => [id, SPEC_BEHAVIOR])) };
 }

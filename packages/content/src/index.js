@@ -7,10 +7,11 @@ import { skillDefOf } from './skills.js';
 import { levelAt, LEVELS } from './levels.js';
 import { foeBehaviors, withFoeExtras } from './foes.js';
 import { loadTraining, operatorAt, teamTalentsAt } from './operators.js';
+import { TOKENS, loadToken, tokenAt } from './tokens.js';
 import { teamFits } from '@aue/sim';
 import { skillBehaviors } from './skills.js';
 import { kitsBehaviors } from './compat/kits.js';
-import { defOf } from './compat/records.js';
+import { defOf, tokenDefOf } from './compat/records.js';
 import { KIT_SOURCE } from './compat/kitmod.js';
 
 /** The official behaviours: skills (技能-6) and enemy abilities (敌能-2). */
@@ -57,7 +58,8 @@ const withoutTalents = ({ talentBb, fieldTalents, rangeTalents, critTalents, tim
 
 /**
  * The content of a match (同步-9): its level at its difficulty, and every seat's deck at its trainings — an operator's key
- * is "id#seat", it remembers its id (`char`) — with the official behaviours. An operator with a loaded kit (兼容-6,
+ * is "id#seat", it remembers its id (`char`) — with the official behaviours; each operator's summons at its training
+ * (召唤-2), keyed "summon id#seat", with their owner's key (`summoner`). An operator with a loaded kit (兼容-6,
  * kitmod.js) fights by its kit: its record without its talents, its team talents not given by the engine, its kit's
  * world setup and skill behaviours; the content names the commit and the kits it uses.
  * @param {{ level: string, difficulty: 'NORMAL' | 'FOUR_STAR', seed: number, decks: { id: string, build: import('./operators.js').Build }[][] }} match
@@ -74,7 +76,7 @@ export async function matchContent(match, levels = LEVELS, kits = {}) {
   const decks = await Promise.all(match.decks.map(async (deck, seat) => {
     const built = await Promise.all(deck.map(async ({ id, build }) => {
       const t = await loadTraining(id), factory = Object.hasOwn(kits, id) ? kits[id] : null;
-      if (factory) entries[`${id}#${seat}`] = { factory, def: defOf(id, t, build) };
+      if (factory) entries[`${id}#${seat}`] = { factory, def: defOf(id, t, build), tokens: await tokenDefsOf(id, t, build) };
       return { id, key: `${id}#${seat}`, op: factory ? withoutTalents(operatorAt(t, build)) : operatorAt(t, build), team: factory ? [] : teamTalentsAt(t, build).deck };
     }));
     const team = built.flatMap((x) => x.team);
@@ -82,12 +84,37 @@ export async function matchContent(match, levels = LEVELS, kits = {}) {
       const withTeam = withDeckTalents(op, team);
       operators[key] = { ...withTeam, blockCnt: Math.max(0, withTeam.blockCnt + lv.blockAdd), char: id, ...attackOf(id) };
     }
+    for (const { id, build } of deck) Object.assign(operators, await summonsOf(id, build, seat, lv.blockAdd, Object.hasOwn(kits, id)));
     return built.map((x) => x.key);
   }));
   const used = [...new Set(Object.keys(entries).map((k) => k.split('#')[0]))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const kb = used.length ? kitsBehaviors(entries) : null;
   const behaviors = kb ? { ...BEHAVIORS, world: kb.world, skills: { ...BEHAVIORS.skills, ...kb.skills } } : BEHAVIORS;
   return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), operators, decks, behaviors, ...(used.length ? { kits: { sha: KIT_SOURCE.sha, used } } : {}) });
+}
+
+/**
+ * The defs a kit receives for an operator's summons at its training (兼容-3), by summon id.
+ * @param {string} id @param {import('./operators.js').Training} owner @param {import('./operators.js').Build} build
+ */
+async function tokenDefsOf(id, owner, build) {
+  const ids = (owner.tokens ?? []).filter((t) => Object.hasOwn(TOKENS, t));
+  return Object.fromEntries(await Promise.all(ids.map(async (t) => [t, tokenDefOf(t, await loadToken(t), owner, build)])));
+}
+
+/**
+ * An operator's summons at its training (召唤-1, 召唤-2), by key "summon id#seat": each with its owner's key and its id;
+ * without their talents when the owner has a kit (兼容-6: its kits apply them).
+ * @param {string} id @param {import('./operators.js').Build} build @param {number} seat @param {number} blockAdd @param {boolean} kit
+ * @returns {Promise<Record<string, import('@aue/sim').OperatorDef>>}
+ */
+async function summonsOf(id, build, seat, blockAdd, kit) {
+  const owner = await loadTraining(id), ids = (owner.tokens ?? []).filter((t) => Object.hasOwn(TOKENS, t));
+  const recs = await Promise.all(ids.map(async (t) => {
+    const made = tokenAt(await loadToken(t), t, owner, build), r = kit ? withoutTalents(made) : made;
+    return [`${t}#${seat}`, { ...r, blockCnt: Math.max(0, r.blockCnt + blockAdd), char: t, summoner: `${id}#${seat}`, ...attackOf(t) }];
+  }));
+  return Object.fromEntries(recs);
 }
 
 /**
@@ -123,5 +150,6 @@ export { BRANCHES, coveredBranch, withTrait } from './traits.js';
 export { LEVELS, levelAt } from './levels.js';
 export { foeBehaviors, withFoeExtras, FOE_EXTRAS } from './foes.js';
 export { ROSTER, rosterSource, loadTraining, operatorAt } from './operators.js';
+export { TOKENS, SUMMON_PAGES, loadToken, tokenAt } from './tokens.js';
 export { KIT_SOURCE, KIT_FILES, KITS_ENABLED, loadKits } from './compat/kitmod.js';
 export { MAPPING, mappedUrl } from './compat/mapping.js';

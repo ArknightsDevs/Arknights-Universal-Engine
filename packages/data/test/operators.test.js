@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { extractRoster, extractTraining, extractRanges, extractPowers } from '../src/index.js';
+import { extractRoster, extractTraining, extractTokens, extractRanges, extractPowers } from '../src/index.js';
 import { extractRosterFromCheckout } from '../src/cli/operators.js';
 
 const stats = (/** @type {number} */ k) => ({
@@ -26,6 +26,26 @@ const char = (/** @type {Record<string, unknown>} */ more = {}) => ({
 const ranges = { r: { grids: [{ row: 0, col: 0 }, { row: 0, col: 1 }] } };
 const equip = { uniequip: { equipDict: {}, charEquip: {} }, battle: {} };
 const skills = { sk: { levels: [level(1, '攻击力提升'), level(2, '可随时停止技能')] } };
+
+test('[召唤-1] summons: TOKEN entries keep their deploy and stack bases and their empty skill slots; an operator lists the summons it shows, its skills\' and its talents\'', () => {
+  const unlock = { phase: 'PHASE_0', level: 1 }, tokenStats = (/** @type {number} */ k) => ({ ...stats(k), maxDeployCount: 2, maxDeckStackCnt: 3 });
+  const talent = { unlockCondition: unlock, requiredPotentialRank: 0, name: 'T', description: 'd', rangeId: null, blackboard: [{ key: 'cnt', value: 2 }], tokenKey: 'token_c', isHideTalent: false };
+  const all = {
+    char_x: char({ displayTokenDict: { token_a: true }, skills: [{ skillId: 'sk', overrideTokenKey: 'token_b', unlockCond: unlock }], talents: [{ candidates: [talent] }] }),
+    token_a: char({ profession: 'TOKEN', skills: [{ skillId: null, unlockCond: unlock }, { skillId: 'sk', unlockCond: unlock }],
+      phases: [{ maxLevel: 50, rangeId: 'r', attributesKeyFrames: [{ level: 1, data: tokenStats(1) }, { level: 50, data: tokenStats(2) }] }] }),
+    trap_x: char({ profession: 'TRAP' }),
+  };
+  const tokens = /** @type {Record<string, any>} */ (extractTokens(all, ranges, skills, equip));
+  assert.deepEqual(Object.keys(tokens), ['token_a']);
+  assert.deepEqual([tokens.token_a.phases[0].frames[0].stats.maxDeployCount, tokens.token_a.phases[0].frames[0].stats.maxDeckStackCnt], [2, 3]);
+  assert.deepEqual(tokens.token_a.skills.map((/** @type {any} */ s) => s && s.id), [null, 'sk']);
+  const owner = /** @type {any} */ (extractTraining(all.char_x, 'char_x', ranges, skills, equip));
+  assert.deepEqual(owner.tokens, ['token_a', 'token_b', 'token_c']);
+  assert.equal(owner.skills[0].token, 'token_b');
+  assert.equal(owner.phases[0].frames[0].stats.maxDeployCount, undefined);
+  assert.equal(/** @type {any} */ (extractTraining(char(), 'char_x', ranges, skills, equip)).tokens, undefined);
+});
 
 test('[干员-1] [干员-2] [干员-3] an operator\'s training data: phases with range and keyframes, trust, potentials, skill levels, trait candidates', () => {
   const t = /** @type {any} */ (extractTraining(char(), 'char_x', ranges, skills, equip));
@@ -60,6 +80,16 @@ test('[干员-1] the committed operator files are a fresh extraction of the pinn
   assert.deepEqual([index.source, Object.keys(index.operators).length], [source, Object.keys(operators).length]);
   assert.equal(readFileSync(new URL('../ranges.json', dir), 'utf8'), `${JSON.stringify({ source, ranges })}\n`, 'ranges.json');
   assert.equal(readFileSync(new URL('../powers.json', dir), 'utf8'), `${JSON.stringify({ source, powers }, null, 1)}\n`, 'powers.json');
+});
+
+test('[召唤-1] the committed summon files are a fresh extraction of the pinned data', { skip: process.env.AUE_GAMEDATA ? false : 'AUE_GAMEDATA is not set' }, () => {
+  const { source, tokens } = /** @type {any} */ (extractRosterFromCheckout(/** @type {string} */ (process.env.AUE_GAMEDATA)));
+  const dir = new URL('../../content/data/tokens/', import.meta.url);
+  for (const id of ['token_10002_kalts_mon3tr', 'token_10020_ling_soul1', 'token_10070_aphris_pc']) {
+    assert.equal(`${JSON.stringify(tokens[id])}\n`, readFileSync(new URL(`${id}.json`, dir), 'utf8'), id);
+  }
+  const index = JSON.parse(readFileSync(new URL('index.json', dir), 'utf8'));
+  assert.deepEqual([index.source, Object.keys(index.tokens).length], [source, Object.keys(tokens).length]);
 });
 
 test('[干员-8] every range by id, in id order, its grids as in the source; a malformed one is an error', () => {

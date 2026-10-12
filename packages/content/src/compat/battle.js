@@ -9,6 +9,7 @@ import { withGrid } from './grid.js';
 import { ShUnit } from './unit.js';
 import { STATUS_NAME, statusKeyOf, modsOf, flagsOf } from './mods.js';
 import * as field from './field.js';
+import * as summoning from './summons.js';
 import { ShGrid } from './tiles.js';
 import { CompatGap } from './sh/gap.js';
 
@@ -89,18 +90,21 @@ export class ShBattle {
     this.others = new WeakMap();
     /** @type {WeakMap<object, Record<string, any>>} each engine context's Stronghold shape, shared by its handlers */
     this.shapes = new WeakMap();
+    /** @type {Record<string, any> | null} the kit of the token spawnToken is placing (summons.js) */
+    this.pendingKit = null;
     this.rng = makeRng(w);
   }
 
   // ---- units -------------------------------------------------------------------------------------------------------
 
-  /** The ShUnit of an engine unit: an operator's deck piece, else one made for it. @param {Unit} u @returns {ShUnit} */
+  /** The ShUnit of an engine unit: an operator's deck piece, a summon's token, else one made for it. @param {Unit} u @returns {ShUnit} */
   unitOf(u) {
-    if (u.kind === KIND.OPERATOR) {
+    if (u.kind === KIND.OPERATOR && u.summoner === undefined) {
       const p = this.pieces.get(`${u.owner}|${u.key}`);
       if (p) return p;
     }
     let s = this.others.get(u);
+    if (!s && u.summoner !== undefined) return summoning.tokenUnit(this, u);
     if (!s) {
       const op = u.kind === KIND.OPERATOR, d = op ? this.c.operators[u.key] : this.c.enemies[u.key];
       s = new ShUnit(this, { kind: op ? 'op' : 'enemy', key: u.key, ownerId: u.owner, def: d ? { name: d.name, profession: /** @type {any} */ (d).profession ?? null } : null, unit: u });
@@ -210,6 +214,17 @@ export class ShBattle {
   loseHp(target, amount, o) { return field.loseHp(this, target, amount, o); }
   /** @param {ShUnit} unit */
   retreat(unit) { field.retreat(this, unit); }
+
+  // ---- summons (summons.js) ----------------------------------------------------------------------------------------
+
+  /** The def of a summon as an operator's loadout makes it (兼容-3), or null. @param {string} tokenId @param {ShUnit | null} [owner] */
+  tokenDef(tokenId, owner = null) { return owner?.tokenDefs[tokenId] ?? null; }
+  /** Whether an operator's loadout makes a summon: the engine's records hold the loadout's summons. */
+  producesToken() { return true; }
+  /**
+   * @param {ShUnit | number | null} owner @param {string} tokenId @param {number} row @param {number} col @param {Record<string, any>} [opts]
+   */
+  spawnToken(owner, tokenId, row, col, opts) { return summoning.spawnToken(this, owner, tokenId, { row, col }, opts); }
 
   /** Stronghold's range cache (`(unit)`): the engine's range is computed when read. */
   refreshRange() {}

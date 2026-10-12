@@ -158,11 +158,17 @@
  * `fieldTalents` its talents for every operator of a profession or faction while it is on the field (部署-5), `powers`
  * its factions, `rangeTalents` its talents for the units in its attack range while it is on the field (部署-6),
  * `critTalents` its chances to strike harder (攻击-4), `timedTalents` its talents in time on the field (部署-7),
- * `deployTalents` what its talents do at its deployment (部署-8).
+ * `deployTalents` what its talents do at its deployment (部署-8). A summon's record names its owner's key (`summoner`)
+ * and how its card works (`summon`, 召唤-3, 召唤-4); `position` ALL lets it stand on melee and ranged tiles.
  * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
  *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, trait?: Partial<TraitDef>, respawnTime?: number, char?: string,
  *   talentBb?: Record<string, number>, fieldTalents?: TeamTalent[], powers?: string[], rangeTalents?: RangeTalent[],
- *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[] }} OperatorDef
+ *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[], summoner?: string, summon?: SummonDef }} OperatorDef
+ */
+/**
+ * A summon's card rules (召唤-3, 召唤-4): its limits on the field and held, what its owner's deployment adds (0: no card),
+ * whether it takes a place in the deploy limit (部署占用数), its 再部署策略, whether it stays when its owner leaves (召唤-5).
+ * @typedef {{ deployLimit: number, holdLimit: number, supply: number, occupy: number, respawn: 'default' | 'unique' | 'queue', stays?: boolean }} SummonDef
  */
 /**
  * A deployment talent (部署-8): SP between `sp[0]` and below `sp[1]`, a heal of every operator (`value` HP or `scale` × the
@@ -289,6 +295,7 @@
  * @property {Cell[]} [range] an operator's own attack range when content changed it, over its record's (攻击-1)
  * @property {Swing | null} swing the attack it is in the wind-up of, null for none (攻击-2)
  * @property {number} anim schema ANIM
+ * @property {number} [summoner] the id of the unit that summoned it (召唤-4, 召唤-6); left out for others
  */
 
 /**
@@ -338,11 +345,16 @@
  * @typedef {{ penalty: number, ready: number }} Card
  */
 /**
+ * A summon's card in a player's deck (召唤-4): copies held, the frame it may be deployed from, copies cooling (队列).
+ * @typedef {{ held: number, ready: number, cooling: number }} SummonCard
+ */
+/**
  * A player: life, cost and its timer, the operators on the field, the deck's cards; `revive` is the frames left until a
  * down player comes back (−1 when not down), `downs` how often they went down (合作-4); `ask` the frames left of their
- * open cost request (−1 for none), `askCd` the frames until they may ask again (合作-5).
+ * open cost request (−1 for none), `askCd` the frames until they may ask again (合作-5); its summons' cards, once one
+ * has one (召唤-4).
  * @typedef {{ life: number, cost: number, costTimer: number, deployed: string[], cards: Record<string, Card>, revive: number, downs: number,
- *   ask: number, askCd: number }} Player
+ *   ask: number, askCd: number, summons?: Record<string, SummonCard> }} Player
  */
 
 /**

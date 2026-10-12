@@ -7,7 +7,8 @@ import rangeTable from '../../data/ranges.json' with { type: 'json' };
 import { coveredBranch, BRANCHES } from '../traits.js';
 import { statsAt, moduleAt } from '../operators.js';
 import { unlockedAt, talentsAt } from '../talents.js';
-import { normalizeChess, flattenBlackboard } from './sh/simdata.js';
+import { SUMMON_PAGES, tokenBuild, tokenModule, limitsAt, supplyAt } from '../tokens.js';
+import { normalizeChess, normalizeToken, flattenBlackboard } from './sh/simdata.js';
 
 /** @typedef {import('../operators.js').Training} Training @typedef {import('../operators.js').Build} Build @typedef {Record<string, any>} Rec */
 
@@ -29,7 +30,7 @@ const SP_NAMES = { 1: 'INCREASE_WITH_TIME', 2: 'INCREASE_WHEN_ATTACK', 4: 'INCRE
  */
 function skillRecords(t, b) {
   return t.skills.flatMap((slot, index) => {
-    if (slot.phase > b.elite) return [];
+    if (!slot || slot.phase > b.elite) return [];
     const lv = slot.levels[clamp(b.skillLevel, 1, slot.levels.length) - 1];
     const sp = lv.spData, bb = flattenBlackboard(lv.blackboard), bbStr = Object.fromEntries(lv.blackboard.filter((e) => /** @type {any} */ (e).valueStr != null).map((e) => [e.key, /** @type {any} */ (e).valueStr]));
     return [{
@@ -152,3 +153,24 @@ export function defOf(charId, t, b) {
     diy: { charId, skillIndex: rec.skill?.index ?? null, uniEquipId: rec.module.id } };
   return d;
 }
+
+/**
+ * A summon's record at its owner's build (兼容-3, 召唤-2…召唤-4), as a variant of Stronghold's tokens.json: its
+ * attributes with its field limit, range, trait, talents and the skill of its owner's slot at their training; how many
+ * its owner's deployment adds (null: none said) and how the owner makes it.
+ * @param {string} id @param {Training} token @param {Training} owner @param {Build} b @returns {Rec}
+ */
+export function tokenRecordOf(id, token, owner, b) {
+  const tb = tokenBuild(token, b), mod = tokenModule(owner, b, id), s = statsAt(token, tb, mod), supply = supplyAt(owner, b, id);
+  const byTalent = owner.talents.flat().some((c) => c.token === id), bySkill = b.skill >= 0 && owner.skills[b.skill]?.token === id;
+  return {
+    name: token.name, profession: 'TOKEN', subProfessionId: token.branch, position: SUMMON_PAGES[id]?.position ?? token.position,
+    description: token.description ?? '', phase: tb.elite, level: tb.level,
+    stats: { ...statsRecord(s), deployLimit: limitsAt(token, tb, mod).deployLimit }, rangeGrid: token.phases[tb.elite].range.map((c) => [c.row, c.col]),
+    trait: traitRecord(token, tb, mod), talents: talentRecords(token, tb, mod), skill: skillRecords(token, tb).find((x) => x.index === tb.skill) ?? null,
+    count: supply > 0 ? supply : null, sources: byTalent || bySkill ? [...(byTalent ? ['talent'] : []), ...(bySkill ? ['skill'] : [])] : ['display'],
+  };
+}
+
+/** The def a kit receives for a summon (兼容-3): its record (tokenRecordOf) normalised. @param {string} id @param {Training} token @param {Training} owner @param {Build} b */
+export const tokenDefOf = (id, token, owner, b) => normalizeToken(id, tokenRecordOf(id, token, owner, b));

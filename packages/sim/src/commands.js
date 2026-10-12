@@ -7,6 +7,7 @@ import { onDeploy, commandSkill } from './skills.js';
 import { traitDeploy, traitOfDef, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
 import { cardOf, deployCost, withdraw } from './deck.js';
+import { occupying, summonProblem, deploySummon, supplySummons } from './summons.js';
 import { isDown, askCost, answerCost } from './coop.js';
 import { emit } from './bus.js';
 
@@ -16,12 +17,12 @@ import { emit } from './bus.js';
 
 /**
  * Whether an operator may stand on a tile (部署-1): a tile of its position or of both; a melee one whose trait allows it
- * (职业-10) also on a ranged tile.
+ * (职业-10) also on a ranged tile; a summon of 全部位 on either (召唤-4).
  * @param {Content} c @param {import('./types.js').OperatorDef} d @param {number} row @param {number} col
  */
 function fits(c, d, row, col) {
-  const tile = tileAt(c.level, row, col);
-  return buildableFor(tile, d.position) || (traitOfDef(d).rangedTiles && buildableFor(tile, 'RANGED'));
+  const tile = tileAt(c.level, row, col), melee = buildableFor(tile, 'MELEE'), ranged = buildableFor(tile, 'RANGED');
+  return d.position === 'ALL' ? melee || ranged : buildableFor(tile, d.position) || (traitOfDef(d).rangedTiles && ranged);
 }
 
 /**
@@ -30,20 +31,47 @@ function fits(c, d, row, col) {
  */
 export const fitsTile = (c, key, row, col) => Object.hasOwn(c.operators, key) && fits(c, c.operators[key], row, col);
 
+/** An operator record that takes no place in the deploy limit (部署-2): a free trait's. @param {import('./types.js').OperatorDef} d */
+const free = (d) => traitOfDef(d).free === true;
+
 /**
- * Why a deploy is refused, or null (spec 部署-1…部署-3).
+ * Why a deploy is refused, or null (spec 部署-1…部署-3, 召唤-4): a summon's by its card, an operator's by its own.
  * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd @returns {string | null}
  */
 export function deployProblem(w, c, seat, cmd) {
   const d = Object.hasOwn(c.operators, cmd.op) ? c.operators[cmd.op] : null, p = w.players[seat];
   if (!d || !p) return 'unknown operator or seat';
-  if (c.decks && !c.decks[seat]?.includes(cmd.op)) return 'not in the deck';
+  if (c.decks && !c.decks[seat]?.includes(d.summon ? d.summoner ?? '' : cmd.op)) return 'not in the deck';
   if (isDown(p)) return 'player down';
+  return d.summon ? summonProblem(w, c, seat, cmd.op) ?? limitProblem(w, c, seat, d) ?? placeProblem(w, c, seat, cmd, d.cost) : operatorProblem(w, c, seat, cmd);
+}
+
+/**
+ * An operator's own reasons (部署-2, 部署-3): on the field already, the deploy limit, redeploying, then the place's.
+ * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd
+ */
+function operatorProblem(w, c, seat, cmd) {
+  const p = w.players[seat], d = c.operators[cmd.op];
   if (p.deployed.includes(cmd.op)) return 'already deployed';
-  if (!traitOfDef(d).free && p.deployed.filter((k) => !traitOfDef(c.operators[k]).free).length >= c.level.options.characterLimit) return 'deploy limit reached';
-  if (w.frame < cardOf(p, cmd.op).ready) return 'redeploying';
-  if (p.cost < deployCost(c, p, cmd.op)) return 'not enough cost';
-  if (!fits(c, d, cmd.row, cmd.col)) return 'tile not buildable for this operator';
+  return limitProblem(w, c, seat, d) ?? (w.frame < cardOf(p, cmd.op).ready ? 'redeploying' : null) ?? placeProblem(w, c, seat, cmd, deployCost(c, p, cmd.op));
+}
+
+/**
+ * The deploy limit (部署-2, 召唤-4): an operator that is not free, or a summon whose 部署占用数 is 1, needs a place.
+ * @param {World} w @param {Content} c @param {number} seat @param {import('./types.js').OperatorDef} d
+ */
+function limitProblem(w, c, seat, d) {
+  const takes = d.summon ? d.summon.occupy === 1 : !free(d);
+  return takes && occupying(w, c, seat, free) >= c.level.options.characterLimit ? 'deploy limit reached' : null;
+}
+
+/**
+ * The cost and the tile (部署-1, 部署-2): the cost of now, a tile the record may stand on, no operator there.
+ * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd @param {number} cost
+ */
+function placeProblem(w, c, seat, cmd, cost) {
+  if (w.players[seat].cost < cost) return 'not enough cost';
+  if (!fits(c, c.operators[cmd.op], cmd.row, cmd.col)) return 'tile not buildable for this operator';
   if (w.units.some((u) => u.kind === KIND.OPERATOR && u.x === cmd.col && u.y === cmd.row)) return 'tile occupied';
   return null;
 }
@@ -54,6 +82,10 @@ export function deployProblem(w, c, seat, cmd) {
  */
 function deploy(w, c, seat, cmd) {
   if (deployProblem(w, c, seat, cmd)) return;
+  if (c.operators[cmd.op].summon) {
+    deploySummon(w, c, seat, cmd);
+    return;
+  }
   const p = w.players[seat], paid = deployCost(c, p, cmd.op);
   const u = makeOperator(w, c, { key: cmd.op, owner: seat, row: cmd.row, col: cmd.col, dir: cmd.dir, paid });
   p.cost -= paid;
@@ -64,6 +96,7 @@ function deploy(w, c, seat, cmd) {
   modeDeploy(u, traitOf(c, u));
   deployTalents(w, c, u);
   onDeploy(w, c, u);
+  supplySummons(w, c, u);
   emit(w, 'deploy', { unit: u, initial: false });
 }
 

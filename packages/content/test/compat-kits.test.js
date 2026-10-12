@@ -59,7 +59,7 @@ test('[兼容-3] an operator’s record at a build: its own attributes, range, t
   assert.deepEqual([rec.stats.maxHp, rec.stats.atk, rec.stats.bat, rec.stats.cost], [s.maxHp, s.atk, s.baseAttackTime, s.cost], 'no talent folded in');
   assert.deepEqual(rec.rangeGrid, t.phases[2].range.map((c) => [c.row, c.col]));
   assert.deepEqual([rec.skills.length, rec.skill.skillId, rec.skill.index], [3, 'skchr_wisdel_3', 2]);
-  assert.equal(rec.skill.bb.atk, t.skills[2].levels[9].blackboard.find((e) => e.key === 'atk')?.value);
+  assert.equal(rec.skill.bb.atk, t.skills[2]?.levels[9].blackboard.find((e) => e.key === 'atk')?.value);
   assert.deepEqual([rec.module.id, rec.module.level, rec.module.active, rec.status], [t.modules[0].id, 3, true, { phase: 2, level: 90, skillLevel: 10, equipLevel: 3 }]);
   assert.ok(rec.talents.some((/** @type {any} */ x) => x.fromModule), 'its module changes a talent');
   const low = recordOf('char_1035_wisdel', t, { elite: 0, level: 1, potential: 1, trust: 0, skill: 0, skillLevel: 1 });

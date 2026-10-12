@@ -143,3 +143,34 @@ export function normalizeChess(rec) {
     ...(rec.diyFor ? { diyFor: rec.diyFor } : null), raw: rec,
   };
 }
+
+/** A token's damage type: its record's, else by the words of its description (法术, 真实, 恢复/治疗). @param {Rec} t @param {string} desc */
+const tokenDmgType = (t, desc) => (t.dmgType ? normDmgType(t.dmgType) : /法术/.test(desc) ? 'arts' : /真实/.test(desc) ? 'true' : /恢复|治疗/.test(desc) ? 'heal' : 'phys');
+
+/**
+ * What a token's description and record say of it: untargetable when it is not attacked, its abnormal effects, its
+ * trait text and blackboard.
+ * @param {Rec} t @param {string} desc
+ */
+const tokenTraits = (t, desc) => ({
+  untargetable: t.untargetable ?? /不会受到攻击|不会成为/.test(desc), abnormal: Array.isArray(t.abnormal) ? t.abnormal.filter((x) => typeof x === 'string') : [],
+  trait: desc, traitBb: t.trait && typeof t.trait === 'object' ? { ...(t.trait.bb || {}) } : {},
+});
+
+/**
+ * A token record, normalised (Stronghold's normalizeToken): the "def" a kit receives for a summon, from the record of its
+ * owner's loadout (records.js tokenRecordOf).
+ * @param {string} id @param {Rec} t @returns {Rec}
+ */
+export function normalizeToken(id, t) {
+  const desc = String(first(t, ['description', 'desc'], typeof t.trait === 'string' ? t.trait : t.trait?.desc ?? ''));
+  return {
+    type: 'token', id, baseId: id, golden: false, name: t.name ?? id, charId: id, tier: num(t.tier, 1), rarity: 1,
+    profession: String(t.profession ?? 'TOKEN').toUpperCase(), subProf: first(t, ['subProfessionId', 'subProf'], null),
+    position: String(t.position ?? 'MELEE').toUpperCase(), bonds: [], stats: normStats(t.stats), rangeGrid: toArrayOfPairs(t.rangeGrid) ?? [[0, 0], [0, 1]],
+    dmgType: tokenDmgType(t, desc), attackKind: t.attackKind ? String(t.attackKind).toLowerCase() : null,
+    ...Object.fromEntries(['projectile', 'canHitFly', 'targetPriority'].map((k) => [k, t[k] ?? null])),
+    ...tokenTraits(t, desc), immune: immuneSet(t.immunities), skill: normalizeSkill(t), talents: (t.talents ?? []).map(talentOf), tokens: [], count: num(t.count, 1),
+    sources: Array.isArray(t.sources) ? [...t.sources] : null, spine: t.spine ?? id, avatar: t.avatar ?? id, raw: t,
+  };
+}

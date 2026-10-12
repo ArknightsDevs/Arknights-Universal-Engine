@@ -73,7 +73,7 @@ function intermission(w, c) {
     w.units = w.units.filter((x) => x !== u);
     releaseAll(w, u.id);
     leaveField(w, c, u, true);
-    w.players[u.owner].cards[u.key].ready = w.frame;
+    if (!c.operators[u.key].summon) w.players[u.owner].cards[u.key].ready = w.frame;
     w.events.push({ type: 'retreat', id: u.id });
   }
   w.players.forEach((p, seat) => {

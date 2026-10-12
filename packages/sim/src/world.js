@@ -13,6 +13,7 @@ import { operatorsAttack, shotsFly } from './combat.js';
 import { foeEffects, foeDeath, releasePassengers } from './foes.js';
 import { applyCommand } from './commands.js';
 import { leaveField } from './deck.js';
+import { coolSummons, dismissSummons } from './summons.js';
 import { tickRevival, tickRequests, neutralDown } from './coop.js';
 import { tickBuffs } from './buffs.js';
 import { STATUS_BEHAVIORS } from './status.js';
@@ -55,7 +56,7 @@ function gainCost(w, c) {
 
 /**
  * Removes units with no HP left (伤害-9): enemies killed by attacks die, enemies at the goal leave quietly; an operator
- * that falls releases what it blocks (阻挡-3) and leaves the field without a refund (部署-3).
+ * that falls releases what it blocks (阻挡-3) and leaves the field without a refund (部署-3), its summons with it (召唤-5).
  * @param {World} w @param {Content} c
  */
 function removeDead(w, c) {
@@ -72,7 +73,9 @@ function removeDead(w, c) {
     releaseAll(w, u.id);
     if (u.kind === KIND.OPERATOR) leaveField(w, c, u, false);
   }
+  const fell = w.units.filter((u) => u.hp <= 0 && u.kind === KIND.OPERATOR).map((u) => u.id);
   w.units = w.units.filter((u) => u.hp > 0);
+  if (fell.length) dismissSummons(w, c, fell);
 }
 
 /**
@@ -118,6 +121,7 @@ export function step(w, c, commands = []) {
   runTimers(w);
   if (w.frame === 0) emit(w, 'battleStart', {});
   gainCost(w, c);
+  coolSummons(w, c);
   tickRevival(w, c);
   tickRequests(w);
   tickStage(w, c);

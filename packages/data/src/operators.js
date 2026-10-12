@@ -10,6 +10,8 @@ const STATS = Object.freeze({
   maxHp: 'maxHp', atk: 'atk', def: 'def', magicResistance: 'res', cost: 'cost', blockCnt: 'blockCnt', baseAttackTime: 'baseAttackTime',
   respawnTime: 'respawnTime', attackSpeed: 'aspd', tauntLevel: 'tauntLevel', massLevel: 'massLevel',
 });
+/** What a summon's keyframe keeps besides (召唤-2): how many may be deployed and held at once. */
+const TOKEN_STATS = Object.freeze({ ...STATS, maxDeployCount: 'maxDeployCount', maxDeckStackCnt: 'maxDeckStackCnt' });
 /** A potential's attributeType and the engine's attribute it adds to (干员-1). */
 const POTENTIAL_STATS = Object.freeze({ COST: 'cost', RESPAWN_TIME: 'respawnTime', ATK: 'atk', DEF: 'def', MAX_HP: 'maxHp', ATTACK_SPEED: 'aspd', MAGIC_RESISTANCE: 'res' });
 /**
@@ -18,10 +20,13 @@ const POTENTIAL_STATS = Object.freeze({ COST: 'cost', RESPAWN_TIME: 'respawnTime
  */
 const CLOSABLE = /(随时|主动|手动)[^，。；\n<]*(停止|关闭)/u;
 
-/** A keyframe's attributes in the engine's names. @param {unknown} raw @param {string} p @returns {Record<string, number>} */
-function statsOf(raw, p) {
+/**
+ * A keyframe's attributes in the engine's names.
+ * @param {unknown} raw @param {string} p @param {Readonly<Record<string, string>>} [keys] @returns {Record<string, number>}
+ */
+function statsOf(raw, p, keys = STATS) {
   const d = asObject(raw, p);
-  return Object.fromEntries(Object.entries(STATS).map(([k, to]) => [to, asNumber(field(d, k, p), `${p}.${k}`, -1e9, 1e9)]));
+  return Object.fromEntries(Object.entries(keys).map(([k, to]) => [to, asNumber(field(d, k, p), `${p}.${k}`, -1e9, 1e9)]));
 }
 
 /** A blackboard list as { key: value }. @param {unknown} raw @param {string} p @returns {Record<string, number>} */
@@ -60,7 +65,7 @@ export function extractRanges(rangesRaw) {
  * @returns {Record<string, unknown>}
  */
 export function extractTraining(raw, id, rangesRaw, skillsRaw, equipment) {
-  const p = `characters[${id}]`, c = asObject(raw, p);
+  const p = `characters[${id}]`, c = asObject(raw, p), keys = c.profession === 'TOKEN' ? TOKEN_STATS : STATS;
   const phases = asArray(field(c, 'phases', p), `${p}.phases`).map((ph, i) => {
     const pp = `${p}.phases[${i}]`, o = asObject(ph, pp);
     return {
@@ -68,7 +73,7 @@ export function extractTraining(raw, id, rangesRaw, skillsRaw, equipment) {
       range: rangeOf(rangesRaw, asString(field(o, 'rangeId', pp), `${pp}.rangeId`)),
       frames: asArray(field(o, 'attributesKeyFrames', pp), `${pp}.attributesKeyFrames`).map((f, k) => {
         const fp = `${pp}.attributesKeyFrames[${k}]`, fo = asObject(f, fp);
-        return { level: asInt(field(fo, 'level', fp), `${fp}.level`, 1, 200), stats: statsOf(field(fo, 'data', fp), `${fp}.data`) };
+        return { level: asInt(field(fo, 'level', fp), `${fp}.level`, 1, 200), stats: statsOf(field(fo, 'data', fp), `${fp}.data`, keys) };
       }),
     };
   });
@@ -83,11 +88,39 @@ export function extractTraining(raw, id, rangesRaw, skillsRaw, equipment) {
     phases,
     favor: favor ? { level: asInt(favor.level, `${p}.favorKeyFrames.level`, 0, 200), stats: statsOf(favor.data, `${p}.favorKeyFrames.data`) } : null,
     potentials: asArray(c.potentialRanks ?? [], `${p}.potentialRanks`).map((r, i) => potentialOf(r, `${p}.potentialRanks[${i}]`)),
-    skills: asArray(field(c, 'skills', p), `${p}.skills`).map((s, i) => skillOf(s, `${p}.skills[${i}]`, skillsRaw)),
+    // a summon's empty skill slot stays null: a slot's index is its owner's skill's (召唤-1)
+    skills: asArray(field(c, 'skills', p), `${p}.skills`).map((s, i) => (asObject(s, `${p}.skills[${i}]`).skillId === null ? null : skillOf(s, `${p}.skills[${i}]`, skillsRaw))),
     traits: traitsOf(c.trait, `${p}.trait`),
     talents: talentsOf(c.talents, `${p}.talents`),
     modules: modulesOf(id, equipment),
+    ...tokensOf(c, p),
+    // a summon's description says what it is (召唤-1): 不会受到攻击…
+    ...(c.profession === 'TOKEN' ? { description: c.description === null || c.description === undefined ? null : asString(c.description, `${p}.description`) } : {}),
   };
+}
+
+/**
+ * The summons an operator makes (召唤-1): those it shows, its skills' and its talents' — sorted; nothing when none.
+ * @param {Record<string, unknown>} c @param {string} p @returns {{ tokens?: string[] }}
+ */
+function tokensOf(c, p) {
+  const shown = Object.keys(asObject(c.displayTokenDict ?? {}, `${p}.displayTokenDict`));
+  const bySkill = asArray(c.skills ?? [], `${p}.skills`).map((s) => asObject(s, `${p}.skills`).overrideTokenKey);
+  const byTalent = asArray(c.talents ?? [], `${p}.talents`).flatMap((t) => asArray(asObject(t, `${p}.talents`).candidates ?? [], `${p}.talents.candidates`))
+    .map((x) => asObject(x, `${p}.talents.candidates`).tokenKey);
+  const all = [...new Set([...shown, ...bySkill, ...byTalent].filter((x) => typeof x === 'string' && x !== ''))].toSorted();
+  return all.length ? { tokens: /** @type {string[]} */ (all) } : {};
+}
+
+/**
+ * Every summon of character_table (召唤-1): its training data as an operator's, in id order.
+ * @param {unknown} charactersRaw @param {unknown} rangesRaw @param {unknown} skillsRaw
+ * @param {{ uniequip: unknown, battle: unknown }} equipment @returns {Record<string, Record<string, unknown>>}
+ */
+export function extractTokens(charactersRaw, rangesRaw, skillsRaw, equipment) {
+  const all = asObject(charactersRaw, 'characters');
+  const ids = Object.keys(all).filter((id) => id.startsWith('token_') && asObject(all[id], `characters[${id}]`).profession === 'TOKEN').toSorted();
+  return Object.fromEntries(ids.map((id) => [id, extractTraining(all[id], id, rangesRaw, skillsRaw, equipment)]));
 }
 
 /**
@@ -139,9 +172,10 @@ function potentialOf(raw, p) {
 function skillOf(raw, p, skillsRaw) {
   const s = asObject(raw, p), id = asString(field(s, 'skillId', p), `${p}.skillId`);
   const sp = `skills[${id}]`, levels = asArray(field(asObject(field(asObject(skillsRaw, 'skills'), id, 'skills'), sp), 'levels', sp), `${sp}.levels`);
+  const token = s.overrideTokenKey === null || s.overrideTokenKey === undefined ? null : asString(s.overrideTokenKey, `${p}.overrideTokenKey`);
   return {
     id, phase: phaseOf(asObject(field(s, 'unlockCond', p), `${p}.unlockCond`).phase, `${p}.unlockCond.phase`),
-    levels: levels.map((l, i) => levelOf(l, `${sp}.levels[${i}]`)),
+    levels: levels.map((l, i) => levelOf(l, `${sp}.levels[${i}]`)), ...(token ? { token } : {}),
   };
 }
 

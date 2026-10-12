@@ -10,6 +10,7 @@
   "base": [],
   "born": [],
   "bornN": [],
+  "summoner": [],
   "blockedBy": [
     "packages/sim/src/blocking.js"
   ],

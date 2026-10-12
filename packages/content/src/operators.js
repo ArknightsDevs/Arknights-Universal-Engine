@@ -18,8 +18,9 @@ import { unlockedAt, talentsAt, alwaysOnBb, teamPart, rangePart, critPart, timed
  * @typedef {{ name: string, position: 'MELEE' | 'RANGED', profession: string, branch: string, powers: string[], rarity: number,
  *   phases: { maxLevel: number, range: { row: number, col: number }[], frames: { level: number, stats: Stats }[] }[],
  *   favor: { level: number, stats: Stats } | null, potentials: Stats[],
- *   skills: { id: string, phase: number, levels: import('./skills.js').SkillLevel[] }[],
- *   traits: { phase: number, level: number, potential: number, bb: Stats }[], talents: TalentCandidate[][], modules: Module[] }} Training
+ *   skills: ({ id: string, phase: number, levels: import('./skills.js').SkillLevel[], token?: string } | null)[],
+ *   traits: { phase: number, level: number, potential: number, bb: Stats }[], talents: TalentCandidate[][], modules: Module[], tokens?: string[],
+ *   description?: string | null }} Training
  */
 /**
  * A talent candidate (干员-4): unlock, name and description (null for a hidden one), range id, numeric and text blackboard.
@@ -144,12 +145,19 @@ function talentFields(t, b, mod) {
  * talents' fields (talentFields). Throws for an elite phase it does not have, or a skill or module not unlocked yet.
  * @param {Training} t @param {Build} b @returns {OperatorDef}
  */
-export function operatorAt(t, b) {
+export const operatorAt = (t, b) => recordAt(t, b, moduleAt(t, b));
+
+/**
+ * A training's record (operatorAt) with the module level given: the operator's own, or what its owner's module gives a
+ * summon (召唤-2).
+ * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @returns {OperatorDef}
+ */
+export function recordAt(t, b, mod) {
   const phase = t.phases[b.elite];
   if (!phase) throw new RangeError(`${t.name}: no elite phase ${b.elite}`);
   const slot = b.skill >= 0 ? t.skills[b.skill] : undefined;
   if (b.skill >= 0 && (!slot || slot.phase > b.elite)) throw new RangeError(`${t.name}: skill ${b.skill} is not unlocked at elite ${b.elite}`);
-  const mod = moduleAt(t, b), s = statsAt(t, b, mod), level = slot ? slot.levels[clamp(b.skillLevel, 1, slot.levels.length) - 1] : null;
+  const s = statsAt(t, b, mod), level = slot ? slot.levels[clamp(b.skillLevel, 1, slot.levels.length) - 1] : null;
   const { cost, respawn, fields } = talentFields(t, b, mod);
   return withTrait({
     name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: phase.range, traitBb: traitAt(t, b),

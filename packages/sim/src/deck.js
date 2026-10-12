@@ -5,6 +5,7 @@ import { secondsToFrames } from '@aue/math';
 import { traitOfDef, gainCost } from './traits.js';
 import { releaseAll } from './blocking.js';
 import { emit } from './bus.js';
+import { summonLeft, dismissSummons } from './summons.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Player} Player @typedef {import('./types.js').Card} Card */
@@ -25,10 +26,15 @@ export const deployCost = (c, p, key) => Math.floor(c.operators[key].cost * (1 +
 
 /**
  * An operator leaves the field (部署-3, 撤退-1): a retreat returns ⌊min(paid × 返还倍率, initial cost)⌋ cost; either way
- * its card gains a penalty layer (at most 2) and it may be deployed again after its 再部署时间.
+ * its card gains a penalty layer (at most 2) and it may be deployed again after its 再部署时间. A summon has its own
+ * card (召唤-4).
  * @param {World} w @param {Content} c @param {Unit} u @param {boolean} retreated
  */
 export function leaveField(w, c, u, retreated) {
+  if (c.operators[u.key].summon) {
+    summonLeft(w, c, u);
+    return;
+  }
   const p = w.players[u.owner], d = c.operators[u.key], card = cardOf(p, u.key);
   if (retreated) gainCost(w, c, u.owner, Math.floor(Math.min(u.paid * traitOfDef(d).refund, d.cost)));
   p.cards[u.key] = { penalty: Math.min(MAX_PENALTY, card.penalty + 1), ready: w.frame + secondsToFrames(d.respawnTime ?? DEFAULT_RESPAWN) };
@@ -37,7 +43,7 @@ export function leaveField(w, c, u, retreated) {
 
 /**
  * An operator on the field retreats (撤退-1): it leaves at once, lets go of what it blocks, takes its refund, penalty and
- * 再部署时间, and the event `retreat` tells it.
+ * 再部署时间, and the event `retreat` tells it; its summons leave with it (召唤-5).
  * @param {World} w @param {Content} c @param {Unit} u
  */
 export function withdraw(w, c, u) {
@@ -47,4 +53,5 @@ export function withdraw(w, c, u) {
   w.events.push({ type: 'retreat', id: u.id });
   if (u.skill?.active) emit(w, 'skillEnd', { unit: u, reason: 'death' });
   emit(w, 'death', { unit: u, reason: 'retreat', killer: null });
+  dismissSummons(w, c, [u.id]);
 }
