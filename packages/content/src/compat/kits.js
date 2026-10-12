@@ -7,6 +7,7 @@ import { KIND, bus } from '@aue/sim';
 import { ShBattle } from './battle.js';
 import { ShUnit } from './unit.js';
 import { battles, SPEC_BEHAVIOR, onAttackHit, onAttackDone } from './specs.js';
+import { KIT_BUFF, KIT_BUFF_BEHAVIOR, worldBattles } from './buffhooks.js';
 
 /** @typedef {import('@aue/sim').World} World @typedef {import('@aue/sim').Content} Content @typedef {import('@aue/sim').Unit} Unit */
 /**
@@ -27,6 +28,7 @@ const FIRST = 1e9;
 export function kitsWorld(kits, seen) {
   return (w, c) => {
     const b = new ShBattle(w, c);
+    worldBattles.set(w, b);
     bus.on(w, 'battleStart', () => { b.started = true; }, { priority: FIRST });
     bus.on(w, 'enter', (k) => bind(b, k.unit), { priority: FIRST });
     bus.on(w, 'skillStart', (k) => { const s = b.pieces.get(`${k.unit.owner}|${k.unit.key}`)?.skill; if (s && !s.counted) s.activations++; if (s) s.counted = false; }, { priority: FIRST });
@@ -74,12 +76,12 @@ function bind(b, u) {
 }
 
 /**
- * What content needs to bring kits into its battles (兼容-4, 兼容-5): the world setup, and the skill behaviour of every
- * skill a kit describes, by skill id.
+ * What content needs to bring kits into its battles (兼容-4, 兼容-5): the world setup, the skill behaviour of every
+ * skill a kit describes, by skill id, and the behaviour of a kit's buffs with callbacks.
  * @param {Record<string, KitEntry>} kits by operator key @param {(b: ShBattle) => void} [seen]
- * @returns {{ world: (w: World, c: Content) => void, skills: Record<string, import('@aue/sim').SkillBehavior> }}
+ * @returns {{ world: (w: World, c: Content) => void, skills: Record<string, import('@aue/sim').SkillBehavior>, buffs: Record<string, import('@aue/sim').buffs.Behavior> }}
  */
 export function kitsBehaviors(kits, seen) {
   const ids = Object.values(kits).flatMap((e) => [e.def.skill?.id, ...Object.values(e.tokens ?? {}).map((d) => d.skill?.id)]).filter((id) => typeof id === 'string');
-  return { world: kitsWorld(kits, seen), skills: Object.fromEntries(ids.map((id) => [id, SPEC_BEHAVIOR])) };
+  return { world: kitsWorld(kits, seen), skills: Object.fromEntries(ids.map((id) => [id, SPEC_BEHAVIOR])), buffs: { [KIT_BUFF]: KIT_BUFF_BEHAVIOR } };
 }

@@ -1,6 +1,6 @@
 // The per-kit differential (docs/spec/compat.md 兼容-6, ADR 0058): one kit, one skill, in the pinned Stronghold's own
 // battle harness and in our engine through the compat layer — the same training (its 自选 elite form: E2 60, 潜能 6,
-// trust 0, skill rank 7, its last module at stage 3), alone against a rooted dummy (1e7 HP, 0 DEF and RES) in front of
+// trust 0, skill rank 7, its last module at stage 3), alone against a still dummy (1e7 HP, 0 DEF and RES) in front of
 // it for 40 s; a MANUAL skill starts as soon as it is ready on our side (the player's). Compared: the buffs one second
 // after deployment (those that change something, the skill's aside), the HP each of its hits took (元素损伤 aside) and
 // each of its heals gave (as sets, Stronghold's attributes rounded, so within 0.5 %), the skill starts (±1), the
@@ -12,7 +12,7 @@ import { cpSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { oracleDir, STRONGHOLD, oneWave, spawnAt } from '@aue/testkit';
-import { createWorld, step, bus, status } from '@aue/sim';
+import { createWorld, step, bus, buffs as buffKit } from '@aue/sim';
 import { KIT_FILES } from '../src/index.js';
 import { loadUnderGrid } from '../src/compat/grid.js';
 import { defOf, tokenDefOf } from '../src/compat/records.js';
@@ -34,13 +34,18 @@ const r1 = (x) => Math.round(x * 10) / 10;
 const byKey = (a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
 
 /**
- * Buffs as key → sorted mods, without the ones that change nothing, the skill's, and our engine's own branch-trait buff
- * (`trait`, 职业-6: Stronghold keeps a trait's flags in the unit's profile instead). @param {any[]} list
+ * Buffs as key → sorted mods, without the ones that change nothing and the skill's. The branch trait's buff — our
+ * engine's `trait` (职业-6), Stronghold's `trait:<branch>` — counts as `trait` by its modifiers alone: Stronghold keeps a
+ * trait's flags in the unit's profile instead. @param {any[]} list @param {string} branch
  */
-const buffMap = (list) => Object.fromEntries(list
-  .filter((b) => !String(b.key).startsWith('skill') && b.key !== 'trait' && (Object.keys(b.mods ?? {}).length > 0 || Object.values(b.flags ?? {}).some(Boolean)))
+const buffMap = (list, branch) => Object.fromEntries(list
+  .map((b) => (b.key === 'trait' || b.key === `trait:${branch}` ? { key: 'trait', mods: b.mods } : b))
+  .filter((b) => !String(b.key).startsWith('skill') && (Object.keys(b.mods ?? {}).length > 0 || Object.values(b.flags ?? {}).some(Boolean)))
   .map((b) => /** @type {[string, unknown]} */ ([b.key, Object.fromEntries(Object.entries(b.mods ?? {}).sort(byKey).map(([k, v]) => [k, Math.round(Number(v) * 1e6) / 1e6]))]))
   .sort(byKey));
+
+/** A Stronghold unit's branch (its profile's `sub`), '' for none. @param {any} u @returns {string} */
+const branchOf = (u) => u.profile?.sub ?? '';
 
 /** @type {{ harness: any, kitRoot: string } | null} */
 let ready = null;
@@ -67,7 +72,7 @@ function strongholdRun(H, charId, skillIndex, uniEquipId) {
   h.step(1);
   const u = h.allies()[0];
   h.run(1);
-  const buffs = buffMap(u.buffs);
+  const buffs = buffMap(u.buffs, branchOf(u));
   h.run(SECONDS - 1);
   const mine = (/** @type {any} */ x) => x.source === u || x.source?.id === u.id;
   const damaged = h.hooksOf('damaged');
@@ -125,12 +130,13 @@ async function ourRun(charId, factory, skill, module) {
   const box = /** @type {{ b: any }} */ ({ b: null });
   c.behaviors = kitsBehaviors({ op: { factory: /** @type {any} */ (factory), def: defOf(charId, t, b), tokens } }, (x) => { box.b = x; });
   const w = createWorld(c, { seed: 7, players: 1 }), log = { hits: /** @type {number[]} */ ([]), heals: /** @type {number[]} */ ([]), starts: 0, statuses: /** @type {Set<string>} */ (new Set()) };
-  bus.on(w, 'enemySpawn', (k) => { status.applyStatus(k.enemy, 'root', {}); }, { priority: 1e9 });
+  // held in place as Stronghold's speed-0 dummy: by a buff that is no status (束缚 is one a kit may look for)
+  bus.on(w, 'enemySpawn', (k) => { buffKit.addBuff(k.enemy, buffKit.makeBuff({ key: 'kitdiff:still', flags: { root: true } })); }, { priority: 1e9 });
   const op = () => w.units.find((x) => x.key === 'op');
   record(w, op, log);
   step(w, c, [[0, { type: 'deploy', op: 'op', row: 1, col: 2, dir: 0 }]]);
   for (let i = 0; i < 30; i++) step(w, c);
-  const u = op(), buffs = u ? buffMap(u.buffs) : null, manual = c.operators.op.skill?.type === 'MANUAL';
+  const u = op(), buffs = u ? buffMap(u.buffs, c.operators.op.branch ?? '') : null, manual = c.operators.op.skill?.type === 'MANUAL';
   for (let i = 30; i < SECONDS * 30; i++) step(w, c, manual ? startWhenReady(op()) : []);
   return { atk: c.operators.op.atk, buffs, ...log, statuses: [...log.statuses].sort(), errors: [...new Set(box.b.errors.map((/** @type {any} */ e) => `${e.label}: ${e.message}`))] };
 }

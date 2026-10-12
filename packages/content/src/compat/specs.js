@@ -106,13 +106,14 @@ export const SPEC_BEHAVIOR = Object.freeze({
 });
 
 /**
- * The spec's hit callbacks after an attack's hits on one target (the engine's `attackHit`): `attack.onEachHit` for every
- * victim — the main target, a splashed or a jumped-to one —; `attack.onHit` and `onHit` for the main target.
+ * The spec's hit callbacks after an attack's hits on one target (the engine's `attackHit`), while the skill runs or for
+ * its own attack landing later (a next-attack skill's projectile): `attack.onEachHit` for every victim — the main
+ * target, a splashed or a jumped-to one —; `attack.onHit` and `onHit` for the main target.
  * @param {Record<string, any>} k the engine's context
  */
 export function onAttackHit(k) {
   const r = specOf(k.attacker);
-  if (!r || !r.p.skill?.active) return;
+  if (!r || !(r.p.skill?.active || k.isSkill)) return;
   const { b, p, spec } = r, target = b.unitOf(k.target), kind = k.kind === 'aftershock' ? 'splash' : k.kind;
   call(b, p, spec.attack?.onEachHit, 'skill.attack.onEachHit', { target, dealt: k.dealt, kind, isSplash: kind === 'splash', isChain: kind === 'chain', isSkill: k.isSkill });
   if (kind !== 'main') return;

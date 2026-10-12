@@ -30,11 +30,11 @@
 | `enemySpawn` | 敌人出现，紧接在它的 `deploy` 之后 | `enemy` |
 | `death` | 单位离场时：生命归零的单位在帧末移除（帧-1 第 9 步，`reason` 为 `killed`，到达目标点的为 `leak`），撤退的干员离场时（撤退-1，`retreat`） | `unit`、`reason`、`killer`：`killed` 时为这一帧最后一次命中它、仍在场上的单位，没有则为空 |
 | `kill` | 生命归零的单位离场、有击杀者时，紧接在它的 `death` 之前 | `killer`、`victim` |
-| `hit` | 一次伤害（伤害-7）判定无敌之后、计算防御之前 | `source`、`target`、`dmg`：处理函数可改 `amount`、`mul`、`type` 与四项穿透，设 `cancel` 取消这次伤害 |
+| `hit` | 一次伤害（伤害-7）判定无敌之后、计算防御之前 | `source`、`credit`、`target`、`dmg`：处理函数可改 `amount`、`mul`、`type` 与四项穿透，设 `cancel` 取消这次伤害 |
 | `dodge` | 伤判效果里闪避了这次伤害时（伤害-8） | `source`、`target`、`dmg` |
-| `hpDamage` | 伤判效果之后、扣生命之前，剩下的伤害大于 0 时 | `source`、`target`、`amount`（只能调低）、`dmg` |
-| `fatal` | 扣生命使它归零时（含生命流失） | `unit`、`source`、`dmg`、`amount`、`prevented`：设为是时它留下 1 点生命（生命上限不足 1 时为上限） |
-| `damaged` | 扣生命之后（含生命流失） | `source`、`target`、`amount`、`type`、`dmg` |
+| `hpDamage` | 伤判效果之后、扣生命之前，剩下的伤害大于 0 时 | `source`、`credit`、`target`、`amount`（只能调低）、`dmg` |
+| `fatal` | 扣生命使它归零时（含生命流失） | `unit`、`source`、`credit`、`dmg`、`amount`、`prevented`：设为是时它留下 1 点生命（生命上限不足 1 时为上限） |
+| `damaged` | 扣生命之后（含生命流失） | `source`、`credit`、`target`、`amount`、`type`、`dmg`。这四个伤害事件的 `credit` 是伤害记在谁名下：一般同 `source`；记在来源名下的无来源伤害（伤害-7）`source` 为空，`credit` 是来源 |
 | `heal` | 治疗算完倍率、回复生命之前（伤害-11） | `source`、`target`、`amount`（可改） |
 | `beforeAttack` | 一次攻击锁定目标时（攻击-2 第 1 步） | `attacker`、`targets`（可换，留下仍在场、有生命的；为空时这次不攻击）、`isSkill` |
 | `attack` | 一次攻击命中、对锁定的目标结算之后（攻击-2 第 3 步），有目标时 | `attacker`、`targets`、`isSkill`、`noAmmo`：设为是时这次攻击不耗弹药技能的弹药 |

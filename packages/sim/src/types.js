@@ -260,6 +260,7 @@
  * @property {string} shieldType the damage type it absorbs, "" for every type
  * @property {number} n a counter its behaviour keeps (麻痹's decay, 狂躁's damage)
  * @property {string} tag marks a buff a behaviour made, to find it again ("" for none)
+ * @property {string} act the key its behaviour is found by, "" for its own key (状态-1)
  */
 
 /**

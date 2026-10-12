@@ -5,7 +5,7 @@
 // live here, outside the engine's state (ADR 0057).
 import { KIND, attrs, body, traits, buffs, status, damage, dir, reachKeys, setRange, setAtkCd } from '@aue/sim';
 import { ShSkill } from './skill.js';
-import { STATUS_NAME } from './mods.js';
+import { STATUS_NAME, buffKeyOf, buffNameOf } from './mods.js';
 
 /** @typedef {import('@aue/sim').Unit} Unit @typedef {import('@aue/sim').Buff} Buff @typedef {import('./battle.js').ShBattle} ShBattle */
 
@@ -26,7 +26,8 @@ export class ShBuff {
     /** @type {Buff} */
     this.buff = buff;
   }
-  get key() { return this.buff.key; }
+  /** Its key as Stronghold names it (a burst's is `<element>Burst`). */
+  get key() { return buffNameOf(this.buff.key); }
   /** The status it is, or null. @returns {string | null} */
   get status() { const k = this.buff.key; return Object.hasOwn(status.STATUS, k) ? STATUS_NAME[k] ?? k : null; }
   get flags() { return this.buff.flags; }
@@ -159,13 +160,13 @@ export class ShUnit {
   isOp() { return this.kind === 'op'; }
   isEnemy() { return this.side === 'enemy'; }
   isAlly() { return this.side === 'ally'; }
-  /** The buff of a key it has (the one in effect first), or null. @param {string} key */
+  /** The buff of a key it has (the one in effect first), or null; Stronghold's burst names find the engine's bursts. @param {string} key */
   findBuff(key) {
-    const buff = this.u?.buffs.find((x) => x.key === key);
+    const k = buffKeyOf(key), buff = this.u?.buffs.find((x) => x.key === k);
     return buff && this.u ? new ShBuff(this.b, this.u, buff) : null;
   }
   /** @param {string} key */
-  hasBuff(key) { return !!this.u?.buffs.some((x) => x.key === key); }
+  hasBuff(key) { const k = buffKeyOf(key); return !!this.u?.buffs.some((x) => x.key === k); }
   /** Its buffs, in acquisition order. */
   get buffs() { const u = this.u; return u ? u.buffs.map((x) => new ShBuff(this.b, u, x)) : []; }
 }

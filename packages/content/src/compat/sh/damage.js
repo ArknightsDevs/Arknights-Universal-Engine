@@ -1,6 +1,6 @@
 // Stands in for Stronghold's server/sim/damage.js (兼容-2): the names its operator kits import — whether a unit has HP
 // left, whether a hit is 生命流失 (the engine's `hpLoss`, 伤害-10, or Stronghold's tag), damage after the defences
-// (伤害-1…伤害-5); the rest still gaps.
+// (伤害-1…伤害-5), the 无来源 true damage of a periodic effect; the rest still gaps.
 import { damage } from '@aue/sim';
 import { gap } from './gap.js';
 
@@ -15,4 +15,9 @@ export const isHpLoss = (dmg) => !!dmg && (dmg.hpLoss === true || (Array.isArray
  * @param {Record<string, number>} [pen]
  */
 export const mitigate = (amount, type, s, pen = {}) => damage.mitigate(amount, type, s, damage.penetration(null, pen));
-export const periodicDamage = gap('damage.periodicDamage');
+/**
+ * A periodic effect's damage as Stronghold gives it: 无来源 true damage credited to whoever deals it (伤害-7 `sourceless`),
+ * not dodged, tagged 'dot' and 'periodic'.
+ * @param {number} amount
+ */
+export const periodicDamage = (amount) => ({ amount, type: 'true', canDodge: false, sourceless: true, tags: ['dot', 'periodic'] });

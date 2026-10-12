@@ -4,12 +4,10 @@
 // (battle.js) call these; units are the kits' (unit.js).
 import { KIND, attrs, body, damage, traits, elements, deck, blocking, routes } from '@aue/sim';
 import { canTargetEnemy } from './sh/targeting.js';
+import { ELEMENT } from './mods.js';
 
 /** @typedef {import('./battle.js').ShBattle} ShBattle @typedef {import('./unit.js').ShUnit} ShUnit @typedef {import('@aue/sim').Unit} Unit */
 /** @typedef {import('@aue/sim').damage.Damage} Damage */
-
-/** Stronghold's element names → the engine's (元素-1). @type {Record<string, import('@aue/sim').elements.Element>} */
-const ELEMENT = { neural: 'SANITY', erosion: 'WATER', burn: 'FIRE', apoptosis: 'DARK' };
 
 /** The level's grid. @param {ShBattle} b */
 const gridOf = (b) => ({ rows: b.c.level.height, cols: b.c.level.width });

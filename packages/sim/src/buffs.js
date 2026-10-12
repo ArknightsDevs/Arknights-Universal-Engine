@@ -1,6 +1,7 @@
 // Buffs (docs/spec/status.md 状态-1…状态-4): plain data in acquisition order. Adding follows the same-name rules;
 // every frame each buff's time runs down by its decay rate and its triggers advance; at 0 it expires. A buff's
-// behaviour (what a trigger or the expiry does) comes from a table by key, never from the buff itself (ADR 0054).
+// behaviour (what a trigger or the expiry does) comes from a table by its key — or by the behaviour key it names —, never
+// from the buff itself (ADR 0054).
 import { statsOf } from './attrs.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff @typedef {import('./types.js').World} World */
@@ -15,7 +16,7 @@ import { statsOf } from './attrs.js';
 /** Every field a buff may leave out, with its value then (状态-1), in the order a buff holds them. */
 const DEFAULTS = Object.freeze({
   src: -1, rule: /** @type {Buff['rule']} */ ('queue'), value: 0, left: -1, every: 0, fixed: false, resist: false, decay: 1, prio: 0,
-  shield: 0, shieldHits: 0, shieldType: '', n: 0, tag: '',
+  shield: 0, shieldHits: 0, shieldType: '', n: 0, tag: '', act: '',
 });
 
 /**
@@ -165,7 +166,7 @@ export function tickUnitBuffs(w, u, behaviors) {
   let changed = false;
   for (const b of [...u.buffs]) {
     if (!u.buffs.includes(b)) continue;
-    const rate = decayRate(b, statusRes), beh = Object.hasOwn(behaviors, b.key) ? behaviors[b.key] : undefined;
+    const rate = decayRate(b, statusRes), act = b.act || b.key, beh = Object.hasOwn(behaviors, act) ? behaviors[act] : undefined;
     if (b.every > 0) advance(w, u, b, b.fixed ? 1 : rate, beh);
     if (b.left < 0 || !u.buffs.includes(b)) continue;
     b.left -= rate;

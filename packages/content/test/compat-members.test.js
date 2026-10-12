@@ -1,11 +1,13 @@
 // The battle a kit sees (docs/spec/compat.md 兼容-4, 兼容-5) with a kit of our own in the tiny level: the battle's
 // seconds and its end, a unit's deployment time, ground, leader, attack cooldown (read and set) and attack profile; a
-// spec's kind and time, its attacks from the operator's own, its noAttack.
+// spec's kind and time, its attacks from the operator's own, its noAttack; buffs with callbacks, the bursts' names, the
+// 无来源 damage of a periodic effect.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
-import { createWorld, step, bus } from '@aue/sim';
+import { createWorld, step, bus, buffs } from '@aue/sim';
 import { kitsBehaviors } from '../src/compat/kits.js';
+import { periodicDamage } from '../src/compat/sh/damage.js';
 
 /** @typedef {import('../src/compat/battle.js').ShBattle} ShBattle */
 
@@ -106,4 +108,26 @@ test('[兼容-5] an activation is counted before its spec\'s onStart; a running 
   assert.ok(left > 0 && left <= 4);
   sk.ammoLeft += 1;
   assert.deepEqual([sk.ammoLeft, ammo.guard.skill.ammo], [left + 1, left + 1]);
+});
+
+test('[兼容-4] a kit buff\'s onTick every interval or frame, onExpire, onRemove; the bursts\' names; 无来源 periodic damage', () => {
+  const { w, c, box, guard } = match({ kind: 'duration', duration: 30 });
+  const b = /** @type {ShBattle} */ (box.b), u = b.unitOf(guard), log = /** @type {any[]} */ ([]);
+  b.addBuff(u, { key: 't', duration: 1, interval: 0.2, onTick: (/** @type {any} */ x) => log.push(['tick', x.dt, x.buff.key, x.unit === u]), onExpire: () => log.push('expire') });
+  b.addBuff(u, { key: 'f', duration: 0.1, onTick: (/** @type {any} */ x) => log.push(['frame', Math.round(x.dt * 30)]) });
+  run(w, c, 30);
+  assert.deepEqual(log, [['frame', 1], ['frame', 1], ['frame', 1], ...Array.from({ length: 5 }, () => ['tick', 0.2, 't', true]), 'expire'], 'every 6 frames for 30: 5 ticks, then it ends');
+  b.addBuff(u, { key: 'r', onRemove: () => log.push('remove') });
+  b.removeBuff(u, 'r');
+  assert.equal(log.at(-1), 'remove');
+  buffs.addBuff(guard, buffs.makeBuff({ key: 'burst:FIRE', left: 30 }));
+  assert.deepEqual([u.hasBuff('burnBurst'), u.findBuff('burnBurst')?.key, u.hasBuff('neuralBurst')], [true, 'burnBurst', false], 'the engine\'s 灼燃 burst');
+  b.removeBuff(u, 'burnBurst');
+  assert.equal(u.hasBuff('burnBurst'), false);
+  b.addBuff(u, { key: 'x2', mods: { dmgDealtMul: 2 } });
+  const seen = /** @type {any[]} */ ([]);
+  b.on('damaged', (/** @type {any} */ x) => { seen.push([x.source, x.credit === u]); });
+  const hp = guard.hp;
+  b.dealDamage(u, u, periodicDamage(100));
+  assert.deepEqual([hp - guard.hp, seen], [100, [[null, true]]], 'not doubled; the hook sees no source, its credit is the dealer');
 });

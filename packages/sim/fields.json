@@ -122,6 +122,7 @@
     "packages/sim/src/buffs.js"
   ],
   "tag": [],
+  "act": [],
   "paid": [],
   "swing": [
     "packages/sim/src/combat.js"

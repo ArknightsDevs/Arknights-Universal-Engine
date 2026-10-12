@@ -1,5 +1,5 @@
-// Stronghold's names → the engine's where they differ (docs/spec/compat.md 兼容-4): buff flags (属性-2, 状态-5) and
-// status keys (状态-5), both ways. Modifier keys are the same in both (the engine took Stronghold's names, ADR 0012); one
+// Stronghold's names → the engine's where they differ (docs/spec/compat.md 兼容-4): buff flags (属性-2, 状态-5), status
+// keys (状态-5) and elements with their bursts' buffs (元素-1, 元素-3), both ways. Modifier keys are the same in both (the engine took Stronghold's names, ADR 0012); one
 // the engine does not know stays on the buff and changes nothing.
 
 /** Stronghold's flags → the engine's. @type {Readonly<Record<string, string>>} */
@@ -13,6 +13,24 @@ export const STATUS_NAME = Object.freeze(/** @type {Record<string, string>} */ (
 
 /** A status as the engine names it. @param {string} key */
 export const statusKeyOf = (key) => STATUS_KEY[key] ?? key;
+
+/** Stronghold's element names → the engine's (元素-1). @type {Readonly<Record<string, import('@aue/sim').elements.Element>>} */
+export const ELEMENT = Object.freeze({ neural: 'SANITY', erosion: 'WATER', burn: 'FIRE', apoptosis: 'DARK' });
+
+/** The engine's elements → Stronghold's names. @type {Readonly<Record<string, string>>} */
+const ELEMENT_NAME = Object.freeze(Object.fromEntries(Object.entries(ELEMENT).map(([k, v]) => [v, k])));
+
+/** A buff key as the engine names it: Stronghold's `<element>Burst` is the engine's `burst:<ELEMENT>` (元素-3). @param {string} key */
+export function buffKeyOf(key) {
+  const el = key.endsWith('Burst') ? ELEMENT[key.slice(0, -5)] : undefined;
+  return el ? `burst:${el}` : key;
+}
+
+/** A buff key as Stronghold names it (the other way of buffKeyOf). @param {string} key */
+export function buffNameOf(key) {
+  const el = key.startsWith('burst:') ? ELEMENT_NAME[key.slice(6)] : undefined;
+  return el ? `${el}Burst` : key;
+}
 
 /** A buff's modifiers as the engine reads them: numbers only. @param {Record<string, unknown> | null | undefined} m @returns {Record<string, number>} */
 export function modsOf(m) {

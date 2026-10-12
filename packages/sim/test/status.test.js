@@ -42,7 +42,7 @@ function framesUntilGone(u, key, beh = {}, max = 10000) {
 test('[状态-1] a buff holds every field, in a fixed order; triggers are whole frames', () => {
   const b = makeBuff({ key: 'k', left: 90, mods: { atkFlat: 5 } });
   assert.deepEqual(Object.keys(b), ['key', 'src', 'rule', 'value', 'left', 'every', 'fixed', 'resist', 'decay', 'prio', 'shield',
-    'shieldHits', 'shieldType', 'n', 'tag', 'mods', 'flags', 'stacks', 'maxStacks', 'acc']);
+    'shieldHits', 'shieldType', 'n', 'tag', 'act', 'mods', 'flags', 'stacks', 'maxStacks', 'acc']);
   assert.equal(b.rule, 'queue');
   assert.equal(makeBuff({ key: 'n' }).left, -1, 'no end');
   assert.throws(() => makeBuff({ key: 'x', every: 1.5 }), RangeError);
@@ -55,6 +55,12 @@ test('[状态-1] a buff holds every field, in a fixed order; triggers are whole 
   assert.equal(removeBuff(u, 'a'), 0);
   tickUnitBuffs(world([u]), u, { a: { expire: () => ran.push('a') } });
   assert.deepEqual(ran, [], 'removal is not expiry');
+  u.buffs.push(makeBuff({ key: 'x', act: 'shared', left: 2, every: 1 }), makeBuff({ key: 'y', act: 'shared', left: 1 }), makeBuff({ key: 'shared', left: 1 }));
+  /** @type {string[]} */
+  const by = [];
+  const beh = { shared: { tick: (/** @type {any} */ _w, /** @type {any} */ _u, /** @type {any} */ x) => by.push(`tick ${x.key}`), expire: (/** @type {any} */ _w, /** @type {any} */ _u, /** @type {any} */ x) => by.push(`end ${x.key}`) } };
+  for (let f = 0; f < 2; f++) tickUnitBuffs(world([u]), u, beh);
+  assert.deepEqual(by, ['tick x', 'end y', 'end shared', 'tick x', 'end x'], 'found by the behaviour key it names, else by its key');
 });
 
 test('[状态-2] queue: the earliest takes effect; the later one waits with its time running, then takes over', () => {

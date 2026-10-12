@@ -7,7 +7,8 @@ import { secondsToFrames } from '@aue/math';
 import { KIND, bus, buffs, status, traits, draw, weightedPick, setExtraRange } from '@aue/sim';
 import { withGrid } from './grid.js';
 import { ShUnit } from './unit.js';
-import { STATUS_NAME, statusKeyOf, modsOf, flagsOf } from './mods.js';
+import { STATUS_NAME, statusKeyOf, modsOf, flagsOf, buffKeyOf } from './mods.js';
+import { KIT_BUFF, hooksOf, runHook } from './buffhooks.js';
 import * as field from './field.js';
 import * as summoning from './summons.js';
 import { ShGrid } from './tiles.js';
@@ -39,12 +40,12 @@ const SHAPES = {
   kill: (b, k) => ({ killer: sh(b, k.killer), victim: sh(b, k.victim) }),
   enemySpawn: (b, k) => ({ enemy: sh(b, k.enemy) }),
   tick: (_b, k) => ({ dt: k.frames * TICK }),
-  hit: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), dmg: k.dmg, credit: sh(b, k.source) }),
+  hit: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), dmg: k.dmg, credit: sh(b, k.credit) }),
   dodge: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), dmg: k.dmg }),
-  damaged: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), amount: k.amount, type: k.type, dmg: k.dmg, credit: sh(b, k.source) }),
-  hpDamage: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), dmg: k.dmg, credit: sh(b, k.source),
+  damaged: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), amount: k.amount, type: k.type, dmg: k.dmg, credit: sh(b, k.credit) }),
+  hpDamage: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), dmg: k.dmg, credit: sh(b, k.credit),
     get amount() { return k.amount; }, set amount(v) { k.amount = v; } }),
-  fatal: (b, k) => ({ unit: sh(b, k.unit), source: sh(b, k.source), credit: sh(b, k.source), dmg: k.dmg, amount: k.amount,
+  fatal: (b, k) => ({ unit: sh(b, k.unit), source: sh(b, k.source), credit: sh(b, k.credit), dmg: k.dmg, amount: k.amount,
     get prevented() { return k.prevented; }, set prevented(v) { k.prevented = v; } }),
   heal: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), opts: {}, get amount() { return k.amount; }, set amount(v) { k.amount = v; } }),
   beforeAttack: (b, k) => ({ attacker: sh(b, k.attacker), targets: k.targets.map((/** @type {Unit} */ t) => b.unitOf(t)), isSkill: k.isSkill, profile: sh(b, k.attacker)?.profile }),
@@ -85,6 +86,8 @@ export class ShBattle {
     this.errors = [];
     /** @type {WeakMap<object, any>} the data a kit stored with a buff */
     this.buffData = new WeakMap();
+    /** @type {WeakMap<object, import('./buffhooks.js').Hooks>} the callbacks of a kit's buff (buffhooks.js) */
+    this.buffHooks = new WeakMap();
     /** @type {Map<string, ShUnit>} the deck pieces, by `seat|key` */
     this.pieces = new Map();
     /** @type {WeakMap<Unit, ShUnit>} */
@@ -266,9 +269,12 @@ export class ShBattle {
     const u = /** @type {Unit} */ (unit.u), there = u.buffs.find((x) => x.key === spec.key);
     if (there && spec.refresh === 'keep') return;
     if (there && !RULES[spec.refresh ?? 'replace']) buffs.removeBuff(u, there);
+    const h = hooksOf(spec);
     const b = buffs.makeBuff({ key: spec.key, src: spec.source?.u?.id ?? -1, rule: /** @type {any} */ (RULES[spec.refresh] ?? 'queue'), mods: modsOf(spec.mods),
-      flags: flagsOf(spec.flags), stacks: spec.stacks ?? 1, maxStacks: spec.maxStacks ?? 1, left: framesLeft(spec.duration) });
+      flags: flagsOf(spec.flags), stacks: spec.stacks ?? 1, maxStacks: spec.maxStacks ?? 1, left: framesLeft(spec.duration),
+      ...(h ? { act: KIT_BUFF, every: h.every, fixed: true } : {}) });
     if (spec.data !== undefined) this.buffData.set(b, spec.data);
+    if (h) this.buffHooks.set(b, h.hooks);
     buffs.addBuff(u, b);
   }
 
@@ -286,10 +292,13 @@ export class ShBattle {
 
   /** @param {ShUnit} unit @param {string | { key: string }} which */
   removeBuff(unit, which) {
-    const key = typeof which === 'string' ? which : which.key;
-    unit.persist = unit.persist.filter((x) => x.key !== key);
-    if (!unit.u) return;
-    for (const b of unit.u.buffs.filter((x) => x.key === key)) buffs.removeBuff(unit.u, b);
+    const name = typeof which === 'string' ? which : which.key, key = buffKeyOf(name), u = unit.u;
+    unit.persist = unit.persist.filter((x) => x.key !== name);
+    if (!u) return;
+    for (const b of u.buffs.filter((x) => x.key === key)) {
+      buffs.removeBuff(u, b);
+      runHook(this, u, b, 'onRemove');
+    }
   }
 
   /**

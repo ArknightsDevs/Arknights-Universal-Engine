@@ -90,6 +90,14 @@ test('[干员-7] a module adds its level\'s attributes and upgrades talents; onl
   assert.equal(y2.talentBb?.attack_speed, 15, '快速弹匣\'s upgrade keeps its leading clause');
 });
 
+test('[干员-7] a module\'s trait parts put their values over the trait\'s blackboard; a part that only shows text changes none', async () => {
+  const ascln = await loadTraining('char_4132_ascln'), e2 = build({ elite: 2, level: 60, potential: 6, skill: -1 });
+  const prob = (/** @type {Partial<Build>} */ b) => [traitAt(ascln, { ...e2, ...b }).prob, /** @type {any} */ (operatorAt(ascln, { ...e2, ...b }).trait).mods.dodgePhys];
+  assert.deepEqual([prob({}), prob({ module: 0, moduleLevel: 3 }), prob({ module: 1, moduleLevel: 1 }), prob({ module: 1, moduleLevel: 3 })],
+    [[0.5, 0.5], [0.5, 0.5], [0.65, 0.65], [0.65, 0.65]], '伏击客\'s 65 % dodge with her second module');
+  assert.deepEqual(traitAt(ascln, { ...e2, module: 1 }, null), { prob: 0.5 }, 'no module level given: the trait\'s own');
+});
+
 test('[干员-9] team parts: 编入队伍时 for the deck, 在场时 on the field, by profession; deck ones apply within one seat\'s deck', async () => {
   const c = (/** @type {string} */ description, /** @type {Record<string, number>} */ bb) => teamPart({ description, bb, hidden: false });
   assert.deepEqual([

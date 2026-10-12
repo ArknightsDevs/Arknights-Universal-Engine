@@ -107,9 +107,19 @@ function upgradedTalents(t, b, mod) {
   return out.filter((c) => c !== null);
 }
 
-/** The trait blackboard at a training (干员-3): the last candidate unlocked. @param {Training} t @param {Build} b */
-export function traitAt(t, b) {
-  return t.traits.filter((c) => unlockedAt(c, b)).at(-1)?.bb ?? {};
+/**
+ * The trait blackboard at a training (干员-3, 干员-7): the last candidate unlocked, under the values of its module's trait
+ * parts (not a token's, valid in every mode and map) — each unlocked candidate's, in order.
+ * @param {Training} t @param {Build} b @param {ModuleLevel | null} [mod] the module level (the build's when left out)
+ * @returns {Stats}
+ */
+export function traitAt(t, b, mod = moduleAt(t, b)) {
+  let bb = t.traits.filter((c) => unlockedAt(c, b)).at(-1)?.bb ?? {};
+  for (const p of mod?.parts ?? []) {
+    if (!p.target.startsWith('TRAIT') || p.token || p.gameTag || p.mapTag) continue;
+    for (const c of p.trait) if (unlockedAt(c, b)) bb = { ...bb, ...c.bb };
+  }
+  return bb;
 }
 
 /**

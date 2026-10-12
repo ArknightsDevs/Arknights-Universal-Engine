@@ -5,7 +5,7 @@
 // the shape of Stronghold's 自选 records (shared/diy.js, shared/loadoutRecord.js), at any training instead of its fixed forms.
 import rangeTable from '../../data/ranges.json' with { type: 'json' };
 import { coveredBranch, BRANCHES } from '../traits.js';
-import { statsAt, moduleAt } from '../operators.js';
+import { statsAt, moduleAt, traitAt } from '../operators.js';
 import { unlockedAt, talentsAt } from '../talents.js';
 import { SUMMON_PAGES, tokenBuild, tokenModule, limitsAt, supplyAt } from '../tokens.js';
 import { normalizeChess, normalizeToken, flattenBlackboard } from './sh/simdata.js';
@@ -112,12 +112,8 @@ function changedTalent(old, c) {
     rangeGrid: gridOf(c.rangeId) ?? o.rangeGrid, tokenKey: o.tokenKey, hidden: !!(o.hidden && c.hidden), fromModule: true };
 }
 
-/** The trait part of a training (兼容-3): its blackboard, its module's override's when there is one. @param {Training} t @param {Build} b @param {ReturnType<typeof moduleAt>} mod */
-function traitRecord(t, b, mod) {
-  let bb = t.traits.filter((c) => unlockedAt(c, b)).at(-1)?.bb ?? {};
-  for (const c of partsOf(mod, 'TRAIT').flatMap((p) => p.trait)) if (unlockedAt(c, b)) bb = { ...bb, ...c.bb };
-  return { desc: '', bb: { ...bb } };
-}
+/** The trait part of a training (兼容-3): its blackboard with its module's values (干员-7). @param {Training} t @param {Build} b @param {ReturnType<typeof moduleAt>} mod */
+const traitRecord = (t, b, mod) => ({ desc: '', bb: { ...traitAt(t, b, mod) } });
 
 /** Attributes as a record's `stats`. @param {ReturnType<typeof statsAt>} s */
 const statsRecord = (s) => ({ maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: s.cost, blockCnt: s.blockCnt, bat: s.baseAttackTime, aspd: s.aspd,

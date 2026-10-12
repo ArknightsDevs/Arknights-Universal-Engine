@@ -28,6 +28,8 @@ import { emit, hasHook } from './bus.js';
  * @property {string[]} [tags]
  * @property {boolean} [canDodge]
  * @property {boolean} [hpLoss]
+ * @property {boolean} [sourceless] 无来源 though credited to its source: the events see no source, the kill is its source's,
+ *   without the source's penetration and multiplier (伤害-7)
  */
 
 /** @typedef {{ defIgnorePct: number, defIgnoreFlat: number, resIgnorePct: number, resIgnoreFlat: number }} Penetration */
@@ -138,20 +140,25 @@ export function takeDamage(w, u, amount, dmg, src = null) {
   return left;
 }
 
+/** The source a hit's events show (钩子-3): none for a `sourceless` one (伤害-7). @param {Unit | null} src @param {Damage} dmg */
+const seenOf = (src, dmg) => (dmg.sourceless ? null : src);
+
 /**
  * Takes HP (伤害-9): at 0 or below the unit is at 0 and leaves the field at the end of the frame (帧-1) — unless a
- * `fatal` handler prevents it (钩子-3): then it keeps 1 HP (its maximum when below 1). Then the `damaged` event.
+ * `fatal` handler prevents it (钩子-3): then it keeps 1 HP (its maximum when below 1). Then the `damaged` event. The
+ * hit counts as its source's (the kill's), also when the events see none.
  * @param {World} w @param {Unit | null} src @param {Unit} t @param {number} amount @param {Damage} dmg
  */
 function loseHp(w, src, t, amount, dmg) {
+  const seen = seenOf(src, dmg);
   t.hp -= amount;
   if (t.hp <= 0) {
     t.hp = 0;
-    const saved = hasHook(w, 'fatal') && emit(w, 'fatal', { unit: t, source: src, dmg, amount, prevented: false }).prevented;
+    const saved = hasHook(w, 'fatal') && emit(w, 'fatal', { unit: t, source: seen, credit: src, dmg, amount, prevented: false }).prevented;
     if (saved && t.hp < 1) t.hp = Math.min(1, statsOf(t).maxHp);
   }
   w.events.push({ type: 'hit', id: src ? src.id : -1, target: t.id, damage: amount });
-  if (hasHook(w, 'damaged')) emit(w, 'damaged', { source: src, target: t, amount, type: dmg.type, dmg });
+  if (hasHook(w, 'damaged')) emit(w, 'damaged', { source: seen, credit: src, target: t, amount, type: dmg.type, dmg });
   return amount;
 }
 
@@ -169,7 +176,7 @@ function settle(dmg) {
  */
 function hitGoesOn(w, src, target, dmg) {
   if (!hasHook(w, 'hit')) return true;
-  emit(w, 'hit', { source: src, target, dmg });
+  emit(w, 'hit', { source: seenOf(src, dmg), credit: src, target, dmg });
   return !dmg.cancel && target.hp > 0 && w.units.includes(target) && !statsOf(target).invincible;
 }
 
@@ -179,7 +186,7 @@ function hitGoesOn(w, src, target, dmg) {
  */
 function hpDamage(w, src, target, amount, dmg) {
   if (!(amount > 0) || !hasHook(w, 'hpDamage')) return amount;
-  const k = emit(w, 'hpDamage', { source: src, target, amount, dmg });
+  const k = emit(w, 'hpDamage', { source: seenOf(src, dmg), credit: src, target, amount, dmg });
   return Number.isFinite(k.amount) ? Math.max(0, Math.min(amount, k.amount)) : amount;
 }
 
@@ -199,8 +206,9 @@ export function regenAll(w) {
 /**
  * Deals a hit (伤害-7): nothing to a unit already at 0 HP; 生命流失 goes straight to the HP; nothing to an invincible
  * unit (无敌, 沉睡, disappeared: 路线-4); otherwise the `hit` event, then the hit counts for 受击回复 (技能-2), then the
- * target's defences, `mul`, the source's multiplier, the target's 伤判 effects, the `hpDamage` event, then the HP.
- * Returns the HP taken.
+ * target's defences, `mul`, the source's multiplier, the target's 伤判 effects, the `hpDamage` event, then the HP. A
+ * `sourceless` hit takes neither its source's penetration nor its multiplier, and its events see no source (`credit`
+ * names it). Returns the HP taken.
  * @param {World} w @param {Unit | null} src @param {Unit} target @param {Damage} dmg
  */
 export function dealDamage(w, src, target, dmg) {
@@ -209,10 +217,10 @@ export function dealDamage(w, src, target, dmg) {
   if (dmg.hpLoss) return loseHp(w, src, target, dmg.amount, dmg);
   if (statsOf(target).invincible || target.hidden || !hitGoesOn(w, src, target, dmg)) return 0;
   hurtSp(target);
-  const ss = src ? statsOf(src) : null;
+  const seen = seenOf(src, dmg), ss = seen ? statsOf(seen) : null;
   let amount = mitigate(dmg.amount, dmg.type, statsOf(target), penetration(ss, dmg)) * /** @type {number} */ (dmg.mul);
   if (ss) amount *= dealtMul(ss, dmg.type);
-  amount = hpDamage(w, src, target, takeDamage(w, target, amount, dmg, src), dmg);
+  amount = hpDamage(w, src, target, takeDamage(w, target, amount, dmg, seen), dmg);
   return amount > 0 ? loseHp(w, src, target, amount, dmg) : 0;
 }
 
