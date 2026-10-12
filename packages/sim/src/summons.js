@@ -80,6 +80,7 @@ function enter(w, c, owner, o) {
   const u = makeOperator(w, c, { ...o, owner: owner.owner, summoner: owner.id, ...(life > 0 ? { expires: w.frame + secondsToFrames(life) } : {}) });
   w.units.push(u);
   w.events.push({ type: 'deploy', id: u.id, key: u.key, owner: owner.owner });
+  emit(w, 'enter', { unit: u });
   traitDeploy(w, c, u);
   modeDeploy(u, traitOf(c, u));
   deployTalents(w, c, u);

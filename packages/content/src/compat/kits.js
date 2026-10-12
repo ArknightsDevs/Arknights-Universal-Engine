@@ -1,7 +1,8 @@
 // Stronghold's kits in a battle (docs/spec/compat.md 兼容-4): the content's world setup (钩子-4) makes the battle a kit
 // sees (battle.js), a piece for each deck entry that has a kit — as Stronghold's board pieces, before anything is
 // deployed — and installs each piece's kit once: its own setup and its talents'. Each deployment of an operator binds
-// its piece to the engine's unit (before any kit's handler of that deployment runs) and gives its lasting buffs again.
+// its piece to the engine's unit as it enters the field (钩子-3 `enter`: before its trait, talents and passive skill take
+// hold, so a passive skill's spec runs as Stronghold's does) and gives its lasting buffs again.
 import { KIND, bus } from '@aue/sim';
 import { ShBattle } from './battle.js';
 import { ShUnit } from './unit.js';
@@ -27,7 +28,7 @@ export function kitsWorld(kits, seen) {
   return (w, c) => {
     const b = new ShBattle(w, c);
     bus.on(w, 'battleStart', () => { b.started = true; }, { priority: FIRST });
-    bus.on(w, 'deploy', (k) => bind(b, k.unit), { priority: FIRST });
+    bus.on(w, 'enter', (k) => bind(b, k.unit), { priority: FIRST });
     bus.on(w, 'skillStart', (k) => { const s = b.pieces.get(`${k.unit.owner}|${k.unit.key}`)?.skill; if (s && !s.counted) s.activations++; if (s) s.counted = false; }, { priority: FIRST });
     bus.on(w, 'attackHit', onAttackHit);
     bus.on(w, 'attack', onAttackDone, { priority: FIRST });

@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
-import { createWorld, step } from '../src/index.js';
+import { createWorld, step, summons as summonsApi } from '../src/index.js';
 import { on, after } from '../src/bus.js';
 import { dealDamage, heal } from '../src/damage.js';
 import { makeOperator, makeEnemy } from '../src/units.js';
@@ -168,4 +168,19 @@ test('[钩子-3] beforeStatus: a handler may cancel a status, change its frames 
   assert.equal(inflict(w, foe, 'stun', { seconds: 1, src: guard })?.left, 60);
   assert.equal(inflict(w, foe, 'fragile', { seconds: 1, value: 0.2 })?.value, 0.5);
   assert.deepEqual(seen, ['sleep:30:-:guard', 'stun:30:-:guard', 'fragile:30:0.2:null']);
+});
+
+test('[钩子-3] enter: an operator or a summon on the field, before its passive skill starts and before deploy', () => {
+  const c = /** @type {any} */ (tinyContent());
+  c.operators.guard.skill = { id: 'p', type: 'PASSIVE', sp: 'none', cost: 0, init: 0, charges: 1, duration: 0, ammo: false, bb: {} };
+  c.operators.shadow = { ...c.operators.sniper, position: 'MELEE', summoner: 'guard', summon: { deployLimit: 1, holdLimit: 1, supply: 0, occupy: 0, respawn: 'default' } };
+  const w = createWorld(c, { seed: 1, players: 1 });
+  /** @type {string[]} */
+  const seen = [];
+  for (const name of ['enter', 'skillStart', 'deploy']) on(w, name, (k) => { seen.push(`${name} ${k.unit.key} ${k.unit.skill?.active ?? '-'}`); });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 2, dir: 0 }]]);
+  assert.deepEqual(seen, ['enter guard false', 'skillStart guard true', 'deploy guard true']);
+  seen.length = 0;
+  summonsApi.spawnSummon(w, c, /** @type {any} */ (w.units.find((u) => u.key === 'guard')), 'shadow', { row: 1, col: 3 });
+  assert.deepEqual(seen, ['enter shadow -', 'deploy shadow -']);
 });

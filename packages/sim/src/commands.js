@@ -99,6 +99,7 @@ function deploy(w, c, seat, cmd) {
   p.deployed.push(cmd.op);
   w.units.push(u);
   w.events.push({ type: 'deploy', id: u.id, key: u.key, owner: seat });
+  emit(w, 'enter', { unit: u });
   traitDeploy(w, c, u);
   modeDeploy(u, traitOf(c, u));
   deployTalents(w, c, u);
