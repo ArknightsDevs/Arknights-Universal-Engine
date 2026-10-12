@@ -1,5 +1,6 @@
-// The world and one frame of it (spec 帧-1): commands, cost, revivals and requests, the waves, buffs, enemy movement,
-// operator attacks, projectiles, removal of the dead, the end of the battle — in that order, every frame, on every peer.
+// The world and one frame of it (spec 帧-1): commands, timers, cost, revivals and requests, the waves, buffs, enemy
+// movement, operator attacks, projectiles, the tick hook, removal of the dead, the end of the battle — in that order,
+// every frame, on every peer.
 import { secondsToFrames } from '@aue/math';
 import { ANIM, KIND } from '@aue/schema';
 import { seedState } from './rng.js';
@@ -20,6 +21,7 @@ import { upkeepBehaviors, timedBehaviors } from './upkeep.js';
 import { chargeBehavior } from './modes.js';
 import { auras } from './aura.js';
 import { regenAll } from './damage.js';
+import { emit, runTimers } from './bus.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -83,6 +85,8 @@ export function step(w, c, commands = []) {
   w.events = [];
   w.bornThisFrame = 0;
   for (const [seat, cmd] of commands) applyCommand(w, c, seat, cmd);
+  runTimers(w);
+  if (w.frame === 0) emit(w, 'battleStart', {});
   gainCost(w, c);
   tickRevival(w, c);
   tickRequests(w);
@@ -95,6 +99,7 @@ export function step(w, c, commands = []) {
   operatorsAttack(w, c);
   shotsFly(w, c);
   foeEffects(w, c);
+  emit(w, 'tick', { frames: 1 });
   removeDead(w, c);
   checkEnd(w, c);
   w.frame++;

@@ -70,3 +70,4 @@
 | [0054](0054-attributes-and-buffs-as-data.md) | 属性由 Buff 推导，Buff 是纯数据 | 已采纳 | 模拟内核 |
 | [0055](0055-sdk-prepared-now-built-after-mvp.md) | SDK：现在只做准备，MVP 之后再做 | 已采纳 | 定位与仓库 |
 | [0056](0056-testkit-parses-sources-with-espree.md) | testkit 用 espree 解析源码 | 已采纳 | 验证 |
+| [0057](0057-hook-bus-and-timers.md) | 内核的钩子总线与定时器 | 已采纳 | 模拟内核 |

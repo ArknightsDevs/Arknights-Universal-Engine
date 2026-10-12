@@ -10,7 +10,7 @@ const copy = (x) => /** @type {T} */ (JSON.parse(JSON.stringify(x)));
 
 /** @param {World} w @returns {Snapshot} */
 export function takeSnapshot(w) {
-  const { events: _events, ...state } = w;
+  const { events: _events, bus: _bus, ...state } = w;
   return { v: SNAPSHOT_VERSION, frame: w.frame, data: copy(state) };
 }
 
