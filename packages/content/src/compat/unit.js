@@ -3,7 +3,7 @@
 // to the engine's unit while it is deployed, unbound in between — so the hooks its kit installs once see every
 // deployment. An enemy is the engine's unit itself. Fields Stronghold's kits keep their own state in (`mem`, `trait`)
 // live here, outside the engine's state (ADR 0057).
-import { KIND, attrs, body, traits, buffs, status, damage, reachKeys, setRange, setAtkCd } from '@aue/sim';
+import { KIND, attrs, body, traits, buffs, status, damage, dir, reachKeys, setRange, setAtkCd } from '@aue/sim';
 import { ShSkill } from './skill.js';
 import { STATUS_NAME } from './mods.js';
 
@@ -42,6 +42,7 @@ export class ShBuff {
   get timeLeft() { return this.buff.left < 0 ? Infinity : this.buff.left / FPS; }
   set timeLeft(s) { buffs.setLeft(this.buff, s === Infinity ? -1 : Number(s) * FPS); }
   get stacks() { return this.buff.stacks; }
+  set stacks(n) { buffs.setStacks(this.holder, this.buff, Number(n)); }
   get mods() { return this.buff.mods; }
   set mods(m) { buffs.retune(this.holder, this.buff, this.buff.value, m ?? {}); }
 }
@@ -95,6 +96,10 @@ export class ShUnit {
   get hp() { return this.u ? this.u.hp : 0; }
   get hitArea() { return /** @type {any} */ (this.u?.base)?.hitArea ?? null; }
   get hidden() { return !!this.u?.hidden; }
+  /** The extra tiles content gave its attack (攻击-1), or null. */
+  get extraRangeKeys() { return this.u?.reachExtra ? [...this.u.reachExtra] : null; }
+  /** Its facing as a [row, col] step (方向-1: UP is row + 1). */
+  get fwd() { return dir.dirVec(this.dir); }
   /** When it was deployed, in battle seconds (−Infinity before). */
   get deployedAt() { return this.u ? this.u.born / FPS : -Infinity; }
   /** On the ground: an ally on a ground tile, an enemy not in the air. */

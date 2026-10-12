@@ -4,7 +4,7 @@ export { createWorld, step, stateHash } from './world.js';
 export { takeSnapshot, restoreSnapshot } from './snapshot.js';
 export { toView } from './view.js';
 export { deployProblem, fitsTile } from './commands.js';
-export { reachKeys, placedReach, setRange } from './reach.js';
+export { reachKeys, placedReach, setRange, setExtraRange } from './reach.js';
 export { healsNow } from './modes.js';
 export { rangeCell, pickTarget, targetsOf, setAtkCd } from './combat.js';
 export * as dir from './dir.js';

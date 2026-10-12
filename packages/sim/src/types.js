@@ -296,6 +296,7 @@
  * @property {Record<string, number>} ep element values below their maximum, by element (元素-1); none recorded is at its maximum
  * @property {number} paid the cost its deployment took, 0 for enemies (撤退-1)
  * @property {Cell[]} [range] an operator's own attack range when content changed it, over its record's (攻击-1)
+ * @property {number[]} [reachExtra] extra tile keys content gave an operator's attack (攻击-1)
  * @property {Swing | null} swing the attack it is in the wind-up of, null for none (攻击-2)
  * @property {number} anim schema ANIM
  * @property {number} [summoner] the id of the unit that summoned it (召唤-4, 召唤-6); left out for others

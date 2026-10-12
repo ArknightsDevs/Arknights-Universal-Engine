@@ -19,6 +19,8 @@ export class ShSkill {
     this.unit = unit; this.spec = spec;
     /** how many times it started this battle, over every deployment */
     this.activations = 0;
+    /** the activation already counted by the spec's start (specs.js), before skillStart */
+    this.counted = false;
   }
 
   /** The engine's state of the skill, null without one or off the field. @returns {SkillState | null} */
@@ -48,6 +50,7 @@ export class ShSkill {
   /** Its duration in seconds, as the content gives it. */
   get duration() { return this.def?.duration ?? 0; }
   get ammoLeft() { const st = this.st; return st?.active ? st.ammo : 0; }
+  set ammoLeft(n) { const st = this.st; if (st) skills.setAmmo(st, Number(n)); }
   /** Seconds from the battle's start to its last start, −Infinity before any. */
   get lastStart() { const st = this.st; return st && st.at >= 0 ? st.at / FPS : -Infinity; }
   get rangeGrid() { return this.unit.def?.skill?.rangeGrid ?? null; }

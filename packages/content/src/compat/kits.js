@@ -28,7 +28,7 @@ export function kitsWorld(kits, seen) {
     const b = new ShBattle(w, c);
     bus.on(w, 'battleStart', () => { b.started = true; }, { priority: FIRST });
     bus.on(w, 'deploy', (k) => bind(b, k.unit), { priority: FIRST });
-    bus.on(w, 'skillStart', (k) => { const p = b.pieces.get(`${k.unit.owner}|${k.unit.key}`); if (p?.skill) p.skill.activations++; }, { priority: FIRST });
+    bus.on(w, 'skillStart', (k) => { const s = b.pieces.get(`${k.unit.owner}|${k.unit.key}`)?.skill; if (s && !s.counted) s.activations++; if (s) s.counted = false; }, { priority: FIRST });
     bus.on(w, 'attackHit', onAttackHit);
     bus.on(w, 'attack', onAttackDone, { priority: FIRST });
     const decks = c.decks ?? w.players.map(() => Object.keys(c.operators));

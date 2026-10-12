@@ -70,10 +70,11 @@ function strongholdRun(H, charId, skillIndex, uniEquipId) {
   const buffs = buffMap(u.buffs);
   h.run(SECONDS - 1);
   const mine = (/** @type {any} */ x) => x.source === u || x.source?.id === u.id;
-  if (TRACE.on) for (const x of h.hooksOf('damaged')) console.log(`stronghold ${x.source?.defId ?? '-'} → ${x.target?.defId ?? '-'} ${r1(x.amount)} ${x.type} ${(x.dmg?.tags ?? []).join(',')}`);
+  const damaged = h.hooksOf('damaged');
+  if (TRACE.on) for (const x of damaged) console.log(`stronghold ${x.source?.defId ?? '-'} → ${x.target?.defId ?? '-'} ${r1(x.amount)} ${x.type} ${(x.dmg?.tags ?? []).join(',')}`);
   return {
     atk: u.base.atk, buffs,
-    hits: h.hooksOf('damaged').filter((/** @type {any} */ x) => mine(x) && x.type !== 'element').map((/** @type {any} */ x) => r1(x.amount)),
+    hits: damaged.filter((/** @type {any} */ x) => mine(x) && x.type !== 'element').map((/** @type {any} */ x) => r1(x.amount)),
     heals: h.hooksOf('heal').filter(mine).map((/** @type {any} */ x) => r1(x.amount)),
     starts: h.hooksOf('skillStart').filter((/** @type {any} */ x) => x.unit === u || x.unit?.id === u.id).length,
     statuses: [...new Set(h.hooksOf('beforeStatus').filter(mine).map((/** @type {any} */ x) => `${x.status}:${r1(x.duration)}`))].sort(),

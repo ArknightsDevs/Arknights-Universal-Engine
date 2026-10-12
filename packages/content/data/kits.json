@@ -83,8 +83,11 @@
     "char_003_kalts",
     "char_010_chen",
     "char_017_huang",
+    "char_1013_chen2",
     "char_1031_slent2",
     "char_1034_jesca2",
+    "char_1044_hsgma2",
+    "char_1051_headb2",
     "char_112_siege",
     "char_147_shining",
     "char_179_cgbird",
@@ -96,6 +99,7 @@
     "char_2014_nian",
     "char_2023_ling",
     "char_2024_chyue",
+    "char_225_haak",
     "char_248_mgllan",
     "char_362_saga",
     "char_4011_lessng",
@@ -106,6 +110,7 @@
     "char_4195_radian",
     "char_4202_haruka",
     "char_4212_nasti",
-    "char_4229_aphris"
+    "char_4229_aphris",
+    "char_450_necras"
   ]
 }

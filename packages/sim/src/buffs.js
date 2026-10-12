@@ -102,6 +102,16 @@ export function setLeft(b, frames) {
   b.left = frames < 0 ? -1 : Math.max(0, Math.round(frames));
 }
 
+/**
+ * Sets a buff's layers (content that changes them, 状态-2): at least 1, at most its maximum; the holder's HP keeps its
+ * ratio (属性-4).
+ * @param {Unit} u @param {Buff} b @param {number} n
+ */
+export function setStacks(u, b, n) {
+  b.stacks = Math.max(1, Math.min(b.maxStacks, Math.round(n)));
+  refreshHp(u);
+}
+
 /** Takes one layer of a stacking buff; the last one removes it (状态-8). @param {Unit} u @param {Buff} b */
 export function consumeStack(u, b) {
   if (b.stacks > 1) b.stacks--;

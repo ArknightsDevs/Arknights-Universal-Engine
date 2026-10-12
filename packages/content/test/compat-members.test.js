@@ -12,12 +12,12 @@ import { kitsBehaviors } from '../src/compat/kits.js';
 /**
  * The tiny level with the guard (ATK 50) under our kit against a slime (DEF 10); its AUTO skill `s` has no duration in its
  * record and the blackboard `bb`; `spec` is the kit's description of it.
- * @param {Record<string, any>} spec @param {Record<string, number>} [bb]
+ * @param {Record<string, any>} spec @param {Record<string, number>} [bb] @param {Record<string, any>} [skill] changes to its record
  */
-function match(spec, bb = {}) {
+function match(spec, bb = {}, skill = {}) {
   const c = /** @type {any} */ (tinyContent());
   c.enemies.slime.maxHp = 1e6;
-  c.operators.guard.skill = { id: 's', type: 'AUTO', sp: 'time', cost: 2, init: 2, charges: 1, duration: 0, ammo: false, bb };
+  c.operators.guard.skill = { id: 's', type: 'AUTO', sp: 'time', cost: 2, init: 2, charges: 1, duration: 0, ammo: false, bb, ...skill };
   c.decks = [['guard']];
   const box = /** @type {{ b: ShBattle | null, ticks: number[] }} */ ({ b: null, ticks: [] });
   const factory = () => ({ skills: { s: spec }, install(/** @type {any} */ b) { b.on('tick', () => { box.ticks.push(b.time); }); } });
@@ -68,4 +68,42 @@ test('[兼容-5] a spec\'s kind and time over the record\'s; its attacks from th
   const next = match({ kind: 'instant', attack: { atkScale: 2 } }, { atk_scale: 3 });
   run(next.w, next.c, 300);
   assert.deepEqual([...new Set(next.hits)].slice(0, 1), [90], 'the record\'s next-attack kind: one attack at the spec\'s 2 ×');
+});
+
+test('[兼容-4] Stronghold\'s rng signatures, a unit\'s facing step and extra range, settable ammo and layers; aggregateMods', async () => {
+  const { w, c, box, guard } = match({ kind: 'duration', duration: 30 });
+  const b = /** @type {ShBattle} */ (box.b), u = b.unitOf(guard);
+  const ints = Array.from({ length: 200 }, () => b.rng.int(3));
+  assert.deepEqual([...new Set(ints)].sort(), [0, 1, 2], 'int(n): 0 … n − 1');
+  assert.equal(b.rng.weighted(['a', 'b'], (/** @type {string} */ x) => (x === 'b' ? 1 : 0)), 'b');
+  assert.equal(b.rng.weighted(['a'], () => 0), undefined);
+  assert.deepEqual(u.fwd, [0, 1], 'RIGHT: one column on');
+  assert.equal(b.setExtraRange(u, [0, 1]), true);
+  assert.deepEqual([u.extraRangeKeys, u.rangeKeySet.has(0)], [[0, 1], true]);
+  b.setExtraRange(u, null);
+  assert.equal(u.extraRangeKeys, null);
+  b.addBuff(u, { key: 'k', mods: { atkPct: 0.1, atkMul: 1.5 }, refresh: 'stack', maxStacks: 3 });
+  const buff = /** @type {any} */ (u.findBuff('k'));
+  buff.stacks = 2;
+  assert.equal(buff.stacks, 2);
+  const { aggregateMods } = await import('../src/compat/sh/buffs.js');
+  const agg = aggregateMods(u.buffs);
+  assert.deepEqual([Math.round(agg.add.atkPct * 1e9) / 1e9, agg.mul.atkMul], [0.2, 2.25], 'adds × layers, multiplies to their power');
+  run(w, c, 1);
+});
+
+test('[兼容-5] an activation is counted before its spec\'s onStart; a running ammo skill\'s ammo may be set', () => {
+  /** @type {number[]} */
+  const seen = [];
+  const { w, c, box, guard } = match({ kind: 'duration', duration: 30, onStart: (/** @type {any} */ ctx) => { seen.push(ctx.skill.activations); } });
+  run(w, c, 2);
+  const u = /** @type {ShBattle} */ (box.b).unitOf(guard);
+  assert.deepEqual([seen, u.skill?.activations], [[1], 1], 'counted once, before onStart');
+  const ammo = match({ kind: 'ammo' }, { 'attack@trigger_time': 4 }, { ammo: true });
+  for (let i = 0; i < 300 && !ammo.guard.skill.active; i++) step(ammo.w, ammo.c);
+  const sk = /** @type {any} */ (/** @type {ShBattle} */ (ammo.box.b).unitOf(ammo.guard).skill);
+  const left = sk.ammoLeft;
+  assert.ok(left > 0 && left <= 4);
+  sk.ammoLeft += 1;
+  assert.deepEqual([sk.ammoLeft, ammo.guard.skill.ammo], [left + 1, left + 1]);
 });

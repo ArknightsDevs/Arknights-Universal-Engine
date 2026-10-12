@@ -4,7 +4,7 @@
 // throws is skipped and recorded (Stronghold isolates content errors the same way). Times are seconds to the kits and
 // whole frames to the engine (时间-2).
 import { secondsToFrames } from '@aue/math';
-import { KIND, bus, buffs, status, traits, draw, weightedPick } from '@aue/sim';
+import { KIND, bus, buffs, status, traits, draw, weightedPick, setExtraRange } from '@aue/sim';
 import { withGrid } from './grid.js';
 import { ShUnit } from './unit.js';
 import { STATUS_NAME, statusKeyOf, modsOf, flagsOf } from './mods.js';
@@ -235,6 +235,13 @@ export class ShBattle {
   /** A unit's attack profile now, with its running skill's overrides (sh/ai.js). @param {ShUnit} unit */
   effectiveProfile(unit) { return effectiveProfile(unit); }
 
+  /** Extra tiles an ally's attack reaches (攻击-1), absolute keys; none clears them. @param {ShUnit} unit @param {number[] | null} keys */
+  setExtraRange(unit, keys) {
+    if (!unit?.u || unit.side !== 'ally') return false;
+    setExtraRange(this.c, unit.u, keys);
+    return true;
+  }
+
   /** Stronghold's range cache (`(unit)`): the engine's range is computed when read. */
   refreshRange() {}
 
@@ -301,17 +308,27 @@ export class ShBattle {
 const framesLeft = (seconds) => (seconds === undefined || seconds === Infinity ? -1 : secondsToFrames(Math.max(0, seconds)));
 
 /**
- * Stronghold's random numbers over the battle's own stream (随机-1): `rng()` in [0, 1), and as its methods chance, pick,
- * int, range, shuffle and weighted picks.
+ * A weighted pick as Stronghold's rng gives it: an item with its weight's share (negative weights as 0), undefined when
+ * none weighs.
+ * @template T @param {World} w @param {T[]} list @param {(x: T) => number} weightOf @returns {T | undefined}
+ */
+function weighted(w, list, weightOf) {
+  const weights = list.map((x) => Math.max(0, Number(weightOf(x)) || 0));
+  return weights.some((x) => x > 0) ? list[weightedPick(w, weights)] : undefined;
+}
+
+/**
+ * Stronghold's random numbers over the battle's own stream (随机-1), with its methods' signatures: `rng()` in [0, 1),
+ * chance(p), pick(list), int(n) in [0, n), range(a, b) in [a, b), shuffle(list) and weighted(list, weightOf).
  * @param {World} w
  */
 function makeRng(w) {
   return Object.setPrototypeOf(() => draw(w), {
     /** @param {number} p */ chance: (p) => draw(w) < p,
     /** @template T @param {T[]} list @returns {T | undefined} */ pick: (list) => (list.length ? list[Math.floor(draw(w) * list.length)] : undefined),
-    /** @param {number} a @param {number} b */ int: (a, b) => a + Math.floor(draw(w) * (b - a + 1)),
+    /** @param {number} n */ int: (n) => Math.floor(draw(w) * Math.max(0, n)),
     /** @param {number} a @param {number} b */ range: (a, b) => a + draw(w) * (b - a),
     /** @template T @param {T[]} list */ shuffle: (list) => { for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(draw(w) * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; } return list; },
-    /** @param {number[]} weights */ weighted: (weights) => weightedPick(w, weights),
+    /** @template T @param {T[]} list @param {(x: T) => number} weightOf */ weighted: (list, weightOf) => weighted(w, list, weightOf),
   });
 }

@@ -75,6 +75,8 @@ export const SPEC_BEHAVIOR = Object.freeze({
     const r = specOf(ctx.self);
     if (!r) { skills.GENERIC.start?.(ctx); return; }
     const { b, p, spec } = r;
+    // Stronghold counts the activation before onStart (a kit compares it later); kits.js counts the others at skillStart
+    if (p.skill) { p.skill.activations++; p.skill.counted = true; }
     const flags = { ...spec.flags, ...(spec.attack?.noAttack ? { noAttack: true } : {}) };
     if (spec.mods || Object.keys(flags).length) b.giveBuff(p, { key: 'skill', mods: modsOf(spec.mods), flags: flagsOf(flags) });
     call(b, p, spec.onStart, 'skill.onStart');

@@ -129,6 +129,14 @@ export function endSkill(w, c, op, reason = 'duration') {
 }
 
 /**
+ * Sets the shots a running ammo skill has left (content that adds or spends them, 技能-4): at least 0.
+ * @param {SkillState} st @param {number} n
+ */
+export function setAmmo(st, n) {
+  if (st.active) st.ammo = Math.max(0, Math.round(n));
+}
+
+/**
  * Sets the frames a running timed skill has left (content that shortens or lengthens it, 技能-4): at least 1 — it ends
  * in that frame's turn.
  * @param {SkillState} st @param {number} frames

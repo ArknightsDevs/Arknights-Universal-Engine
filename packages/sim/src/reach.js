@@ -9,13 +9,25 @@ import { dirOfCode } from './dir.js';
 
 /**
  * The tile keys an operator's attack reaches now (攻击-1, 技能-8): every tile of the map while a skill that reaches it
- * runs; the skill's range while one with a range runs; else the operator's range.
+ * runs; the skill's range while one with a range runs; else the operator's range — with the extra tiles content gave it.
  * @param {Content} c @param {Unit} op @returns {Set<number>}
  */
 export function reachKeys(c, op) {
   const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], sk = op.skill && op.skill.active ? d.skill : undefined;
   if (sk && sk.rangeAll) return new Set(Array.from({ length: grid.rows * grid.cols }, (_, k) => k));
-  return rangeKeys(grid, op, (sk && sk.range) || op.range || d.range, statsOf(op).rangeExtend);
+  const keys = rangeKeys(grid, op, (sk && sk.range) || op.range || d.range, statsOf(op).rangeExtend);
+  for (const k of op.reachExtra ?? []) keys.add(k);
+  return keys;
+}
+
+/**
+ * Content gives an operator extra tiles its attack reaches (攻击-1): tile keys (row × width + col) of the map, kept until
+ * content sets them again; none takes them away.
+ * @param {Content} c @param {Unit} op @param {readonly number[] | null} keys
+ */
+export function setExtraRange(c, op, keys) {
+  const n = c.level.width * c.level.height, out = [...new Set((keys ?? []).filter((k) => Number.isInteger(k) && k >= 0 && k < n))];
+  op.reachExtra = out.length ? out : undefined;
 }
 
 /**
