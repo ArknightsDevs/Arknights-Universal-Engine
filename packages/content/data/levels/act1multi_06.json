@@ -12869,12 +12869,18 @@
       {
         "alias": "trap_179_muctrl#1",
         "key": "trap_179_muctrl",
-        "hidden": true
+        "hidden": true,
+        "row": 0,
+        "col": 0,
+        "dir": "UP"
       },
       {
         "alias": "trap_179_muctrl#2",
         "key": "trap_179_muctrl",
-        "hidden": true
+        "hidden": true,
+        "row": 0,
+        "col": 1,
+        "dir": "UP"
       }
     ],
     "stages": [
@@ -13768,5 +13774,6 @@
         }
       }
     }
-  }
+  },
+  "devices": {}
 }

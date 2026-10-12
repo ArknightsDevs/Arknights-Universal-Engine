@@ -66,6 +66,7 @@ export function extractLevelFromCheckout(root, id, map) {
     view: map && vectors ? { vector: vectors[0], source: map.source } : undefined,
     stage: /** @type {{ stages: Record<string, unknown> }} */ (readJson(join(data, 'excel', 'stage_table.json'))).stages[id],
     missions: missionsOf(data, id),
+    charTable: readJson(join(data, 'excel', 'character_table.json')),
   });
 }
 

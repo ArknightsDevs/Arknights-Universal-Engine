@@ -3,6 +3,7 @@
 import { asArray, asNumber, asObject, asString, field } from './validate.js';
 import { extractTiles, readRoute } from './skeleton-world.js';
 import { extractWaves, predefinesOf, stagesOf, maskCovers } from './waves.js';
+import { devicesOf } from './devices.js';
 import { extractOptions } from './skeleton.js';
 import { enemyOf, sharedEnemies, damageTypeOf } from './enemies.js';
 
@@ -123,10 +124,10 @@ function withTasks(stages, missions) {
 /**
  * A whole level (关卡-1…关卡-5): `id` names it in the content.
  * @param {{ id: string, level: unknown, enemyDb: unknown, handbook?: unknown, commit: string, view?: { vector: unknown, source: string }, stage?: unknown,
- *   missions?: unknown }} input
+ *   missions?: unknown, charTable?: unknown }} input
  * @returns {Record<string, unknown>}
  */
-export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage, missions }) {
+export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage, missions, charTable }) {
   const lv = asObject(level, 'level');
   const { width, height, tiles } = extractTiles(field(lv, 'mapData', 'level'));
   const { routes, routeOf } = routeTable(field(lv, 'routes', 'level'));
@@ -146,5 +147,6 @@ export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage
       ...(view ? { view: viewOf(view.vector) } : {}) },
     difficulties,
     enemies: Object.fromEntries(keys.map((k) => [k, { ...enemyOf(enemyDb, k, refs.get(k)), ...damageTypeOf(handbook, k), ...(shared.has(k) ? { shared: true } : {}) }])),
+    ...(charTable ? { devices: devicesOf(charTable, lv.predefines) } : {}),
   };
 }

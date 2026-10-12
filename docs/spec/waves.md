@@ -61,7 +61,7 @@
 
 ### 波次-6 预部署单位
 
-关卡的预部署单位（`predefines`）各有别名（`alias`）。不隐藏的从战斗开始就生效；隐藏的在 `ACTIVATE` 动作执行时生效，`WITHDRAW` 动作执行时撤回。生效和撤回各产生表现事件 `predefine`（事件第 8 版，`key` 为别名，`on` 为 1 或 0）。已经生效的再生效、没有生效的撤回，什么也不做。预部署单位在场上做什么由它的种类决定（如合作的阶段控制）；内容还没有给出的种类只记录生效状态。
+关卡的预部署单位（`predefines`）各有别名（`alias`），数据给出时还有所在格（`row`、`col`）和朝向（`dir`）。不隐藏的从战斗开始就生效；隐藏的在 `ACTIVATE` 动作执行时生效，`WITHDRAW` 动作执行时撤回。生效和撤回各产生表现事件 `predefine`（事件第 8 版，`key` 为别名，`on` 为 1 或 0）。已经生效的再生效、没有生效的撤回，什么也不做。预部署单位在场上做什么由它的种类决定（如合作的阶段控制）；内容还没有给出的种类只记录生效状态。
 
 - 来源：[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935) 小队动作指令表（见波次-1）；数据：level.predefines（characterInsts、tokenInsts 的 alias、hidden）
 

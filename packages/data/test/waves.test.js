@@ -40,10 +40,10 @@ test('[波次-4] hidden groups enabled at a difficulty: the runes whose mask nam
   assert.deepEqual([maskCovers('NONE', 'NORMAL'), maskCovers(4, 'NORMAL'), maskCovers(1, 'NORMAL')], [false, false, true]);
 });
 
-test('[波次-6] predefined units: the instances with an alias, their key, whether they start hidden', () => {
-  const inst = (/** @type {string | null} */ alias, /** @type {string} */ key, /** @type {boolean} */ hidden) => ({ alias, hidden, position: { row: 0, col: 0 }, inst: { characterKey: key } });
+test('[波次-6] predefined units: the instances with an alias, their key, whether they start hidden, their tile and facing', () => {
+  const inst = (/** @type {string | null} */ alias, /** @type {string} */ key, /** @type {boolean} */ hidden) => ({ alias, hidden, position: { row: 2, col: 8 }, direction: 'UP', inst: { characterKey: key } });
   assert.deepEqual(predefinesOf({ characterInsts: [inst('op#1', 'char_x', false)], tokenInsts: [inst('trap#1', 'trap_179_muctrl', true), inst(null, 'trap_y', false)], characterCards: [] }), [
-    { alias: 'op#1', key: 'char_x', hidden: false }, { alias: 'trap#1', key: 'trap_179_muctrl', hidden: true },
+    { alias: 'op#1', key: 'char_x', hidden: false, row: 2, col: 8, dir: 'UP' }, { alias: 'trap#1', key: 'trap_179_muctrl', hidden: true, row: 2, col: 8, dir: 'UP' },
   ]);
   assert.deepEqual(predefinesOf(null), []);
 });

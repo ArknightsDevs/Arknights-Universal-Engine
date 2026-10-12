@@ -104,9 +104,9 @@ export function hiddenGroupsOf(runesRaw, difficulty) {
 }
 
 /**
- * The predefined units (波次-6): the character and token instances that have an alias, with their key and whether they
- * start hidden.
- * @param {unknown} raw level.predefines @returns {{ alias: string, key: string, hidden: boolean }[]}
+ * The predefined units (波次-6): the character and token instances that have an alias, with their key, whether they
+ * start hidden, and their tile and facing when the data gives them.
+ * @param {unknown} raw level.predefines @returns {{ alias: string, key: string, hidden: boolean, row?: number, col?: number, dir?: string }[]}
  */
 export function predefinesOf(raw) {
   if (raw === null || raw === undefined) return [];
@@ -114,7 +114,10 @@ export function predefinesOf(raw) {
   return ['characterInsts', 'tokenInsts'].flatMap((k) => (Array.isArray(pd[k]) ? pd[k] : []).flatMap((x, i) => {
     const p = `level.predefines.${k}[${i}]`, o = asObject(x, p);
     if (!o.alias) return [];
-    return [{ alias: asString(o.alias, `${p}.alias`), key: asString(field(asObject(field(o, 'inst', p), `${p}.inst`), 'characterKey', `${p}.inst`), `${p}.inst.characterKey`), hidden: o.hidden === true }];
+    const pos = o.position && typeof o.position === 'object' ? asObject(o.position, `${p}.position`) : null;
+    return [{ alias: asString(o.alias, `${p}.alias`), key: asString(field(asObject(field(o, 'inst', p), `${p}.inst`), 'characterKey', `${p}.inst`), `${p}.inst.characterKey`), hidden: o.hidden === true,
+      ...(pos ? { row: asInt(field(pos, 'row', `${p}.position`), `${p}.position.row`, 0, 99), col: asInt(field(pos, 'col', `${p}.position`), `${p}.position.col`, 0, 99) } : {}),
+      ...(typeof o.direction === 'string' ? { dir: o.direction } : {}) }];
   }));
 }
 
