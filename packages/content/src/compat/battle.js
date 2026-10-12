@@ -6,7 +6,7 @@
 import { secondsToFrames } from '@aue/math';
 import { KIND, bus, buffs, status, traits, draw, weightedPick } from '@aue/sim';
 import { withGrid } from './grid.js';
-import { ShUnit } from './unit.js';
+import { ShUnit, STATUS_NAME } from './unit.js';
 import * as field from './field.js';
 import { ShGrid } from './tiles.js';
 import { CompatGap } from './sh/gap.js';
@@ -19,6 +19,7 @@ export const TICK = 1 / 30;
 
 /** Stronghold's status names → the engine's (状态-5), where they differ. @type {Record<string, string>} */
 const STATUS_KEY = { bind: 'root', resist: 'buffres' };
+
 
 /** Stronghold's buff refresh rules → the engine's same-key rules (状态-2). @type {Record<string, string>} */
 const RULES = { extend: 'extend', stack: 'stack', independent: 'independent' };
@@ -45,6 +46,22 @@ const SHAPES = {
   fatal: (b, k) => ({ unit: sh(b, k.unit), source: sh(b, k.source), credit: sh(b, k.source), dmg: k.dmg, amount: k.amount,
     get prevented() { return k.prevented; }, set prevented(v) { k.prevented = v; } }),
   heal: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), opts: {}, get amount() { return k.amount; }, set amount(v) { k.amount = v; } }),
+  beforeAttack: (b, k) => ({ attacker: sh(b, k.attacker), targets: k.targets.map((/** @type {Unit} */ t) => b.unitOf(t)), isSkill: k.isSkill, profile: sh(b, k.attacker)?.profile }),
+  attack: (b, k) => ({ attacker: sh(b, k.attacker), targets: k.targets.map((/** @type {Unit} */ t) => b.unitOf(t)), isSkill: k.isSkill }),
+  skillStart: (b, k) => ({ unit: sh(b, k.unit), skill: sh(b, k.unit)?.skill ?? null, reason: k.reason }),
+  skillEnd: (b, k) => ({ unit: sh(b, k.unit), skill: sh(b, k.unit)?.skill ?? null, reason: k.reason }),
+  beforeStatus: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), status: STATUS_NAME[k.status] ?? k.status,
+    get duration() { return k.frames < 0 ? Infinity : k.frames * TICK; }, set duration(v) { k.frames = v === Infinity ? -1 : secondsToFrames(Math.max(0, Number(v) || 0)); },
+    get value() { return k.strength; }, set value(v) { k.strength = v; }, get cancel() { return k.cancel; }, set cancel(v) { k.cancel = v; } }),
+};
+
+/**
+ * What a handler changed in place, written back to the engine's context after each handler (兼容-4): the targets an
+ * attack locks.
+ * @type {Record<string, (ctx: Record<string, any>, k: Record<string, any>) => void>}
+ */
+const BACK = {
+  beforeAttack: (ctx, k) => { k.targets = (Array.isArray(ctx.targets) ? ctx.targets : []).map((/** @type {any} */ t) => t?.u).filter(Boolean); },
 };
 
 /**
@@ -132,6 +149,7 @@ export class ShBattle {
       if (!ctx) { ctx = shapeOf(this, name, k); this.shapes.set(k, ctx); }
       this.safe(() => fn(ctx, this), `hook:${name}`, o.owner);
       if (ctx.stopPropagation) k.stopPropagation = true;
+      if (Object.hasOwn(BACK, name)) BACK[name](ctx, k);
     }, o);
   }
 
@@ -235,7 +253,7 @@ export class ShBattle {
     if (!target.alive) return false;
     const k = STATUS_KEY[key] ?? key, frames = o.duration === undefined ? undefined : secondsToFrames(Math.max(0, o.duration));
     if (!Object.hasOwn(status.STATUS, k)) throw new CompatGap(`status.${key}`);
-    return status.applyStatus(/** @type {Unit} */ (target.u), /** @type {any} */ (k), { frames, src: o.source?.u ?? null, value: o.value }) !== null;
+    return status.inflict(this.w, /** @type {Unit} */ (target.u), /** @type {any} */ (k), { frames, src: o.source?.u ?? null, value: o.value }) !== null;
   }
 }
 

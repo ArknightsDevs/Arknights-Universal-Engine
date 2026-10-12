@@ -12,7 +12,7 @@ import { ShSkill } from './skill.js';
 const FPS = 30;
 
 /** The engine's status keys that Stronghold names otherwise (状态-5). @type {Record<string, string>} */
-const STATUS_NAME = { root: 'bind', buffres: 'resist', enemyCold: 'cold', enemyFreeze: 'freeze' };
+export const STATUS_NAME = Object.freeze(/** @type {Record<string, string>} */ ({ root: 'bind', buffres: 'resist', enemyCold: 'cold', enemyFreeze: 'freeze' }));
 
 /**
  * A buff as a kit sees it: its key, the status it is (Stronghold's name), who gave it, its data, the seconds left, its

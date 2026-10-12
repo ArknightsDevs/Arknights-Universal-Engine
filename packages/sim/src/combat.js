@@ -7,6 +7,7 @@ import { offsetTile } from './dir.js';
 import { statsOf, intervalFrames } from './attrs.js';
 import { inKeys, selectable, sortEnemies, sortAllies, firstN } from './targeting.js';
 import { dealDamage, heal } from './damage.js';
+import { emit, hasHook } from './bus.js';
 import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
 import { blockingImmunity } from './upkeep.js';
@@ -17,7 +18,7 @@ import { foeTargets, foeAttack, foeHit, isFoeOf } from './foes.js';
 import { makeBuff } from './buffs.js';
 import { tileOf } from './body.js';
 import { tickSkill, beforeAttack, afterAttack } from './skills.js';
-import { palsyInterrupts, applyStatus } from './status.js';
+import { palsyInterrupts, inflict } from './status.js';
 import { draw } from './rng.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
 import { mayAttack, healsNow, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder } from './modes.js';
@@ -92,7 +93,7 @@ function hitTarget(w, c, src, t, load) {
     if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
     if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
     if (el && load.ep > 0) dealEp(w, t, el, load.ep);
-    if (load.hitStatus && alive && t.hp > 0) applyStatus(t, load.hitStatus.key, { seconds: load.hitStatus.seconds, src });
+    if (load.hitStatus && alive && t.hp > 0) inflict(w, t, load.hitStatus.key, { seconds: load.hitStatus.seconds, src });
     if (op && alive) traitHit(w, c, op, t);
   }
 }
@@ -207,6 +208,19 @@ function heals(w, c, a, t, how) {
 }
 
 /**
+ * The locked targets still on the field and alive take a landing attack (攻击-2); returns them.
+ * @param {World} w @param {Content} c @param {Unit} a @param {Swing} sw @param {boolean} heals @returns {Unit[]}
+ */
+function deliverAll(w, c, a, sw, heals) {
+  const load = loadOf(a, sw.mods), area = sw.mods.square ? 'square' : sw.mods.cross ? 'cross' : null, reached = [];
+  for (const id of sw.targets) {
+    const t = w.units.find((u) => u.id === id);
+    if (t && t.hp > 0 && !t.hidden) { deliver(w, c, a, t, { load, heals, area }); reached.push(t); }
+  }
+  return reached;
+}
+
+/**
  * An attack lands at the end of its wind-up (攻击-2, 攻击-3): 麻痹 may interrupt an enemy's (状态-8); the locked
  * targets still on the field and alive take it — out of range or not — as hits, a healer's heals (职业-2), or the
  * projectiles a ranged attacker launches; then an operator's skill counts the attack (技能-2, 技能-4).
@@ -216,13 +230,10 @@ function land(w, c, a) {
   const sw = /** @type {Swing} */ (a.swing);
   a.swing = null;
   if (palsyInterrupts(a)) { a.anim = ANIM.IDLE; return; }
-  const op = a.kind === KIND.OPERATOR, heals = op && (traitOf(c, a).heal || !!sw.mods.heal), load = loadOf(a, sw.mods);
-  let reached = 0;
-  for (const id of sw.targets) {
-    const t = w.units.find((u) => u.id === id);
-    if (t && t.hp > 0 && !t.hidden) { deliver(w, c, a, t, { load, heals: !!heals, area: sw.mods.square ? 'square' : sw.mods.cross ? 'cross' : null }); reached++; }
-  }
-  if (op) operatorLanded(w, c, a, { sw, reached, heals: !!heals });
+  const op = a.kind === KIND.OPERATOR, heals = op && (traitOf(c, a).heal || !!sw.mods.heal);
+  const reached = deliverAll(w, c, a, sw, !!heals);
+  if (reached.length > 0) emit(w, 'attack', { attacker: a, targets: reached, isSkill: !!sw.mods.skill });
+  if (op) operatorLanded(w, c, a, { sw, reached: reached.length, heals: !!heals });
   const ch = sw.mods.channel;
   if (ch && (sw.left ?? ch.hits) > 1) a.swing = { ...sw, wind: secondsToFrames(ch.duration / ch.hits), since: 0, left: (sw.left ?? ch.hits) - 1 };
 }
@@ -265,15 +276,28 @@ function deliver(w, c, a, t, how) {
 }
 
 /**
- * Starts an attack (攻击-2): the cooldown starts — the next attack may start an attack interval from now —, the
- * targets are locked and the swing waits its wind-up; it lands at once without one. An attack during a 狂躁 burst
- * counts once (元素-4).
- * @param {World} w @param {Content} c @param {Unit} a @param {Unit[]} targets @param {AttackMods} mods
+ * The `beforeAttack` event as an attack locks its targets (钩子-3): handlers may change them; those still on the field
+ * with HP are the attack's, none while the attacker has none.
+ * @param {World} w @param {Unit} a @param {Unit[]} targets @param {AttackMods} mods @returns {Unit[]}
  */
-function startSwing(w, c, a, targets, mods) {
+function lockTargets(w, a, targets, mods) {
+  if (!hasHook(w, 'beforeAttack')) return targets;
+  const k = emit(w, 'beforeAttack', { attacker: a, targets: [...targets], isSkill: !!mods.skill });
+  return a.hp > 0 ? (Array.isArray(k.targets) ? k.targets : []).filter((t) => t && t.hp > 0 && w.units.includes(t)) : [];
+}
+
+/**
+ * Starts an attack (攻击-2): the cooldown starts — the next attack may start an attack interval from now —, the
+ * targets are locked (the `beforeAttack` event; none left: no swing, the cooldown runs all the same) and the swing
+ * waits its wind-up; it lands at once without one. An attack during a 狂躁 burst counts once (元素-4).
+ * @param {World} w @param {Content} c @param {Unit} a @param {Unit[]} found @param {AttackMods} mods
+ */
+function startSwing(w, c, a, found, mods) {
   const s = statsOf(a), ch = mods.channel, every = ch ? secondsToFrames(ch.duration / ch.hits) : 0;
   const interval = ch ? ch.hits * every + secondsToFrames(ch.after) : intervalFrames(s.bat, s.aspd);
   a.atkCd = interval - 1;
+  const targets = lockTargets(w, a, found, mods);
+  if (targets.length === 0) { a.anim = ANIM.IDLE; return; }
   a.anim = ANIM.ATTACK;
   rampageAttack(a);
   const wind = ch ? every : windupFrames(timingOf(c, a), interval);

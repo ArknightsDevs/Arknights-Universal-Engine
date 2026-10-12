@@ -1,5 +1,6 @@
-// The events on the way of damage and healing (docs/spec/hooks.md 钩子-3, damage.md 伤害-7, 伤害-11): hit before the
-// defences, dodge, hpDamage, fatal, damaged, heal; kill and the killer at the frame's end; where an attack's hit comes from.
+// The events the engine sends on the way (docs/spec/hooks.md 钩子-3): of damage and healing (伤害-7, 伤害-11) — hit before
+// the defences, dodge, hpDamage, fatal, damaged, heal; kill and the killer at the frame's end; where an attack's hit comes
+// from —, of attacks (beforeAttack, attack), skills (skillStart, skillEnd) and statuses (beforeStatus).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
@@ -8,6 +9,7 @@ import { on, after } from '../src/bus.js';
 import { dealDamage, heal } from '../src/damage.js';
 import { makeOperator, makeEnemy } from '../src/units.js';
 import { makeBuff, addBuff } from '../src/buffs.js';
+import { applyStatus, inflict } from '../src/status.js';
 
 /** A world with a guard on the road and a slime (1000 HP, DEF 10) at the start; nothing else happens on its own. */
 function field() {
@@ -92,4 +94,78 @@ test('[钩子-3] an attack’s hit is marked as one, not the skill’s', () => {
   step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 2, dir: 2 }]]);
   for (let i = 0; i < 200 && seen.length === 0; i++) step(w, c);
   assert.deepEqual(seen[0], { isAttack: true, isSkill: false, isSplash: undefined, tags: [] });
+});
+
+/**
+ * The guard (ATK 50, 1 s) at (1, 1) facing right with a skill, and a rooted dummy (a billion HP, DEF 0) at (1, 2).
+ * @param {Record<string, unknown>} skill
+ */
+function arena(skill) {
+  const c = /** @type {any} */ (tinyContent());
+  c.operators.guard.skill = { id: 'test', type: 'MANUAL', sp: 'time', cost: 5, init: 0, charges: 1, duration: 0, ammo: false, bb: {}, ...skill };
+  c.level.waves = [];
+  const w = createWorld(c, { seed: 1, players: 1 });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 }]]);
+  const guard = w.units[0], foe = makeEnemy(w, c, { key: 'slime', route: 0 });
+  Object.assign(foe, { x: 2, y: 1, hp: 1e9, maxHp: 1e9, base: { ...foe.base, maxHp: 1e9, def: 0 } });
+  applyStatus(foe, 'root', {});
+  w.units.push(foe);
+  return { c, w, guard, foe };
+}
+
+test('[钩子-3] skillStart and skillEnd, with why: started by hand or on its own, closed, its time out, at once, leaving', () => {
+  const a = arena({ cost: 1, init: 1, duration: 1, stoppable: true }), seen = /** @type {string[]} */ ([]);
+  on(a.w, 'skillStart', (k) => seen.push(`start:${k.reason}`));
+  on(a.w, 'skillEnd', (k) => seen.push(`end:${k.reason}`));
+  on(a.w, 'death', (k) => seen.push(`death:${k.reason}`));
+  const cast = () => step(a.w, a.c, [[0, { type: 'skill', unit: a.guard.id }]]);
+  const charge = () => { for (let i = 0; i < 31 && a.guard.skill?.sp === 0; i++) step(a.w, a.c); };
+  cast();
+  for (let i = 0; i < 31; i++) step(a.w, a.c);
+  charge();
+  cast();
+  cast();
+  charge();
+  cast();
+  step(a.w, a.c, [[0, { type: 'retreat', unit: a.guard.id }]]);
+  const b = arena({ type: 'AUTO', cost: 1, init: 0, bb: { cost: 1 } });
+  on(b.w, 'skillStart', (k) => seen.push(`b:start:${k.reason}`));
+  on(b.w, 'skillEnd', (k) => seen.push(`b:end:${k.reason}`));
+  for (let i = 0; i < 31; i++) step(b.w, b.c);
+  assert.deepEqual(seen, ['start:manual', 'end:duration', 'start:manual', 'end:stopped', 'start:manual', 'end:death', 'death:retreat', 'b:start:auto', 'b:end:instant']);
+});
+
+test('[钩子-3] beforeAttack as an attack locks its targets: handlers may change them; none left, no attack, the cooldown runs', () => {
+  const a = arena({}), seen = /** @type {string[]} */ ([]);
+  let mode = 'none';
+  const other = makeEnemy(a.w, a.c, { key: 'slime', route: 0 });
+  Object.assign(other, { x: 4, y: 1, hp: 500, maxHp: 500, base: { ...other.base, maxHp: 500 } });
+  applyStatus(other, 'root', {});
+  a.w.units.push(other);
+  on(a.w, 'beforeAttack', (k) => {
+    seen.push(`before@${a.w.frame}:${k.targets.map((/** @type {any} */ t) => t.id).join(',')}`);
+    if (mode === 'none') k.targets = []; else k.targets.push(other);
+  });
+  on(a.w, 'attack', (k) => seen.push(`attack@${a.w.frame}:${k.targets.map((/** @type {any} */ t) => t.id).join(',')}`));
+  for (let i = 0; i < 31; i++) step(a.w, a.c);
+  mode = 'more';
+  for (let i = 0; i < 31; i++) step(a.w, a.c);
+  const f = Number(seen[0].split(/[@:]/)[1]), id = a.foe.id;
+  assert.deepEqual(seen, [`before@${f}:${id}`, `before@${f + 30}:${id}`, `before@${f + 60}:${id}`, `attack@${f + 60}:${id},${other.id}`],
+    'cleared: no attack, the next a whole interval later; added: hit too');
+  assert.equal(other.hp, 460, 'the target a handler added took the hit (50 − DEF 10), out of range');
+});
+
+test('[钩子-3] beforeStatus: a handler may cancel a status, change its frames or its strength', () => {
+  const { w, guard, foe } = arena({}), seen = /** @type {string[]} */ ([]);
+  on(w, 'beforeStatus', (k) => {
+    seen.push(`${k.status}:${k.frames}:${k.strength ?? '-'}:${k.source?.key ?? null}`);
+    if (k.status === 'sleep') k.cancel = true;
+    if (k.status === 'stun') k.frames *= 2;
+    if (k.status === 'fragile') k.strength = 0.5;
+  });
+  assert.equal(inflict(w, foe, 'sleep', { seconds: 1, src: guard }), null);
+  assert.equal(inflict(w, foe, 'stun', { seconds: 1, src: guard })?.left, 60);
+  assert.equal(inflict(w, foe, 'fragile', { seconds: 1, value: 0.2 })?.value, 0.5);
+  assert.deepEqual(seen, ['sleep:30:-:guard', 'stun:30:-:guard', 'fragile:30:0.2:null']);
 });

@@ -5,7 +5,7 @@ import { FPS, secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff } from './buffs.js';
-import { applyStatus } from './status.js';
+import { inflict } from './status.js';
 import { dealDamage, heal } from './damage.js';
 import { dealEp } from './elements.js';
 
@@ -77,7 +77,7 @@ export function actorContext(w, c, op, bb) {
     self: op, bb, frame: w.frame, stats: statsOf,
     addBuff: (t, init) => { addBuff(t, makeBuff({ src: op.id, ...init })); },
     removeBuff: (t, key) => { removeBuff(t, key); },
-    applyStatus: (t, key, o) => { applyStatus(t, key, { ...o, src: op }); },
+    applyStatus: (t, key, o) => { inflict(w, t, key, { ...o, src: op }); },
     dealDamage: (t, dmg) => creditedDamage(w, c, op, t, dmg),
     dealEp: (t, el, amount) => dealEp(w, t, el, amount),
     heal: (t, amount) => heal(w, op, t, amount),
@@ -113,7 +113,7 @@ export function traitDeploy(w, c, op) {
  */
 export function traitHit(w, c, op, target) {
   const t = traitOf(c, op);
-  if (t.hitStatus && target.hp > 0) applyStatus(target, t.hitStatus.key, { seconds: t.hitStatus.seconds, src: op });
+  if (t.hitStatus && target.hp > 0) inflict(w, target, t.hitStatus.key, { seconds: t.hitStatus.seconds, src: op });
   behaviorOf(c, op)?.hit?.(contextOf(w, c, op), target);
 }
 

@@ -45,5 +45,6 @@ export function withdraw(w, c, u) {
   releaseAll(w, u.id);
   leaveField(w, c, u, true);
   w.events.push({ type: 'retreat', id: u.id });
+  if (u.skill?.active) emit(w, 'skillEnd', { unit: u, reason: 'death' });
   emit(w, 'death', { unit: u, reason: 'retreat', killer: null });
 }

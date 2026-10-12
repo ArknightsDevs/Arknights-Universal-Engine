@@ -5,6 +5,7 @@ import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, consumeStack, count, decayRate } from './buffs.js';
+import { emit, hasHook } from './bus.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff */
 /** @typedef {import('./attrs.js').Stats} Stats */
@@ -120,6 +121,19 @@ export function applyStatus(target, key, o = {}) {
   const b = statusBuff(k, target, o);
   if (b.left === 0) return null;
   return k === 'cold' || k === 'enemyCold' ? applyCold(target, b) : addBuff(target, b);
+}
+
+/**
+ * A status in a battle (状态-5, 钩子-3): the `beforeStatus` event — a handler may cancel it, change its frames (−1 for
+ * no end; none left cancels it) or its strength (the status's value) —, then the status as applyStatus gives it.
+ * @param {import('./types.js').World} w @param {Unit} target @param {StatusKey} key @param {StatusOptions} [o] @returns {Buff | null}
+ */
+export function inflict(w, target, key, o = {}) {
+  if (!hasHook(w, 'beforeStatus')) return applyStatus(target, key, o);
+  const k = emit(w, 'beforeStatus', { source: o.src ?? null, target, status: key, frames: framesOf(o), strength: o.value, cancel: false });
+  const frames = Number.isFinite(k.frames) ? Math.trunc(k.frames) : framesOf(o);
+  if (k.cancel || target.hp <= 0 || (frames <= 0 && frames !== -1)) return null;
+  return applyStatus(target, key, { ...o, frames, seconds: undefined, value: k.strength });
 }
 
 /** 麻痹 loses a layer every this many frames at a 综合抵抗衰减率 of 1 (状态-8: 10 s). */

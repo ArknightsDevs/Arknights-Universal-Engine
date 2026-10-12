@@ -89,13 +89,14 @@ function killerOf(w, u) {
 }
 
 /**
- * The events of a unit leaving at 0 HP (钩子-3): `kill` when a unit's hit brought it there, then `death` — `leak` for
- * an enemy that reached a goal, else `killed` with its killer.
+ * The events of a unit leaving at 0 HP (钩子-3): `kill` when a unit's hit brought it there, `skillEnd` when its skill
+ * runs, then `death` — `leak` for an enemy that reached a goal, else `killed` with its killer.
  * @param {World} w @param {Unit} u @param {boolean} leak
  */
 function announceDeath(w, u, leak) {
   const killer = leak || !(hasHook(w, 'kill') || hasHook(w, 'death')) ? null : killerOf(w, u);
   if (killer) emit(w, 'kill', { killer, victim: u });
+  if (u.skill?.active) emit(w, 'skillEnd', { unit: u, reason: 'death' });
   emit(w, 'death', { unit: u, reason: leak ? 'leak' : 'killed', killer });
 }
 

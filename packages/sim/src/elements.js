@@ -5,7 +5,7 @@ import { FPS, secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, count, retune } from './buffs.js';
-import { applyStatus } from './status.js';
+import { inflict } from './status.js';
 import { dealDamage } from './damage.js';
 import { loseSp } from './sp.js';
 import { MIN_DAMAGE_RATIO } from './constants.js';
@@ -112,9 +112,9 @@ const side = (o) => ({ mods: {}, ticks: false, start: () => {}, ...o });
 /** Each element's burst: on a character, on any other unit (元素-4). @type {Readonly<Record<Element, readonly [BurstSide, BurstSide]>>} */
 const BURSTS = Object.freeze({
   SANITY: [
-    side({ secs: 10, start: (w, u, frames) => { applyStatus(u, 'stun', { frames }); burstHit(w, u, 'true', 1000); } }),
+    side({ secs: 10, start: (w, u, frames) => { inflict(w, u, 'stun', { frames }); burstHit(w, u, 'true', 1000); } }),
     side({ secs: 10, start: (w, u) => {
-      if (!(u.base.immune ?? []).includes('palsy')) for (let i = 0; i < 3; i++) applyStatus(u, 'palsy');
+      if (!(u.base.immune ?? []).includes('palsy')) for (let i = 0; i < 3; i++) inflict(w, u, 'palsy');
       burstHit(w, u, 'elemental', 6000);
     } }),
   ],
@@ -127,8 +127,8 @@ const BURSTS = Object.freeze({
     side({ secs: 10, mods: { resFlat: -20 }, start: (w, u) => burstHit(w, u, 'elemental', 7000) }),
   ],
   DARK: [
-    side({ secs: 15, ticks: true, start: (_w, u, frames) => { applyStatus(u, 'noSp', { frames }); applyStatus(u, 'mute', { frames }); } }),
-    side({ secs: 15, ticks: true, start: (_w, u, frames) => { applyStatus(u, 'weaken', { frames, value: 0.5, tag: burstKey('DARK') }); } }),
+    side({ secs: 15, ticks: true, start: (w, u, frames) => { inflict(w, u, 'noSp', { frames }); inflict(w, u, 'mute', { frames }); } }),
+    side({ secs: 15, ticks: true, start: (w, u, frames) => { inflict(w, u, 'weaken', { frames, value: 0.5, tag: burstKey('DARK') }); } }),
   ],
   ANGER: [side({ secs: 15, ticks: true, mods: { aspd: 50 } }), side({ secs: 15 })],
 });

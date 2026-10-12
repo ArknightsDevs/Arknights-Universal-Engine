@@ -37,15 +37,16 @@ const bare = ({ talentBb, fieldTalents, rangeTalents, critTalents, timedTalents,
 
 /**
  * The tiny level with 推进之王 (her kit), a 先锋 without a kit and a sniper; tougher enemies, more cost.
- * @param {Record<string, any>} [kits] other kits instead of hers @param {string[]} [deck]
+ * @param {Record<string, any>} [kits] other kits instead of hers @param {string[]} [deck] @param {(c: any) => void} [tweak] changes to the content
  */
-function match(kits, deck = ['siege', 'texas', 'sniper']) {
+function match(kits, deck = ['siege', 'texas', 'sniper'], tweak = () => {}) {
   const c = /** @type {any} */ (tinyContent());
   c.enemies.slime.maxHp = 4000;
   Object.assign(c.level.options, { initialCost: 40, maxCost: 99, characterLimit: 4 });
   c.operators.siege = { ...bare(operatorAt(training, BUILD)), respawnTime: 1 };
   c.operators.texas = { ...c.operators.guard, name: 'texas', profession: 'PIONEER' };
   c.decks = [deck];
+  tweak(c);
   const box = /** @type {{ b: any }} */ ({ b: null });
   c.behaviors = { world: kitsWorld(kits ?? { siege: { factory, def: defOf(SIEGE, training, BUILD) } }, (x) => { box.b = x; }) };
   const w = createWorld(c, { seed: 1, players: 1 });
@@ -198,5 +199,30 @@ test('[兼容-4] damage as a kit sees it: hit may scale it, hpDamage lower it, f
   assert.ok(log.includes('hit:attack') && log.includes('kill:guard>slime'), log.join(' '));
   b.retreat(g);
   assert.equal(unit(w, 'guard'), undefined);
+  assert.deepEqual(b.errors, []);
+});
+
+test('[兼容-4] attacks, skills and statuses as a kit sees them: targets it may change in place, why a skill starts, seconds', () => {
+  const log = /** @type {string[]} */ ([]);
+  const kit = () => ({ skills: {}, install(/** @type {ShBattle} */ b, /** @type {any} */ u) {
+    b.on('beforeAttack', (k) => { if (k.attacker === u && u.mem.extra) k.targets.push(u.mem.extra); }, { owner: u });
+    b.on('attack', (k) => log.push(`attack:${k.targets.map((/** @type {any} */ t) => t.defId).join(',')}:${k.isSkill}`), { owner: u });
+    b.on('skillStart', (k) => log.push(`start:${k.unit.defId}:${k.reason}:${k.skill?.kind}`), { owner: u });
+    b.on('beforeStatus', (k) => { log.push(`status:${k.status}:${k.duration}`); k.duration *= 2; }, { owner: u });
+  } });
+  const skill = { id: 'slash', type: 'MANUAL', sp: 'time', cost: 1, init: 1, charges: 1, duration: 5, ammo: false, bb: {} };
+  const { c, w, b } = match({ guard: { def: { name: 'guard', skill: null, raw: {} }, factory: kit } }, ['guard'], (x) => { x.operators.guard.skill = skill; });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 3, dir: 2 }]]);
+  const g = b.unitOf(unit(w, 'guard'));
+  step(w, c, [[0, { type: 'skill', unit: g.id }]]);
+  while (!unit(w, 'slime')) step(w, c);
+  const first = b.unitOf(unit(w, 'slime'));
+  assert.ok(b.applyStatus(first, 'bind', { duration: 1.5, source: g }));
+  assert.equal(first.findBuff('root')?.timeLeft, 3, 'bind as the engine’s root, its 1.5 s doubled');
+  while (w.units.filter((x) => x.key === 'slime').length < 2) step(w, c);
+  g.mem.extra = b.unitOf(w.units.filter((x) => x.key === 'slime')[1]);
+  for (let i = 0; i < 600 && !log.some((x) => x.startsWith('attack')); i++) step(w, c);
+  assert.deepEqual(log.slice(0, 2), ['start:guard:manual:duration', 'status:bind:1.5']);
+  assert.ok(log.some((x) => /^attack:slime,slime:/.test(x)), log.join(' '));
   assert.deepEqual(b.errors, []);
 });

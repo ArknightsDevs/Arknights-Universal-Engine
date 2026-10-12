@@ -6,6 +6,7 @@ import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { timeSp, gainSp, spendSp } from './sp.js';
 import { actorContext } from './traits.js';
+import { emit } from './bus.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').SkillDef} SkillDef @typedef {import('./types.js').SkillState} SkillState */
@@ -102,20 +103,26 @@ function contextOf(w, c, op) {
   return { ...actorContext(w, c, op, def.bb), kind: kindOf(def), extra: def.extra?.mods ?? {} };
 }
 
-/** Ends a skill (技能-4): its behaviour's end, then the state at rest. @param {World} w @param {Content} c @param {Unit} op */
-export function endSkill(w, c, op) {
+/**
+ * Ends a skill (技能-4): its behaviour's end, then the state at rest, then the `skillEnd` event (钩子-3) with why —
+ * `duration`, `instant`, `ammo` or `stopped` (closed, 技能-7).
+ * @param {World} w @param {Content} c @param {Unit} op @param {string} [reason]
+ */
+export function endSkill(w, c, op, reason = 'duration') {
   const st = /** @type {SkillState} */ (op.skill);
   behaviorOf(c, st.id).end?.(contextOf(w, c, op));
   st.active = false; st.armed = false; st.dur = -1; st.ammo = 0;
   w.events.push({ type: 'skill', id: op.id, active: 0 });
+  emit(w, 'skillEnd', { unit: op, reason });
 }
 
 /**
  * Starts a skill (技能-3, 技能-4): it takes its cost; by kind it lasts its duration, holds its ammo, waits for the next
- * attack, or acts at once and ends.
- * @param {World} w @param {Content} c @param {Unit} op
+ * attack, or acts at once and ends. The `skillStart` event (钩子-3) follows its behaviour's start, with why: `manual`,
+ * `auto` or `deploy` (a passive skill).
+ * @param {World} w @param {Content} c @param {Unit} op @param {string} [reason]
  */
-export function activate(w, c, op) {
+export function activate(w, c, op, reason = 'auto') {
   const st = /** @type {SkillState} */ (op.skill), def = defOf(c, op), kind = kindOf(def);
   spendSp(st);
   st.active = true; st.at = w.frame;
@@ -124,7 +131,8 @@ export function activate(w, c, op) {
   st.ammo = kind === 'ammo' ? Math.max(1, def.bb['attack@trigger_time'] ?? def.bb.cnt ?? 1) : 0;
   w.events.push({ type: 'skill', id: op.id, active: 1 });
   behaviorOf(c, st.id).start?.(contextOf(w, c, op));
-  if (kind === 'instant') endSkill(w, c, op);
+  emit(w, 'skillStart', { unit: op, reason });
+  if (kind === 'instant') endSkill(w, c, op, 'instant');
 }
 
 /** Whether an operator may trigger its skill (技能-3, 技能-7): it can act and is not silenced (沉默, 静默). @param {Unit} op */
@@ -179,7 +187,7 @@ export function tickSkill(w, c, op) {
 export function beforeAttack(w, c, op) {
   const st = op.skill, plain = { scale: 1, times: 1, targets: 1, skill: false };
   if (!st) return plain;
-  if (st.active && kindOf(defOf(c, op)) === 'ammo' && st.ammo <= 0) endSkill(w, c, op);
+  if (st.active && kindOf(defOf(c, op)) === 'ammo' && st.ammo <= 0) endSkill(w, c, op, 'ammo');
   if (triggerOf(c, op) === 'attack' && canStart(c, op, 'AUTO')) activate(w, c, op);
   const kind = kindOf(defOf(c, op));
   if (!st.active || kind === 'instant' || kind === 'passive') return plain;
@@ -215,14 +223,14 @@ export function skillMods(bb) {
 export function afterAttack(w, c, op, mods) {
   const st = op.skill;
   if (!st) return;
-  if (mods.skill && st.armed) endSkill(w, c, op);
+  if (mods.skill && st.armed) endSkill(w, c, op, 'instant');
   else if (mods.skill && st.ammo > 0) st.ammo--;
   else if (!mods.skill && st.spType === 'attack' && !statsOf(op).flags.noSp) gainSp(st, 1);
 }
 
 /** A newly deployed operator's passive skill starts (技能-3). @param {World} w @param {Content} c @param {Unit} op */
 export function onDeploy(w, c, op) {
-  if (op.skill && defOf(c, op).type === 'PASSIVE') activate(w, c, op);
+  if (op.skill && defOf(c, op).type === 'PASSIVE') activate(w, c, op, 'deploy');
 }
 
 /**
@@ -232,6 +240,6 @@ export function onDeploy(w, c, op) {
  */
 export function commandSkill(w, c, seat, unit) {
   const op = w.units.find((u) => u.id === unit && u.kind === KIND.OPERATOR && u.owner === seat && u.hp > 0);
-  if (op && canClose(c, op)) endSkill(w, c, op);
-  else if (op && canStart(c, op, 'MANUAL')) activate(w, c, op);
+  if (op && canClose(c, op)) endSkill(w, c, op, 'stopped');
+  else if (op && canStart(c, op, 'MANUAL')) activate(w, c, op, 'manual');
 }

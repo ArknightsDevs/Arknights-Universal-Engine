@@ -4,7 +4,7 @@ import { secondsToFrames, FPS } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { addBuff, removeBuff, makeBuff, retune } from './buffs.js';
-import { applyStatus } from './status.js';
+import { inflict } from './status.js';
 import { dealDamage, heal } from './damage.js';
 import { dealEp } from './elements.js';
 import { selectable, sortAllies } from './targeting.js';
@@ -110,7 +110,7 @@ function contextOf(w, c, e, of) {
     self: e, bb, sp: skill?.sp ?? 0, frame: w.frame, stats: statsOf,
     addBuff: (t, init) => { addBuff(t, makeBuff({ src: e.id, ...init })); },
     removeBuff: (t, key) => { removeBuff(t, key); },
-    applyStatus: (t, key, o) => { applyStatus(t, /** @type {any} */ (key), { ...o, src: e }); },
+    applyStatus: (t, key, o) => { inflict(w, t, /** @type {any} */ (key), { ...o, src: e }); },
     dealDamage: (t, dmg) => dealDamage(w, e, t, dmg),
     dealEp: (t, el, amount) => dealEp(w, t, /** @type {any} */ (el), amount),
     heal: (t, amount) => heal(w, e, t, amount),
@@ -243,7 +243,7 @@ export function foeHit(w, c, e, t, how) {
  */
 function take(w, src, t, p) {
   dealDamage(w, src, t, { type: p.type, amount: p.amount });
-  if (p.status && t.hp > 0) applyStatus(t, /** @type {any} */ (p.status.key), { seconds: p.status.seconds, src });
+  if (p.status && t.hp > 0) inflict(w, t, /** @type {any} */ (p.status.key), { seconds: p.status.seconds, src });
 }
 
 /**
