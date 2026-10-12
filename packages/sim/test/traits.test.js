@@ -12,7 +12,7 @@ import { makeEnemy } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
 import { heal } from '../src/damage.js';
 import { statsOf } from '../src/attrs.js';
-import { pickTarget, targetsOf } from '../src/combat.js';
+import { pickTarget, targetsOf, traitScale } from '../src/combat.js';
 import { BEHAVIOR_API_VERSION, CONTEXT_MEMBERS, SKILL_CONTEXT_MEMBERS } from '../src/api.js';
 
 /** @typedef {import('../src/types.js').Unit} Unit @typedef {import('../src/types.js').World} World */
@@ -290,6 +290,7 @@ test('[职业-8] the 倍率 against enemies the operator does not block (教官 
   near.blockedBy = guard.id;
   const ev = run(w, c, 1);
   assert.deepEqual(ev.filter((e) => e.type === 'hit').map((e) => [e.target, e.damage]).sort((a, b) => a[0] - b[0]), [[near.id, 50], [far.id, 60]]);
+  assert.deepEqual([traitScale(c, guard, near), traitScale(c, guard, far), traitScale(c, far, guard)], [1, 1.2, 1], 'the trait’s 倍率 per target; 1 for an enemy attacker');
 });
 
 test('[职业-8] a splash: the other enemies within the radius take its share; ground-only spares flyers; an aftershock hits them all again', () => {

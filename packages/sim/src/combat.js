@@ -169,8 +169,19 @@ function areaOf(w, a, t, area) {
  */
 function loadFor(c, a, t, load) {
   if (a.kind !== KIND.OPERATOR) return load;
-  const tr = traitOf(c, a), k = (t.blockedBy !== a.id ? tr.unblockedScale : 1) * zoneScale(c, a, t, tr);
-  return { ...load, amount: load.amount * k, splash: tr.splash, aftershock: tr.aftershock, chain: tr.chain };
+  const tr = traitOf(c, a);
+  return { ...load, amount: load.amount * traitScale(c, a, t), splash: tr.splash, aftershock: tr.aftershock, chain: tr.chain };
+}
+
+/**
+ * An attacker's attack 倍率 against one target by its trait (职业-8, 职业-11): an operator's trait 倍率 for an enemy it
+ * does not block × its zone's 倍率; 1 for any other attacker.
+ * @param {Content} c @param {Unit} a @param {Unit} t
+ */
+export function traitScale(c, a, t) {
+  if (a.kind !== KIND.OPERATOR) return 1;
+  const tr = traitOf(c, a);
+  return (t.blockedBy !== a.id ? tr.unblockedScale : 1) * zoneScale(c, a, t, tr);
 }
 
 /**

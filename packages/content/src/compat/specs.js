@@ -3,7 +3,7 @@
 // flags while it runs, its start, tick and end, its attack (倍率, hits, targets, damage type, a status each hit gives),
 // its hit and attack callbacks — in place of the engine's generic effects from the blackboard. An operator with the same
 // skill but no kit keeps the generic ones. When it starts stays the engine's rule (技能-3): a MANUAL skill by the player.
-import { skills, constants } from '@aue/sim';
+import { skills, constants, traitScale } from '@aue/sim';
 import { modsOf, flagsOf, statusKeyOf } from './mods.js';
 
 /** @typedef {import('./battle.js').ShBattle} ShBattle @typedef {import('./unit.js').ShUnit} ShUnit @typedef {import('@aue/sim').Unit} Unit */
@@ -48,14 +48,18 @@ function kindOf(spec) {
   return instant && spec.attack && !spec.attack.noAttack ? /** @type {const} */ ('next') : undefined;
 }
 
+/** A spec attack's 倍率 over `scale`: its atkScale, × a numeric dmgMul. @param {Record<string, any>} a @param {number} scale */
+const scaleOf = (a, scale) => (Number.isFinite(a.atkScale) ? a.atkScale : scale) * (typeof a.dmgMul === 'number' && Number.isFinite(a.dmgMul) ? a.dmgMul : 1);
+
 /**
- * A spec's attack override as the engine's attack mods (技能-5): 倍率, hits, targets (every one in range for
- * `allInRange`), damage type or a heal, a status each hit gives.
+ * A spec's attack override as the engine's attack mods (技能-5): 倍率 (× a numeric `dmgMul`, which Stronghold applies to
+ * every hit of the attack), hits, targets (every one in range for `allInRange`), damage type or a heal, a status each
+ * hit gives.
  * @param {Record<string, any>} spec @param {import('@aue/sim').skills.AttackMods} mods
  */
 function attackOf(spec, mods) {
   const a = spec.attack ?? {}, t = spec.targeting ?? {}, out = { ...mods }, n = t.maxTargets ?? a.maxTargets;
-  if (Number.isFinite(a.atkScale)) out.scale = a.atkScale;
+  out.scale = scaleOf(a, out.scale);
   if (Number.isFinite(a.hits)) out.times = Math.max(1, Math.floor(a.hits));
   if (Number.isFinite(n)) out.targets = Math.max(1, Math.floor(n));
   if (t.allInRange) out.targets = Infinity;
@@ -127,6 +131,22 @@ export function onAttackHit(k) {
   if (kind !== 'main') return;
   call(b, p, spec.attack?.onHit, 'skill.attack.onHit', { target, dealt: k.dealt, x: target.x, y: target.y });
   call(b, p, spec.onHit, 'skill.onHit', { target, dealt: k.dealt, x: target.x, y: target.y });
+}
+
+/** Whether a hit is an attack's on its main target: no splash, chain or aftershock. @param {Record<string, any>} d */
+const mainHit = (d) => !!d.isAttack && !d.isSplash && !(d.tags ?? []).some((/** @type {string} */ t) => t === 'chain' || t === 'aftershock');
+
+/**
+ * A spec's per-target `attack.dmgMul(battle, unit, target)` on its attack's main target (the engine's `hit`, before the
+ * defences and before any other handler): it takes the place of the trait's 倍率 for that target (职业-8, 职业-11) — as
+ * Stronghold's skill profile replaces its profession's — so the hit's amount × it ÷ the trait's.
+ * @param {Record<string, any>} k the engine's context
+ */
+export function onSpecHit(k) {
+  const r = k.source ? specOf(k.source) : null, f = r?.spec.attack?.dmgMul;
+  if (!r || typeof f !== 'function' || !(r.p.skill?.active || k.dmg.isSkill) || !mainHit(k.dmg)) return;
+  const m = r.b.safe(() => f(r.b, r.p, r.b.unitOf(k.target)), 'skill.attack.dmgMul', r.p), own = traitScale(r.b.c, k.source, k.target);
+  if (Number.isFinite(m)) k.dmg.amount *= /** @type {number} */ (m) / (own > 0 ? own : 1);
 }
 
 /**

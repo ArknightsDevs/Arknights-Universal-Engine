@@ -169,10 +169,10 @@ export class ShUnit {
   isOp() { return this.kind === 'op'; }
   isEnemy() { return this.side === 'enemy'; }
   isAlly() { return this.side === 'ally'; }
-  /** The buff of a key it has (the one in effect first), or null; Stronghold's burst names find the engine's bursts. @param {string} key */
+  /** The buff of a key it has — the one in effect (状态-2) —, or null; Stronghold's burst names find the engine's bursts. @param {string} key */
   findBuff(key) {
-    const k = buffKeyOf(key), buff = this.u?.buffs.find((x) => x.key === k);
-    return buff && this.u ? new ShBuff(this.b, this.u, buff) : null;
+    const k = buffKeyOf(key), u = this.u, buff = u ? attrs.activeBuffs(u.buffs).find((x) => x.key === k) ?? u.buffs.find((x) => x.key === k) : undefined;
+    return buff && u ? new ShBuff(this.b, u, buff) : null;
   }
   /** @param {string} key */
   hasBuff(key) { const k = buffKeyOf(key); return !!this.u?.buffs.some((x) => x.key === k); }

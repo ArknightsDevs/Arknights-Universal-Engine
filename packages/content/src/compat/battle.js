@@ -281,13 +281,15 @@ export class ShBattle {
 
   /**
    * 效果取最高 (状态-2, the engine's rule `max`): of the buffs of the key the strongest value takes effect, the weaker
-   * wait with their own time.
+   * wait with their own time; each carries its value as its data (`{ value }`, as Stronghold's).
    * @param {ShUnit} target @param {string} key @param {{ duration?: number, value?: number, mods?: (v: number) => Record<string, number>, source?: ShUnit | null }} [o]
    */
   applyStrongest(target, key, o = {}) {
     const v = Number(o.value);
     if (!target?.alive || !(Number(o.duration) > 0) || !Number.isFinite(v) || typeof o.mods !== 'function') return false;
-    buffs.addBuff(/** @type {Unit} */ (target.u), buffs.makeBuff({ key, src: o.source?.u?.id ?? -1, rule: 'max', value: v, mods: modsOf(o.mods(v)), left: framesLeft(o.duration) }));
+    const b = buffs.makeBuff({ key, src: o.source?.u?.id ?? -1, rule: 'max', value: v, mods: modsOf(o.mods(v)), left: framesLeft(o.duration) });
+    this.buffData.set(b, { value: v });
+    buffs.addBuff(/** @type {Unit} */ (target.u), b);
     return true;
   }
 

@@ -73,6 +73,10 @@ test('[兼容-5] a spec\'s kind and time over the record\'s; its attacks from th
   const charged = match({ kind: 'charges', attack: { atkScale: 2 } });
   run(charged.w, charged.c, 300);
   assert.deepEqual([...new Set(charged.hits)].slice(0, 1), [90], 'an instant record, a spec with an attack of its own: its next attack');
+  const num = match({ kind: 'duration', duration: 30, attack: { dmgMul: 1.5 } }), fn = match({ kind: 'duration', duration: 30, attack: { dmgMul: () => 2 } });
+  run(num.w, num.c, 300);
+  run(fn.w, fn.c, 300);
+  assert.deepEqual([[...new Set(num.hits)], [...new Set(fn.hits)]], [[65], [90]], 'dmgMul: 50 × 1.5 − 10; 50 × 2 − 10 on the main target');
 });
 
 test('[兼容-4] Stronghold\'s rng signatures, a unit\'s facing step and extra range, settable ammo and layers; aggregateMods', async () => {

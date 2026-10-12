@@ -7,7 +7,7 @@
 import { KIND, bus, reserveIds } from '@aue/sim';
 import { ShBattle } from './battle.js';
 import { ShUnit } from './unit.js';
-import { battles, SPEC_BEHAVIOR, onAttackHit, onAttackDone } from './specs.js';
+import { battles, SPEC_BEHAVIOR, onAttackHit, onAttackDone, onSpecHit } from './specs.js';
 import { KIT_BUFF, KIT_BUFF_BEHAVIOR, worldBattles } from './buffhooks.js';
 
 /** @typedef {import('@aue/sim').World} World @typedef {import('@aue/sim').Content} Content @typedef {import('@aue/sim').Unit} Unit */
@@ -35,6 +35,7 @@ export function kitsWorld(kits, seen) {
     bus.on(w, 'skillStart', (k) => { const s = b.pieces.get(`${k.unit.owner}|${k.unit.key}`)?.skill; if (s && !s.counted) s.activations++; if (s) s.counted = false; }, { priority: FIRST });
     bus.on(w, 'attackHit', onAttackHit);
     bus.on(w, 'attack', onAttackDone, { priority: FIRST });
+    bus.on(w, 'hit', onSpecHit, { priority: FIRST });
     const decks = c.decks ?? w.players.map(() => Object.keys(c.operators));
     decks.forEach((deck, seat) => {
       for (const key of deck) if (Object.hasOwn(kits, key)) install(b, seat, key, kits[key]);

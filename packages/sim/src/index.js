@@ -6,7 +6,7 @@ export { toView } from './view.js';
 export { deployProblem, fitsTile } from './commands.js';
 export { reachKeys, placedReach, setRange, setExtraRange } from './reach.js';
 export { healsNow } from './modes.js';
-export { rangeCell, pickTarget, targetsOf, setAtkCd } from './combat.js';
+export { rangeCell, pickTarget, targetsOf, setAtkCd, traitScale } from './combat.js';
 export * as dir from './dir.js';
 export * as body from './body.js';
 export * as constants from './constants.js';
