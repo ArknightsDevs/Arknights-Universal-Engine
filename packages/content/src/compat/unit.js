@@ -5,14 +5,13 @@
 // live here, outside the engine's state (ADR 0057).
 import { KIND, attrs, body, traits, buffs, status, reachKeys } from '@aue/sim';
 import { ShSkill } from './skill.js';
+import { STATUS_NAME } from './mods.js';
 
 /** @typedef {import('@aue/sim').Unit} Unit @typedef {import('@aue/sim').Buff} Buff @typedef {import('./battle.js').ShBattle} ShBattle */
 
 /** Frames a second (时间-1). */
 const FPS = 30;
 
-/** The engine's status keys that Stronghold names otherwise (状态-5). @type {Record<string, string>} */
-export const STATUS_NAME = Object.freeze(/** @type {Record<string, string>} */ ({ root: 'bind', buffres: 'resist', enemyCold: 'cold', enemyFreeze: 'freeze' }));
 
 /**
  * A buff as a kit sees it: its key, the status it is (Stronghold's name), who gave it, its data, the seconds left, its

@@ -36,7 +36,8 @@
 | `damaged` | 扣生命之后（含生命流失） | `source`、`target`、`amount`、`type`、`dmg` |
 | `heal` | 治疗算完倍率、回复生命之前（伤害-11） | `source`、`target`、`amount`（可改） |
 | `beforeAttack` | 一次攻击锁定目标时（攻击-2 第 1 步） | `attacker`、`targets`（可换，留下仍在场、有生命的；为空时这次不攻击）、`isSkill` |
-| `attack` | 一次攻击命中、对锁定的目标结算之后（攻击-2 第 3 步），有目标时 | `attacker`、`targets`、`isSkill` |
+| `attack` | 一次攻击命中、对锁定的目标结算之后（攻击-2 第 3 步），有目标时 | `attacker`、`targets`、`isSkill`、`noAmmo`：设为是时这次攻击不耗弹药技能的弹药 |
+| `attackHit` | 一次攻击对一个目标的各段伤害结算之后（引擎自己的事件） | `attacker`、`target`、`dealt`（各段合计）、`kind`：`main`、`splash`、`chain`、`aftershock`，`isSkill` |
 | `skillStart` | 技能发动、它的行为开始之后（技能-3、技能-4） | `unit`、`reason`：`manual`（玩家发动）、`auto`、`deploy`（被动技能） |
 | `skillEnd` | 技能结束之后（技能-4、技能-7）；运行中的干员离场时，先于它的 `death` | `unit`、`reason`：`duration`、`instant`（立即生效或下次攻击的技能）、`ammo`、`stopped`（玩家关闭）、`death`（离场） |
 | `beforeStatus` | 战斗中施加一个状态之前（状态-5） | `source`、`target`、`status`、`frames`（−1 为无期限；改为 0 或更少则不施加）、`strength`（状态的数值）、`cancel` |

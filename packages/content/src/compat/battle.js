@@ -6,7 +6,8 @@
 import { secondsToFrames } from '@aue/math';
 import { KIND, bus, buffs, status, traits, draw, weightedPick } from '@aue/sim';
 import { withGrid } from './grid.js';
-import { ShUnit, STATUS_NAME } from './unit.js';
+import { ShUnit } from './unit.js';
+import { STATUS_NAME, statusKeyOf, modsOf, flagsOf } from './mods.js';
 import * as field from './field.js';
 import { ShGrid } from './tiles.js';
 import { CompatGap } from './sh/gap.js';
@@ -17,8 +18,6 @@ import { CompatGap } from './sh/gap.js';
 /** Seconds a frame (时间-1). */
 export const TICK = 1 / 30;
 
-/** Stronghold's status names → the engine's (状态-5), where they differ. @type {Record<string, string>} */
-const STATUS_KEY = { bind: 'root', resist: 'buffres' };
 
 
 /** Stronghold's buff refresh rules → the engine's same-key rules (状态-2). @type {Record<string, string>} */
@@ -219,8 +218,8 @@ export class ShBattle {
     const u = /** @type {Unit} */ (unit.u), there = u.buffs.find((x) => x.key === spec.key);
     if (there && spec.refresh === 'keep') return;
     if (there && !RULES[spec.refresh ?? 'replace']) buffs.removeBuff(u, there);
-    const b = buffs.makeBuff({ key: spec.key, src: spec.source?.u?.id ?? -1, rule: /** @type {any} */ (RULES[spec.refresh] ?? 'queue'), mods: spec.mods ?? {},
-      flags: spec.flags ?? {}, stacks: spec.stacks ?? 1, maxStacks: spec.maxStacks ?? 1, left: framesLeft(spec.duration) });
+    const b = buffs.makeBuff({ key: spec.key, src: spec.source?.u?.id ?? -1, rule: /** @type {any} */ (RULES[spec.refresh] ?? 'queue'), mods: modsOf(spec.mods),
+      flags: flagsOf(spec.flags), stacks: spec.stacks ?? 1, maxStacks: spec.maxStacks ?? 1, left: framesLeft(spec.duration) });
     if (spec.data !== undefined) this.buffData.set(b, spec.data);
     buffs.addBuff(u, b);
   }
@@ -233,7 +232,7 @@ export class ShBattle {
   applyStrongest(target, key, o = {}) {
     const v = Number(o.value);
     if (!target?.alive || !(Number(o.duration) > 0) || !Number.isFinite(v) || typeof o.mods !== 'function') return false;
-    buffs.addBuff(/** @type {Unit} */ (target.u), buffs.makeBuff({ key, src: o.source?.u?.id ?? -1, rule: 'max', value: v, mods: o.mods(v), left: framesLeft(o.duration) }));
+    buffs.addBuff(/** @type {Unit} */ (target.u), buffs.makeBuff({ key, src: o.source?.u?.id ?? -1, rule: 'max', value: v, mods: modsOf(o.mods(v)), left: framesLeft(o.duration) }));
     return true;
   }
 
@@ -251,7 +250,7 @@ export class ShBattle {
    */
   applyStatus(target, key, o = {}) {
     if (!target.alive) return false;
-    const k = STATUS_KEY[key] ?? key, frames = o.duration === undefined ? undefined : secondsToFrames(Math.max(0, o.duration));
+    const k = statusKeyOf(key), frames = o.duration === undefined ? undefined : secondsToFrames(Math.max(0, o.duration));
     if (!Object.hasOwn(status.STATUS, k)) throw new CompatGap(`status.${key}`);
     return status.inflict(this.w, /** @type {Unit} */ (target.u), /** @type {any} */ (k), { frames, src: o.source?.u ?? null, value: o.value }) !== null;
   }

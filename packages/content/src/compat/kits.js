@@ -5,6 +5,7 @@
 import { KIND, bus } from '@aue/sim';
 import { ShBattle } from './battle.js';
 import { ShUnit } from './unit.js';
+import { battles, SPEC_BEHAVIOR, onAttackHit, onAttackDone } from './specs.js';
 
 /** @typedef {import('@aue/sim').World} World @typedef {import('@aue/sim').Content} Content @typedef {import('@aue/sim').Unit} Unit */
 /**
@@ -25,6 +26,9 @@ export function kitsWorld(kits, seen) {
     const b = new ShBattle(w, c);
     bus.on(w, 'battleStart', () => { b.started = true; }, { priority: FIRST });
     bus.on(w, 'deploy', (k) => bind(b, k.unit), { priority: FIRST });
+    bus.on(w, 'skillStart', (k) => { const p = b.pieces.get(`${k.unit.owner}|${k.unit.key}`); if (p?.skill) p.skill.activations++; }, { priority: FIRST });
+    bus.on(w, 'attackHit', onAttackHit);
+    bus.on(w, 'attack', onAttackDone, { priority: FIRST });
     const decks = c.decks ?? w.players.map(() => Object.keys(c.operators));
     decks.forEach((deck, seat) => {
       for (const key of deck) if (Object.hasOwn(kits, key)) install(b, seat, key, kits[key]);
@@ -52,5 +56,17 @@ function bind(b, u) {
   if (!piece) return;
   piece.u = u;
   piece.deploySeq++;
+  battles.set(u, b);
   for (const spec of piece.persist) b.giveBuff(piece, spec);
+}
+
+/**
+ * What content needs to bring kits into its battles (兼容-4, 兼容-5): the world setup, and the skill behaviour of every
+ * skill a kit describes, by skill id.
+ * @param {Record<string, KitEntry>} kits by operator key @param {(b: ShBattle) => void} [seen]
+ * @returns {{ world: (w: World, c: Content) => void, skills: Record<string, import('@aue/sim').SkillBehavior> }}
+ */
+export function kitsBehaviors(kits, seen) {
+  const ids = Object.values(kits).map((e) => e.def.skill?.id).filter((id) => typeof id === 'string');
+  return { world: kitsWorld(kits, seen), skills: Object.fromEntries(ids.map((id) => [id, SPEC_BEHAVIOR])) };
 }

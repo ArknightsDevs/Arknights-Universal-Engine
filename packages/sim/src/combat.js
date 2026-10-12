@@ -83,19 +83,30 @@ function damageOf(load) {
 /**
  * One target's hits of an attack that lands (伤害-6, 伤害-7, 元素-2, 职业-4, 职业-5): `times` hits of the amount, each
  * followed by the attack's 元素损伤 if it carries one; an operator's hit that kills is credited to it, then its trait
- * acts on the hit. The source may be gone (a projectile whose shooter left): then the hit has no source.
+ * acts on the hit; then the `attackHit` event with what they took (钩子-3). The source may be gone (a projectile whose
+ * shooter left): then the hit has no source and no event.
  * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {Load} load
  */
 function hitTarget(w, c, src, t, load) {
+  let total = 0;
+  for (let k = 0; k < load.times; k++) total += oneHit(w, c, src, t, load);
+  if (src) emit(w, 'attackHit', { attacker: src, target: t, dealt: total, kind: load.hit ?? 'main', isSkill: !!load.skill });
+}
+
+/**
+ * One hit of an attack on a target (伤害-7, 元素-2, 职业-5): the damage, what it sets off, a kill credited, the 元素损伤
+ * it carries, the status it gives, the trait's hit. Returns the HP taken.
+ * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {Load} load
+ */
+function oneHit(w, c, src, t, load) {
   const el = /** @type {import('./elements.js').Element | ''} */ (load.element), op = src && src.kind === KIND.OPERATOR ? src : null;
-  for (let k = 0; k < load.times; k++) {
-    const alive = t.hp > 0, dealt = dealDamage(w, src, t, damageOf(load));
-    if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
-    if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
-    if (el && load.ep > 0) dealEp(w, t, el, load.ep);
-    if (load.hitStatus && alive && t.hp > 0) inflict(w, t, load.hitStatus.key, { seconds: load.hitStatus.seconds, src });
-    if (op && alive) traitHit(w, c, op, t);
-  }
+  const alive = t.hp > 0, dealt = dealDamage(w, src, t, damageOf(load));
+  if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
+  if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
+  if (el && load.ep > 0) dealEp(w, t, el, load.ep);
+  if (load.hitStatus && alive && t.hp > 0) inflict(w, t, load.hitStatus.key, { seconds: load.hitStatus.seconds, src });
+  if (op && alive) traitHit(w, c, op, t);
+  return dealt;
 }
 
 /**
@@ -232,8 +243,8 @@ function land(w, c, a) {
   if (palsyInterrupts(a)) { a.anim = ANIM.IDLE; return; }
   const op = a.kind === KIND.OPERATOR, heals = op && (traitOf(c, a).heal || !!sw.mods.heal);
   const reached = deliverAll(w, c, a, sw, !!heals);
-  if (reached.length > 0) emit(w, 'attack', { attacker: a, targets: reached, isSkill: !!sw.mods.skill });
-  if (op) operatorLanded(w, c, a, { sw, reached: reached.length, heals: !!heals });
+  const noAmmo = reached.length > 0 && !!emit(w, 'attack', { attacker: a, targets: reached, isSkill: !!sw.mods.skill, noAmmo: false }).noAmmo;
+  if (op) operatorLanded(w, c, a, { sw, reached: reached.length, heals: !!heals, noAmmo });
   const ch = sw.mods.channel;
   if (ch && (sw.left ?? ch.hits) > 1) a.swing = { ...sw, wind: secondsToFrames(ch.duration / ch.hits), since: 0, left: (sw.left ?? ch.hits) - 1 };
 }
@@ -241,13 +252,13 @@ function land(w, c, a) {
 /**
  * After an operator's attack landed (职业-9, 职业-12, 技能-2): its stored energy goes at the first target, it heals
  * itself for the enemies reached, its skill counts the attack.
- * @param {World} w @param {Content} c @param {Unit} a @param {{ sw: Swing, reached: number, heals: boolean }} how
+ * @param {World} w @param {Content} c @param {Unit} a @param {{ sw: Swing, reached: number, heals: boolean, noAmmo: boolean }} how
  */
 function operatorLanded(w, c, a, how) {
   const first = w.units.find((u) => u.id === how.sw.targets[0] && u.hp > 0 && !u.hidden);
   if (first && !how.heals) releaseEnergy(w, a, first);
   selfHeal(w, c, a, how.reached);
-  afterAttack(w, c, a, how.sw.mods);
+  afterAttack(w, c, a, how.sw.mods, how.noAmmo);
 }
 
 /**

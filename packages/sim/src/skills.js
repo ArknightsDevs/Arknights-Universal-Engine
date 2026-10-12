@@ -119,12 +119,12 @@ export function endSkill(w, c, op, reason = 'duration') {
 /**
  * Starts a skill (技能-3, 技能-4): it takes its cost; by kind it lasts its duration, holds its ammo, waits for the next
  * attack, or acts at once and ends. The `skillStart` event (钩子-3) follows its behaviour's start, with why: `manual`,
- * `auto` or `deploy` (a passive skill).
- * @param {World} w @param {Content} c @param {Unit} op @param {string} [reason]
+ * `auto` or `deploy` (a passive skill). A free start (content's own, 技能-3) takes no cost.
+ * @param {World} w @param {Content} c @param {Unit} op @param {string} [reason] @param {boolean} [free]
  */
-export function activate(w, c, op, reason = 'auto') {
+export function activate(w, c, op, reason = 'auto', free = false) {
   const st = /** @type {SkillState} */ (op.skill), def = defOf(c, op), kind = kindOf(def);
-  spendSp(st);
+  if (!free) spendSp(st);
   st.active = true; st.at = w.frame;
   st.armed = kind === 'next';
   st.dur = (kind === 'duration' || kind === 'passive' || kind === 'ammo') && def.duration > 0 ? secondsToFrames(def.duration) : -1;
@@ -216,15 +216,15 @@ export function skillMods(bb) {
 }
 
 /**
- * After an operator attacked (技能-2, 技能-4): a next-attack skill ends; an ammo skill spends a shot; an attack the skill
- * did not make gives one SP to a skill that recovers by attacking.
- * @param {World} w @param {Content} c @param {Unit} op @param {AttackMods} mods
+ * After an operator attacked (技能-2, 技能-4): a next-attack skill ends; an ammo skill spends a shot — unless an `attack`
+ * handler made it free (钩子-3); an attack the skill did not make gives one SP to a skill that recovers by attacking.
+ * @param {World} w @param {Content} c @param {Unit} op @param {AttackMods} mods @param {boolean} [noAmmo]
  */
-export function afterAttack(w, c, op, mods) {
+export function afterAttack(w, c, op, mods, noAmmo = false) {
   const st = op.skill;
   if (!st) return;
   if (mods.skill && st.armed) endSkill(w, c, op, 'instant');
-  else if (mods.skill && st.ammo > 0) st.ammo--;
+  else if (mods.skill && st.ammo > 0 && !noAmmo) st.ammo--;
   else if (!mods.skill && st.spType === 'attack' && !statsOf(op).flags.noSp) gainSp(st, 1);
 }
 

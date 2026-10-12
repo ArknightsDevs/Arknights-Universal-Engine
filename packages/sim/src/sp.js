@@ -46,6 +46,11 @@ export function spendSp(st) {
   st.sp -= st.cost;
 }
 
+/** Sets the points, held to [0, the cap] (content that sets SP outright, 技能-2). @param {SkillState} st @param {number} n */
+export function setSp(st, n) {
+  st.sp = Math.min(st.cap, Math.max(0, Number(n) || 0));
+}
+
 /** Loses up to n points (凋亡's 爆发, 元素-3). @param {SkillState} st @param {number} n */
 export function loseSp(st, n) {
   st.sp = Math.max(0, st.sp - n);
