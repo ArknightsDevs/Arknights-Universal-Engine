@@ -1,8 +1,8 @@
 // A battle session in the worker (ADR 0009, 0053): the socket, the lockstep client, the frame clock, and the render
 // state posted to the main thread after each frame time. Everything that touches the platform comes in through `io`,
 // so the session runs the same in a Worker and in a Node test.
-import { serverMessageProblem, PROTOCOL_VERSION } from '@aue/schema';
-import { toView, stateHash, contentHash } from '@aue/sim';
+import { serverMessageProblem, PROTOCOL_VERSION, KIND } from '@aue/schema';
+import { toView, stateHash, contentHash, reachKeys, healsNow } from '@aue/sim';
 import { LockstepClient } from '@aue/net';
 
 /** @typedef {{ send(text: string): void, close(): void, onopen: (() => void) | null, onmessage: ((text: string) => void) | null, onclose: (() => void) | null }} SocketLike */
@@ -173,6 +173,16 @@ export class BattleSession {
   debug() {
     const w = this.client.world;
     return { type: 'debug', frame: w?.frame ?? -1, hash: w ? stateHash(w) : 0, sealed: this.client.sealed, stats: this.client.stats };
+  }
+
+  /**
+   * What an operator on the field reaches now (render spec 渲染-9): its tile keys (攻击-1, 技能-8) and whether it heals
+   * now (职业-2); no keys for a unit that is not an operator on the field.
+   * @param {number} unit
+   */
+  reach(unit) {
+    const w = this.client.world, c = this.client.o.content, u = w?.units.find((x) => x.id === unit && x.kind === KIND.OPERATOR);
+    return { type: 'reach', unit, keys: u ? [...reachKeys(c, u)] : [], heal: u ? healsNow(c, u) : false };
   }
 
   stop() {

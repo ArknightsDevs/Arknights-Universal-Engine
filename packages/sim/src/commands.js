@@ -24,6 +24,12 @@ function fits(c, d, row, col) {
 }
 
 /**
+ * Whether an operator (by content key) may stand on a tile (部署-1), for the deploy highlight (渲染-8).
+ * @param {Content} c @param {string} key @param {number} row @param {number} col
+ */
+export const fitsTile = (c, key, row, col) => Object.hasOwn(c.operators, key) && fits(c, c.operators[key], row, col);
+
+/**
  * Why a deploy is refused, or null (spec 部署-1…部署-3).
  * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd @returns {string | null}
  */

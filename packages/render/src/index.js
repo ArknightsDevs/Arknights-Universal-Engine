@@ -2,6 +2,8 @@
 // (or flat textures), units as Spine figures (or cards where no model is loaded).
 export { createBattleRenderer, loadTextures, loadSpineModels, loadTileKit } from './renderer.js';
 export { kitKey, kitPattern, KIT_ALIAS, KIT_LIGHT } from './kit.js';
+export { HIGHLIGHT, highlightFactor } from './highlight.js';
+export { RANGE } from './range.js';
 export { createFigure, figureArrays, blendFactors, spineModel, SKELETON_SCALE } from './spine.js';
 export { animationRoles, roleOf, operatorFacing, enemyFacing } from './roles.js';
 export { barsOf, BAR } from './overlays.js';

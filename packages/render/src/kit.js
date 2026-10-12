@@ -93,13 +93,17 @@ function geometry(a) {
 /**
  * The kit terrain (渲染-7): merged pieces, the lights, start and end markers, and pick quads.
  * @param {KitLevel} level @param {LoadedKit} lk @param {Map<string, THREE.Texture>} textures markers are 'tile:<key>'
+ * @param {(m: THREE.Material) => void} [patch] applied to the pieces' materials (the tile highlight, 渲染-8)
  * @returns {{ object: THREE.Group, dispose(): void }}
  */
-export function createKitTerrain(level, lk, textures) {
+export function createKitTerrain(level, lk, textures, patch = () => {}) {
   const group = new THREE.Group(), disposables = /** @type {{ dispose(): void }[]} */ ([]);
   const keep = (/** @type {any} */ x) => { disposables.push(x); return x; };
   mergePieces(level, lk.kit).forEach((a, m) => {
-    if (a.index.length) group.add(new THREE.Mesh(keep(geometry(a)), keep(kitMaterial(lk, lk.kit.materials[m]))));
+    if (!a.index.length) return;
+    const mat = keep(kitMaterial(lk, lk.kit.materials[m]));
+    patch(mat);
+    group.add(new THREE.Mesh(keep(geometry(a)), mat));
   });
   const sun = new THREE.DirectionalLight(0xffffff, KIT_LIGHT.directional);
   sun.position.set(...KIT_LIGHT.from);
@@ -120,7 +124,7 @@ export function createKitTerrain(level, lk, textures) {
     if (!marks.has(t.key)) marks.set(t.key, keep(new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false })));
     const mark = new THREE.Mesh(quad, marks.get(t.key));
     mark.position.set(at[0], at[1] + MARKER_LIFT, at[2]);
-    mark.renderOrder = -2; // before the shadows (渲染-6)
+    mark.renderOrder = -3; // before the range (渲染-9) and the shadows (渲染-6)
     group.add(mark);
   }));
   return { object: group, dispose() { for (const d of disposables) d.dispose(); } };

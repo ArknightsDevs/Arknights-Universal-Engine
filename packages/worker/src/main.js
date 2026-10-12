@@ -17,13 +17,14 @@ import { readView } from '@aue/schema';
 export function startBattle(o) {
   const worker = new Worker(o.workerUrl, { type: 'module' });
   /** @type {((d: any) => void)[]} */
-  const waiting = [];
+  const waiting = [], reaching = /** @type {((d: any) => void)[]} */ ([]);
   worker.onmessage = (e) => {
     const m = e.data;
     if (m.type === 'frame') o.onFrame(readView(m.view), m.events, m.keys, m.status);
     else if (m.type === 'net') o.onNet?.(m);
     else if (m.type === 'control') o.onControl?.(m);
     else if (m.type === 'debug') waiting.shift()?.(m);
+    else if (m.type === 'reach') reaching.shift()?.(m);
   };
   worker.postMessage({ type: 'start', url: o.wsUrl, seat: o.seat, key: o.key });
   return {
@@ -39,6 +40,11 @@ export function startBattle(o) {
     resume: () => worker.postMessage({ type: 'resume' }),
     /** @returns {Promise<{ frame: number, hash: number, sealed: number, stats: object }>} */
     debug: () => new Promise((resolve) => { waiting.push(resolve); worker.postMessage({ type: 'debug' }); }),
+    /**
+     * What an operator on the field reaches now (render spec 渲染-9): tile keys (row × width + col) and whether it heals.
+     * @param {number} unit @returns {Promise<{ keys: number[], heal: boolean }>}
+     */
+    reach: (unit) => new Promise((resolve) => { reaching.push(resolve); worker.postMessage({ type: 'reach', unit }); }),
     stop: () => { worker.postMessage({ type: 'stop' }); worker.terminate(); },
   };
 }

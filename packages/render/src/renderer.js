@@ -6,6 +6,8 @@ import * as THREE from 'three';
 import { applyPose, DEFAULT_VIEW } from './camera.js';
 import { createTerrain } from './terrain.js';
 import { createKitTerrain } from './kit.js';
+import { createHighlight } from './highlight.js';
+import { createRange } from './range.js';
 import { createUnits } from './units.js';
 import { createOverlays } from './overlays.js';
 import { spineModel } from './spine.js';
@@ -14,7 +16,8 @@ import { spineModel } from './spine.js';
  * @typedef {object} RendererOptions
  * @property {HTMLCanvasElement} canvas
  * @property {import('./terrain.js').TerrainLevel} level
- * @property {Map<string, THREE.Texture>} textures keyed 'tile:<key>', 'avatar:<charId>', 'enemy:<enemyKey>', 'ui:bar', 'ui:shadow'
+ * @property {Map<string, THREE.Texture>} textures keyed 'tile:<key>', 'avatar:<charId>', 'enemy:<enemyKey>', 'ui:bar', 'ui:shadow',
+ *   'ui:range'
  * @property {readonly number[]} [view] the level's camera view vector
  * @property {import('./units.js').Models} [models] Spine models by content key (operators by character id)
  * @property {Set<string>} [leaders] content keys of leader enemies (red HP bars)
@@ -28,9 +31,11 @@ export function createBattleRenderer(o) {
   renderer.autoClear = false;
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera();
   scene.background = new THREE.Color(0x404040);
-  const terrain = o.kit ? createKitTerrain(o.level, o.kit, o.textures) : createTerrain(o.level, o.textures);
+  const highlight = createHighlight(o.level), patch = highlight.patch;
+  const terrain = o.kit ? createKitTerrain(o.level, o.kit, o.textures, patch) : createTerrain(o.level, o.textures, patch);
   const units = createUnits(o.textures, o.models), field = { ...o.level, highland: o.kit?.kit.highland };
-  scene.add(terrain.object, units.shadows, units.object);
+  const range = createRange(field, o.textures.get('ui:range'));
+  scene.add(terrain.object, range.object, units.shadows, units.object);
   const overlays = createOverlays(o.textures, o.leaders);
   const ray = new THREE.Raycaster();
 
@@ -53,7 +58,12 @@ export function createBattleRenderer(o) {
       units.update(view, keys, field, performance.now(), events);
       overlays.update(view, keys, field, units.shows);
     },
+    /** Highlights the tiles (keys row × width + col) the selected operator can be deployed on (渲染-8); null for none. @param {Iterable<number> | null} keys */
+    highlight: (keys) => highlight.set(keys),
+    /** Shows an attack range (渲染-9): tile keys, healing or not; null for none. @param {Iterable<number> | null} keys @param {boolean} [heal] */
+    range: (keys, heal) => range.show(keys, heal),
     render() {
+      range.tick(performance.now() / 1000);
       units.pose(camera);
       overlays.pose(camera);
       renderer.clear();
@@ -68,7 +78,7 @@ export function createBattleRenderer(o) {
       const hit = ray.intersectObjects(terrain.object.children, false).find((/** @type {THREE.Intersection} */ h) => h.object.userData.col !== undefined);
       return hit ? { col: hit.object.userData.col, row: hit.object.userData.row } : null;
     },
-    dispose() { terrain.dispose(); units.dispose(); overlays.dispose(); renderer.dispose(); },
+    dispose() { terrain.dispose(); range.dispose(); highlight.dispose(); units.dispose(); overlays.dispose(); renderer.dispose(); },
   };
 }
 

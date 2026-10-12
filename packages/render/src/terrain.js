@@ -15,9 +15,10 @@ const material = (map, shade) => new THREE.MeshBasicMaterial({ map, color: new T
 
 /**
  * @param {TerrainLevel} level @param {Map<string, THREE.Texture>} textures keyed 'tile:<tileKey>'
+ * @param {(m: THREE.Material) => void} [patch] applied to every material (the tile highlight, 渲染-8)
  * @returns {{ object: THREE.Group, dispose(): void }}
  */
-export function createTerrain(level, textures) {
+export function createTerrain(level, textures, patch = () => {}) {
   const group = new THREE.Group(), top = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   const side = new THREE.BoxGeometry(1, STEP_HEIGHT, 1).translate(0, -STEP_HEIGHT / 2, 0);
   /** @type {Map<string, THREE.Material[]>} */
@@ -25,7 +26,9 @@ export function createTerrain(level, textures) {
   for (const key of tileKeys(level)) {
     const map = textures.get(`tile:${key}`);
     if (!map) throw new Error(`no texture for tile ${key}`);
-    mats.set(key, [material(map, 1), material(map, 0.55)]);
+    const pair = [material(map, 1), material(map, 0.55)];
+    pair.forEach(patch);
+    mats.set(key, pair);
   }
   level.tiles.forEach((cols, row) => cols.forEach((t, col) => {
     const hl = t.height === 'HIGHLAND' ? 1 : 0, [m, dark] = /** @type {THREE.Material[]} */ (mats.get(t.key));

@@ -77,13 +77,13 @@ test('[渲染-7] the road piece follows the neighbour pattern', () => {
   t.dispose();
 });
 
-test('[渲染-7] start and end tiles carry their marker texture on top, before the shadows; others none', () => {
+test('[渲染-7] start and end tiles carry their marker texture on top, before the range and the shadows; others none', () => {
   const marker = new THREE.Texture();
   const t = createKitTerrain(level, loaded, new Map([['tile:tile_start', marker], ['tile:tile_road', new THREE.Texture()]]));
   const marks = /** @type {THREE.Mesh[]} */ (t.object.children.filter((c) => c instanceof THREE.Mesh && c.visible && /** @type {THREE.MeshBasicMaterial} */ (c.material).map === marker));
   assert.equal(marks.length, 1);
   const m = marks[0], mat = /** @type {THREE.MeshBasicMaterial} */ (m.material);
-  assert.deepEqual([m.renderOrder, mat.transparent, mat.depthWrite, Math.round(m.position.y * 1000) / 1000], [-2, true, false, 0.005]);
+  assert.deepEqual([m.renderOrder, mat.transparent, mat.depthWrite, Math.round(m.position.y * 1000) / 1000], [-3, true, false, 0.005]);
   assert.equal(t.object.children.filter((c) => c instanceof THREE.Mesh && c.visible).length, 3, 'no marker for the road');
   t.dispose();
 });

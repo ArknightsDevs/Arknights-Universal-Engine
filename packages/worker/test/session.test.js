@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readView, clientMessageProblem } from '@aue/schema';
 import { LockstepHost } from '@aue/net';
+import { reachKeys } from '@aue/sim';
 import { tinyContent } from '@aue/testkit';
 import { BattleSession } from '../src/index.js';
 
@@ -74,6 +75,21 @@ test('a command reaches the field; the debug state matches the server at the sam
   assert.ok(r.posts.some((p) => p.type === 'frame' && p.events.some((/** @type {any} */ e) => e.type === 'deploy')));
   const keys = Object.assign({}, ...r.posts.filter((p) => p.type === 'frame').map((p) => p.keys));
   assert.ok(Object.values(keys).includes('guard') && Object.values(keys).includes('slime'), JSON.stringify(keys));
+});
+
+test('[渲染-9] reach: an operator\'s tile keys now and whether it heals, from the session\'s world; none for others', () => {
+  const r = rig();
+  r.session.start({ url: 'ws://x', seat: 0, key: 'k' });
+  r.t.run(300, (now) => r.host.tick(now));
+  r.session.command({ type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 });
+  r.t.run(1000, (now) => r.host.tick(now));
+  const w = /** @type {import('@aue/sim').World} */ (r.session.client.world), op = w.units.find((u) => u.key === 'guard');
+  assert.ok(op);
+  const c = r.session.client.o.content;
+  assert.deepEqual(r.session.reach(op.id), { type: 'reach', unit: op.id, keys: [...reachKeys(c, op)], heal: false });
+  assert.ok(r.session.reach(op.id).keys.includes(1 * c.level.width + 2), 'the tile in front of it');
+  const enemy = w.units.find((u) => u.kind !== op.kind);
+  assert.deepEqual(r.session.reach(enemy?.id ?? -1).keys, []);
 });
 
 test('a closed socket reconnects and the session resumes from the server snapshot', () => {
