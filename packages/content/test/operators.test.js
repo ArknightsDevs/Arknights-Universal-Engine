@@ -99,8 +99,8 @@ test('[干员-9] team parts: 编入队伍时 for the deck, 在场时 on the fiel
     { when: 'deck', profession: 'TANK', bb: { max_hp: 0.2 } }, { when: 'field', profession: 'TANK', bb: { def: 0.08 } },
     { when: 'field', profession: 'PIONEER', bb: { hp_recovery_per_sec: 28 } }, { when: 'deck', profession: 'PIONEER', bb: { sp: 8 } },
   ]);
-  assert.deepEqual([c('在场时，所有【狙击】干员的部署费用-2', { value: -2, cost: -2 }), c('编入队伍时，所有【深海猎人】干员攻击速度+14', { attack_speed: 14 }),
-    c('攻击力+8%', { atk: 0.08 })], [null, null, null], 'cost on the field, a faction, not a team talent');
+  assert.deepEqual([c('在场时，所有【狙击】干员的部署费用-2', { value: -2, cost: -2 }), c('在场时，所有【支援机械】干员的攻击速度+14', { attack_speed: 14 }),
+    c('攻击力+8%', { atk: 0.08 })], [null, null, null], 'cost on the field, a tag that is no faction, not a team talent');
   assert.deepEqual(operatorAt(await loadTraining('char_180_amgoat'), E2).fieldTalents, [{ profession: 'CASTER', bb: { atk: 0.14 } }], '艾雅法拉 at elite 2, potential 1');
 });
 
@@ -115,4 +115,14 @@ test('[干员-9] deck team parts apply to the operators of their profession in t
   assert.ok(Math.abs(hp('char_202_demkni#0') - hp('char_202_demkni#1') - nian.max_hp) < 1e-12, '年 raises the 重装 of her own deck only');
   const plain = /** @type {any} */ (operatorAt(await loadTraining('char_222_bpipe'), E2));
   assert.deepEqual([ops['char_222_bpipe#0'].skill.init, ops['char_222_bpipe#1'].skill.init], [plain.skill.init + bpipe.sp, plain.skill.init + bpipe.sp], '风笛 raises herself in each deck');
+});
+
+test('[干员-9] [干员-10] a faction deck talent: 斯卡蒂 raises every 【深海猎人】 of her deck, herself too', async () => {
+  const skadi = await loadTraining('char_263_skadi');
+  assert.deepEqual([skadi.powers, teamTalentsAt(skadi, E2).deck.map((p) => /** @type {any} */ (p).power)], [['egir', 'abyssal'], ['abyssal']]);
+  const deck = (/** @type {string[]} */ ids) => ids.map((id) => ({ id, build: E2 }));
+  const ops = /** @type {Record<string, any>} */ ((await matchContent({ level: 'act1multi_01', difficulty: 'NORMAL', seed: 1, decks: [deck(['char_263_skadi', 'char_202_demkni'])] })).operators);
+  const plain = /** @type {any} */ (operatorAt(skadi, E2));
+  assert.equal(ops['char_263_skadi#0'].talentBb.atk - (plain.talentBb ? plain.talentBb.atk ?? 0 : 0), teamTalentsAt(skadi, E2).deck[0].bb.atk);
+  assert.equal(ops['char_202_demkni#0'].talentBb && ops['char_202_demkni#0'].talentBb.atk, undefined, 'not a 深海猎人');
 });

@@ -78,6 +78,7 @@ export function extractTraining(raw, id, rangesRaw, skillsRaw, equipment) {
     position: asString(field(c, 'position', p), `${p}.position`),
     profession: asString(field(c, 'profession', p), `${p}.profession`),
     branch: asString(field(c, 'subProfessionId', p), `${p}.subProfessionId`),
+    powers: powersOf(c, p),
     rarity: asInt(Number(asString(field(c, 'rarity', p), `${p}.rarity`).replace('TIER_', '')), `${p}.rarity`, 1, 6),
     phases,
     favor: favor ? { level: asInt(favor.level, `${p}.favorKeyFrames.level`, 0, 200), stats: statsOf(favor.data, `${p}.favorKeyFrames.data`) } : null,
@@ -87,6 +88,36 @@ export function extractTraining(raw, id, rangesRaw, skillsRaw, equipment) {
     talents: talentsOf(c.talents, `${p}.talents`),
     modules: modulesOf(id, equipment),
   };
+}
+
+/**
+ * An operator's factions (干员-10): the nation, group and team ids of its main power, then of each sub power, without
+ * repeats; the main power is the top-level ids when there is no mainPower.
+ * @param {Record<string, unknown>} c @param {string} p @returns {string[]}
+ */
+function powersOf(c, p) {
+  /** @type {string[]} */
+  const out = [];
+  /** @param {Record<string, unknown>} o @param {string} pp */
+  const add = (o, pp) => {
+    for (const k of ['nationId', 'groupId', 'teamId']) {
+      if (o[k] === null || o[k] === undefined) continue;
+      const v = asString(o[k], `${pp}.${k}`);
+      if (!out.includes(v)) out.push(v);
+    }
+  };
+  add(c.mainPower ? asObject(c.mainPower, `${p}.mainPower`) : c, c.mainPower ? `${p}.mainPower` : p);
+  asArray(c.subPower ?? [], `${p}.subPower`).forEach((s, i) => add(asObject(s, `${p}.subPower[${i}]`), `${p}.subPower[${i}]`));
+  return out;
+}
+
+/**
+ * The factions' names by id (干员-10), from handbook_team_table, in id order.
+ * @param {unknown} teamsRaw @returns {Record<string, string>}
+ */
+export function extractPowers(teamsRaw) {
+  const t = asObject(teamsRaw, 'teams'), ids = Object.keys(t).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  return Object.fromEntries(ids.map((id) => [id, asString(field(asObject(t[id], `teams[${id}]`), 'powerName', `teams[${id}]`), `teams[${id}].powerName`)]));
 }
 
 /** One potential rank's attribute additions (干员-1). @param {unknown} raw @param {string} p @returns {Record<string, number>} */

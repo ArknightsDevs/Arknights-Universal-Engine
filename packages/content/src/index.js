@@ -7,6 +7,7 @@ import { skillDefOf } from './skills.js';
 import { levelAt, LEVELS } from './levels.js';
 import { foeBehaviors, withFoeExtras } from './foes.js';
 import { loadTraining, operatorAt, teamTalentsAt } from './operators.js';
+import { teamFits } from '@aue/sim';
 import { skillBehaviors } from './skills.js';
 
 /** The official behaviours: skills (技能-6) and enemy abilities (敌能-2). */
@@ -75,13 +76,13 @@ export async function matchContent(match, levels = LEVELS) {
 }
 
 /**
- * An operator with its deck's team talents (干员-9): each one for its profession adds its 部署费用 (not below 0), its
- * 初始技力 to the skill's initial SP, and its other keys to `talentBb`.
- * @param {import('@aue/sim').OperatorDef} op @param {{ profession: string, bb: Record<string, number> }[]} team
+ * An operator with its deck's team talents (干员-9): each one for its profession or one of its factions adds its
+ * 部署费用 (not below 0), its 初始技力 to the skill's initial SP, and its other keys to `talentBb`.
+ * @param {import('@aue/sim').OperatorDef} op @param {import('@aue/sim').TeamTalent[]} team
  * @returns {import('@aue/sim').OperatorDef}
  */
 function withDeckTalents(op, team) {
-  const mine = team.filter((p) => p.profession === op.profession);
+  const mine = team.filter((p) => teamFits(p, op));
   if (mine.length === 0) return op;
   /** @type {Record<string, number>} */
   const bb = { ...op.talentBb };

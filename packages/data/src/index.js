@@ -3,6 +3,6 @@ export { extractSkeleton } from './skeleton.js';
 export { extractWaves, readAction, hiddenGroupsOf, predefinesOf, maskCovers, stagesOf } from './waves.js';
 export { NEUTRAL_ENEMIES } from './neutral.js';
 export { extractLevel, difficultyOf } from './level.js';
-export { extractRoster, extractTraining, extractRanges } from './operators.js';
+export { extractRoster, extractTraining, extractRanges, extractPowers } from './operators.js';
 export { enemyOf, mergeEnemyData, damageTypeOf } from './enemies.js';
 export { attackClip, attackTiming, frameProblem } from './timings.js';

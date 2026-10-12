@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { extractRoster, extractTraining, extractRanges } from '../src/index.js';
+import { extractRoster, extractTraining, extractRanges, extractPowers } from '../src/index.js';
 import { extractRosterFromCheckout } from '../src/cli/operators.js';
 
 const stats = (/** @type {number} */ k) => ({
@@ -51,7 +51,7 @@ test('[干员-1] the roster: every character that is not a token or a trap, in i
 });
 
 test('[干员-1] the committed operator files are a fresh extraction of the pinned data', { skip: process.env.AUE_GAMEDATA ? false : 'AUE_GAMEDATA is not set' }, () => {
-  const { source, operators, ranges } = /** @type {any} */ (extractRosterFromCheckout(/** @type {string} */ (process.env.AUE_GAMEDATA)));
+  const { source, operators, ranges, powers } = /** @type {any} */ (extractRosterFromCheckout(/** @type {string} */ (process.env.AUE_GAMEDATA)));
   const dir = new URL('../../content/data/operators/', import.meta.url);
   for (const id of ['char_122_beagle', 'char_002_amiya', 'char_1012_skadi2']) {
     assert.equal(`${JSON.stringify(operators[id])}\n`, readFileSync(new URL(`${id}.json`, dir), 'utf8'), id);
@@ -59,6 +59,7 @@ test('[干员-1] the committed operator files are a fresh extraction of the pinn
   const index = JSON.parse(readFileSync(new URL('index.json', dir), 'utf8'));
   assert.deepEqual([index.source, Object.keys(index.operators).length], [source, Object.keys(operators).length]);
   assert.equal(readFileSync(new URL('../ranges.json', dir), 'utf8'), `${JSON.stringify({ source, ranges })}\n`, 'ranges.json');
+  assert.equal(readFileSync(new URL('../powers.json', dir), 'utf8'), `${JSON.stringify({ source, powers }, null, 1)}\n`, 'powers.json');
 });
 
 test('[干员-8] every range by id, in id order, its grids as in the source; a malformed one is an error', () => {
@@ -67,4 +68,14 @@ test('[干员-8] every range by id, in id order, its grids as in the source; a m
   assert.deepEqual(Object.keys(out), ['1-3', 'x-4']);
   assert.deepEqual(out['1-3'], [{ row: 0, col: 0 }, { row: -1, col: 1 }]);
   assert.throws(() => extractRanges({ bad: { grids: [{ row: 'a', col: 0 }] } }), /bad/);
+});
+
+test('[干员-10] factions: the main power nation, group and team, then the sub powers', () => {
+  const base = { name: 'x', position: 'MELEE', profession: 'WARRIOR', subProfessionId: 'fighter', rarity: 'TIER_1', phases: [], skills: [] };
+  const powers = (/** @type {Record<string, unknown>} */ o) => /** @type {any} */ (extractTraining({ ...base, ...o }, 'char_x', {}, {}, { uniequip: { charEquip: {}, equipDict: {} }, battle: {} })).powers;
+  assert.deepEqual(powers({ mainPower: { nationId: 'egir', groupId: 'abyssal', teamId: null }, subPower: null }), ['egir', 'abyssal']);
+  assert.deepEqual(powers({ mainPower: { nationId: 'victoria', groupId: null, teamId: null }, subPower: [{ nationId: 'victoria', groupId: 'glasgow', teamId: null }] }), ['victoria', 'glasgow']);
+  assert.deepEqual(powers({ nationId: 'rhodes', groupId: null, teamId: 'action4' }), ['rhodes', 'action4']);
+  assert.deepEqual(extractPowers({ yan: { powerName: '炎' }, abyssal: { powerName: '深海猎人' } }), { abyssal: '深海猎人', yan: '炎' });
+  assert.throws(() => extractPowers({ x: { powerName: 3 } }), /teams\[x\].powerName/);
 });

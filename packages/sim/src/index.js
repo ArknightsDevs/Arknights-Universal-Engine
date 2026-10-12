@@ -29,6 +29,7 @@ export * as foes from './foes.js';
 export { nextUint32, seedState, draw, weightedPick } from './rng.js';
 export { BEHAVIOR_API_VERSION, CONTEXT_MEMBERS, SKILL_CONTEXT_MEMBERS } from './api.js';
 export { hashNumbers, HASH_START, contentHash, canonicalJson } from './hash.js';
+export { teamFits } from './aura.js';
 
 /** @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').World} World */
@@ -37,7 +38,7 @@ export { hashNumbers, HASH_START, contentHash, canonicalJson } from './hash.js';
 /** @typedef {import('./types.js').SkillDef} SkillDef */
 /** @typedef {import('./skills.js').SkillBehavior} SkillBehavior */
 /** @typedef {import('./types.js').TraitDef} TraitDef */
-/** @typedef {import('./types.js').OperatorDef} OperatorDef */
+/** @typedef {import('./types.js').OperatorDef} OperatorDef @typedef {import('./types.js').TeamTalent} TeamTalent */
 /** @typedef {import('./types.js').EnemyDef} EnemyDef */
 /** @typedef {import('./foes.js').FoeBehavior} FoeBehavior @typedef {import('./foes.js').FoeContext} FoeContext */
 /** @typedef {import('./traits.js').TraitBehavior} TraitBehavior */

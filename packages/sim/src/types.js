@@ -144,10 +144,15 @@
 /**
  * An operator: `branch` is its profession branch (subProfessionId), `trait` the branch's trait (职业-1), `respawnTime`
  * its 再部署时间 in seconds (部署-3; default 60), `talentBb` the blackboard of its always-on talents (部署-4),
- * `fieldTalents` its talents for every operator of a profession while it is on the field (部署-5).
+ * `fieldTalents` its talents for every operator of a profession or faction while it is on the field (部署-5), `powers`
+ * its factions.
  * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
  *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, trait?: Partial<TraitDef>, respawnTime?: number, char?: string,
- *   talentBb?: Record<string, number>, fieldTalents?: { profession: string, bb: Record<string, number> }[] }} OperatorDef
+ *   talentBb?: Record<string, number>, fieldTalents?: TeamTalent[], powers?: string[] }} OperatorDef
+ */
+/**
+ * A team talent (部署-5): for the operators of a profession, or of a faction, its blackboard.
+ * @typedef {({ profession: string } | { power: string }) & { bb: Record<string, number> }} TeamTalent
  */
 /**
  * Behaviours by key (ADR 0054, 0055): what a skill or a buff does beyond its data. Content brings them; the default is

@@ -15,7 +15,7 @@ import { unlockedAt, talentsAt, alwaysOnBb, teamPart } from './talents.js';
 /** @typedef {Record<string, number>} Stats */
 /**
  * An operator's training data (干员-1…干员-5), as @aue/data writes it.
- * @typedef {{ name: string, position: 'MELEE' | 'RANGED', profession: string, branch: string, rarity: number,
+ * @typedef {{ name: string, position: 'MELEE' | 'RANGED', profession: string, branch: string, powers: string[], rarity: number,
  *   phases: { maxLevel: number, range: { row: number, col: number }[], frames: { level: number, stats: Stats }[] }[],
  *   favor: { level: number, stats: Stats } | null, potentials: Stats[],
  *   skills: { id: string, phase: number, levels: import('./skills.js').SkillLevel[] }[],
@@ -117,7 +117,7 @@ export function traitAt(t, b) {
  */
 export function teamTalentsAt(t, b) {
   const parts = upgradedTalents(t, b, moduleAt(t, b)).map(teamPart).filter((p) => p !== null);
-  return { deck: parts.filter((p) => p.when === 'deck'), field: parts.filter((p) => p.when === 'field').map(({ profession, bb }) => ({ profession, bb })) };
+  return { deck: parts.filter((p) => p.when === 'deck'), field: parts.filter((p) => p.when === 'field').map(({ when, ...rest }) => rest) };
 }
 
 /**
@@ -135,7 +135,7 @@ export function operatorAt(t, b) {
   const mod = moduleAt(t, b), s = statsAt(t, b, mod), level = slot ? slot.levels[clamp(b.skillLevel, 1, slot.levels.length) - 1] : null;
   const { cost = 0, respawn_time: respawn = 0, ...talentBb } = alwaysOnBb(upgradedTalents(t, b, mod)), { field } = teamTalentsAt(t, b);
   return withTrait({
-    name: t.name, position: t.position, profession: t.profession, branch: t.branch, range: phase.range, traitBb: traitAt(t, b),
+    name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: phase.range, traitBb: traitAt(t, b),
     maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: Math.max(0, s.cost + cost), blockCnt: s.blockCnt, baseAttackTime: s.baseAttackTime,
     respawnTime: Math.max(0, s.respawnTime + respawn), aspd: s.aspd, tauntLevel: s.tauntLevel, massLevel: s.massLevel,
     ...(Object.keys(talentBb).length ? { talentBb } : {}), ...(field.length ? { fieldTalents: field } : {}), ...(slot && level ? { skill: skillDefOf(slot.id, level) } : {}),

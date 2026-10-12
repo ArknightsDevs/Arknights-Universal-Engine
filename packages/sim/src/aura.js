@@ -37,13 +37,19 @@ function regenAura(c, src, ops, want) {
 }
 
 /**
- * The on-field team talents of one source (部署-5): every operator on the field of the talent's profession, any player's.
+ * Whether a team talent is for an operator (部署-5): its profession, or one of its factions, is the talent's.
+ * @param {import('./types.js').TeamTalent} t @param {import('./types.js').OperatorDef} d
+ */
+export const teamFits = (t, d) => ('profession' in t ? d.profession === t.profession : (d.powers ?? []).includes(t.power));
+
+/**
+ * The on-field team talents of one source (部署-5): every operator on the field the talent is for, any player's.
  * @param {Content} c @param {Unit} src @param {Unit[]} ops @param {Map<Unit, Map<string, Want>>} want
  */
 function fieldTalents(c, src, ops, want) {
   (c.operators[src.key].fieldTalents ?? []).forEach((t, i) => {
     const mods = statMods(t.bb);
-    for (const u of ops) if (c.operators[u.key].profession === t.profession) want.get(u)?.set(`field:${src.id}:${i}`, { src: src.id, value: 0, mods });
+    for (const u of ops) if (teamFits(t, c.operators[u.key])) want.get(u)?.set(`field:${src.id}:${i}`, { src: src.id, value: 0, mods });
   });
 }
 
