@@ -22,3 +22,8 @@ export { homography, matrix3d, mapPoint, groundTransform } from './persp.js';
 /** @typedef {import('./battle/cards.js').DeckCard} DeckCard */
 /** @typedef {import('./battle/menus.js').MenuSkill} MenuSkill */
 /** @typedef {import('./battle/coop.js').CoopState} CoopState */
+export { createCostAsk, costAsk, ANSWER_SHOWN } from './battle/coopcost.js';
+export { OBJECTIVES, TIMER_WARN, clockText } from './battle/coop.js';
+/** @typedef {import('./battle/coopcost.js').CostAsk} CostAsk */
+/** @typedef {import('./battle/coopcost.js').CostAskInput} CostAskInput */
+/** @typedef {import('./battle/coop.js').Task} Task */

@@ -6,6 +6,7 @@ import { refNode } from '../node.js';
 import { createCards, cardViews } from './cards.js';
 import { createCoopTop } from './coop.js';
 import { createFieldMenus } from './menus.js';
+import { createCostAsk } from './coopcost.js';
 
 /** @typedef {import('../node.js').UiNode} UiNode */
 /** @typedef {import('../screen.js').Screen} Screen */
@@ -15,7 +16,7 @@ import { createFieldMenus } from './menus.js';
  * level's cost cap, the selected card, the lives, the speed the battle runs at (1 or 2) and whether it is paused; in a
  * match of two the co-op top bar's state.
  * @typedef {import('./cards.js').DeckState & { costTimer: number, costPeriod: number, maxCost: number, selected: string | null,
- *   life: number, speed: number, paused: boolean, coop?: import('./coop.js').CoopState }} HudState
+ *   life: number, speed: number, paused: boolean, coop?: import('./coop.js').CoopState & { cost?: import('./coopcost.js').CostAsk } }} HudState
  */
 
 /**
@@ -36,7 +37,8 @@ function hide(root, refs) { for (const r of refs) { const n = refNode(root, r); 
 
 /**
  * The HUD on a UI: opens the battle screen, fills the cards, readies the menus on the field (menus.js); `update` shows a
- * frame's state; `on` takes the taps: 'card' (id), 'speed', 'pause', 'cancel', 'withdraw', 'skill'.
+ * frame's state; `on` takes the taps: 'card' (id), 'speed', 'pause', 'cancel', 'withdraw', 'skill'; in a match of two
+ * also 'ask' (the cost request), 'answer' and 'confirm' ('yes' or 'no': the mate's cost and pause requests).
  * @param {ReturnType<typeof import('../ui.js').createUi>} ui @param {{ deck: DeckCard[], coop?: boolean }} o
  */
 export function createBattleHud(ui, o) {
@@ -53,7 +55,9 @@ export function createBattleHud(ui, o) {
     const toggle = k.node('toggle');
     if (toggle) scr.on('', 'pointerdown', () => emit('card', id), toggle);
   }
-  const coop = o.coop && hud.coopTop ? createCoopTop(ui, hud.coopTop, { speed: () => emit('speed'), pause: () => emit('pause') }) : null;
+  const yesNo = (/** @type {boolean} */ v) => (v ? 'yes' : 'no');
+  const coop = o.coop && hud.coopTop ? createCoopTop(ui, hud.coopTop, { speed: () => emit('speed'), pause: () => emit('pause'), confirm: (v) => emit('confirm', yesNo(v)) }) : null;
+  const cost = coop && ui.ctx.pack.screens['coop.cost'] ? createCostAsk(ui, { ask: () => emit('ask'), answer: (v) => emit('answer', yesNo(v)) }) : null;
   if (coop) hide(root, [t.speed, t.pauseButton, t.status?.panel]);
   else {
     tapRef(scr, root, t.speed, () => emit('speed'));
@@ -61,7 +65,7 @@ export function createBattleHud(ui, o) {
   }
   const menus = createFieldMenus(ui, hud, { cancel: () => emit('cancel'), withdraw: () => emit('withdraw'), skill: () => emit('skill') });
   return {
-    screen: scr, cards, coop, direction: menus.direction, menu: menus.menu,
+    screen: scr, cards, coop, cost, direction: menus.direction, menu: menus.menu,
     /** @param {string} name @param {(arg?: string) => void} fn */
     on(name, fn) { (handlers[name] ??= []).push(fn); },
     /** @param {HudState} s */
@@ -69,6 +73,7 @@ export function createBattleHud(ui, o) {
       cards.update(cardViews(o.deck, s), s.selected, ui.canvas.w);
       showCost(scr, hud.cost, s);
       if (coop && s.coop) coop.update(s.coop);
+      if (cost && s.coop?.cost) cost.update(s.coop.cost);
       showTop(scr, t, s);
     },
   };
