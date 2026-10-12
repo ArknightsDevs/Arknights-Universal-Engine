@@ -1,10 +1,11 @@
-// The network messages, version 5 (ADR 0053; version 2 adds the skill command, version 3 the cost request and its answer,
-// and the speed and pause controls, version 4 the match settings in the welcome, version 5 the content hash in it). Messages from browsers are untrusted: the server accepts one only when
+// The network messages, version 6 (ADR 0053; version 2 adds the skill command, version 3 the cost request and its answer,
+// and the speed and pause controls, version 4 the match settings in the welcome, version 5 the content hash in it,
+// version 6 the ready message: the page has loaded the battle). Messages from browsers are untrusted: the server accepts one only when
 // clientMessageProblem returns null — exact fields, integers in range, short ids, nothing else.
 import { isRecord, isInt, isId, keyProblem } from './checks.js';
 import { matchProblem } from './match.js';
 
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 
 /** Largest frame number (about 9.5 hours at 30 frames per second). */
 export const MAX_FRAME = 1_000_000;
@@ -52,6 +53,7 @@ const CLIENT = {
   pause: (m) => keyProblem(m, ['t']),
   pauseReply: (m) => keyProblem(m, ['t', 'accept']) ?? (!isInt(m.accept, 0, 1) ? 'pauseReply.accept is not 0 or 1' : null),
   resume: (m) => keyProblem(m, ['t']),
+  ready: (m) => keyProblem(m, ['t']),
 };
 
 /**
@@ -110,7 +112,8 @@ export function serverMessageProblem(m) {
 /** @typedef {{ t: 'pause' }} PauseMessage */
 /** @typedef {{ t: 'pauseReply', accept: number }} PauseReplyMessage */
 /** @typedef {{ t: 'resume' }} ResumeMessage */
-/** @typedef {HelloMessage | CommandMessage | HashMessage | SpeedMessage | PauseMessage | PauseReplyMessage | ResumeMessage} ClientMessage */
+/** The page has loaded the battle (同步-11). @typedef {{ t: 'ready' }} ReadyMessage */
+/** @typedef {HelloMessage | CommandMessage | HashMessage | SpeedMessage | PauseMessage | PauseReplyMessage | ResumeMessage | ReadyMessage} ClientMessage */
 
 /**
  * A training (干员-1, 干员-2, 干员-7); without the module fields, no module.

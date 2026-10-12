@@ -40,3 +40,9 @@
 关卡数据带镜头的视向量（`view`，三个数），即 ADR 0026 镜头模型里镜头相对关卡的位置。视向量取自按关卡路径（`levels/` 下去掉 `.json` 的相对路径）索引的视向量表中该关卡的第一个向量，并记下表的出处。没有给视向量表时关卡不带视向量，渲染用默认视向量。
 
 - 来源：yuanyan3060/ArknightsGameResource 的 `map.json`（固定提交，见关卡数据的 `source.view`），act1multi_01 为 [0, −6.1, −9.76]；镜头模型见 [ADR 0026](../adr/0026-camera-model.md)
+
+### 关卡-4 关卡代号与名称
+
+关卡数据带关卡的代号（`code`）和名称（`name`），取自关卡表（`excel/stage_table.json`）里以关卡 id 为键的那一项的 `code` 和 `name`。关卡表里没有这一关时不带。界面在开始面板上显示它们（界面-21）。
+
+- 来源：ArknightsGameData 的 `stage_table.json`（固定提交，见关卡数据的 `source`），act1multi_01 为 IG-1「逃离火线」

@@ -78,7 +78,7 @@ test('[关卡-2] a difficulty\'s runes: hidden groups enabled and disabled, the 
   assert.deepEqual(difficultyOf(null, 'NORMAL'), { hiddenGroups: [], enemyMul: [], replace: {}, unsupported: [] });
 });
 
-test('[关卡-1] [关卡-2] [关卡-3] the committed act1multi_01 is a fresh extraction of the pinned data (AUE_GAMEDATA, AUE_LEVEL_MAP)', {
+test('[关卡-1] [关卡-2] [关卡-3] [关卡-4] the committed act1multi_01 is a fresh extraction of the pinned data (AUE_GAMEDATA, AUE_LEVEL_MAP)', {
   skip: process.env.AUE_GAMEDATA && process.env.AUE_LEVEL_MAP ? false : 'AUE_GAMEDATA or AUE_LEVEL_MAP is not set',
 }, () => {
   const committed = readFileSync(new URL('../../content/data/levels/act1multi_01.json', import.meta.url), 'utf8');
@@ -92,6 +92,14 @@ test('[关卡-3] a camera view vector: three finite numbers, kept with its sourc
   assert.deepEqual([out.level.view, out.source.view], [[0, -6.1, -9.76], 'repo@sha:map.json']);
   assert.throws(() => extractLevel({ id: 'x', level: makeLevel(), enemyDb: db(), commit: 'c', view: { vector: [0, 1], source: 's' } }), /three finite numbers/);
   assert.equal(/** @type {any} */ (extractLevel({ id: 'x', level: makeLevel(), enemyDb: db(), commit: 'c' })).level.view, undefined);
+});
+
+test('[关卡-4] a stage\'s code and name from its stage table entry; none without one; a malformed entry refused', () => {
+  const out = /** @type {any} */ (extractLevel({ id: 'x', level: makeLevel(), enemyDb: db(), commit: 'c', stage: { code: 'IG-1', name: '逃离火线', stageType: 'ACTIVITY' } }));
+  assert.deepEqual([out.level.code, out.level.name], ['IG-1', '逃离火线']);
+  const none = /** @type {any} */ (extractLevel({ id: 'x', level: makeLevel(), enemyDb: db(), commit: 'c' }));
+  assert.deepEqual(['code' in none.level, 'name' in none.level], [false, false]);
+  assert.throws(() => extractLevel({ id: 'x', level: makeLevel(), enemyDb: db(), commit: 'c', stage: { code: 1 } }));
 });
 
 test('[关卡-2] runes: the max cost, the operators\' block count, shared enemies written as their own rune', () => {

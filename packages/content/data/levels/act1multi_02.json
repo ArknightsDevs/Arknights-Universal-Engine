@@ -7,6 +7,8 @@
   },
   "level": {
     "id": "act1multi_02",
+    "code": "IG-8",
+    "name": "密探有专车接送",
     "width": 12,
     "height": 8,
     "options": {

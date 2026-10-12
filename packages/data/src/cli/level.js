@@ -34,7 +34,8 @@ function gitCommit(dir) {
 }
 
 /**
- * Extract level `id` from a checkout, with its camera view from a map file when given (the first vector of its path).
+ * Extract level `id` from a checkout, with its camera view from a map file when given (the first vector of its path)
+ * and its code and name from the stage table (关卡-4).
  * @param {string} root the checkout directory @param {string} id @param {{ file: string, source: string }} [map]
  * @returns {Record<string, unknown>}
  */
@@ -49,6 +50,7 @@ export function extractLevelFromCheckout(root, id, map) {
     id, level: readJson(file), enemyDb: readJson(join(data, 'levels', 'enemydata', 'enemy_database.json')),
     handbook: readJson(join(data, 'excel', 'enemy_handbook_table.json')), commit: gitCommit(root),
     view: map && vectors ? { vector: vectors[0], source: map.source } : undefined,
+    stage: /** @type {{ stages: Record<string, unknown> }} */ (readJson(join(data, 'excel', 'stage_table.json'))).stages[id],
   });
 }
 

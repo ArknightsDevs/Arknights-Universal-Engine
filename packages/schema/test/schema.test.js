@@ -54,12 +54,12 @@ const DEPLOY = { type: 'deploy', op: 'char_502_nblade', row: 3, col: 4, dir: 0 }
 test('client messages: exactly the well-formed ones are accepted', () => {
   for (const m of [HELLO, { t: 'cmd', at: 99, cmd: DEPLOY }, { t: 'cmd', at: 0, cmd: { type: 'retreat', unit: 7 } }, { t: 'cmd', at: 5, cmd: { type: 'skill', unit: 7 } }, { t: 'hash', frame: 30, hash: 0xffffffff },
     { t: 'cmd', at: 5, cmd: { type: 'ask' } }, { t: 'cmd', at: 5, cmd: { type: 'answer', accept: 0 } }, { t: 'speed', on: 1 }, { t: 'pause' },
-    { t: 'pauseReply', accept: 1 }, { t: 'resume' }]) {
+    { t: 'pauseReply', accept: 1 }, { t: 'resume' }, { t: 'ready' }]) {
     assert.equal(clientMessageProblem(m), null, JSON.stringify(m));
   }
   const bad = [
     [[], 'message is not an object'], [{ t: 'nope' }, 'unknown message type nope'], [{ t: 'constructor' }, 'unknown message type constructor'],
-    [{ ...HELLO, v: 3 }, 'protocol version 3, expected 5'], [{ ...HELLO, seat: 8 }, 'hello.seat out of range'], [{ ...HELLO, key: 'a b' }, 'hello.key is not an id'],
+    [{ ...HELLO, v: 3 }, 'protocol version 3, expected 6'], [{ ...HELLO, seat: 8 }, 'hello.seat out of range'], [{ ...HELLO, key: 'a b' }, 'hello.key is not an id'],
     [{ ...HELLO, since: 1.5 }, 'hello.since out of range'], [{ ...HELLO, admin: true }, 'unknown field admin'], [{ t: 'hash', frame: 1 }, 'missing field hash'],
     [{ t: 'hash', frame: 1, hash: -1 }, 'hash.hash is not a uint32'], [{ t: 'hash', frame: -1, hash: 1 }, 'hash.frame out of range'],
     [{ t: 'cmd', at: 2e6, cmd: DEPLOY }, 'cmd.at out of range'], [{ t: 'cmd', at: 1, cmd: { ...DEPLOY, row: 64 } }, 'deploy tile out of range'],
@@ -68,7 +68,7 @@ test('client messages: exactly the well-formed ones are accepted', () => {
     [{ t: 'cmd', at: 1, cmd: { type: 'toString' } }, 'unknown command type toString'],
     [{ t: 'cmd', at: 1, cmd: { type: 'ask', seat: 1 } }, 'unknown field seat'], [{ t: 'cmd', at: 1, cmd: { type: 'answer', accept: 2 } }, 'answer.accept is not 0 or 1'],
     [{ t: 'speed', on: true }, 'speed.on is not 0 or 1'], [{ t: 'pause', seat: 0 }, 'unknown field seat'], [{ t: 'pauseReply' }, 'missing field accept'],
-    [{ t: 'pauseReply', accept: -1 }, 'pauseReply.accept is not 0 or 1'], [{ t: 'resume', at: 3 }, 'unknown field at'],
+    [{ t: 'pauseReply', accept: -1 }, 'pauseReply.accept is not 0 or 1'], [{ t: 'resume', at: 3 }, 'unknown field at'], [{ t: 'ready', seat: 0 }, 'unknown field seat'],
   ];
   for (const [m, why] of bad) assert.equal(clientMessageProblem(m), why, JSON.stringify(m));
 });
@@ -105,7 +105,7 @@ test('server messages: well-formed ones pass; broken ones are reported, never th
   for (const m of ok) assert.equal(serverMessageProblem(m), null, JSON.stringify(m));
   const bad = [
     [null, 'message is not an object'], [{ t: 'hello' }, 'unknown message type hello'],
-    [{ ...ok[0], v: 3 }, 'protocol version 3, expected 5'], [{ ...ok[0], seed: 1.5 }, 'welcome fields out of range'], [{ ...ok[0], content: -1 }, 'welcome fields out of range'],
+    [{ ...ok[0], v: 3 }, 'protocol version 3, expected 6'], [{ ...ok[0], seed: 1.5 }, 'welcome fields out of range'], [{ ...ok[0], content: -1 }, 'welcome fields out of range'],
     [{ ...ok[1], to: 2 }, 'frames range malformed'], [{ ...ok[1], cmds: {} }, 'frames.cmds is not an array'],
     [{ ...ok[1], cmds: [[4, 9, DEPLOY]] }, 'frames.cmds has a malformed entry'], [{ ...ok[1], cmds: [[4, 1, { type: 'x' }]] }, 'unknown command type x'],
     [{ t: 'restamp', from: -1, to: 1 }, 'restamp out of range'], [{ t: 'error', code: 1, message: 'y' }, 'error fields are not strings'],

@@ -84,6 +84,23 @@ test('[同步-8] a pause request refused, ignored, or answered by the asker; pau
   assert.deepEqual(controls().at(-1), { t: 'control', fast: [0, 0], held: 0, asker: -1, resuming: 0 });
 });
 
+test('[同步-11] a match of two begins when both pages have loaded the battle; after that one seat keeps it running', () => {
+  const host = new LockstepHost({ content: tinyContent(), seats: 2, seed: 1, send: () => {} });
+  host.hello(0, 0);
+  host.ready(0, 500);
+  host.hello(1, 1000);
+  host.tick(3000);
+  assert.deepEqual([host.begun, host.sealed], [false, -1], 'the mate connected but still loading: no frames');
+  host.ready(1, 3000);
+  host.tick(4000);
+  assert.equal(host.sealed + 1, framesAt(1000), 'from the moment both are ready');
+  host.bye(1, 4000);
+  host.tick(5000);
+  assert.equal(host.sealed + 1, framesAt(2000), 'the mate gone: it runs on (同步-6)');
+  const alone = new LockstepHost({ content: tinyContent(), seats: 1, seed: 1, send: () => {} });
+  assert.equal(alone.begun, true, 'alone: at once');
+});
+
 test('[同步-8] alone, a pause takes effect at once', () => {
   const host = new LockstepHost({ content: tinyContent(), seats: 1, seed: 1, send: () => {} });
   host.hello(0, 0);

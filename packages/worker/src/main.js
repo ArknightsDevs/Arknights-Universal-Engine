@@ -9,7 +9,8 @@ import { readView } from '@aue/schema';
  * @property {string} key the session key (reconnects reuse it)
  * @property {(view: import('@aue/schema').View, events: Record<string, string | number>[], keys: Record<string, string>, status: import('./session.js').Status) => void} onFrame
  *   `keys`: the content key of each unit not seen before; `status`: the match's wave, stage, stamps and result
- * @property {(state: { state: string, reason?: string, match?: import('@aue/schema').Match }) => void} [onNet] the connection; `match` when a match's content is ready
+ * @property {(state: { state: string, reason?: string, match?: import('@aue/schema').Match, frame?: number }) => void} [onNet] the connection;
+ *   `match` when a match's content is ready, with the last frame sealed when the page joined (−1 before the battle began, 同步-11)
  * @property {(c: { fast: number[], held: number, asker: number, resuming: number }) => void} [onControl] the speed and pause state (同步-7, 同步-8)
  */
 
@@ -38,6 +39,8 @@ export function startBattle(o) {
     pauseReply: (accept) => worker.postMessage({ type: 'pauseReply', accept }),
     /** Resumes a pause (同步-8). */
     resume: () => worker.postMessage({ type: 'resume' }),
+    /** The page has loaded the battle (同步-11). */
+    ready: () => worker.postMessage({ type: 'ready' }),
     /** @returns {Promise<{ frame: number, hash: number, sealed: number, stats: object }>} */
     debug: () => new Promise((resolve) => { waiting.push(resolve); worker.postMessage({ type: 'debug' }); }),
     /**

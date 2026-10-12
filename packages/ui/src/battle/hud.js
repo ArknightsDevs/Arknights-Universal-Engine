@@ -9,6 +9,7 @@ import { createFieldMenus } from './menus.js';
 import { createCostAsk } from './coopcost.js';
 import { createStates } from './states.js';
 import { createUnitBars } from './unitbars.js';
+import { createStart } from './start.js';
 
 /** @typedef {import('../node.js').UiNode} UiNode */
 /** @typedef {import('../screen.js').Screen} Screen */
@@ -41,8 +42,10 @@ function hide(root, refs) { for (const r of refs) { const n = refNode(root, r); 
 /**
  * The HUD on a UI: opens the battle screen, fills the cards, readies the menus on the field (menus.js); `update` shows a
  * frame's state; `on` takes the taps: 'card' (id), 'speed', 'pause', 'cancel', 'withdraw', 'skill'; in a match of two
- * also 'ask' (the cost request), 'answer' and 'confirm' ('yes' or 'no': the mate's cost and pause requests).
- * @param {ReturnType<typeof import('../ui.js').createUi>} ui @param {{ deck: DeckCard[], coop?: boolean }} o
+ * also 'ask' (the cost request), 'answer' and 'confirm' ('yes' or 'no': the mate's cost and pause requests). With a
+ * stage in a match of two the start panel shows until the first frame's update (界面-21).
+ * @param {ReturnType<typeof import('../ui.js').createUi>} ui
+ * @param {{ deck: DeckCard[], coop?: boolean, stage?: import('./start.js').StageInfo | null }} o
  */
 export function createBattleHud(ui, o) {
   const hud = /** @type {Record<string, any>} */ (ui.ctx.pack).hud;
@@ -67,9 +70,9 @@ export function createBattleHud(ui, o) {
     tapRef(scr, root, t.pause, () => emit('pause'));
   }
   const menus = createFieldMenus(ui, hud, { cancel: () => emit('cancel'), withdraw: () => emit('withdraw'), skill: () => emit('skill') });
-  const states = createStates(ui, scr, !!coop), bars = hud.units ? createUnitBars(scr, hud.units) : null;
+  const { states, bars, start } = overlays(ui, scr, hud, !!coop, o.stage ?? null);
   return {
-    screen: scr, cards, coop, cost, states, bars, direction: menus.direction, menu: menus.menu,
+    screen: scr, cards, coop, cost, states, bars, start, direction: menus.direction, menu: menus.menu,
     /** @param {string} name @param {(arg?: string) => void} fn */
     on(name, fn) { (handlers[name] ??= []).push(fn); },
     /** @param {HudState} s */
@@ -80,8 +83,22 @@ export function createBattleHud(ui, o) {
       if (cost && s.coop?.cost) cost.update(s.coop.cost);
       if (s.states) states.update(s.states);
       if (bars && s.units) bars.update(s.units, [ui.canvas.w, ui.canvas.h]);
+      start?.begin();
       showTop(scr, t, s);
     },
+  };
+}
+
+/**
+ * The panels over the battle: the state panels (界面-18), the units' bars when the pack has them (界面-19), the start
+ * panel in a match of two given its stage (界面-21).
+ * @param {ReturnType<typeof import('../ui.js').createUi>} ui @param {Screen} scr @param {Record<string, any>} hud @param {boolean} coop
+ * @param {import('./start.js').StageInfo | null} stage
+ */
+function overlays(ui, scr, hud, coop, stage) {
+  return {
+    states: createStates(ui, scr, coop), bars: hud.units ? createUnitBars(scr, hud.units) : null,
+    start: coop && stage ? createStart(ui, stage) : null,
   };
 }
 

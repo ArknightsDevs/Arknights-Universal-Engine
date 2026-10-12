@@ -93,4 +93,7 @@ export class LockstepClient {
 
   /** Resumes a pause (同步-8). */
   resume() { this.o.send({ t: 'resume' }); }
+
+  /** The page has loaded the battle (同步-11). */
+  ready() { this.o.send({ t: 'ready' }); }
 }

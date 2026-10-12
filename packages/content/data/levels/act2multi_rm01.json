@@ -7,6 +7,8 @@
   },
   "level": {
     "id": "act2multi_rm01",
+    "code": "IG-4",
+    "name": "逃离火线",
     "width": 12,
     "height": 9,
     "options": {

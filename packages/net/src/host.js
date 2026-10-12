@@ -31,6 +31,10 @@ export class LockstepHost {
     this.pending = new Map();
     /** @type {Set<number>} */
     this.connected = new Set();
+    /** the seats whose page has loaded the battle; the battle begins once every seat has (alone, at once; 同步-11) */
+    /** @type {Set<number>} */
+    this.loaded = new Set();
+    this.begun = o.seats <= 1;
     /** @type {Map<number, number>} frames done → the arbiter's hash */
     this.hashes = new Map();
     /** each seat's 2× switch (同步-7) */
@@ -46,8 +50,8 @@ export class LockstepHost {
   /** The clock's speed: 2 when every seat has its 2× switch on (同步-7). */
   rate() { return this.fast.every((f) => f === 1) ? 2 : 1; }
 
-  /** Whether the clock runs: someone is connected and the battle is not paused (同步-6, 同步-8). */
-  running() { return this.connected.size > 0 && !this.held; }
+  /** Whether the clock runs: the battle has begun, someone is connected and it is not paused (同步-6, 同步-8, 同步-11). */
+  running() { return this.begun && this.connected.size > 0 && !this.held; }
 
   /** Battle milliseconds at wall time `now`. @param {number} now */
   battleMs(now) {
@@ -72,6 +76,13 @@ export class LockstepHost {
     this.connected.add(seat);
     this.o.send(seat, { t: 'welcome', v: PROTOCOL_VERSION, seat, seed: this.o.seed, frame: this.sealed, snapshot: takeSnapshot(this.world), match: this.o.match ?? null, content: this.content });
     this.broadcastControl();
+  }
+
+  /** A seat's page has loaded the battle: once every seat's has, the battle begins (同步-11). @param {number} seat @param {number} now */
+  ready(seat, now) {
+    this.rebase(now);
+    this.loaded.add(seat);
+    if (this.loaded.size >= this.o.seats) this.begun = true;
   }
 
   /** A seat's connection closed. With nobody left the clock stops (同步-6). @param {number} seat @param {number} now */

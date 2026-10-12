@@ -29,5 +29,7 @@ export { OBJECTIVES, TIMER_WARN, clockText } from './battle/coop.js';
 /** @typedef {import('./battle/coop.js').Task} Task */
 export { createStates } from './battle/states.js';
 export { createUnitBars } from './battle/unitbars.js';
+export { createStart } from './battle/start.js';
+/** @typedef {import('./battle/start.js').StageInfo} StageInfo */
 /** @typedef {import('./battle/unitbars.js').UnitBar} UnitBar */
 /** @typedef {import('./battle/states.js').BattleStates} BattleStates */

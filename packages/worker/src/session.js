@@ -61,6 +61,8 @@ export class BattleSession {
     /** @type {Target | null} */
     this.target = null;
     this.stopped = false;
+    /** whether the page has loaded the battle (同步-11) */
+    this.loaded = false;
     this.ticks = 0;
     this.t0 = 0;
     /** @type {Set<number>} unit ids whose content key the page has */
@@ -77,6 +79,12 @@ export class BattleSession {
       content, send: (m) => this.socket?.send(JSON.stringify(m)), onFrame: (_w, ev) => { this.events.push(...ev); },
       onControl: (c) => this.io.post({ type: 'control', fast: c.fast, held: c.held, asker: c.asker, resuming: c.resuming }),
     });
+  }
+
+  /** The page has loaded the battle (同步-11): the server is told, and again after a reconnect. */
+  ready() {
+    this.loaded = true;
+    this.client.ready();
   }
 
   /**
@@ -103,6 +111,7 @@ export class BattleSession {
     this.socket = s;
     s.onopen = () => {
       s.send(JSON.stringify({ t: 'hello', v: PROTOCOL_VERSION, seat: t.seat, key: t.key, since: this.client.world?.frame ?? -1 }));
+      if (this.loaded) s.send(JSON.stringify({ t: 'ready' }));
       this.io.post({ type: 'net', state: 'open' });
     };
     s.onmessage = (text) => this.receive(text);
@@ -141,7 +150,7 @@ export class BattleSession {
       const queued = this.waiting ?? [];
       this.waiting = null;
       for (const q of queued) this.deliver(q);
-      this.io.post({ type: 'net', state: 'match', match });
+      this.io.post({ type: 'net', state: 'match', match, frame: welcome.t === 'welcome' ? welcome.frame : -1 });
     }, (e) => {
       this.waiting = null;
       this.match = null;

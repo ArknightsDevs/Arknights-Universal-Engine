@@ -38,6 +38,7 @@ const HANDLERS = {
   pauseReply: (m) => session.control({ type: 'pauseReply', accept: m.accept === true }),
   pause: () => session.control({ type: 'pause' }),
   resume: () => session.control({ type: 'resume' }),
+  ready: () => session.ready(),
   debug: () => scope.postMessage(session.debug()),
   marks: (m) => scope.postMessage(session.marks({ op: typeof m.op === 'string' ? m.op : null, dir: Number(m.dir) || 0,
     tile: m.tile ? { row: Number(m.tile.row), col: Number(m.tile.col) } : null })),

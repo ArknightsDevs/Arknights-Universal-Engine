@@ -42,6 +42,7 @@ export function play(s) {
       else if (msg.t === 'speed') host.speed(seat, msg.on, now);
       else if (msg.t === 'pause') host.pause(seat, now);
       else if (msg.t === 'pauseReply') host.pauseReply(seat, msg.accept, now);
+      else if (msg.t === 'ready') host.ready(seat, now);
       else host.resume(seat, now);
     });
   };
@@ -82,7 +83,7 @@ function scripted(s, env, t) {
  * @param {Scenario} s @param {any} env
  */
 function runScenario(s, env) {
-  for (const seat of [0, 1]) env.toHost(seat, { t: 'hello', v: PROTOCOL_VERSION, seat, key: `seat${seat}`, since: -1 });
+  for (const seat of [0, 1]) { env.toHost(seat, { t: 'hello', v: PROTOCOL_VERSION, seat, key: `seat${seat}`, since: -1 }); env.toHost(seat, { t: 'ready' }); }
   for (let t = 0; t <= s.ms; t++) {
     env.setNow(t);
     deliver(env.queue, t);

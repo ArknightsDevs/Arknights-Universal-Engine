@@ -29,7 +29,7 @@ function clock() {
 
 /** A session wired to a host through fake sockets (no latency). */
 function rig() {
-  const c = tinyContent(), t = clock(), posts = /** @type {any[]} */ ([]);
+  const c = tinyContent(), t = clock(), posts = /** @type {any[]} */ ([]), sent = /** @type {string[]} */ ([]);
   /** @type {any} */
   let sock = null;
   const host = new LockstepHost({ content: c, seats: 1, seed: 5, send: (_seat, msg) => sock?.onmessage?.(JSON.stringify(msg)) });
@@ -40,6 +40,8 @@ function rig() {
         send(/** @type {string} */ text) {
           const m = JSON.parse(text);
           assert.equal(clientMessageProblem(m), null);
+          sent.push(m.t);
+          if (m.t === 'ready') { host.ready(0, t.now()); return; }
           if (m.t === 'hello') host.hello(0, t.now()); else if (m.t === 'cmd') host.command(0, m.at, m.cmd); else if (m.t === 'hash') host.hash(0, m.frame, m.hash);
           else if (m.t === 'speed') host.speed(0, m.on, t.now()); else if (m.t === 'pause') host.pause(0, t.now());
           else if (m.t === 'pauseReply') host.pauseReply(0, m.accept, t.now()); else host.resume(0, t.now());
@@ -49,7 +51,7 @@ function rig() {
       return s;
     },
   });
-  return { host, session, posts, t, socket: () => sock };
+  return { host, session, posts, t, sent, socket: () => sock };
 }
 
 test('the session plays the server frames and posts a render state per frame time', () => {
@@ -152,7 +154,7 @@ test('[同步-9] a welcome with match settings: the content is made first, messa
   release();
   await new Promise((r) => setImmediate(r));
   t.run(600, (now) => host.tick(now));
-  assert.ok(posts.some((p) => p.type === 'net' && p.state === 'match'));
+  assert.ok(posts.some((p) => p.type === 'net' && p.state === 'match' && p.frame === -1), 'with the frame sealed when it joined: none yet');
   session.command({ type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 });
   t.run(600, (now) => host.tick(now));
   const d = session.debug();
@@ -183,6 +185,18 @@ test('[同步-9] match content that cannot be made is reported', async () => {
   t.run(50, (now) => host.tick(now));
   await new Promise((r) => setImmediate(r));
   assert.ok(posts.some((p) => p.type === 'net' && p.state === 'bad-message' && /no level nope/.test(p.reason)));
+});
+
+test('[同步-11] the page loaded: the server is told, and told again after the socket reconnects', () => {
+  const r = rig();
+  r.session.start({ url: 'ws://x', seat: 0, key: 'k' });
+  r.t.run(50, (now) => r.host.tick(now));
+  assert.deepEqual(r.sent.filter((m) => m !== 'hash'), ['hello'], 'not before the page says so');
+  r.session.ready();
+  assert.deepEqual([r.sent.at(-1), r.host.loaded.has(0)], ['ready', true]);
+  r.socket().close();
+  r.t.run(2000, (now) => r.host.tick(now));
+  assert.deepEqual(r.sent.filter((m) => m !== 'hash' && m !== 'cmd').slice(-2), ['hello', 'ready'], 'hello, then ready again');
 });
 
 test('[同步-7] [同步-8] controls from the page reach the server; its control state comes back to the page', () => {
