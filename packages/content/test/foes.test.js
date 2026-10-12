@@ -42,7 +42,7 @@ const phys = (atk, def) => Math.max(atk - def, atk * 0.05);
 
 test('[敌能-1] the real enemies carry their abilities, damage types and PRTS extras', () => {
   const e = real.enemies;
-  assert.deepEqual(e.enemy_1404_msnip.skills?.[0], { key: 'CrossAttack', cooldown: 8, initCooldown: 2, bb: { atk_scale: 1, stun: 5, duration: 2, bolts: 1, arts: 1, charge: 1.4, hold: 2.5, hide: 1 } });
+  assert.deepEqual(e.enemy_1404_msnip.skills?.[0], { key: 'CrossAttack', cooldown: 8, initCooldown: 2, sp: 0, bb: { atk_scale: 1, stun: 5, duration: 2, bolts: 1, arts: 1, charge: 1.4, hold: 2.5, hide: 1 } });
   assert.deepEqual([e.enemy_1404_msnip.dmgType, e.enemy_1110_uamord.dmgType, e.enemy_1109_uabone.dmgType], ['arts', 'arts', undefined]);
   assert.deepEqual(e.enemy_1067_snslime.talents?.boom, { atk_scale: 2, freeze: 10, radius: 1.65, delay: 1, arts: 0, air: 0, sourced: 0 });
   assert.ok(Object.values(FOE_EXTRAS).every((x) => /^https:\/\/prts\.wiki\/index\.php\?title=.+&oldid=\d+$/.test(x.source)), 'each with its PRTS revision');

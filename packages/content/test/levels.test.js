@@ -76,10 +76,10 @@ test('[同步-9] [部署-2] a match\'s content: its level, each seat\'s deck at 
   assert.equal(w.units.filter((u) => u.owner === 0).length, 1);
 });
 
-test('[关卡-2] more co-op levels: act2multi_rm01 loads; act1multi_06 and act1multi_rm07 wait for their enemies\' abilities, act1multi_02 for its sight system', () => {
+test('[关卡-2] more co-op levels: act2multi_rm01 and act1multi_06 load; act1multi_rm07 waits for its enemies\' abilities, act1multi_02 for its sight system', () => {
   assert.deepEqual(['act1multi_01', 'act1multi_02', 'act1multi_06', 'act1multi_rm07', 'act2multi_rm01'].every((id) => id in LEVELS), true);
   assert.deepEqual(['NORMAL', 'FOUR_STAR'].map((d) => levelAt('act2multi_rm01', /** @type {any} */ (d)).level.stages?.map((s) => s.objective)), [['protect', 'protect'], ['protect', 'protect']]);
-  assert.throws(() => levelAt('act1multi_06', 'NORMAL'), /enemy abilities not supported yet: InvisibleCombat, Guide/);
+  assert.deepEqual(['NORMAL', 'FOUR_STAR'].map((d) => levelAt('act1multi_06', /** @type {any} */ (d)).level.stages?.length), [2, 2], 'act1multi_06 now loads');
   assert.throws(() => levelAt('act1multi_rm07', 'NORMAL'), /enemy abilities not supported yet: warn, Awake/);
   assert.throws(() => levelAt('act1multi_02', 'NORMAL'), /runes not supported yet: env_system_new/);
   assert.throws(() => levelAt('nope', 'NORMAL'), /no level nope/);

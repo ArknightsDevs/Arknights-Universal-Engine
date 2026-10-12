@@ -7941,6 +7941,9 @@
       "massLevel": 0,
       "levelType": "NORMAL",
       "lifePointReduce": 1,
+      "tags": [
+        "infection"
+      ],
       "talents": {
         "boom": {
           "atk_scale": 2,
@@ -8071,6 +8074,9 @@
       "massLevel": 4,
       "levelType": "ELITE",
       "lifePointReduce": 1,
+      "tags": [
+        "drone"
+      ],
       "shared": true
     },
     "enemy_1112_emppnt_2": {
@@ -8087,6 +8093,9 @@
       "massLevel": 4,
       "levelType": "ELITE",
       "lifePointReduce": 1,
+      "tags": [
+        "drone"
+      ],
       "shared": true
     },
     "enemy_1113_empace": {
@@ -8248,6 +8257,7 @@
           "key": "CrossAttack",
           "cooldown": 5,
           "initCooldown": 2,
+          "sp": 0,
           "bb": {}
         }
       ]
@@ -8271,6 +8281,7 @@
           "key": "CrossAttack",
           "cooldown": 5,
           "initCooldown": 2,
+          "sp": 0,
           "bb": {}
         }
       ]
@@ -8294,6 +8305,7 @@
           "key": "CrossAttack",
           "cooldown": 8,
           "initCooldown": 2,
+          "sp": 0,
           "bb": {
             "atk_scale": 1,
             "stun": 5,
@@ -8323,6 +8335,7 @@
           "key": "CrossAttack",
           "cooldown": 8,
           "initCooldown": 2,
+          "sp": 0,
           "bb": {
             "atk_scale": 1,
             "stun": 5,
@@ -8358,6 +8371,7 @@
           "key": "Bomb",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 0,
           "bb": {
             "atk_scale": 2,
             "projectile_range": 1.1
@@ -8389,6 +8403,7 @@
           "key": "PowerHit",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 0,
           "bb": {
             "atk": 0.8
           }
@@ -8419,6 +8434,7 @@
           "key": "PowerHit",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 0,
           "bb": {
             "atk": 0.8
           }

@@ -5,7 +5,7 @@ import { followRoute, speedOf } from './routes.js';
 import { enemyAtGoal, goalSeats } from './coop.js';
 import { tryBlock, keepOrRelease } from './blocking.js';
 import { enemyAttack } from './combat.js';
-import { foeTick } from './foes.js';
+import { foeTick, carried } from './foes.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 
@@ -43,7 +43,7 @@ function enemyTurn(w, c, e) {
   tryBlock(w, c, e);
 }
 
-/** Every enemy's turn, in creation order (帧-1). @param {World} w @param {Content} c */
+/** Every enemy's turn, in creation order (帧-1); a passenger has none (敌能-16). @param {World} w @param {Content} c */
 export function enemiesAct(w, c) {
-  for (const e of w.units) if (e.kind === KIND.ENEMY && e.hp > 0) enemyTurn(w, c, e);
+  for (const e of w.units) if (e.kind === KIND.ENEMY && e.hp > 0 && !carried(e)) enemyTurn(w, c, e);
 }

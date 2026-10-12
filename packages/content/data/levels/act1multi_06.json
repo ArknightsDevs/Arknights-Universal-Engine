@@ -13073,6 +13073,7 @@
           "key": "InvisibleCombat",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 0,
           "bb": {
             "atk_scale": 2
           }
@@ -13102,6 +13103,7 @@
           "key": "InvisibleCombat",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 0,
           "bb": {
             "atk_scale": 2
           }
@@ -13128,6 +13130,7 @@
           "key": "Guide",
           "cooldown": 35,
           "initCooldown": 10,
+          "sp": 0,
           "bb": {
             "anim_duration": 5,
             "atk_scale": 2,
@@ -13158,6 +13161,7 @@
           "key": "Guide",
           "cooldown": 35,
           "initCooldown": 10,
+          "sp": 0,
           "bb": {
             "anim_duration": 5,
             "atk_scale": 2,
@@ -13182,7 +13186,10 @@
       "motion": "WALK",
       "massLevel": 4,
       "levelType": "ELITE",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "tags": [
+        "machine"
+      ]
     },
     "enemy_1301_ymcnon_2": {
       "name": "“碎壁”",
@@ -13197,7 +13204,10 @@
       "motion": "WALK",
       "massLevel": 4,
       "levelType": "ELITE",
-      "lifePointReduce": 1
+      "lifePointReduce": 1,
+      "tags": [
+        "machine"
+      ]
     },
     "enemy_1302_ymtro": {
       "name": "“履平沙”",
@@ -13213,6 +13223,9 @@
       "massLevel": 4,
       "levelType": "ELITE",
       "lifePointReduce": 1,
+      "tags": [
+        "machine"
+      ],
       "talents": {
         "Bus": {
           "max_cnt": 4
@@ -13233,6 +13246,9 @@
       "massLevel": 4,
       "levelType": "ELITE",
       "lifePointReduce": 1,
+      "tags": [
+        "machine"
+      ],
       "talents": {
         "Bus": {
           "max_cnt": 4
@@ -13258,6 +13274,7 @@
           "key": "CostMeleeAttack",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 2,
           "bb": {
             "cost": -1
           }
@@ -13266,6 +13283,7 @@
           "key": "CostRangedAttack",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 2,
           "bb": {
             "cost": -1
           }
@@ -13291,6 +13309,7 @@
           "key": "CostMeleeAttack",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 1,
           "bb": {
             "cost": -1
           }
@@ -13299,6 +13318,7 @@
           "key": "CostRangedAttack",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 1,
           "bb": {
             "cost": -1
           }
@@ -13324,6 +13344,7 @@
           "key": "CostHealHit",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 1,
           "bb": {
             "cost": -3,
             "hp_ratio": 0.05
@@ -13350,6 +13371,7 @@
           "key": "CostHealHit",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 1,
           "bb": {
             "cost": -3,
             "hp_ratio": 0.1
@@ -13379,6 +13401,7 @@
           "key": "PowerHit",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 2,
           "bb": {
             "cost": -1
           }
@@ -13408,6 +13431,7 @@
           "key": "PowerHit",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 2,
           "bb": {
             "cost": -1
           }
@@ -13429,6 +13453,9 @@
       "massLevel": 0,
       "levelType": "NORMAL",
       "lifePointReduce": 1,
+      "tags": [
+        "infection"
+      ],
       "talents": {
         "Boom": {
           "atk_scale": 4,
@@ -13451,6 +13478,9 @@
       "massLevel": 0,
       "levelType": "NORMAL",
       "lifePointReduce": 1,
+      "tags": [
+        "infection"
+      ],
       "talents": {
         "Boom": {
           "atk_scale": 4,
@@ -13546,6 +13576,7 @@
           "key": "AddEnergy",
           "cooldown": 28,
           "initCooldown": 5,
+          "sp": 0,
           "bb": {
             "duration": 5,
             "interval": 1,
@@ -13589,6 +13620,7 @@
           "key": "AddEnergy",
           "cooldown": 28,
           "initCooldown": 5,
+          "sp": 0,
           "bb": {
             "duration": 5,
             "interval": 1,

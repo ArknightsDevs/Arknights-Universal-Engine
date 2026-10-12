@@ -1,6 +1,6 @@
 // Enemies (docs/spec/level.md 关卡-1, coop.md 合作-2, 合作-9): an enemy_database entry at the level a level asks for, with the
 // level's overrides, as the engine's enemy; the 共同敌手 and neutral enemies of a level.
-import { asArray, asNumber, asObject, asString, field, wrapped, wrappedNumber } from './validate.js';
+import { asArray, asInt, asNumber, asObject, asString, field, wrapped, wrappedNumber } from './validate.js';
 import { NEUTRAL_ENEMIES } from './neutral.js';
 
 /**
@@ -35,6 +35,17 @@ function immunities(at, path) {
 }
 
 /**
+ * An enemy's tags (关卡-1): enemyTags when defined and not empty.
+ * @param {Record<string, unknown>} data @param {string} dp @returns {{ tags?: string[] }}
+ */
+function tagsOf(data, dp) {
+  if (!Object.hasOwn(data, 'enemyTags')) return {};
+  const w = asObject(data.enemyTags, `${dp}.enemyTags`);
+  if (w.m_defined !== true || !Array.isArray(w.m_value) || w.m_value.length === 0) return {};
+  return { tags: w.m_value.map((t, i) => asString(t, `${dp}.enemyTags.m_value[${i}]`)) };
+}
+
+/**
  * One enemy from its (merged) enemyData (关卡-1).
  * @param {Record<string, unknown>} data
  * @param {string} key
@@ -62,6 +73,7 @@ function readEnemy(data, key, dp) {
     ...definedNumber(at, 'epDamageResistance', ap),
     ...definedNumber(at, 'epResistance', ap),
     ...immunities(at, ap),
+    ...tagsOf(data, dp),
     ...neutralOf(key, data, dp),
     ...abilitiesOf(data, dp),
   };
@@ -69,9 +81,9 @@ function readEnemy(data, key, dp) {
 
 /**
  * An enemy's talents and skills (敌能-1): the talent blackboard grouped by the part of each key before its first `.`;
- * the skills with their cooldowns and blackboards.
+ * the skills with their cooldowns, SP cost and blackboards.
  * @param {Record<string, unknown>} data @param {string} dp
- * @returns {{ talents?: Record<string, Record<string, number>>, skills?: { key: string, cooldown: number, initCooldown: number, bb: Record<string, number> }[] }}
+ * @returns {{ talents?: Record<string, Record<string, number>>, skills?: { key: string, cooldown: number, initCooldown: number, sp: number, bb: Record<string, number> }[] }}
  */
 function abilitiesOf(data, dp) {
   /** @type {Record<string, Record<string, number>>} */
@@ -87,7 +99,10 @@ function abilitiesOf(data, dp) {
       const e = asObject(b, `${sp}.blackboard[${j}]`);
       return [asString(e.key, `${sp}.blackboard[${j}].key`), asNumber(e.value, `${sp}.blackboard[${j}].value`, -1e9, 1e9)];
     }));
-    return { key: asString(field(o, 'prefabKey', sp), `${sp}.prefabKey`), cooldown: asNumber(field(o, 'cooldown', sp), `${sp}.cooldown`, -1, 1e6), initCooldown: asNumber(field(o, 'initCooldown', sp), `${sp}.initCooldown`, -1, 1e6), bb };
+    return {
+      key: asString(field(o, 'prefabKey', sp), `${sp}.prefabKey`), cooldown: asNumber(field(o, 'cooldown', sp), `${sp}.cooldown`, -1, 1e6),
+      initCooldown: asNumber(field(o, 'initCooldown', sp), `${sp}.initCooldown`, -1, 1e6), sp: asInt(o.spCost ?? 0, `${sp}.spCost`, 0, 1000), bb,
+    };
   });
   return { ...(Object.keys(talents).length > 0 ? { talents } : {}), ...(skills.length > 0 ? { skills } : {}) };
 }

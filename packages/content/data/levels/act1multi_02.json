@@ -8381,6 +8381,9 @@
       "massLevel": 3,
       "levelType": "NORMAL",
       "lifePointReduce": 1,
+      "tags": [
+        "machine"
+      ],
       "talents": {
         "AtkUp": {
           "atk": 0.1,
@@ -8402,6 +8405,9 @@
       "massLevel": 3,
       "levelType": "NORMAL",
       "lifePointReduce": 1,
+      "tags": [
+        "machine"
+      ],
       "talents": {
         "AtkUp": {
           "atk": 0.15,
@@ -8426,6 +8432,9 @@
       "immune": [
         "silence"
       ],
+      "tags": [
+        "machine"
+      ],
       "talents": {
         "Bus": {
           "max_cnt": 3
@@ -8449,6 +8458,9 @@
       "lifePointReduce": 0,
       "immune": [
         "silence"
+      ],
+      "tags": [
+        "machine"
       ],
       "talents": {
         "Bus": {
@@ -8521,6 +8533,9 @@
       "immune": [
         "silence"
       ],
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "1": {
           "attack@cost": -3,
@@ -8542,6 +8557,9 @@
       "massLevel": 3,
       "levelType": "NORMAL",
       "lifePointReduce": 1,
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "summon": {
           "hp_ratio": 0.5
@@ -8563,6 +8581,9 @@
       "massLevel": 3,
       "levelType": "NORMAL",
       "lifePointReduce": 1,
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "summon": {
           "hp_ratio": 0.5
@@ -8625,6 +8646,7 @@
           "key": "blink",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 2,
           "bb": {
             "atk_scale": 1,
             "dist": 1.5

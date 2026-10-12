@@ -152,6 +152,33 @@ function holds(w, e, leg, moved) {
 }
 
 /**
+ * An enemy goes aboard a carrier (敌能-16): it disappears and stops where it is in its route.
+ * @param {Unit} u
+ */
+export function board(u) {
+  u.hidden = true;
+  u.path = [];
+  u.pt = 0;
+  u.wait = -1;
+}
+
+/**
+ * A passenger alights (敌能-16): it appears at the centre of its carrier's tile and goes on with its route from there
+ * — a wait it was in is skipped.
+ * @param {Content} c @param {Unit} u @param {{ x: number, y: number }} at
+ */
+export function alight(c, u, at) {
+  u.x = Math.round(at.x);
+  u.y = Math.round(at.y);
+  u.hidden = false;
+  const legs = legsOf(c.level.routes[u.route]), leg = legs[u.leg];
+  if (leg.t === 'wait' || leg.t === 'until') endLeg(u, legs);
+  u.path = [];
+  u.pt = 0;
+  u.wait = -1;
+}
+
+/**
  * One frame of an enemy's route (路线-1…路线-3), for an enemy free to follow it (not blocked, not attacking, able to
  * move): disappearing and appearing take no time, waits hold it, moves spend `speed` tiles, the rest carrying over to
  * the next leg. Returns true when it reached the end of its route.

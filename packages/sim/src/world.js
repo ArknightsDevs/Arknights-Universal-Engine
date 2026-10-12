@@ -9,7 +9,7 @@ import { newSchedule, visiblePredefines, tickWaves, checkEnd } from './waves.js'
 import { newStageState, tickStage, stageCount } from './stage.js';
 import { releaseAll } from './blocking.js';
 import { operatorsAttack, shotsFly } from './combat.js';
-import { foeEffects, foeDeath } from './foes.js';
+import { foeEffects, foeDeath, releasePassengers } from './foes.js';
 import { applyCommand } from './commands.js';
 import { leaveField } from './deck.js';
 import { tickRevival, tickRequests, neutralDown } from './coop.js';
@@ -60,6 +60,7 @@ function removeDead(w, c) {
     if (!reachedGoal.has(u.id)) w.events.push({ type: 'death', id: u.id });
     if (!reachedGoal.has(u.id) && u.kind === KIND.ENEMY && u.base.neutral === true) neutralDown(w, c, u);
     if (!reachedGoal.has(u.id) && u.kind === KIND.ENEMY) foeDeath(w, c, u);
+    if (u.kind === KIND.ENEMY) releasePassengers(w, c, u);
     stageCount(w, c, u, reachedGoal.has(u.id));
     releaseAll(w, u.id);
     if (u.kind === KIND.OPERATOR) leaveField(w, c, u, false);

@@ -12,7 +12,7 @@ import { enforceCapacity } from './blocking.js';
 import { blockingImmunity } from './upkeep.js';
 import { zoneScale, chainOf, woundedInRange } from './chain.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
-import { foeTargets, foeAttack, isFoeOf } from './foes.js';
+import { foeTargets, foeAttack, foeHit, isFoeOf } from './foes.js';
 import { makeBuff } from './buffs.js';
 import { tileOf } from './body.js';
 import { tickSkill, beforeAttack, afterAttack } from './skills.js';
@@ -61,7 +61,7 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * What an attack carries to one target: its damage type and amount, hits, 元素损伤, and an operator's splash and
  * aftershock (职业-8) and chain (职业-11).
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
- *   aftershock?: number, chain?: import('./types.js').Chain | null }} Load
+ *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean }} Load
  */
 
 /**
@@ -74,11 +74,20 @@ function hitTarget(w, c, src, t, load) {
   const el = /** @type {import('./elements.js').Element | ''} */ (load.element), op = src && src.kind === KIND.OPERATOR ? src : null;
   for (let k = 0; k < load.times; k++) {
     const alive = t.hp > 0, dealt = dealDamage(w, src, t, { type: load.type, amount: load.amount });
-    if (op && dealt > 0) healForDamage(w, c, op, dealt);
+    if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
     if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
     if (el && load.ep > 0) dealEp(w, t, el, load.ep);
     if (op && alive) traitHit(w, c, op, t);
   }
+}
+
+/**
+ * What a hit that dealt damage sets off (职业-11, 敌能-2): an operator's heal for it, an enemy's abilities' hit.
+ * @param {World} w @param {Content} c @param {{ src: Unit | null, t: Unit, dealt: number, ranged: boolean }} h
+ */
+function afterDamage(w, c, h) {
+  if (h.src && h.src.kind === KIND.OPERATOR) healForDamage(w, c, h.src, h.dealt);
+  else if (h.src && h.src.kind === KIND.ENEMY) foeHit(w, c, h.src, h.t, { dealt: h.dealt, ranged: h.ranged });
 }
 
 /**
@@ -309,7 +318,7 @@ export function operatorsAttack(w, c) {
  * @param {World} w @param {Content} c
  */
 export function shotsFly(w, c) {
-  flyShots(w, (s, t) => { impact(w, c, w.units.find((u) => u.id === s.src && u.hp > 0) ?? null, t, s); });
+  flyShots(w, (s, t) => { impact(w, c, w.units.find((u) => u.id === s.src && u.hp > 0) ?? null, t, { ...s, ranged: true }); });
 }
 
 /**

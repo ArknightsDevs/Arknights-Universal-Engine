@@ -64,15 +64,16 @@
  */
 
 /**
- * An enemy's skill (敌能-1): its name (prefabKey), first and later cooldowns in seconds, blackboard.
- * @typedef {{ key: string, cooldown: number, initCooldown: number, bb: Record<string, number> }} FoeSkill
+ * An enemy's skill (敌能-1): its name (prefabKey), first and later cooldowns in seconds, SP cost (spCost; 0 for none),
+ * blackboard.
+ * @typedef {{ key: string, cooldown: number, initCooldown: number, sp?: number, bb: Record<string, number> }} FoeSkill
  */
 /**
  * An enemy: `blockCnt` is how much block it takes (阻挡数消耗, default 1); `rangeRadius` its attack radius in tiles and
- * `applyWay` MELEE, RANGED or ALL (敌人攻击-1); its talents by name and its skills (敌能-1).
+ * `applyWay` MELEE, RANGED or ALL (敌人攻击-1); its talents by name and its skills (敌能-1); its tags (关卡-1).
  * @typedef {OptionalStats & { name: string, maxHp: number, atk: number, def: number, res: number, moveSpeed: number, motion?: string,
  *   baseAttackTime?: number, blockCnt?: number, rangeRadius?: number, applyWay?: string, talents?: Record<string, Record<string, number>>,
- *   skills?: FoeSkill[] }} EnemyDef
+ *   skills?: FoeSkill[], tags?: string[] }} EnemyDef
  */
 /**
  * A skill as the content gives it (技能-1): one level of a skill_table entry.

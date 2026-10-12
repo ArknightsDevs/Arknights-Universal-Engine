@@ -3,12 +3,14 @@
 import { secondsToFrames, FPS } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
-import { addBuff, removeBuff, makeBuff } from './buffs.js';
+import { addBuff, removeBuff, makeBuff, retune } from './buffs.js';
 import { applyStatus } from './status.js';
 import { dealDamage, heal } from './damage.js';
 import { dealEp } from './elements.js';
-import { selectable } from './targeting.js';
+import { selectable, sortAllies } from './targeting.js';
 import { tileOf } from './body.js';
+import { tileAt } from './level.js';
+import { board, alight } from './routes.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').EnemyDef} EnemyDef @typedef {import('./types.js').Blast} Blast @typedef {import('./types.js').Bolt} Bolt */
@@ -28,6 +30,7 @@ export const BOLT_RADIUS = 0.3;
  * @typedef {object} FoeContext
  * @property {Unit} self
  * @property {Record<string, number>} bb the ability's blackboard
+ * @property {number} sp a skill's SP cost (0 for a talent or a skill without)
  * @property {number} frame
  * @property {(u: Unit) => import('./attrs.js').Stats} stats
  * @property {(t: Unit, init: import('./buffs.js').BuffInit) => void} addBuff
@@ -46,6 +49,19 @@ export const BOLT_RADIUS = 0.3;
  * @property {(seconds: number) => number} frames seconds as whole frames (时间-2)
  * @property {(name: string) => Record<string, number> | null} talent another talent's blackboard
  * @property {(radius: number) => Unit[]} foes the units it may attack within `radius` of it
+ * @property {(units: Unit[]) => Unit[]} order units it may attack in the order its attack picks them (索敌-5)
+ * @property {(radius: number) => Unit[]} allies the enemies (not neutral units) on the field within `radius` of it, itself too
+ * @property {(u: Unit, name: string) => Record<string, number> | null} talentOf another enemy's talent blackboard
+ * @property {(u: Unit, key: string) => number | null} buffValue the value of a unit's buff of a key, or null
+ * @property {(u: Unit, key: string, value: number, mods: Record<string, number>) => void} setBuff gives a unit a buff of a key
+ *   without an end, or retunes the one it has (属性-4)
+ * @property {(t: Unit, n: number) => void} drainCost an operator's player loses n cost, down to 0 (费用-1)
+ * @property {() => Unit | null} blocker the unit blocking it, or null
+ * @property {(u: Unit) => string[]} tagsOf an enemy's tags (关卡-1)
+ * @property {() => string} tileKey the key of the tile it stands on ('' off the map)
+ * @property {(u: Unit) => void} board takes an enemy aboard as a passenger (敌能-16)
+ * @property {() => number} passengers how many passengers it carries
+ * @property {() => void} alight its passengers alight (敌能-16)
  * @property {() => Unit[]} inLine the units in its row or column a 直击 may select, nearest first
  * @property {(b: { x: number, y: number, radius: number, delay: number, air: boolean, sourced: boolean } & Payload) => void} blast
  * @property {(b: { dx: number, dy: number, blast?: number } & Payload) => void} bolt
@@ -59,6 +75,8 @@ export const BOLT_RADIUS = 0.3;
  * @property {(ctx: FoeContext, cands: Unit[]) => Unit[]} [targets]
  * @property {(ctx: FoeContext, mods: AttackMods) => AttackMods} [attack]
  * @property {(ctx: FoeContext) => void} [death]
+ * @property {(ctx: FoeContext, target: Unit, dealt: number, ranged: boolean) => void} [hit] a hit of its normal attack
+ *   dealt damage (`ranged`: it came by a projectile)
  */
 
 /** The squared distance between two points. @param {{ x: number, y: number }} a @param {{ x: number, y: number }} b */
@@ -89,7 +107,7 @@ function contextOf(w, c, e, of) {
   const { name, bb, skill } = of;
   const ab = e.ab;
   return {
-    self: e, bb, frame: w.frame, stats: statsOf,
+    self: e, bb, sp: skill?.sp ?? 0, frame: w.frame, stats: statsOf,
     addBuff: (t, init) => { addBuff(t, makeBuff({ src: e.id, ...init })); },
     removeBuff: (t, key) => { removeBuff(t, key); },
     applyStatus: (t, key, o) => { applyStatus(t, /** @type {any} */ (key), { ...o, src: e }); },
@@ -106,6 +124,22 @@ function contextOf(w, c, e, of) {
     frames: secondsToFrames,
     talent: (t) => defOf(c, e).talents?.[t] ?? null,
     foes: (radius) => w.units.filter((u) => isFoeOf(u, e) && selectable(u) && dist2(u, e) <= radius * radius),
+    order: (units) => sortAllies(e, units, FPS),
+    allies: (radius) => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0 && !u.hidden && dist2(u, e) <= radius * radius),
+    talentOf: (u, t) => (u.kind === KIND.ENEMY ? defOf(c, u).talents?.[t] ?? null : null),
+    buffValue: (u, key) => u.buffs.find((b) => b.key === key)?.value ?? null,
+    setBuff: (u, key, value, mods) => {
+      const b = u.buffs.find((x) => x.key === key);
+      if (b) retune(u, b, value, mods);
+      else addBuff(u, makeBuff({ key, src: e.id, value, mods }));
+    },
+    blocker: () => (e.blockedBy >= 0 ? w.units.find((u) => u.id === e.blockedBy) ?? null : null),
+    tagsOf: (u) => (u.kind === KIND.ENEMY ? defOf(c, u).tags ?? [] : []),
+    tileKey: () => { const [r, col] = tileOf(e); return tileAt(c.level, r, col)?.key ?? ''; },
+    board: (u) => { if (u !== e && u.kind === KIND.ENEMY && !u.hidden && !carried(u)) { board(u); u.ab['@carrier'] = e.id; } },
+    passengers: () => w.units.filter((u) => u.ab['@carrier'] === e.id).length,
+    alight: () => { releasePassengers(w, c, e); },
+    drainCost: (t, n) => { const p = t.kind === KIND.OPERATOR ? w.players[t.owner] : undefined; if (p) p.cost = Math.max(0, p.cost - n); },
     inLine: () => inLine(w, e),
     blast: (b) => { w.blasts.push({ x: b.x, y: b.y, radius: b.radius, left: secondsToFrames(b.delay), air: b.air, src: b.sourced ? e.id : -1, type: b.type, amount: b.amount, status: b.status ?? null }); },
     bolt: (b) => {
@@ -175,9 +209,32 @@ export function foeAttack(w, c, e, mods) {
   return out;
 }
 
+/** Whether an enemy rides a carrier (敌能-16). @param {Unit} u */
+export const carried = (u) => Object.hasOwn(u.ab, '@carrier');
+
+/**
+ * A carrier's passengers alight at the centre of its tile (敌能-16): when it says so, or when it leaves the field.
+ * @param {World} w @param {Content} c @param {Unit} e
+ */
+export function releasePassengers(w, c, e) {
+  for (const u of w.units) {
+    if (u.ab['@carrier'] !== e.id) continue;
+    delete u.ab['@carrier'];
+    alight(c, u, e);
+  }
+}
+
 /** An enemy knocked down (敌能-2). @param {World} w @param {Content} c @param {Unit} e */
 export function foeDeath(w, c, e) {
   each(w, c, e, (b, ctx) => b.death?.(ctx));
+}
+
+/**
+ * A hit of an enemy's normal attack dealt damage (敌能-2): its abilities' hit.
+ * @param {World} w @param {Content} c @param {Unit} e @param {Unit} t @param {{ dealt: number, ranged: boolean }} how
+ */
+export function foeHit(w, c, e, t, how) {
+  each(w, c, e, (b, ctx) => b.hit?.(ctx, t, how.dealt, how.ranged));
 }
 
 /**

@@ -182,3 +182,43 @@ test('[敌能-2] the context\'s common members act on the battle; gainCost does 
   assert.deepEqual([e.ab['all.seen'], e.ab['all.none']], [7, 1]);
   assert.ok(w.players[0].cost >= cost && w.players[0].cost <= cost + 1, 'only the usual regeneration');
 });
+
+test('[敌能-2] [敌能-16] more of the context: allies, order, talents and buffs of others, the blocker, tags and tiles, cost, passengers, hits', () => {
+  /** @type {any} */
+  const seen = {};
+  const { c, w } = arena({ talents: { probe: { x: 1 } }, tags: ['machine'], rangeRadius: 2, applyWay: 'RANGED' }, {
+    probe: {
+      tick: (/** @type {any} */ ctx) => {
+        if (seen.done) return;
+        const other = ctx.allies(9).find((/** @type {Unit} */ u) => u !== ctx.self);
+        seen.allies = ctx.allies(9).length;
+        seen.order = ctx.order(ctx.foes(9)).map((/** @type {Unit} */ u) => u.key);
+        seen.talent = [ctx.talentOf(other, 'probe'), ctx.talentOf(ctx.foes(9)[0], 'probe')];
+        ctx.setBuff(other, 'v', 2, { atkFlat: 1 });
+        ctx.setBuff(other, 'v', 3, { atkFlat: 2 });
+        seen.value = [ctx.buffValue(other, 'v'), ctx.buffValue(other, 'nope')];
+        seen.tags = [ctx.tagsOf(other), ctx.tagsOf(ctx.foes(9)[0])];
+        seen.tile = ctx.tileKey();
+        seen.blocker = ctx.blocker();
+        ctx.drainCost(ctx.foes(9)[0], 100);
+        ctx.drainCost(other, 1);
+        ctx.board(other);
+        ctx.board(ctx.self);
+        seen.passengers = ctx.passengers();
+        seen.done = 1;
+      },
+      hit: (/** @type {any} */ _ctx, /** @type {Unit} */ t, /** @type {number} */ dealt, /** @type {boolean} */ ranged) => { seen.hit = [t.key, dealt > 0, ranged]; },
+    },
+  });
+  const a = foe(w, c, 1, 4), b = foe(w, c, 0, 4);
+  op(w, c, 'sniper', 2, 3);
+  run(w, c, 1);
+  assert.deepEqual([seen.allies, seen.order, seen.talent, seen.value, seen.tags, seen.tile, seen.blocker, w.players[0].cost],
+    [2, ['sniper'], [{ x: 1 }, null], [3, null], [['machine'], []], 'tile_road', null, 0]);
+  assert.deepEqual([b.hidden, seen.passengers, b.buffs.find((x) => x.key === 'v')?.mods], [true, 1, { atkFlat: 2 }]);
+  run(w, c, 60);
+  assert.deepEqual(seen.hit, ['sniper', true, true], 'its projectile hit');
+  a.hp = 0;
+  run(w, c, 1);
+  assert.equal(b.hidden, false, 'its carrier left: it alights');
+});

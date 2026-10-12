@@ -10,6 +10,8 @@
 2. 关卡的 `enemyDbRefs` 给这种敌人指定了级别时，用那个级别写明（`m_defined` 为 true）的字段覆盖；
 3. 再用 `enemyDbRefs` 的 `overwrittenData` 写明的字段覆盖。
 
+敌人的标签 `tags` 取 `enemyTags`（写明且不为空时），如 `machine`。
+
 `useDb` 为 false 时不查数据库，只用 `overwrittenData`。读出的字段：名字、生命、攻击、防御、法术抗性、移动速度、攻击间隔、阻挡数消耗、重量、元素抗性、损伤抵抗、各项免疫、攻击半径、攻击方式、移动方式、地位级别（`levelType`）、到达目标点扣的生命（`lifePointReduce`，目标-1），以及中立单位的 `dead.value`（合作-9）。
 
 - 来源：数据：enemy_database.enemies[].Value[].enemyData（每个字段带 `m_defined`）、level.enemyDbRefs[]（id、level、useDb、overwrittenData）；[PRTS「乌萨斯平民」oldid=436745](https://prts.wiki/index.php?title=%E4%B9%8C%E8%90%A8%E6%96%AF%E5%B9%B3%E6%B0%91&oldid=436745) 按「级别0」「级别1」分列敌人数值；覆盖的顺序为推断 INF-0066

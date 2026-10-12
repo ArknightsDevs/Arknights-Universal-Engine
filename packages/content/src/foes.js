@@ -2,6 +2,8 @@
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read. They act only through the context (ADR 0055).
 
+import { moreFoeBehaviors } from './abilities.js';
+
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
 const PRTS = 'https://prts.wiki/index.php?title=';
@@ -163,7 +165,7 @@ const PowerHit = Object.freeze({
 });
 
 /** Behaviours by talent or skill name. @type {Readonly<Record<string, FoeBehavior>>} */
-export const foeBehaviors = Object.freeze({ boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit });
+export const foeBehaviors = Object.freeze({ boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors });
 
 /**
  * Talents with no behaviour of their own that are still covered (关卡-2): `dead` is the data's 生命 loss of a neutral

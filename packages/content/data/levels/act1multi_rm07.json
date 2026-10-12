@@ -13164,6 +13164,9 @@
       "massLevel": 0,
       "levelType": "NORMAL",
       "lifePointReduce": 1,
+      "tags": [
+        "infection"
+      ],
       "talents": {
         "boom": {
           "atk_scale": 2,
@@ -13185,6 +13188,9 @@
       "massLevel": 0,
       "levelType": "NORMAL",
       "lifePointReduce": 1,
+      "tags": [
+        "infection"
+      ],
       "talents": {
         "boom": {
           "atk_scale": 2,
@@ -13232,6 +13238,9 @@
         "sleep",
         "freeze"
       ],
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "warn": {
           "hp_ratio": 0.999
@@ -13242,6 +13251,7 @@
           "key": "Awake",
           "cooldown": 0,
           "initCooldown": 0.1,
+          "sp": 0,
           "bb": {
             "atk": 0.3,
             "def": 0.3
@@ -13269,6 +13279,9 @@
         "sleep",
         "freeze"
       ],
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "warn": {
           "hp_ratio": 0.999
@@ -13279,6 +13292,7 @@
           "key": "Awake",
           "cooldown": 0,
           "initCooldown": 0.1,
+          "sp": 0,
           "bb": {
             "atk": 0.5,
             "def": 0.5
@@ -13301,6 +13315,9 @@
       "massLevel": 3,
       "levelType": "ELITE",
       "lifePointReduce": 1,
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "revive": {
           "hp_ratio": 0.999,
@@ -13324,6 +13341,9 @@
       "massLevel": 3,
       "levelType": "ELITE",
       "lifePointReduce": 1,
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "revive": {
           "hp_ratio": 0.999,
@@ -13347,6 +13367,9 @@
       "massLevel": 2,
       "levelType": "ELITE",
       "lifePointReduce": 1,
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "revive": {
           "hp_ratio": 0.999,
@@ -13370,6 +13393,9 @@
       "massLevel": 2,
       "levelType": "ELITE",
       "lifePointReduce": 1,
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "revive": {
           "hp_ratio": 0.999,
@@ -13621,6 +13647,9 @@
       "massLevel": 2,
       "levelType": "NORMAL",
       "lifePointReduce": 1,
+      "tags": [
+        "infection"
+      ],
       "talents": {
         "deathrattle": {
           "enemy_key": 0,
@@ -13645,6 +13674,9 @@
       "massLevel": 4,
       "levelType": "ELITE",
       "lifePointReduce": 1,
+      "tags": [
+        "infection"
+      ],
       "talents": {
         "deathrattle": {
           "enemy_key": 0,
@@ -13658,6 +13690,7 @@
           "key": "SummonToken",
           "cooldown": 5,
           "initCooldown": 5,
+          "sp": 0,
           "bb": {
             "enemy_key": 0,
             "cnt": 1
@@ -13679,6 +13712,9 @@
       "massLevel": 4,
       "levelType": "ELITE",
       "lifePointReduce": 1,
+      "tags": [
+        "infection"
+      ],
       "talents": {
         "deathrattle": {
           "enemy_key": 0,
@@ -13692,6 +13728,7 @@
           "key": "SummonToken",
           "cooldown": 5,
           "initCooldown": 5,
+          "sp": 0,
           "bb": {
             "enemy_key": 0,
             "cnt": 1
@@ -13771,6 +13808,9 @@
       "immune": [
         "silence"
       ],
+      "tags": [
+        "infection"
+      ],
       "shared": true
     },
     "enemy_1138_tumor": {
@@ -13789,6 +13829,9 @@
       "lifePointReduce": 1,
       "immune": [
         "silence"
+      ],
+      "tags": [
+        "infection"
       ],
       "talents": {
         "atkSpeedDown": {
@@ -13833,6 +13876,7 @@
           "key": "coldattack",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 2,
           "bb": {
             "freeze": 5
           }
@@ -13862,6 +13906,7 @@
           "key": "coldattack",
           "cooldown": 0,
           "initCooldown": 0,
+          "sp": 2,
           "bb": {
             "freeze": 5
           }
@@ -13956,6 +14001,9 @@
       "massLevel": 4,
       "levelType": "ELITE",
       "lifePointReduce": 0,
+      "tags": [
+        "machine"
+      ],
       "talents": {
         "aura": {
           "enemy_dsuply_t[attr_buff].atk": 0.1,
@@ -13978,6 +14026,9 @@
       "massLevel": 4,
       "levelType": "ELITE",
       "lifePointReduce": 0,
+      "tags": [
+        "machine"
+      ],
       "talents": {
         "aura": {
           "enemy_dsuply_2_t[attr_buff].atk": 0.1,
@@ -14001,6 +14052,9 @@
       "massLevel": 4,
       "levelType": "ELITE",
       "lifePointReduce": 0,
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "deathrattle": {
           "enemy_key": 0,
@@ -14026,6 +14080,9 @@
       "massLevel": 4,
       "levelType": "ELITE",
       "lifePointReduce": 0,
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "deathrattle": {
           "enemy_key": 0,
@@ -14051,6 +14108,9 @@
       "massLevel": 1,
       "levelType": "NORMAL",
       "lifePointReduce": 0,
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "epdamage": {
           "attack@ep_damage_ratio": 0.37
@@ -14072,6 +14132,9 @@
       "massLevel": 1,
       "levelType": "NORMAL",
       "lifePointReduce": 0,
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "epdamage": {
           "attack@ep_damage_ratio": 0.37
@@ -14096,6 +14159,9 @@
       "immune": [
         "silence"
       ],
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "Stronger": {
           "def": 700,
@@ -14107,6 +14173,7 @@
           "key": "Devour",
           "cooldown": -1,
           "initCooldown": 0,
+          "sp": 0,
           "bb": {}
         }
       ]
@@ -14128,6 +14195,9 @@
       "immune": [
         "silence"
       ],
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "Stronger": {
           "def": 700,
@@ -14139,6 +14209,7 @@
           "key": "Devour",
           "cooldown": -1,
           "initCooldown": 0,
+          "sp": 0,
           "bb": {}
         }
       ],
@@ -14158,6 +14229,9 @@
       "massLevel": 2,
       "levelType": "ELITE",
       "lifePointReduce": 1,
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "empty": {
           "attack@ep_damage_ratio": 0.25
@@ -14168,6 +14242,7 @@
           "key": "DeathEye",
           "cooldown": 24,
           "initCooldown": 10,
+          "sp": 0,
           "bb": {
             "hit_duration": 8,
             "ep_damage_ratio": 2.2,
@@ -14191,6 +14266,9 @@
       "massLevel": 2,
       "levelType": "ELITE",
       "lifePointReduce": 1,
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "empty": {
           "attack@ep_damage_ratio": 0.25
@@ -14201,6 +14279,7 @@
           "key": "DeathEye",
           "cooldown": 24,
           "initCooldown": 10,
+          "sp": 0,
           "bb": {
             "hit_duration": 8,
             "ep_damage_ratio": 2,
@@ -14227,6 +14306,9 @@
       "immune": [
         "silence"
       ],
+      "tags": [
+        "sarkaz"
+      ],
       "talents": {
         "1": {
           "attack@cost": -2,
@@ -14250,6 +14332,9 @@
       "lifePointReduce": 1,
       "immune": [
         "silence"
+      ],
+      "tags": [
+        "sarkaz"
       ],
       "talents": {
         "1": {
