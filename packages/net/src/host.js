@@ -37,6 +37,12 @@ export class LockstepHost {
     this.begun = o.seats <= 1;
     /** @type {Map<number, number>} frames done → the arbiter's hash */
     this.hashes = new Map();
+    /**
+     * Content with a world setup (钩子-4: kits, 兼容-6) cannot be restored from a snapshot: a joining or desynced seat
+     * replays every sealed command from frame 0 (同步-5), kept here.
+     * @type {[number, number, Command][] | null}
+     */
+    this.history = o.content.behaviors?.world ? [] : null;
     /** each seat's 2× switch (同步-7) */
     this.fast = Array.from({ length: o.seats }, () => 0);
     /** paused by agreement (同步-8); the seat asking to pause and since when; when a resume takes effect */
@@ -45,6 +51,14 @@ export class LockstepHost {
     this.askedAt = 0;
     /** @type {number | null} */
     this.resumeAt = null;
+  }
+
+  /**
+   * What a seat starts from (同步-5): the arbiter's snapshot, or the sealed commands to replay from frame 0.
+   * @returns {{ snapshot: import('@aue/schema').Snapshot | null, replay: [number, number, import('@aue/schema').Command][] | null }}
+   */
+  state() {
+    return this.history ? { snapshot: null, replay: [...this.history] } : { snapshot: takeSnapshot(this.world), replay: null };
   }
 
   /** The clock's speed: 2 when every seat has its 2× switch on (同步-7). */
@@ -74,7 +88,7 @@ export class LockstepHost {
   hello(seat, now) {
     this.rebase(now);
     this.connected.add(seat);
-    this.o.send(seat, { t: 'welcome', v: PROTOCOL_VERSION, seat, seed: this.o.seed, frame: this.sealed, snapshot: takeSnapshot(this.world), match: this.o.match ?? null, content: this.content });
+    this.o.send(seat, { t: 'welcome', v: PROTOCOL_VERSION, seat, seed: this.o.seed, frame: this.sealed, ...this.state(), match: this.o.match ?? null, content: this.content });
     this.broadcastControl();
   }
 
@@ -151,7 +165,7 @@ export class LockstepHost {
     const ours = this.hashes.get(frame);
     if (ours === undefined || ours === hash) return;
     this.o.onDesync?.({ seat, frame, ours, theirs: hash });
-    this.o.send(seat, { t: 'resync', snapshot: takeSnapshot(this.world) });
+    this.o.send(seat, { t: 'resync', ...this.state(), frame: this.sealed });
   }
 
   /**
@@ -180,7 +194,7 @@ export class LockstepHost {
     const cmds = [];
     for (let f = from; f <= due; f++) {
       const list = this.frameCommands(f);
-      for (const [seat, cmd] of list) cmds.push([f, seat, cmd]);
+      for (const [seat, cmd] of list) { cmds.push([f, seat, cmd]); this.history?.push([f, seat, cmd]); }
       step(this.world, this.o.content, list);
       this.hashes.set(this.world.frame, stateHash(this.world));
       this.hashes.delete(this.world.frame - HASH_HISTORY);

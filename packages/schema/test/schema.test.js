@@ -59,7 +59,7 @@ test('client messages: exactly the well-formed ones are accepted', () => {
   }
   const bad = [
     [[], 'message is not an object'], [{ t: 'nope' }, 'unknown message type nope'], [{ t: 'constructor' }, 'unknown message type constructor'],
-    [{ ...HELLO, v: 3 }, 'protocol version 3, expected 6'], [{ ...HELLO, seat: 8 }, 'hello.seat out of range'], [{ ...HELLO, key: 'a b' }, 'hello.key is not an id'],
+    [{ ...HELLO, v: 3 }, 'protocol version 3, expected 7'], [{ ...HELLO, seat: 8 }, 'hello.seat out of range'], [{ ...HELLO, key: 'a b' }, 'hello.key is not an id'],
     [{ ...HELLO, since: 1.5 }, 'hello.since out of range'], [{ ...HELLO, admin: true }, 'unknown field admin'], [{ t: 'hash', frame: 1 }, 'missing field hash'],
     [{ t: 'hash', frame: 1, hash: -1 }, 'hash.hash is not a uint32'], [{ t: 'hash', frame: -1, hash: 1 }, 'hash.frame out of range'],
     [{ t: 'cmd', at: 2e6, cmd: DEPLOY }, 'cmd.at out of range'], [{ t: 'cmd', at: 1, cmd: { ...DEPLOY, row: 64 } }, 'deploy tile out of range'],
@@ -97,19 +97,22 @@ test('snapshot envelope v13', () => {
 
 test('server messages: well-formed ones pass; broken ones are reported, never thrown', () => {
   const ok = [
-    { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: { v: 13, frame: 0, data: {} }, match: null, content: 7 },
+    { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: { v: 13, frame: 0, data: {} }, match: null, content: 7, replay: null },
     { t: 'frames', from: 3, to: 5, cmds: [[4, 1, DEPLOY], [5, 0, { type: 'retreat', unit: 2 }]] },
-    { t: 'restamp', from: 3, to: 7 }, { t: 'resync', snapshot: {} }, { t: 'error', code: 'x', message: 'y' },
+    { t: 'restamp', from: 3, to: 7 }, { t: 'resync', snapshot: {}, frame: 3, replay: null }, { t: 'error', code: 'x', message: 'y' },
     { t: 'control', fast: [1, 0], held: 0, asker: -1, resuming: 0 }, { t: 'frames', from: 1, to: 1, cmds: [[1, 1, { type: 'answer', accept: 1 }]] },
+    { t: 'welcome', v: PROTOCOL_VERSION, seat: 1, seed: 9, frame: 40, snapshot: null, match: null, content: 7, replay: [[4, 1, DEPLOY]] },
+    { t: 'resync', snapshot: null, frame: 40, replay: [] },
   ];
   for (const m of ok) assert.equal(serverMessageProblem(m), null, JSON.stringify(m));
   const bad = [
     [null, 'message is not an object'], [{ t: 'hello' }, 'unknown message type hello'],
-    [{ ...ok[0], v: 3 }, 'protocol version 3, expected 6'], [{ ...ok[0], seed: 1.5 }, 'welcome fields out of range'], [{ ...ok[0], content: -1 }, 'welcome fields out of range'],
-    [{ ...ok[1], to: 2 }, 'frames range malformed'], [{ ...ok[1], cmds: {} }, 'frames.cmds is not an array'],
+    [{ ...ok[0], v: 3 }, 'protocol version 3, expected 7'], [{ ...ok[0], seed: 1.5 }, 'welcome fields out of range'], [{ ...ok[0], content: -1 }, 'welcome fields out of range'],
+    [{ ...ok[1], to: 2 }, 'frames range malformed'], [{ ...ok[1], cmds: {} }, 'sealed commands are not an array'],
     [{ ...ok[1], cmds: [[4, 9, DEPLOY]] }, 'frames.cmds has a malformed entry'], [{ ...ok[1], cmds: [[4, 1, { type: 'x' }]] }, 'unknown command type x'],
     [{ t: 'restamp', from: -1, to: 1 }, 'restamp out of range'], [{ t: 'error', code: 1, message: 'y' }, 'error fields are not strings'],
-    [{ t: 'resync' }, 'missing field snapshot'],
+    [{ t: 'resync' }, 'missing field snapshot'], [{ ...ok[3], frame: -2 }, 'resync.frame out of range'],
+    [{ ...ok[0], replay: [[1, 9, DEPLOY]] }, 'frames.cmds has a malformed entry'], [{ ...ok[3], replay: 'x' }, 'sealed commands are not an array'],
     [{ ...ok[5], fast: [2] }, 'control.fast is not a list of 0 and 1'], [{ ...ok[5], fast: Array(9).fill(0) }, 'control.fast is not a list of 0 and 1'],
     [{ ...ok[5], fast: 1 }, 'control.fast is not a list of 0 and 1'], [{ ...ok[5], asker: 8 }, 'control fields out of range'], [{ ...ok[5], held: 2 }, 'control fields out of range'],
   ];
@@ -136,7 +139,7 @@ test('[同步-9] match settings: exactly the well-formed ones pass; a welcome ca
   ];
   for (const [m, why] of bad) assert.equal(matchProblem(m), why, JSON.stringify(m));
   assert.deepEqual(DIFFICULTIES, ['NORMAL', 'FOUR_STAR']);
-  const welcome = { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: null, match, content: 7 };
+  const welcome = { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: null, match, content: 7, replay: null };
   assert.equal(serverMessageProblem(welcome), null);
   assert.equal(serverMessageProblem({ ...welcome, match: { ...match, seed: 1.5 } }), 'match.seed is not a uint32');
   const { match: _m, ...noMatch } = welcome;

@@ -103,7 +103,7 @@ test('[同步-3] [同步-5] the client: nothing is sent before the welcome; erro
   assert.deepEqual(out, []);
   const w = createWorld(content, { seed: 9, players: 2 });
   w.frame = 10;
-  client.receive({ t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: 9, snapshot: takeSnapshot(w), match: null, content: 0 });
+  client.receive({ t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: 9, snapshot: takeSnapshot(w), match: null, content: 0, replay: null });
   client.receive({ t: 'frames', from: 8, to: 12, cmds: [[8, 1, GUARD], [11, 0, SNIPER]] });
   assert.deepEqual([...client.queue.keys()], [11]);
   client.receive({ t: 'error', code: 'too-far-ahead', message: 'x' });
@@ -111,4 +111,30 @@ test('[同步-3] [同步-5] the client: nothing is sent before the welcome; erro
   client.command(GUARD);
   assert.deepEqual(out, [{ t: 'cmd', at: 10 + INPUT_DELAY, cmd: GUARD }]);
   assert.equal(client.backlog(), 3);
+});
+
+test('[同步-5] content with a world setup: a seat joins, or recovers, by replaying every sealed command from frame 0', async () => {
+  const { bus, traits, stateHash: hashOf } = await import('@aue/sim');
+  const { LockstepClient } = await import('../src/index.js');
+  const content = /** @type {any} */ (tinyContent());
+  content.decks = [['guard', 'sniper']];
+  content.behaviors = { world: (/** @type {any} */ w, /** @type {any} */ c) => { bus.every(w, 7, () => traits.gainCost(w, c, 0, 1)); } };
+  /** @type {any[]} */
+  const sent = [];
+  const host = new LockstepHost({ content, seats: 1, seed: 5, send: (_seat, m) => sent.push(m) });
+  host.hello(0, 0);
+  assert.deepEqual([sent[0].snapshot, sent[0].replay], [null, []], 'no snapshot: the commands so far (none)');
+  host.command(0, 3, GUARD);
+  for (let ms = 0; ms <= 2000; ms += 50) host.tick(ms);
+  host.hello(0, 2000);
+  const welcome = sent.findLast((m) => m.t === 'welcome');
+  assert.deepEqual(welcome.replay, [[3, 0, GUARD]]);
+  const client = new LockstepClient({ content, send: () => {} });
+  client.receive(welcome);
+  const w = /** @type {any} */ (client.world);
+  assert.equal(w.frame, welcome.frame + 1);
+  assert.equal(hashOf(w), host.hashes.get(w.frame), 'the replayed battle is the arbiter’s, its world setup included');
+  host.hash(0, w.frame, 1);
+  const resync = sent.findLast((m) => m.t === 'resync');
+  assert.deepEqual([resync.snapshot, resync.frame, resync.replay], [null, host.sealed, [[3, 0, GUARD]]]);
 });

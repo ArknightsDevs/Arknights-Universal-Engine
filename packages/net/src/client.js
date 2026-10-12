@@ -1,7 +1,8 @@
 // The client side of lockstep (spec 同步-3…同步-5, 同步-7, 同步-8): plays sealed frames only, stamps its commands
-// INPUT_DELAY frames ahead, reports its state hash, restores the server's snapshot on welcome and on resync, and
-// passes on the speed and pause controls. It runs in the worker; `send` is its transport.
-import { step, stateHash, restoreSnapshot } from '@aue/sim';
+// INPUT_DELAY frames ahead, reports its state hash, restores the server's snapshot on welcome and on resync — or, for
+// content with a world setup, replays the sealed commands from frame 0 —, and passes on the speed and pause controls.
+// It runs in the worker; `send` is its transport.
+import { createWorld, step, stateHash, restoreSnapshot } from '@aue/sim';
 import { INPUT_DELAY, HASH_EVERY } from './constants.js';
 import { framesThisTick } from './pacing.js';
 
@@ -23,6 +24,8 @@ export class LockstepClient {
     /** @type {World | null} */
     this.world = null;
     this.sealed = -1;
+    /** the battle's seed, from the welcome */
+    this.seed = 0;
     /** @type {Map<number, [number, Command][]>} */
     this.queue = new Map();
     this.stats = { restamps: 0, resyncs: 0, errors: 0 };
@@ -32,13 +35,37 @@ export class LockstepClient {
 
   /** @param {ServerMessage} msg */
   receive(msg) {
-    if (msg.t === 'welcome' || msg.t === 'resync') this.restore(msg.snapshot);
+    if (msg.t === 'welcome') this.seed = msg.seed;
+    if (msg.t === 'welcome' || msg.t === 'resync') this.startFrom(msg);
     if (msg.t === 'welcome') this.sealed = msg.frame;
     if (msg.t === 'frames') this.addFrames(msg.cmds, msg.to);
     if (msg.t === 'resync') this.stats.resyncs++;
     if (msg.t === 'restamp') this.stats.restamps++;
     if (msg.t === 'error') this.stats.errors++;
     if (msg.t === 'control') { this.control = msg; this.o.onControl?.(msg); }
+  }
+
+  /**
+   * Where a welcome or a resync starts this client (同步-5): the snapshot, or a new battle replayed to the sealed frame.
+   * @param {{ snapshot: object | null, frame: number, replay: [number, number, Command][] | null }} m
+   */
+  startFrom(m) {
+    if (m.replay) this.replay(m.replay, m.frame);
+    else this.restore(m.snapshot);
+  }
+
+  /**
+   * A new battle of this content and seed, every sealed command played up to `upTo` at once (同步-5).
+   * @param {[number, number, Command][]} cmds @param {number} upTo
+   */
+  replay(cmds, upTo) {
+    const c = this.o.content, w = createWorld(c, { seed: this.seed, players: c.decks?.length ?? 1 });
+    /** @type {Map<number, [number, Command][]>} */
+    const by = new Map();
+    for (const [f, seat, cmd] of cmds) by.set(f, [...(by.get(f) ?? []), [seat, cmd]]);
+    while (w.frame <= upTo) step(w, c, by.get(w.frame) ?? []);
+    for (const f of [...this.queue.keys()]) if (f < w.frame) this.queue.delete(f);
+    this.world = w;
   }
 
   /** @param {unknown} snapshot */

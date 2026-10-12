@@ -1,11 +1,11 @@
-// The network messages, version 6 (ADR 0053; version 2 adds the skill command, version 3 the cost request and its answer,
+// The network messages, version 7 (ADR 0053; version 2 adds the skill command, version 3 the cost request and its answer,
 // and the speed and pause controls, version 4 the match settings in the welcome, version 5 the content hash in it,
-// version 6 the ready message: the page has loaded the battle). Messages from browsers are untrusted: the server accepts one only when
+// version 6 the ready message: the page has loaded the battle, version 7 the replay in the welcome and the resync). Messages from browsers are untrusted: the server accepts one only when
 // clientMessageProblem returns null — exact fields, integers in range, short ids, nothing else.
 import { isRecord, isInt, isId, keyProblem } from './checks.js';
 import { matchProblem } from './match.js';
 
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 /** Largest frame number (about 9.5 hours at 30 frames per second). */
 export const MAX_FRAME = 1_000_000;
@@ -68,7 +68,7 @@ export function clientMessageProblem(m) {
 
 /** @param {unknown} cmds @returns {string | null} */
 function sealedCommandsProblem(cmds) {
-  if (!Array.isArray(cmds)) return 'frames.cmds is not an array';
+  if (!Array.isArray(cmds)) return 'sealed commands are not an array';
   for (const c of cmds) {
     if (!Array.isArray(c) || c.length !== 3 || !isInt(c[0], 0, MAX_FRAME) || !isInt(c[1], 0, MAX_SEAT)) return 'frames.cmds has a malformed entry';
     const why = commandProblem(c[2]);
@@ -79,15 +79,17 @@ function sealedCommandsProblem(cmds) {
 
 /** @type {Record<string, (m: Record<string, unknown>) => string | null>} */
 const SERVER = {
-  welcome: (m) => keyProblem(m, ['t', 'v', 'seat', 'seed', 'frame', 'snapshot', 'match', 'content'])
+  welcome: (m) => keyProblem(m, ['t', 'v', 'seat', 'seed', 'frame', 'snapshot', 'match', 'content', 'replay'])
     ?? (m.v !== PROTOCOL_VERSION ? `protocol version ${String(m.v)}, expected ${PROTOCOL_VERSION}` : null)
     ?? (!isInt(m.seat, 0, MAX_SEAT) || !isInt(m.frame, -1, MAX_FRAME) || !Number.isSafeInteger(m.seed) || !isInt(m.content, 0, 0xffffffff) ? 'welcome fields out of range' : null)
-    ?? (m.match === null ? null : matchProblem(m.match)),
+    ?? (m.match === null ? null : matchProblem(m.match))
+    ?? (m.replay === null ? null : sealedCommandsProblem(m.replay)),
   frames: (m) => keyProblem(m, ['t', 'from', 'to', 'cmds'])
     ?? (!isInt(m.from, 0, MAX_FRAME) || !isInt(m.to, 0, MAX_FRAME) || /** @type {number} */ (m.to) < /** @type {number} */ (m.from) ? 'frames range malformed' : null)
     ?? sealedCommandsProblem(m.cmds),
   restamp: (m) => keyProblem(m, ['t', 'from', 'to']) ?? (!isInt(m.from, 0, MAX_FRAME) || !isInt(m.to, 0, MAX_FRAME) ? 'restamp out of range' : null),
-  resync: (m) => keyProblem(m, ['t', 'snapshot']),
+  resync: (m) => keyProblem(m, ['t', 'snapshot', 'frame', 'replay']) ?? (!isInt(m.frame, -1, MAX_FRAME) ? 'resync.frame out of range' : null)
+    ?? (m.replay === null ? null : sealedCommandsProblem(m.replay)),
   error: (m) => keyProblem(m, ['t', 'code', 'message']) ?? (typeof m.code !== 'string' || typeof m.message !== 'string' ? 'error fields are not strings' : null),
   control: (m) => keyProblem(m, ['t', 'fast', 'held', 'asker', 'resuming'])
     ?? (!Array.isArray(m.fast) || m.fast.length > MAX_SEAT + 1 || !m.fast.every((f) => isInt(f, 0, 1)) ? 'control.fast is not a list of 0 and 1' : null)
@@ -122,13 +124,15 @@ export function serverMessageProblem(m) {
 /** @typedef {{ id: string, build: Build }} DeckEntry */
 /** The match settings (同步-9; match.js checks them). @typedef {{ level: string, difficulty: 'NORMAL' | 'FOUR_STAR', seed: number, decks: DeckEntry[][] }} Match */
 /**
- * The welcome: the seat, the seed, the last sealed frame, the arbiter's snapshot, and the match settings (同步-9; null
- * when both sides know the content otherwise).
- * @typedef {{ t: 'welcome', v: number, seat: number, seed: number, frame: number, snapshot: object | null, match: Match | null, content: number }} WelcomeMessage
+ * The welcome: the seat, the seed, the last sealed frame, the arbiter's snapshot — or, for content with a world setup,
+ * every sealed command from frame 0 to replay (同步-5) —, and the match settings (同步-9; null when both sides know the
+ * content otherwise).
+ * @typedef {{ t: 'welcome', v: number, seat: number, seed: number, frame: number, snapshot: object | null, match: Match | null, content: number,
+ *   replay: [number, number, Command][] | null }} WelcomeMessage
  */
 /** @typedef {{ t: 'frames', from: number, to: number, cmds: [number, number, Command][] }} FramesMessage */
 /** @typedef {{ t: 'restamp', from: number, to: number }} RestampMessage */
-/** @typedef {{ t: 'resync', snapshot: object }} ResyncMessage */
+/** The arbiter's state after a desync (同步-5): its snapshot, or the commands to replay up to `frame`. @typedef {{ t: 'resync', snapshot: object | null, frame: number, replay: [number, number, Command][] | null }} ResyncMessage */
 /** @typedef {{ t: 'error', code: string, message: string }} ErrorMessage */
 /**
  * Every seat's 2× switch; whether the battle is paused; the seat asking to pause (−1 for none); whether a resume is

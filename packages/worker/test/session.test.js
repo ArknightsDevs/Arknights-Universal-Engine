@@ -124,7 +124,7 @@ test('bad server messages are reported and do not break the session', () => {
   r.t.run(100, (now) => r.host.tick(now));
   r.session.receive('{not json');
   r.session.receive(JSON.stringify({ t: 'frames', from: 5, to: 1, cmds: [] }));
-  r.session.receive(JSON.stringify({ t: 'resync', snapshot: { v: 9 } }));
+  r.session.receive(JSON.stringify({ t: 'resync', snapshot: { v: 9 }, frame: 5, replay: null }));
   assert.deepEqual(r.posts.filter((p) => p.state === 'bad-message').map((p) => p.reason),
     ['message is not an object', 'frames range malformed', 'snapshot: missing field frame']);
   r.t.run(500, (now) => r.host.tick(now));
