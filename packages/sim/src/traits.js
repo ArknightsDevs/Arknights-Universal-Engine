@@ -57,7 +57,7 @@ export const traitTargets = (t, op) => (t.targets === 'all' ? Infinity : t.targe
  * A trait's behaviour, by branch id (ADR 0055): at deployment, after each hit of its attacks, after a kill; whether its
  * operator may attack now (false: it may not); what an attack turn without a target does (true: it stored, its attack
  * interval starts again; false: nothing; undefined: the engine's own rule — 职业-6, 职业-12); whether it takes the place
- * of the branch's own deployment effects for this operator (true: no trait buff, upkeep or mode buffs from the engine).
+ * of the branch's own deployment effects for this operator (true: no trait buff or upkeep from the engine).
  * @typedef {object} TraitBehavior
  * @property {(ctx: TraitContext) => void} [deploy]
  * @property {(ctx: TraitContext, target: Unit) => void} [hit]
@@ -110,9 +110,9 @@ export function traitAsk(w, c, op, name) {
 }
 
 /**
- * A newly deployed operator's trait (职业-4, 职业-10, 职业-12): its lasting modifiers and flags as a buff, its upkeep —
- * the HP drain each second, the cost it consumes — as buffs without an end — unless its behaviour owns them (职业-6;
- * then its mode's buffs are not given either, modeDeploy's callers) —, then its behaviour's deploy.
+ * A newly deployed operator's trait (职业-4, 职业-10): its lasting modifiers and flags as a buff, its upkeep —
+ * the HP drain each second, the cost it consumes — as buffs without an end — unless its behaviour owns them (职业-6),
+ * then its behaviour's deploy.
  * @param {World} w @param {Content} c @param {Unit} op
  */
 export function traitDeploy(w, c, op) {

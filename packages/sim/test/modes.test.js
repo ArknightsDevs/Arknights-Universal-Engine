@@ -237,7 +237,7 @@ test('[职业-6] [职业-12] a trait behaviour says whether its operator may att
   assert.ok(run(200).some((x) => x.type === 'hit' && x.id === op.id));
 });
 
-test('[职业-6] [职业-12] a trait behaviour that owns its operator\'s deployment: no trait buff or mode buffs from the engine', () => {
+test('[职业-6] [职业-12] a trait behaviour that owns its operator\'s deployment: no trait buff from the engine; its mode\'s buffs stay', () => {
   const owned = new Set(/** @type {number[]} */ ([]));
   const { put } = arena((cc) => {
     cc.operators.sniper = { ...cc.operators.sniper, branch: 'b', trait: { bullets: { max: 2, scale: 1.5 }, mods: { dodgePhys: 0.5 } } };
@@ -248,5 +248,5 @@ test('[职业-6] [职业-12] a trait behaviour that owns its operator\'s deploym
   owned.add(/** @type {number} */ (theirs.id) + 1);
   const mine = put('sniper', 2, 2);
   assert.deepEqual([buffOf(theirs, 'trait')?.mods, buffOf(theirs, 'bullets')?.value], [{ dodgePhys: 0.5 }, 2]);
-  assert.deepEqual([buffOf(mine, 'trait'), buffOf(mine, 'bullets')], [undefined, undefined]);
+  assert.deepEqual([buffOf(mine, 'trait'), buffOf(mine, 'bullets')?.value], [undefined, 2]);
 });

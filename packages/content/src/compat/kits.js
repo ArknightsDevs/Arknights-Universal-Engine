@@ -4,11 +4,12 @@
 // talents'. Each deployment of an operator binds its piece to the engine's unit as it enters the field (钩子-3 `enter`:
 // before its trait, talents and passive skill take hold, so a passive skill's spec runs as Stronghold's does) and gives
 // its lasting buffs again.
-import { KIND, bus, reserveIds } from '@aue/sim';
+import { KIND, bus, reserveIds, traits } from '@aue/sim';
 import { ShBattle } from './battle.js';
 import { ShUnit } from './unit.js';
 import { battles, SPEC_BEHAVIOR, KIT_TRAIT_BEHAVIOR, onAttackHit, onAttackDone, onSpecHit } from './specs.js';
 import { KIT_BUFF, KIT_BUFF_BEHAVIOR, worldBattles } from './buffhooks.js';
+import { withGrid } from './grid.js';
 
 /** @typedef {import('@aue/sim').World} World @typedef {import('@aue/sim').Content} Content @typedef {import('@aue/sim').Unit} Unit */
 /**
@@ -17,6 +18,32 @@ import { KIT_BUFF, KIT_BUFF_BEHAVIOR, worldBattles } from './buffhooks.js';
  * @typedef {{ factory: (bb: Record<string, any>, chess: Record<string, any>, def: Record<string, any>) => any, def: Record<string, any>,
  *   tokens?: Record<string, Record<string, any>> }} KitEntry
  */
+
+/** A kit's own trait, built under the level's grid; null when it has none or cannot be built. @param {KitEntry} entry @param {{ width: number, height: number }} level */
+function kitTraitOf(entry, level) {
+  try {
+    return withGrid(level, () => entry.factory(entry.def.skill?.bb ?? {}, entry.def.raw, entry.def))?.trait ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * An operator's record under its kit's trait (兼容-5): where the kit's `trait` takes the place of a part of the
+ * profession's profile that the engine keeps as trait data, that data follows it — its `afterHit` replaces the
+ * 投掷手's aftershock (Stronghold's one profession afterHit), its `splashRadius` the splash's radius. The kit is built
+ * for this (under the level's grid); one that cannot be leaves the record as it is.
+ * @param {import('@aue/sim').OperatorDef} op @param {KitEntry} entry @param {{ width: number, height: number }} level
+ * @returns {import('@aue/sim').OperatorDef}
+ */
+export function withKitTrait(op, entry, level) {
+  const kt = kitTraitOf(entry, level);
+  if (!kt) return op;
+  const t = traits.traitOfDef(op), over = /** @type {Partial<import('@aue/sim').TraitDef>} */ ({});
+  if (typeof kt.afterHit === 'function' && t.aftershock > 0) over.aftershock = 0;
+  if (Number(kt.splashRadius) > 0) over.splash = { scale: 1, ground: false, ...t.splash, radius: Number(kt.splashRadius) };
+  return Object.keys(over).length ? { ...op, trait: { ...op.trait, ...over } } : op;
+}
 
 /** Runs before every other handler of the same event. */
 const FIRST = 1e9;

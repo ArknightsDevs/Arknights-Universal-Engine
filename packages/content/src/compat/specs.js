@@ -43,7 +43,8 @@ function profileFn(p, name, skillOn) {
 /**
  * The trait behaviour of a branch that has kits (职业-6): a kit's say, through its profile, on whether its operator may
  * attack now (`canAttack`) and what a turn without a target does (`storeEnergy`: an energy stored); a kit trait with its
- * own `install` owns the branch's deployment effects (Stronghold's profession install gives way to it). An operator
+ * own `install` owns the branch's deployment effects — its trait buff and upkeep (Stronghold's profession install gives
+ * way to it). An operator
  * without a kit, or a kit without them, leaves these to the engine.
  * @type {Readonly<import('@aue/sim').TraitBehavior>}
  */

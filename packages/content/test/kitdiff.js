@@ -18,7 +18,7 @@ import { createWorld, step, bus, buffs as buffKit } from '@aue/sim';
 import { KIT_FILES } from '../src/index.js';
 import { loadUnderGrid } from '../src/compat/grid.js';
 import { defOf, tokenDefOf } from '../src/compat/records.js';
-import { kitsBehaviors } from '../src/compat/kits.js';
+import { kitsBehaviors, withKitTrait } from '../src/compat/kits.js';
 import { STATUS_NAME } from '../src/compat/mods.js';
 import { loadTraining, operatorAt } from '../src/operators.js';
 import { TOKENS, loadToken, tokenAt } from '../src/tokens.js';
@@ -158,7 +158,8 @@ function player(w, op) {
  */
 async function ourRun(charId, factory, skill, module) {
   const t = await loadTraining(charId), b = { elite: 2, level: 60, potential: 6, trust: 0, skill, skillLevel: 7, ...(module >= 0 ? { module, moduleLevel: 3 } : {}) };
-  const c = /** @type {any} */ ({ level: level(), enemies: { dummy: { name: 'dummy', maxHp: 1e7, atk: 0, def: 0, res: 0, moveSpeed: 1, massLevel: 1 } }, operators: { op: bare(operatorAt(t, b)) }, decks: [['op']] });
+  const entry = { factory: /** @type {any} */ (factory), def: defOf(charId, t, b) }, lv = level();
+  const c = /** @type {any} */ ({ level: lv, enemies: { dummy: { name: 'dummy', maxHp: 1e7, atk: 0, def: 0, res: 0, moveSpeed: 1, massLevel: 1 } }, operators: { op: withKitTrait(/** @type {any} */ (bare(operatorAt(t, b))), entry, lv) }, decks: [['op']] });
   /** @type {Record<string, any>} */
   const tokens = {};
   for (const id of (t.tokens ?? []).filter((x) => Object.hasOwn(TOKENS, x))) {
@@ -167,7 +168,7 @@ async function ourRun(charId, factory, skill, module) {
     tokens[id] = tokenDefOf(id, token, t, b);
   }
   const box = /** @type {{ b: any }} */ ({ b: null });
-  c.behaviors = kitsBehaviors({ op: { factory: /** @type {any} */ (factory), def: defOf(charId, t, b), tokens } }, (x) => { box.b = x; });
+  c.behaviors = kitsBehaviors({ op: { ...entry, tokens } }, (x) => { box.b = x; });
   const w = createWorld(c, { seed: 7, players: 1 }), log = { hits: /** @type {number[]} */ ([]), heals: /** @type {number[]} */ ([]), starts: 0, statuses: /** @type {Set<string>} */ (new Set()) };
   // held in place as Stronghold's speed-0 dummy: by a buff that is no status (束缚 is one a kit may look for)
   bus.on(w, 'enemySpawn', (k) => { buffKit.addBuff(k.enemy, buffKit.makeBuff({ key: 'kitdiff:still', flags: { root: true } })); }, { priority: 1e9 });

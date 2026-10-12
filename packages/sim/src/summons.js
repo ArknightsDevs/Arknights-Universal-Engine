@@ -9,7 +9,7 @@ import { releaseAll } from './blocking.js';
 import { reachKeys } from './reach.js';
 import { statsOf } from './attrs.js';
 import { onDeploy } from './skills.js';
-import { traitDeploy, traitOf, traitAsk } from './traits.js';
+import { traitDeploy, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
 import { emit } from './bus.js';
 
@@ -82,7 +82,7 @@ function enter(w, c, owner, o) {
   w.events.push({ type: 'deploy', id: u.id, key: u.key, owner: owner.owner });
   emit(w, 'enter', { unit: u });
   traitDeploy(w, c, u);
-  if (traitAsk(w, c, u, 'own') !== true) modeDeploy(u, traitOf(c, u));
+  modeDeploy(u, traitOf(c, u));
   deployTalents(w, c, u);
   onDeploy(w, c, u);
   emit(w, 'deploy', { unit: u, initial: false });

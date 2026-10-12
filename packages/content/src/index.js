@@ -10,7 +10,7 @@ import { loadTraining, operatorAt, teamTalentsAt } from './operators.js';
 import { TOKENS, loadToken, tokenAt } from './tokens.js';
 import { teamFits } from '@aue/sim';
 import { skillBehaviors } from './skills.js';
-import { kitsBehaviors } from './compat/kits.js';
+import { kitsBehaviors, withKitTrait } from './compat/kits.js';
 import { defOf, tokenDefOf } from './compat/records.js';
 import { KIT_SOURCE } from './compat/kitmod.js';
 
@@ -77,7 +77,8 @@ export async function matchContent(match, levels = LEVELS, kits = {}) {
     const built = await Promise.all(deck.map(async ({ id, build }) => {
       const t = await loadTraining(id), factory = Object.hasOwn(kits, id) ? kits[id] : null;
       if (factory) entries[`${id}#${seat}`] = { factory, def: defOf(id, t, build), tokens: await tokenDefsOf(id, t, build) };
-      return { id, key: `${id}#${seat}`, op: factory ? withoutTalents(operatorAt(t, build)) : operatorAt(t, build), team: factory ? [] : teamTalentsAt(t, build).deck };
+      const entry = entries[`${id}#${seat}`];
+      return { id, key: `${id}#${seat}`, op: entry ? withKitTrait(withoutTalents(operatorAt(t, build)), entry, lv.level) : operatorAt(t, build), team: entry ? [] : teamTalentsAt(t, build).deck };
     }));
     const team = built.flatMap((x) => x.team);
     for (const { id, key, op } of built) {
