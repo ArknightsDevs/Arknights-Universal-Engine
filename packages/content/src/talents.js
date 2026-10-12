@@ -227,3 +227,41 @@ export function critPart(c) {
   };
 }
 
+/** The heads of timed talents (干员-13): stacking every N s, once after N s, for N s after deployment. */
+const TIMED = Object.freeze(/** @type {[RegExp, 'stack' | 'after' | 'during', string][]} */ ([
+  [/^每在场上停留\d+(?:\.\d+)?秒[，,]?/u, 'stack', 'interval'], [/^在战场停留\d+(?:\.\d+)?秒后[，,]?/u, 'after', 'interval'],
+  [/^部署后\d+(?:\.\d+)?秒内/u, 'during', 'duration'],
+]));
+/** The last clause of a stacking one: 最多（可以）叠加N层/次. */
+const STACK_MAX = /^最多(?:可以)?叠加\d+(?:层|次)$/u;
+
+/**
+ * The modifiers of one timed clause (干员-13): an in-range clause (干员-11) with 自身 allowed before it, or 获得抵抗
+ * (`one_minus_status_resistance` as 一减状态抵抗率, 属性-1); null for another.
+ * @param {string} clause @param {Record<string, number>} bb @returns {Record<string, number> | null}
+ */
+function timedMods(clause, bb) {
+  if (clause === '获得抵抗') return Number.isFinite(bb.one_minus_status_resistance) ? { statusResFlat: bb.one_minus_status_resistance } : null;
+  return rangeMods([clause.replace(/^自身的?/u, '')], bb)?.mods ?? null;
+}
+
+/**
+ * The timed part of a talent (干员-13): its first sentence begins 「每在场上停留N秒」 (a step every `interval` s, up to
+ * `max_stack_cnt` steps, the sentence ending 「最多叠加N层」), 「在战场停留N秒后」 (once, after `interval` s) or
+ * 「部署后N秒内」 (for `duration` s from deployment); then clauses (split at ，and 且) that each give modifiers. Null
+ * when a clause gives none, or for a hidden talent.
+ * @param {Talent} c @returns {{ kind: 'stack' | 'after' | 'during', seconds: number, max: number, mods: Record<string, number> } | null}
+ */
+export function timedPart(c) {
+  if (c.hidden || !c.description) return null;
+  const first = c.description.replace(/<[^>]*>/g, '').replace(/（[^）]*）/g, '').split(/[。；]/)[0];
+  const hit = TIMED.find(([re]) => re.test(first));
+  if (!hit || !Number.isFinite(c.bb[hit[2]])) return null;
+  const clauses = first.replace(hit[0], '').split(/[，,]|且/u).map((x) => x.trim()).filter((x) => x);
+  const max = hit[1] === 'stack' && STACK_MAX.test(clauses.at(-1) ?? '') && Number.isFinite(c.bb.max_stack_cnt) ? c.bb.max_stack_cnt : 1;
+  if (hit[1] === 'stack' && max === 1) return null;
+  const parts = (hit[1] === 'stack' ? clauses.slice(0, -1) : clauses).map((x) => timedMods(x, c.bb));
+  if (parts.length === 0 || parts.some((x) => x === null)) return null;
+  return { kind: hit[1], seconds: c.bb[hit[2]], max, mods: Object.assign({}, ...parts) };
+}
+

@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadTraining, operatorAt, skeletonContent, ROSTER } from '../src/index.js';
 import { traitAt, teamTalentsAt } from '../src/operators.js';
-import { talentsAt, alwaysOn, teamPart, rangePart, critPart } from '../src/talents.js';
+import { talentsAt, alwaysOn, teamPart, rangePart, critPart, timedPart } from '../src/talents.js';
 import { matchContent } from '../src/index.js';
 
 /** @typedef {import('../src/operators.js').Build} Build */
@@ -153,4 +153,18 @@ test('[干员-12] chance parts: 攻击时 N% 几率 攻击力提升至 M%, with 
   assert.deepEqual([c('攻击时，20%几率当次攻击的攻击力提升至160%', { atk_scale: 1.6 }), c('攻击力+8%', { prob: 0.1, atk_scale: 1 })], [null, null]);
   const bpipe = operatorAt(await loadTraining('char_222_bpipe'), E2);
   assert.deepEqual(bpipe.critTalents?.map((k) => k.more), [1], '风笛 精密填弹');
+});
+
+test('[干员-13] timed parts: 每在场上停留 … 最多叠加, 在战场停留 … 后 (抵抗 too), 部署后 … 秒内', async () => {
+  const c = (/** @type {string} */ description, /** @type {Record<string, number>} */ bb) => timedPart({ description, bb, hidden: false });
+  assert.deepEqual([
+    c('每在场上停留20秒，攻击力+5%，防御力+4%，最多叠加5层', { max_stack_cnt: 5, interval: 20, atk: 0.05, def: 0.04 }),
+    c('在战场停留15秒后，攻击力+18%且获得抵抗', { atk: 0.18, interval: 15, one_minus_status_resistance: -0.5 }),
+    c('部署后60秒内技力自然回复速度+0.5/秒', { sp_recovery_per_sec: 0.5, duration: 60 }),
+  ], [
+    { kind: 'stack', seconds: 20, max: 5, mods: { atkPct: 0.05, defPct: 0.04 } }, { kind: 'after', seconds: 15, max: 1, mods: { atkPct: 0.18, statusResFlat: -0.5 } },
+    { kind: 'during', seconds: 60, max: 1, mods: { spRecoveryFlat: 0.5 } },
+  ]);
+  assert.deepEqual([c('每在场上停留20秒，攻击力+5%', { interval: 20, atk: 0.05 }), c('在战场停留15秒后，仅一次使场上所有重装干员攻击力+8%', { interval: 15, atk: 0.08 })], [null, null]);
+  assert.equal(operatorAt(await loadTraining('char_202_demkni'), E2).timedTalents?.[0]?.kind, 'stack', '塞雷娅');
 });

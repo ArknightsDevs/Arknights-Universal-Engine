@@ -1,5 +1,6 @@
 // Creating units from content (spec 部署-1, 部署-4, 出怪-1, 属性-1): the base attributes come from the content, the buffs
 // start empty but for an operator's always-on talents, the HP and the element values full.
+import { secondsToFrames } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { tileAt } from './level.js';
 import { dirOfCode, DEFAULT_DIR } from './dir.js';
@@ -51,12 +52,17 @@ function fresh(w, base, buffs = []) {
 }
 
 /**
- * The buffs an operator is deployed with (部署-4): its always-on talents' attribute keys as one buff without an end.
+ * The buffs an operator is deployed with (部署-4, 部署-7): its always-on talents' attribute keys as one buff without an
+ * end; each timed talent as a buff `timed:<index>` — for a 'during' one its modifiers for its time, for the others a
+ * step a time (timedBehaviors).
  * @param {OperatorDef} d
  */
 function talentBuffs(d) {
   const mods = statMods(d.talentBb ?? {});
-  return Object.keys(mods).length ? [makeBuff({ key: 'talent', mods })] : [];
+  const timed = (d.timedTalents ?? []).map((t, i) => (t.kind === 'during'
+    ? makeBuff({ key: `timed:${i}`, left: secondsToFrames(t.seconds), mods: t.mods })
+    : makeBuff({ key: `timed:${i}`, every: Math.max(1, secondsToFrames(t.seconds)), fixed: true })));
+  return [...(Object.keys(mods).length ? [makeBuff({ key: 'talent', mods })] : []), ...timed];
 }
 
 /**

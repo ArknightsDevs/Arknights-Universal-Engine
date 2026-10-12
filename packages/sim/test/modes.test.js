@@ -176,3 +176,19 @@ test('[部署-6] an in-range talent: the enemies, or the operators, with a tile 
   assert.equal(near.buffs.some((b) => b.key.startsWith('range:')), false, 'out of range: gone');
   assert.ok(w.units.includes(far));
 });
+
+test('[部署-7] timed talents: a step every interval up to its most; once after an interval; for a time after deployment', () => {
+  const { put, run } = arena((cc) => {
+    cc.operators.guard = { ...cc.operators.guard, timedTalents: [
+      { kind: 'stack', seconds: 1, max: 2, mods: { atkFlat: 10 } }, { kind: 'after', seconds: 2, max: 1, mods: { defFlat: 5 } },
+      { kind: 'during', seconds: 1, max: 1, mods: { aspd: 7 } }] };
+  });
+  const g = put('guard', 1, 1);
+  assert.deepEqual([statsOf(g).atk, statsOf(g).def, statsOf(g).aspd], [50, 100, 107]);
+  run(29);
+  assert.deepEqual([statsOf(g).atk, statsOf(g).aspd], [60, 100], 'a step at 1 s; the timed one over');
+  run(30);
+  assert.deepEqual([statsOf(g).atk, statsOf(g).def], [70, 105], 'two steps; the once-after one at 2 s');
+  run(90);
+  assert.deepEqual([statsOf(g).atk, statsOf(g).def], [70, 105], 'no more');
+});

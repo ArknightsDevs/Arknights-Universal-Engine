@@ -156,11 +156,16 @@
  * its 再部署时间 in seconds (部署-3; default 60), `talentBb` the blackboard of its always-on talents (部署-4),
  * `fieldTalents` its talents for every operator of a profession or faction while it is on the field (部署-5), `powers`
  * its factions, `rangeTalents` its talents for the units in its attack range while it is on the field (部署-6),
- * `critTalents` its chances to strike harder (攻击-4).
+ * `critTalents` its chances to strike harder (攻击-4), `timedTalents` its talents in time on the field (部署-7).
  * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
  *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, trait?: Partial<TraitDef>, respawnTime?: number, char?: string,
  *   talentBb?: Record<string, number>, fieldTalents?: TeamTalent[], powers?: string[], rangeTalents?: RangeTalent[],
- *   critTalents?: CritTalent[] }} OperatorDef
+ *   critTalents?: CritTalent[], timedTalents?: TimedTalent[] }} OperatorDef
+ */
+/**
+ * A timed talent (部署-7): from deployment, a step of `mods` every `seconds` up to `max` steps ('stack'), the mods once
+ * after `seconds` ('after'), or the mods for `seconds` ('during').
+ * @typedef {{ kind: 'stack' | 'after' | 'during', seconds: number, max: number, mods: Record<string, number> }} TimedTalent
  */
 /**
  * A chance talent (攻击-4): on each attack, with chance `prob`, the attack's 倍率 × `scale`, and maybe a stun of `stun`

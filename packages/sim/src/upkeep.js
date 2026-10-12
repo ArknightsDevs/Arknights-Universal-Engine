@@ -1,7 +1,7 @@
 // An operator's upkeep on the field (docs/spec/traits.md 职业-10): the HP its trait drains each second, the cost it
 // consumes — a retreat when there is not enough — and the flags it is immune to while it blocks.
 import { statsOf } from './attrs.js';
-import { makeBuff, addBuff, removeBuff } from './buffs.js';
+import { makeBuff, addBuff, removeBuff, retune } from './buffs.js';
 import { dealDamage } from './damage.js';
 import { withdraw } from './deck.js';
 
@@ -25,6 +25,25 @@ export function upkeepBehaviors(c) {
       else withdraw(w, c, u);
     } },
   };
+}
+
+/** The most timed talents an operator has (部署-7). */
+export const MAX_TIMED = 4;
+
+/**
+ * The timed talents' steps (部署-7): each `seconds`, an 'after' talent's buff takes its modifiers once; a 'stack' one's
+ * goes up a step to its `max`, the modifiers × the steps.
+ * @param {Content} c @returns {Record<string, Behavior>}
+ */
+export function timedBehaviors(c) {
+  /** @type {Behavior} */
+  const step = { tick: (_w, u, b) => {
+    const t = c.operators[u.key]?.timedTalents?.[Number(b.key.slice(6))];
+    if (!t || b.value >= t.max) return;
+    const n = b.value + 1;
+    retune(u, b, n, Object.fromEntries(Object.entries(t.mods).map(([k, v]) => [k, v * n])));
+  } };
+  return Object.fromEntries(Array.from({ length: MAX_TIMED }, (_, i) => [`timed:${i}`, step]));
 }
 
 /**
