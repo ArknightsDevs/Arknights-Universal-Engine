@@ -131,3 +131,9 @@ test('[兼容-4] a kit buff\'s onTick every interval or frame, onExpire, onRemov
   b.dealDamage(u, u, periodicDamage(100));
   assert.deepEqual([hp - guard.hp, seen], [100, [[null, true]]], 'not doubled; the hook sees no source, its credit is the dealer');
 });
+
+test('[兼容-4] a piece has one id for the whole battle, reserved before anything is deployed; unitById finds it by either', () => {
+  const { box, guard } = match({ kind: 'duration', duration: 30 });
+  const b = /** @type {ShBattle} */ (box.b), u = b.unitOf(guard);
+  assert.deepEqual([u.id, guard.id > u.id, b.unitById(u.id) === u, b.unitById(guard.id) === u], [1, true, true, true]);
+});

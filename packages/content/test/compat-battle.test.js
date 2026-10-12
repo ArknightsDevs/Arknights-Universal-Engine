@@ -214,7 +214,7 @@ test('[兼容-4] attacks, skills and statuses as a kit sees them: targets it may
   const { c, w, b } = match({ guard: { def: { name: 'guard', skill: null, raw: {} }, factory: kit } }, ['guard'], (x) => { x.operators.guard.skill = skill; });
   step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 3, dir: 2 }]]);
   const g = b.unitOf(unit(w, 'guard'));
-  step(w, c, [[0, { type: 'skill', unit: g.id }]]);
+  step(w, c, [[0, { type: 'skill', unit: unit(w, 'guard').id }]]);
   while (!unit(w, 'slime')) step(w, c);
   const first = b.unitOf(unit(w, 'slime'));
   assert.ok(b.applyStatus(first, 'bind', { duration: 1.5, source: g }));

@@ -49,8 +49,11 @@ export const ATTRS = Object.freeze({
  */
 export const JUDGE_KEYS = Object.freeze(['dmgTakenMul', 'physTakenMul', 'artsTakenMul', 'trueTakenMul', 'elementalTakenMul', 'dodgePhys', 'dodgeArts']);
 
-/** Multipliers kept as products besides the attributes' own (属性-2): the source's and the healer's (伤害-7, 伤害-11). */
-const CHANNELS = Object.freeze(['dmgDealtMul', 'physDealtMul', 'artsDealtMul', 'healingDealtMul', 'healingTakenMul', 'epTakenMul']);
+/**
+ * Multipliers kept as products besides the attributes' own (属性-2): the source's and the healer's (伤害-7, 伤害-11), and
+ * the attacker's 攻击力倍率 (伤害-6).
+ */
+const CHANNELS = Object.freeze(['dmgDealtMul', 'physDealtMul', 'artsDealtMul', 'healingDealtMul', 'healingTakenMul', 'epTakenMul', 'atkScaleMul']);
 
 /** Each attribute key's kind: 0 直接加算, 1 直接乘算, 2 最终加算, 3 最终乘算. */
 const KIND_OF = new Map(Object.values(ATTRS).flatMap((a) => a.keys.map((k, i) => /** @type {[string, number]} */ ([k, i]))));
@@ -126,7 +129,7 @@ export const intervalFrames = (bat, aspd) => secondsAtSpeedToFrames(bat, Math.mi
 /**
  * @typedef {Record<keyof typeof ATTRS, number> & {
  *   interval: number,
- *   dmgDealtMul: number, physDealtMul: number, artsDealtMul: number, healingDealtMul: number, healingTakenMul: number, epTakenMul: number,
+ *   dmgDealtMul: number, physDealtMul: number, artsDealtMul: number, healingDealtMul: number, healingTakenMul: number, epTakenMul: number, atkScaleMul: number,
  *   flags: Record<string, boolean>, flying: boolean, invincible: boolean, disabled: boolean, immobile: boolean,
  *   sum: Record<string, number>, prod: Record<string, number>
  * }} Stats

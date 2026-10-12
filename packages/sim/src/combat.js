@@ -111,7 +111,7 @@ function oneHit(w, c, src, t, load) {
   const alive = t.hp > 0, dealt = dealDamage(w, src, t, damageOf(load));
   if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
   if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
-  if (el && load.ep > 0) dealEp(w, t, el, load.ep);
+  if (el && load.ep > 0) dealEp(w, t, el, load.ep, src);
   if (load.hitStatus && alive && t.hp > 0) inflict(w, t, load.hitStatus.key, { seconds: load.hitStatus.seconds, src });
   if (op && alive) traitHit(w, c, op, t);
   return dealt;
@@ -139,9 +139,12 @@ function healForDamage(w, c, op, dealt) {
 /** The attack of an attacker, with an attack bonus for this attack only (敌能-11). @param {Unit} a @param {number} [pct] */
 const atkOf = (a, pct) => (pct ? statsOf({ ...a, buffs: [...a.buffs, makeBuff({ key: 'attackBonus', mods: { atkPct: pct } })] }).atk : statsOf(a).atk);
 
-/** What an attack carries to each target (攻击-2): its type, the attack × 倍率, hits, 元素损伤. @param {Unit} a @param {AttackMods} mods @returns {Load} */
+/**
+ * What an attack carries to each target (攻击-2): its type, the attack × 攻击力倍率 (the attack's × the attacker's, 伤害-6),
+ * hits, 元素损伤. @param {Unit} a @param {AttackMods} mods @returns {Load}
+ */
 const loadOf = (a, mods) => ({
-  type: mods.type ?? a.base.dmgType, amount: atkOf(a, mods.atkPct) * mods.scale, times: mods.times, element: mods.element ?? '', ep: mods.ep ?? 0,
+  type: mods.type ?? a.base.dmgType, amount: atkOf(a, mods.atkPct) * mods.scale * statsOf(a).atkScaleMul, times: mods.times, element: mods.element ?? '', ep: mods.ep ?? 0,
   ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.skill ? { skill: true } : {}),
 });
 

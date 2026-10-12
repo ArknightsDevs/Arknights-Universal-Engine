@@ -101,7 +101,7 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 
 ### 干员-10 势力
 
-干员的势力 `powers`：主势力（`mainPower`，没有时取干员自身的字段）的国家、组织、队伍 id（`nationId`、`groupId`、`teamId`，为 null 的略去），再依次加上每个副势力（`subPower`）的，去掉重复。势力的名称按 id 记录在 `packages/content/data/powers.json`（handbook_team_table 的 `powerName`，按 id 排序）。天赋按名称引用势力（干员-9）。
+干员的势力 `powers`：主势力（`mainPower`，没有时取干员自身的字段）的国家、组织、队伍 id（`nationId`、`groupId`、`teamId`，为 null 的略去），再依次加上每个副势力（`subPower`）的，去掉重复。主势力的三项 id 另记为 `mainPower`（没有的为 null）。势力的名称按 id 记录在 `packages/content/data/powers.json`（handbook_team_table 的 `powerName`，按 id 排序）。天赋按名称引用势力（干员-9）。
 
 - 来源：数据：character_table 的 mainPower、subPower、nationId、groupId、teamId，handbook_team_table 的 powerId、powerName
 

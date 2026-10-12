@@ -22,17 +22,19 @@ function field() {
   return { c, w, guard, slime };
 }
 
-test('[钩子-3] hit, before the defences: the hit with mul 1, no tags, not cancelled; mul scales what the defences leave; cancel stops it', () => {
+test('[钩子-3] hit, before the defences: the hit with mul 1, no tags, not cancelled, no penetration; mul and penetration change what the defences leave; cancel stops it', () => {
   const { w, guard, slime } = field(), seen = /** @type {string[]} */ ([]);
   on(w, 'hit', (k) => {
     seen.push(`${k.source.key}>${k.target.key}:${k.dmg.amount}:${k.dmg.mul}:${k.dmg.cancel}`);
     if (k.dmg.tags?.includes('double')) k.dmg.mul = 2;
     if (k.dmg.tags?.includes('stop')) k.dmg.cancel = true;
+    if (k.dmg.tags?.includes('pierce')) /** @type {number} */ (k.dmg.defIgnoreFlat += 10);
   });
   assert.equal(dealDamage(w, guard, slime, { type: 'phys', amount: 50 }), 40);
   assert.equal(dealDamage(w, guard, slime, { type: 'phys', amount: 50, tags: ['double'] }), 80, '(50 − 10) × 2');
   assert.equal(dealDamage(w, guard, slime, { type: 'phys', amount: 50, tags: ['stop'] }), 0);
   assert.deepEqual([seen, slime.hp], [['guard>slime:50:1:false', 'guard>slime:50:1:false', 'guard>slime:50:1:false'], 1000 - 120]);
+  assert.equal(dealDamage(w, guard, slime, { type: 'phys', amount: 50, tags: ['pierce'] }), 50, 'a handler adds to the penetration it found at 0');
 });
 
 test('[钩子-3] dodge in the 伤判 effects; hpDamage may lower what reaches the HP, never raise it', () => {

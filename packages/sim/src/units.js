@@ -66,6 +66,16 @@ function talentBuffs(d) {
 }
 
 /**
+ * Unit ids for content's own objects (钩子-4): `n` ids no unit will get; the first is returned.
+ * @param {World} w @param {number} n @returns {number}
+ */
+export function reserveIds(w, n) {
+  const first = w.nextId;
+  w.nextId += Math.max(0, Math.floor(n));
+  return first;
+}
+
+/**
  * A deployed operator; `dir` is the protocol's direction code (schema DIR), `paid` what its deployment cost (部署-3),
  * `summoner` the id of the unit that summoned it (召唤-4, 召唤-6), `expires` the frame it leaves at (召唤-9).
  * @param {World} w @param {Content} c @param {{ key: string, owner: number, row: number, col: number, dir: number, paid?: number, summoner?: number, expires?: number }} o

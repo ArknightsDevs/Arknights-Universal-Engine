@@ -40,6 +40,21 @@ export function modsOf(m) {
   return out;
 }
 
+/** The engine's flags → Stronghold's names. @type {Readonly<Record<string, string>>} */
+const FLAG_NAME = Object.freeze(Object.fromEntries(Object.entries(FLAG).map(([k, v]) => [v, k])));
+
+/**
+ * A unit's attribute flags as a kit reads them: the engine's, also under Stronghold's names where it names them
+ * otherwise, and `burstLock` during an element burst (元素-3).
+ * @param {Record<string, boolean>} flags @param {boolean} bursting @returns {Record<string, boolean>}
+ */
+export function shFlagsOf(flags, bursting) {
+  const out = { ...flags };
+  for (const [k, on] of Object.entries(flags)) if (on && Object.hasOwn(FLAG_NAME, k)) out[FLAG_NAME[k]] = true;
+  if (bursting) out.burstLock = true;
+  return out;
+}
+
 /** A buff's flags as the engine names them. @param {Record<string, unknown> | null | undefined} f @returns {Record<string, boolean>} */
 export function flagsOf(f) {
   /** @type {Record<string, boolean>} */

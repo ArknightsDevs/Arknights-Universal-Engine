@@ -162,11 +162,15 @@ function loseHp(w, src, t, amount, dmg) {
   return amount;
 }
 
-/** A hit's fields the events show, filled in (钩子-3): `mul` 1, no `tags`, not cancelled. @param {Damage} dmg */
+/** A hit's fields the events show, filled in (钩子-3): `mul` 1, no `tags`, not cancelled, no penetration. @param {Damage} dmg */
 function settle(dmg) {
   dmg.mul ??= 1;
   dmg.tags ??= [];
   dmg.cancel ??= false;
+  dmg.defIgnorePct ??= 0;
+  dmg.defIgnoreFlat ??= 0;
+  dmg.resIgnorePct ??= 0;
+  dmg.resIgnoreFlat ??= 0;
 }
 
 /**

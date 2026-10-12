@@ -1,7 +1,7 @@
 // The skeleton's rules on the tiny level (docs/spec: deploy, enemies, combat). Test names cite the clauses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createWorld, step, rangeCell, deployProblem, damage, status, attrs } from '../src/index.js';
+import { createWorld, step, rangeCell, deployProblem, damage, status, attrs, buffs } from '../src/index.js';
 import { tinyContent } from '@aue/testkit';
 import { makeEnemy } from '../src/units.js';
 
@@ -125,6 +125,11 @@ test('[伤害-6] [攻击-1] the normal attack of an operator is one hit of its a
   const hits = [];
   for (let f = 1; f < 260; f++) for (const e of step(w, c)) if (e.type === 'hit') hits.push(e);
   assert.ok(hits.length > 0 && hits.every((h) => h.damage === 40 && h.id === 1));
+  const op = /** @type {any} */ (w.units.find((u) => u.id === 1)), before = hits.length;
+  buffs.addBuff(op, buffs.makeBuff({ key: 'scale', mods: { atkScaleMul: 1.5 } }));
+  buffs.addBuff(op, buffs.makeBuff({ key: 'scale2', mods: { atkScaleMul: 2 } }));
+  for (let f = 0; f < 260; f++) for (const e of step(w, c)) if (e.type === 'hit') hits.push(e);
+  assert.ok(hits.length > before && hits.slice(before).every((h) => h.damage === 50 * 3 - 10), 'its 攻击力倍率 × the attacker’s (1.5 × 2)');
 });
 
 test('[攻击-1] range offsets turn with the facing; four turns come back', () => {

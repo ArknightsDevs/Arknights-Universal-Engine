@@ -112,7 +112,7 @@ function contextOf(w, c, e, of) {
     removeBuff: (t, key) => { removeBuff(t, key); },
     applyStatus: (t, key, o) => { inflict(w, t, /** @type {any} */ (key), { ...o, src: e }); },
     dealDamage: (t, dmg) => dealDamage(w, e, t, dmg),
-    dealEp: (t, el, amount) => dealEp(w, t, /** @type {any} */ (el), amount),
+    dealEp: (t, el, amount) => dealEp(w, t, /** @type {any} */ (el), amount, e),
     heal: (t, amount) => heal(w, e, t, amount),
     gainCost: () => {},
     state: { get: (k) => ab[`${name}.${k}`] ?? 0, set: (k, v) => { ab[`${name}.${k}`] = v; } },

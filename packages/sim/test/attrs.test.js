@@ -45,7 +45,7 @@ const RANGE = {
   hpFlat: [-50, 500], hpPct: [-0.1, 2], hpMul: [0.5, 2], atkFlat: [-50, 500], atkPct: [-0.1, 2], atkFinal: [-50, 500], atkMul: [0.5, 2],
   defFlat: [-50, 500], defPct: [-0.1, 2], defMul: [0.5, 2], resFlat: [-20, 50], resMul: [0.5, 2], aspd: [-40, 100], batPct: [-0.1, 1],
   moveFlat: [-0.5, 1], moveMul: [0.5, 2], spRecoveryFlat: [-0.5, 2], spRecoveryMul: [0.5, 2], massFlat: [-2, 5],
-  dmgDealtMul: [0.5, 2], physDealtMul: [0.5, 2], artsDealtMul: [0.5, 2], healingDealtMul: [0.5, 2], healingTakenMul: [0.5, 2],
+  dmgDealtMul: [0.5, 2], physDealtMul: [0.5, 2], artsDealtMul: [0.5, 2], healingDealtMul: [0.5, 2], healingTakenMul: [0.5, 2], atkScaleMul: [0.5, 2],
 };
 const KEYS = Object.keys(RANGE);
 const num = (/** @type {number} */ min, /** @type {number} */ max) => fc.double({ min, max, noNaN: true });
@@ -61,7 +61,7 @@ const baseArb = fc.record({
 const ours = (raws) => raws.map((r) => makeBuff(r));
 
 const COMPARED = ['maxHp', 'atk', 'def', 'res', 'aspd', 'bat', 'moveSpeed', 'spRecovery', 'massLevel'];
-const CHANNEL_KEYS = ['dmgDealtMul', 'physDealtMul', 'artsDealtMul', 'healingDealtMul', 'healingTakenMul'];
+const CHANNEL_KEYS = ['dmgDealtMul', 'physDealtMul', 'artsDealtMul', 'healingDealtMul', 'healingTakenMul', 'atkScaleMul'];
 
 /** Where the oracle and we agree (DIF-0009 lies outside): pct sums above −0.9, aspd, move speed and mass off their bounds. @param {Record<string, number>} base @param {ReturnType<typeof statsOf>} s @param {any} o */
 function inAgreement(base, s, o) {

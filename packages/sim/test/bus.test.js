@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
-import { createWorld, step, stateHash, takeSnapshot } from '../src/index.js';
+import { createWorld, step, stateHash, takeSnapshot, reserveIds } from '../src/index.js';
 import { on, off, offOwner, emit, hasHook, after, every, runTimers, MAX_DEPTH, busOf } from '../src/bus.js';
 
 const world = () => createWorld(tinyContent(), { seed: 1, players: 1 });
@@ -125,5 +125,13 @@ test('[钩子-4] a new world is handed to the content’s setup before its first
   const w = createWorld(c, { seed: 1, players: 1 });
   step(w, c);
   assert.deepEqual(seen, ['setup@0', 'start']);
+});
+
+test('[钩子-4] the setup may reserve unit ids for content’s own objects: no unit gets them', () => {
+  const c = /** @type {any} */ (tinyContent()), got = /** @type {number[]} */ ([]);
+  c.behaviors = { world: (/** @type {any} */ w) => { got.push(reserveIds(w, 2), reserveIds(w, 0), reserveIds(w, 1)); } };
+  const w = createWorld(c, { seed: 1, players: 1 });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 2, dir: 0 }]]);
+  assert.deepEqual([got, w.units.map((u) => u.id)], [[1, 3, 3], [4]]);
 });
 

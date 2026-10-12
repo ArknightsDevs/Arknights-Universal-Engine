@@ -84,6 +84,7 @@ export function extractTraining(raw, id, rangesRaw, skillsRaw, equipment) {
     profession: asString(field(c, 'profession', p), `${p}.profession`),
     branch: asString(field(c, 'subProfessionId', p), `${p}.subProfessionId`),
     powers: powersOf(c, p),
+    mainPower: mainPowerOf(c, p),
     rarity: asInt(Number(asString(field(c, 'rarity', p), `${p}.rarity`).replace('TIER_', '')), `${p}.rarity`, 1, 6),
     phases,
     favor: favor ? { level: asInt(favor.level, `${p}.favorKeyFrames.level`, 0, 200), stats: statsOf(favor.data, `${p}.favorKeyFrames.data`) } : null,
@@ -142,6 +143,17 @@ function powersOf(c, p) {
   add(c.mainPower ? asObject(c.mainPower, `${p}.mainPower`) : c, c.mainPower ? `${p}.mainPower` : p);
   asArray(c.subPower ?? [], `${p}.subPower`).forEach((s, i) => add(asObject(s, `${p}.subPower[${i}]`), `${p}.subPower[${i}]`));
   return out;
+}
+
+/**
+ * An operator's main power (干员-10): its nation, group and team ids, null for none; the top-level ids when there is no
+ * mainPower.
+ * @param {Record<string, unknown>} c @param {string} p @returns {{ nationId: string | null, groupId: string | null, teamId: string | null }}
+ */
+function mainPowerOf(c, p) {
+  const o = c.mainPower ? asObject(c.mainPower, `${p}.mainPower`) : c, pp = c.mainPower ? `${p}.mainPower` : p;
+  const id = (/** @type {string} */ k) => (o[k] === null || o[k] === undefined ? null : asString(o[k], `${pp}.${k}`));
+  return { nationId: id('nationId'), groupId: id('groupId'), teamId: id('teamId') };
 }
 
 /**

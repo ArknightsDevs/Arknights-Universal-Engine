@@ -102,7 +102,7 @@ export function dealDamage(b, source, target, dmg) {
   if (!t || !target.alive) return 0;
   if (dmg.type === 'element') {
     const el = ELEMENT[dmg.element];
-    return el ? elements.dealEp(b.w, t, el, Number(dmg.amount) || 0) : 0;
+    return el ? elements.dealEp(b.w, t, el, Number(dmg.amount) || 0, s) : 0;
   }
   const hit = hitOf(dmg);
   return s && s.kind === KIND.OPERATOR ? traits.creditedDamage(b.w, b.c, s, t, hit) : damage.dealDamage(b.w, s, t, hit);

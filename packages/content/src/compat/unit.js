@@ -3,9 +3,9 @@
 // to the engine's unit while it is deployed, unbound in between — so the hooks its kit installs once see every
 // deployment. An enemy is the engine's unit itself. Fields Stronghold's kits keep their own state in (`mem`, `trait`)
 // live here, outside the engine's state (ADR 0057).
-import { KIND, attrs, body, traits, buffs, status, damage, dir, reachKeys, setRange, setAtkCd } from '@aue/sim';
+import { KIND, attrs, body, traits, buffs, status, damage, dir, elements, reachKeys, setRange, setAtkCd } from '@aue/sim';
 import { ShSkill } from './skill.js';
-import { STATUS_NAME, buffKeyOf, buffNameOf } from './mods.js';
+import { STATUS_NAME, buffKeyOf, buffNameOf, shFlagsOf } from './mods.js';
 
 /** @typedef {import('@aue/sim').Unit} Unit @typedef {import('@aue/sim').Buff} Buff @typedef {import('./battle.js').ShBattle} ShBattle */
 
@@ -56,7 +56,7 @@ export class ShUnit {
 
   /**
    * @param {ShBattle} b
-   * @param {{ kind: 'op' | 'enemy' | 'token' | 'device', key: string, ownerId: number, def: Record<string, any> | null, unit?: Unit, ownerUnit?: ShUnit | null }} o
+   * @param {{ kind: 'op' | 'enemy' | 'token' | 'device', key: string, ownerId: number, def: Record<string, any> | null, unit?: Unit, ownerUnit?: ShUnit | null, pieceId?: number }} o
    */
   constructor(b, o) {
     this.b = b; this.#kind = o.kind; this.defId = o.key; this.def = o.def; this.ownerId = o.ownerId;
@@ -66,6 +66,8 @@ export class ShUnit {
     this.tokenDefs = {};
     /** @type {Unit | null} the engine's unit while deployed */
     this.u = o.unit ?? null;
+    /** a piece's own id for the whole battle, reserved from the engine's (钩子-4); −1 for any other unit */
+    this.pieceId = o.pieceId ?? -1;
     this.side = o.kind === 'enemy' ? 'enemy' : 'ally';
     /** @type {Record<string, any>} */ this.mem = {};
     /** @type {Record<string, any>} */ this.trait = {};
@@ -86,7 +88,8 @@ export class ShUnit {
   /** On the field with HP left. */
   get alive() { return this.deployed && /** @type {Unit} */ (this.u).hp > 0; }
   get removed() { return !this.deployed; }
-  get id() { return this.u ? this.u.id : -1; }
+  /** A piece's id for the whole battle (as Stronghold's board pieces); another unit's engine id, −1 off the field. */
+  get id() { return this.pieceId >= 0 ? this.pieceId : this.u ? this.u.id : -1; }
   get name() { return this.def?.name ?? this.defId; }
   get x() { return this.u ? this.u.x : NaN; }
   get y() { return this.u ? this.u.y : NaN; }
@@ -111,13 +114,19 @@ export class ShUnit {
   get atkCd() { return this.u ? this.u.atkCd / FPS : 0; }
   set atkCd(s) { if (this.u) setAtkCd(this.u, Number(s) * FPS); }
   /** The unit's attributes now (属性-1…属性-3). */
-  get s() { return this.u ? attrs.statsOf(this.u) : null; }
+  /** Its attributes now, its flags as a kit reads them (兼容-4). */
+  get s() {
+    const u = this.u;
+    if (!u) return null;
+    const s = attrs.statsOf(u);
+    return { ...s, flags: shFlagsOf(s.flags, elements.bursting(u)) };
+  }
   get maxHp() { return this.s?.maxHp ?? 0; }
   get atk() { return this.s?.atk ?? 0; }
   get hpRatio() { const m = this.maxHp; return m > 0 ? this.hp / m : 0; }
   /** The enemies it blocks. */
   get blocking() {
-    const id = this.id;
+    const id = this.u?.id ?? -1;
     return id < 0 ? [] : this.b.w.units.filter((e) => e.kind === KIND.ENEMY && e.blockedBy === id).map((e) => this.b.unitOf(e));
   }
   /** Its attribute flags now (stun, sleep, …). */

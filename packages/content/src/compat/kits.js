@@ -1,9 +1,10 @@
 // Stronghold's kits in a battle (docs/spec/compat.md 兼容-4): the content's world setup (钩子-4) makes the battle a kit
 // sees (battle.js), a piece for each deck entry that has a kit — as Stronghold's board pieces, before anything is
-// deployed — and installs each piece's kit once: its own setup and its talents'. Each deployment of an operator binds
-// its piece to the engine's unit as it enters the field (钩子-3 `enter`: before its trait, talents and passive skill take
-// hold, so a passive skill's spec runs as Stronghold's does) and gives its lasting buffs again.
-import { KIND, bus } from '@aue/sim';
+// deployed, each with its own id for the whole battle — and installs each piece's kit once: its own setup and its
+// talents'. Each deployment of an operator binds its piece to the engine's unit as it enters the field (钩子-3 `enter`:
+// before its trait, talents and passive skill take hold, so a passive skill's spec runs as Stronghold's does) and gives
+// its lasting buffs again.
+import { KIND, bus, reserveIds } from '@aue/sim';
 import { ShBattle } from './battle.js';
 import { ShUnit } from './unit.js';
 import { battles, SPEC_BEHAVIOR, onAttackHit, onAttackDone } from './specs.js';
@@ -44,7 +45,7 @@ export function kitsWorld(kits, seen) {
 
 /** An operator's piece and its kit, installed once. @param {ShBattle} b @param {number} seat @param {string} key @param {KitEntry} entry */
 function install(b, seat, key, entry) {
-  const def = entry.def, piece = new ShUnit(b, { kind: 'op', key, ownerId: seat, def });
+  const def = entry.def, piece = new ShUnit(b, { kind: 'op', key, ownerId: seat, def, pieceId: reserveIds(b.w, 1) });
   piece.tokenDefs = entry.tokens ?? {};
   b.pieces.set(`${seat}|${key}`, piece);
   const kit = b.safe(() => entry.factory(def.skill?.bb ?? {}, def.raw, def), 'kit', piece);

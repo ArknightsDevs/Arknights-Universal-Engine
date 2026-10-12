@@ -122,8 +122,9 @@ export class ShBattle {
     return s;
   }
 
-  /** The unit of an engine id on the field, or null. @param {number} id @returns {ShUnit | null} */
+  /** The piece of a piece's id (on the field or not), else the unit of an engine id on the field, or null. @param {number} id @returns {ShUnit | null} */
   unitById(id) {
+    for (const p of this.pieces.values()) if (p.pieceId === id) return p;
     const u = this.w.units.find((x) => x.id === id);
     return u ? this.unitOf(u) : null;
   }

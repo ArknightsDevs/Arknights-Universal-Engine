@@ -106,6 +106,9 @@ test('[干员-10] factions: the main power nation, group and team, then the sub 
   assert.deepEqual(powers({ mainPower: { nationId: 'egir', groupId: 'abyssal', teamId: null }, subPower: null }), ['egir', 'abyssal']);
   assert.deepEqual(powers({ mainPower: { nationId: 'victoria', groupId: null, teamId: null }, subPower: [{ nationId: 'victoria', groupId: 'glasgow', teamId: null }] }), ['victoria', 'glasgow']);
   assert.deepEqual(powers({ nationId: 'rhodes', groupId: null, teamId: 'action4' }), ['rhodes', 'action4']);
+  const main = (/** @type {Record<string, unknown>} */ o) => /** @type {any} */ (extractTraining({ ...base, ...o }, 'char_x', {}, {}, { uniequip: { charEquip: {}, equipDict: {} }, battle: {} })).mainPower;
+  assert.deepEqual([main({ mainPower: { nationId: 'egir', groupId: 'abyssal', teamId: null }, subPower: [{ nationId: 'kazimierz', groupId: null, teamId: null }] }), main({ nationId: 'rhodes', teamId: 'action4' })],
+    [{ nationId: 'egir', groupId: 'abyssal', teamId: null }, { nationId: 'rhodes', groupId: null, teamId: 'action4' }], 'the main power\'s three ids, apart');
   assert.deepEqual(extractPowers({ yan: { powerName: '炎' }, abyssal: { powerName: '深海猎人' } }), { abyssal: '深海猎人', yan: '炎' });
   assert.throws(() => extractPowers({ x: { powerName: 3 } }), /teams\[x\].powerName/);
 });

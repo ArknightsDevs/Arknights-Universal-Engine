@@ -127,7 +127,7 @@ export function recordOf(charId, t, b) {
   const mod = moduleAt(t, b), s = statsAt(t, b, mod), skills = skillRecords(t, b), sel = skills.find((x) => x.index === b.skill) ?? null;
   const m = (b.module ?? -1) >= 0 ? t.modules[/** @type {number} */ (b.module)] : null, arts = coveredBranch(t.branch) && BRANCHES[t.branch].dmgType === 'arts';
   return {
-    chessId: `aue_${charId}`, baseId: `aue_${charId}`, charId, diyFor: `aue_${charId}`, name: t.name, rarity: t.rarity, tier: t.rarity,
+    chessId: `aue_${charId}`, baseId: `aue_${charId}`, charId, diyFor: `aue_${charId}`, name: t.name, rarity: t.rarity, tier: t.rarity, ...t.mainPower,
     profession: t.profession, subProfessionId: t.branch, position: t.position,
     status: { phase: b.elite, level: b.level, skillLevel: b.skillLevel, equipLevel: m ? (b.moduleLevel ?? 1) : 0 },
     stats: statsRecord(s), rangeGrid: t.phases[b.elite].range.map((c) => [c.row, c.col]), dmgType: t.profession === 'MEDIC' ? 'HEAL' : arts ? 'MAGICAL' : 'PHYSICAL',

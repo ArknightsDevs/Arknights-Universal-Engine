@@ -87,6 +87,7 @@
     "char_1015_aglna2",
     "char_1031_slent2",
     "char_1034_jesca2",
+    "char_1042_phatm2",
     "char_1044_hsgma2",
     "char_1051_headb2",
     "char_112_siege",
@@ -105,17 +106,22 @@
     "char_248_mgllan",
     "char_250_phatom",
     "char_362_saga",
+    "char_4009_irene",
     "char_4011_lessng",
     "char_4027_heyak",
     "char_4055_bgsnow",
     "char_4072_ironmn",
     "char_4088_hodrer",
     "char_4132_ascln",
+    "char_416_zumama",
     "char_4179_monstr",
     "char_4195_radian",
     "char_4202_haruka",
+    "char_4204_mantra",
     "char_4212_nasti",
     "char_4229_aphris",
-    "char_450_necras"
+    "char_450_necras",
+    "char_479_sleach",
+    "char_485_pallas"
   ]
 }

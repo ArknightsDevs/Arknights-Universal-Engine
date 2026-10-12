@@ -64,17 +64,17 @@ export function epTaken(amount, s) {
 
 /**
  * Deals 元素损伤 (元素-2, 元素-3): nothing to a unit at 0 HP, invincible, disappeared, immune to elements (元素免疫) or
- * in a burst; otherwise the element's value drops by what the unit takes, and at 0 the burst begins. Returns the amount
- * taken.
- * @param {World} w @param {Unit} u @param {Element} el @param {number} amount
+ * in a burst; otherwise the element's value drops by what the unit takes, and at 0 the burst begins — the burst of
+ * `src`, the unit that dealt it (元素-4). Returns the amount taken.
+ * @param {World} w @param {Unit} u @param {Element} el @param {number} amount @param {Unit | null} [src]
  */
-export function dealEp(w, u, el, amount) {
+export function dealEp(w, u, el, amount, src = null) {
   if (u.hp <= 0 || !(amount > 0)) return 0;
   const s = statsOf(u);
   if (s.invincible || u.hidden || s.flags.epImmune || u.base.neutral === true || bursting(u)) return 0;
   const taken = epTaken(amount, s), left = epOf(u, el) - taken;
   u.ep[el] = Math.max(0, left);
-  if (left <= 0) burst(w, u, el);
+  if (left <= 0) burst(w, u, el, src);
   return taken;
 }
 
@@ -94,8 +94,14 @@ export function restoreEp(u, amount) {
   }
 }
 
-/** Burst damage (元素-4): no source, cannot be dodged. @param {World} w @param {Unit} u @param {import('./types.js').DamageType} type @param {number} amount */
-const burstHit = (w, u, type, amount) => { dealDamage(w, null, u, { type, amount, canDodge: false }); };
+/**
+ * Burst damage (元素-4): 无来源, credited to the burst's source (伤害-7 `sourceless`), cannot be dodged.
+ * @param {World} w @param {Unit} u @param {import('./types.js').DamageType} type @param {number} amount @param {Unit | null} src
+ */
+const burstHit = (w, u, type, amount, src) => { dealDamage(w, src, u, { type, amount, canDodge: false, sourceless: true }); };
+
+/** The source of a burst buff while it is on the field, or null. @param {World} w @param {Buff} b */
+const sourceOf = (w, b) => (b.src >= 0 ? w.units.find((x) => x.id === b.src) ?? null : null);
 
 /** A permanent, endlessly stacking cut of DEF (侵蚀, 元素-4). @param {Unit} u @param {number} by */
 const erode = (u, by) => { addBuff(u, makeBuff({ key: 'erosion', rule: 'stack', maxStacks: Number.MAX_SAFE_INTEGER, mods: { defFlat: by } })); };
@@ -103,7 +109,7 @@ const erode = (u, by) => { addBuff(u, makeBuff({ key: 'erosion', rule: 'stack', 
 /**
  * One side of an element's burst (元素-4): how long it lasts, what its buff carries for as long, whether that buff
  * triggers each second, and what happens at once (the damage last).
- * @typedef {{ secs: number, mods: Record<string, number>, ticks: boolean, start: (w: World, u: Unit, frames: number) => void }} BurstSide
+ * @typedef {{ secs: number, mods: Record<string, number>, ticks: boolean, start: (w: World, u: Unit, frames: number, src: Unit | null) => void }} BurstSide
  */
 
 /** @param {Partial<BurstSide> & { secs: number }} o @returns {BurstSide} */
@@ -112,37 +118,37 @@ const side = (o) => ({ mods: {}, ticks: false, start: () => {}, ...o });
 /** Each element's burst: on a character, on any other unit (元素-4). @type {Readonly<Record<Element, readonly [BurstSide, BurstSide]>>} */
 const BURSTS = Object.freeze({
   SANITY: [
-    side({ secs: 10, start: (w, u, frames) => { inflict(w, u, 'stun', { frames }); burstHit(w, u, 'true', 1000); } }),
-    side({ secs: 10, start: (w, u) => {
-      if (!(u.base.immune ?? []).includes('palsy')) for (let i = 0; i < 3; i++) inflict(w, u, 'palsy');
-      burstHit(w, u, 'elemental', 6000);
+    side({ secs: 10, start: (w, u, frames, src) => { inflict(w, u, 'stun', { frames, src }); burstHit(w, u, 'true', 1000, src); } }),
+    side({ secs: 10, start: (w, u, _frames, src) => {
+      if (!(u.base.immune ?? []).includes('palsy')) for (let i = 0; i < 3; i++) inflict(w, u, 'palsy', { src });
+      burstHit(w, u, 'elemental', 6000, src);
     } }),
   ],
   WATER: [
-    side({ secs: 10, start: (w, u) => { erode(u, -100); burstHit(w, u, 'phys', 800); } }),
-    side({ secs: 8, start: (w, u) => { erode(u, -120); burstHit(w, u, 'elemental', 5000); } }),
+    side({ secs: 10, start: (w, u, _frames, src) => { erode(u, -100); burstHit(w, u, 'phys', 800, src); } }),
+    side({ secs: 8, start: (w, u, _frames, src) => { erode(u, -120); burstHit(w, u, 'elemental', 5000, src); } }),
   ],
   FIRE: [
-    side({ secs: 10, mods: { resFlat: -20 }, start: (w, u) => burstHit(w, u, 'arts', 1200) }),
-    side({ secs: 10, mods: { resFlat: -20 }, start: (w, u) => burstHit(w, u, 'elemental', 7000) }),
+    side({ secs: 10, mods: { resFlat: -20 }, start: (w, u, _frames, src) => burstHit(w, u, 'arts', 1200, src) }),
+    side({ secs: 10, mods: { resFlat: -20 }, start: (w, u, _frames, src) => burstHit(w, u, 'elemental', 7000, src) }),
   ],
   DARK: [
-    side({ secs: 15, ticks: true, start: (w, u, frames) => { inflict(w, u, 'noSp', { frames }); inflict(w, u, 'mute', { frames }); } }),
-    side({ secs: 15, ticks: true, start: (w, u, frames) => { inflict(w, u, 'weaken', { frames, value: 0.5, tag: burstKey('DARK') }); } }),
+    side({ secs: 15, ticks: true, start: (w, u, frames, src) => { inflict(w, u, 'noSp', { frames, src }); inflict(w, u, 'mute', { frames, src }); } }),
+    side({ secs: 15, ticks: true, start: (w, u, frames, src) => { inflict(w, u, 'weaken', { frames, value: 0.5, tag: burstKey('DARK'), src }); } }),
   ],
   ANGER: [side({ secs: 15, ticks: true, mods: { aspd: 50 } }), side({ secs: 15 })],
 });
 
 /**
  * The burst (元素-3, 元素-4): a burst buff that locks the element values for the burst's time and carries what lasts
- * as long, then the effects that come at once.
- * @param {World} w @param {Unit} u @param {Element} el
+ * as long — with the burst's source, the unit whose 元素损伤 set it off —, then the effects that come at once.
+ * @param {World} w @param {Unit} u @param {Element} el @param {Unit | null} src
  */
-function burst(w, u, el) {
+function burst(w, u, el, src) {
   const s = BURSTS[el][character(u) ? 0 : 1], frames = secondsToFrames(s.secs);
-  addBuff(u, makeBuff({ key: burstKey(el), left: frames, value: frames, every: s.ticks ? FPS : 0, fixed: true, mods: s.mods }));
+  addBuff(u, makeBuff({ key: burstKey(el), src: src ? src.id : -1, left: frames, value: frames, every: s.ticks ? FPS : 0, fixed: true, mods: s.mods }));
   w.events.push({ type: 'burst', id: u.id, el: ELEMENTS.indexOf(el) + 1 });
-  s.start(w, u, frames);
+  s.start(w, u, frames, src);
 }
 
 /**
@@ -154,10 +160,10 @@ const darkTick = {
   tick(w, u, b) {
     if (character(u)) {
       if (u.skill) loseSp(u.skill, 1);
-      burstHit(w, u, 'arts', 100);
+      burstHit(w, u, 'arts', 100, sourceOf(w, b));
       return;
     }
-    burstHit(w, u, 'elemental', 800);
+    burstHit(w, u, 'elemental', 800, sourceOf(w, b));
     const weak = u.buffs.find((x) => x.key === 'weaken' && x.tag === b.key);
     if (!weak) return;
     const v = (0.5 * Math.max(0, b.left - 1)) / b.value;
@@ -167,7 +173,7 @@ const darkTick = {
 
 /** Each second of a 狂躁 burst on a character (元素-4): true damage by the attacks it made since the burst began. @type {import('./buffs.js').Behavior} */
 const angerTick = {
-  tick(w, u, b) { burstHit(w, u, 'true', rampageDamage(b.n)); },
+  tick(w, u, b) { burstHit(w, u, 'true', rampageDamage(b.n), sourceOf(w, b)); },
 };
 
 /** A burst's end (元素-3): every element value back at its maximum. @type {import('./buffs.js').Behavior} */

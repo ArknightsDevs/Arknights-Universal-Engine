@@ -16,6 +16,7 @@ import { unlockedAt, talentsAt, alwaysOnBb, teamPart, rangePart, critPart, timed
 /**
  * An operator's training data (干员-1…干员-5), as @aue/data writes it.
  * @typedef {{ name: string, position: 'MELEE' | 'RANGED', profession: string, branch: string, powers: string[], rarity: number,
+ *   mainPower: { nationId: string | null, groupId: string | null, teamId: string | null },
  *   phases: { maxLevel: number, range: { row: number, col: number }[], frames: { level: number, stats: Stats }[] }[],
  *   favor: { level: number, stats: Stats } | null, potentials: Stats[],
  *   skills: ({ id: string, phase: number, levels: import('./skills.js').SkillLevel[], token?: string } | null)[],
