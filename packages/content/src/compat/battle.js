@@ -37,7 +37,7 @@ const sh = (b, u) => (u ? b.unitOf(u) : null);
  * @type {Record<string, (b: ShBattle, k: Record<string, any>) => Record<string, any>>}
  */
 const SHAPES = {
-  deploy: (b, k) => ({ unit: sh(b, k.unit), initial: k.initial }),
+  deploy: (b, k) => ({ unit: sh(b, k.unit), initial: k.initial, ...(k.move ? { move: true } : {}) }),
   death: (b, k) => ({ unit: sh(b, k.unit), reason: k.reason, killer: sh(b, k.killer), dying: false }),
   kill: (b, k) => ({ killer: sh(b, k.killer), victim: sh(b, k.victim) }),
   enemySpawn: (b, k) => ({ enemy: sh(b, k.enemy) }),
@@ -258,6 +258,8 @@ export class ShBattle {
   loseHp(target, amount, o) { return field.loseHp(this, target, amount, o); }
   /** @param {ShUnit} unit */
   retreat(unit) { field.retreat(this, unit); }
+  /** @param {ShUnit} unit @param {number} r @param {number} c @param {{ clearSp?: boolean }} [o] */
+  moveRedeploy(unit, r, c, o) { return field.moveRedeploy(this, unit, r, c, o); }
 
   // ---- summons (summons.js) ----------------------------------------------------------------------------------------
 

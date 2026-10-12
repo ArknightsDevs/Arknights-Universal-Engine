@@ -262,5 +262,13 @@
     "stronghold": "server/sim/professions.js lord：被自己阻挡、或站在自身格或正前方一格的敌人都算近战，完整伤害。",
     "reason": "PRTS「分支特性信息/data」领主：「可以且优先攻击自身阻挡的单位（即使目标处于攻击范围外），此时通常会进行动画不同的近战攻击」；正前方一格算近战没有出处。",
     "status": "有效"
+  },
+  {
+    "id": "DIF-0034",
+    "clause": "部署-9",
+    "ours": "一般方式的移动不保留 Buff 与技能状态（运行中的技能结束），清空技力，部署时的效果再次生效，再按移动前的生命比例流失生命；Stronghold 的 kit 在兼容层里用保留方式，与 Stronghold 相同。",
+    "stronghold": "server/sim/battle/tiles.js moveRedeploy：生命、Buff 和运行中的技能都保留，只发 deploy 事件（move）；clearSp 时清空技力。",
+    "reason": "PRTS「术语释义」移动：「除非具有特殊设置，否则执行移动行为时：不会继承任何Buff、技能状态…可以通过移动行为多次触发部署时触发的效果…部署完成后，立刻流失一次生命值以匹配移动前的生命比例；部署时将清空技力」。",
+    "status": "有效"
   }
 ]

@@ -203,3 +203,15 @@ test('[兼容-4] a kit\'s shots: to a point at its speed, homing on a unit, a fi
   run(w, c, 90);
   assert.deepEqual(got.slice(2), [['dead', null]]);
 });
+
+test('[兼容-4] moveRedeploy: the 移动 that keeps all (部署-9), a new deployment; refused where Stronghold or the engine would not', () => {
+  const { w, c, box, guard } = match({ kind: 'duration', duration: 30 });
+  const b = /** @type {ShBattle} */ (box.b), u = b.unitOf(guard), got = /** @type {any[]} */ ([]);
+  b.on('deploy', (/** @type {any} */ k) => { if (k.unit === u) got.push([k.unit.defId, k.initial, k.move]); });
+  run(w, c, 45);
+  const hp = guard.hp, seq = u.deploySeq;
+  assert.deepEqual([b.moveRedeploy(u, 0, 0), b.moveRedeploy(u, 9, 9), b.moveRedeploy(u, 1.5, 3), w.units.includes(guard)], [false, false, false, true], 'no tile for it: nothing done');
+  assert.equal(b.moveRedeploy(u, 1, 4, { clearSp: true }), true);
+  assert.deepEqual([u.u, u.tileR, u.tileC, guard.hp, u.deploySeq, u.deployedAt, got], [guard, 1, 4, hp, seq + 1, w.frame / 30, [['guard', false, true]]]);
+  assert.equal(guard.skill.active, true, 'its running skill kept');
+});

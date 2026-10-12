@@ -4,8 +4,9 @@
 // it for 40 s; a MANUAL skill starts once it is ready on our side (the player's), no sooner than 3 s after the
 // deployment and after it last started — Stronghold's automatic operations. Compared: the buffs one second after
 // deployment (those that change something, the skill's aside), the HP each of its hits took (元素损伤 aside) and each of
-// its heals gave (as sets, Stronghold's attributes rounded, so within 0.5 %), the skill starts (±1), the statuses it
-// applied (key and seconds), and our side's recorded kit errors.
+// its heals gave (as sets — each value on either side has one on the other within 0.5 %, at least 1: Stronghold's
+// attributes are rounded), the skill starts (±1), the statuses it applied (key and seconds), and our side's recorded
+// kit errors.
 // The kits load from a copy of the commit's content files (.cache/kitroot/), so the compat hook never touches
 // Stronghold's own harness, which runs from the commit itself.
 import { register } from 'node:module';
@@ -179,8 +180,14 @@ async function ourRun(charId, factory, skill, module) {
 
 /** @param {number[]} xs @param {number} k */
 const distinct = (xs, k) => [...new Set(xs.map((x) => r1(x * k)))].sort((a, b) => a - b);
-/** @param {number[]} a @param {number[]} b */
-const near = (a, b) => a.length === b.length && a.every((x, i) => Math.abs(x - b[i]) <= Math.max(1, Math.abs(b[i]) * 0.005));
+/** Within 0.5 % (at least 1) of `y`. @param {number} x @param {number} y */
+const close = (x, y) => Math.abs(x - y) <= Math.max(1, Math.abs(y) * 0.005);
+/**
+ * The two sides' values agree: each one of either side has one of the other's close to it (a damage that drifts as its
+ * target's HP falls takes a few more or fewer values on one side).
+ * @param {number[]} a @param {number[]} b
+ */
+const near = (a, b) => a.every((x) => b.some((y) => close(x, y))) && b.every((y) => a.some((x) => close(x, y)));
 
 /**
  * The differences of one kit's skills between Stronghold and us; none for each skill that matches.

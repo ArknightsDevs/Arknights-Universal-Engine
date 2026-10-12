@@ -4,11 +4,15 @@
   "kind": [],
   "key": [],
   "owner": [],
-  "z": [],
+  "z": [
+    "packages/sim/src/move.js"
+  ],
   "dir": [],
   "route": [],
   "base": [],
-  "born": [],
+  "born": [
+    "packages/sim/src/move.js"
+  ],
   "bornN": [],
   "summoner": [],
   "expires": [],
@@ -126,7 +130,8 @@
   "paid": [],
   "swing": [
     "packages/sim/src/combat.js",
-    "packages/sim/src/displacement.js"
+    "packages/sim/src/displacement.js",
+    "packages/sim/src/move.js"
   ],
   "slide": [
     "packages/sim/src/displacement.js"

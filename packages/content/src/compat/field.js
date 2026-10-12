@@ -1,8 +1,8 @@
 // What Stronghold's battle answers about the field and does on it (docs/spec/compat.md 兼容-4), over the engine's own:
 // the enemies on tiles or within a radius that an ability may select (索敌-2), the unit on a tile, the enemies a unit
-// blocks; damage (伤害-7, 元素-2), healing (伤害-11), 生命流失 (伤害-10) and retreat (撤退-1). The battle's methods
+// blocks; damage (伤害-7, 元素-2), healing (伤害-11), 生命流失 (伤害-10), retreat (撤退-1) and 移动 (部署-9). The battle's methods
 // (battle.js) call these; units are the kits' (unit.js).
-import { KIND, attrs, body, damage, traits, elements, deck, blocking, routes, paths } from '@aue/sim';
+import { KIND, attrs, body, damage, traits, elements, deck, blocking, routes, paths, sp, moveOperator, canMoveTo } from '@aue/sim';
 import { canTargetEnemy } from './sh/targeting.js';
 import { localOrder } from './sh/dir.js';
 import { ELEMENT } from './mods.js';
@@ -134,6 +134,31 @@ export function loseHp(b, target, amount, o = {}) {
 /** An operator leaves the field as a retreat (撤退-1). @param {ShBattle} b @param {ShUnit} unit */
 export function retreat(b, unit) {
   if (unit?.u && unit.alive && unit.u.kind === KIND.OPERATOR) deck.withdraw(b.w, b.c, unit.u);
+}
+
+/**
+ * Whether Stronghold would let a living ally 移动 onto (r, c) — a tile of the field no other living ally stands on — and
+ * the engine would not retreat it instead (部署-9).
+ * @param {ShBattle} b @param {ShUnit} unit @param {number} r @param {number} c
+ */
+function mayMove(b, unit, r, c) {
+  const u = unit?.u, occ = unitAt(b, r, c);
+  if (!u || unit.side !== 'ally' || !unit.alive || !Number.isInteger(r) || !Number.isInteger(c) || !b.grid.inRect(r, c)) return false;
+  return !(occ && occ !== unit) && canMoveTo(b.w, b.c, u, r, c);
+}
+
+/**
+ * Stronghold's moveRedeploy: a living ally's 移动 (部署-9) that keeps its buffs, skill and HP, as Stronghold's does
+ * (DIF-0034); where it may not (mayMove), false and nothing changes. `clearSp`: its SP emptied first, unless a timed
+ * skill runs. A new deployment of its piece (`deploySeq`).
+ * @param {ShBattle} b @param {ShUnit} unit @param {number} r @param {number} c @param {{ clearSp?: boolean }} [o]
+ */
+export function moveRedeploy(b, unit, r, c, o = {}) {
+  if (!mayMove(b, unit, r, c)) return false;
+  const u = /** @type {Unit} */ (unit.u), sk = unit.skill;
+  if (o.clearSp && u.skill && sk && sk.kind !== 'passive' && !(sk.active && sk.isTimed)) sp.setSp(u.skill, 0);
+  unit.deploySeq++;
+  return !!moveOperator(b.w, b.c, u, { row: r, col: c }, { keep: true });
 }
 
 /**

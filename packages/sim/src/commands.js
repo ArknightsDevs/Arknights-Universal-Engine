@@ -20,7 +20,7 @@ import { emit } from './bus.js';
  * (职业-10) also on a ranged tile; a summon of 全部位 on either (召唤-4).
  * @param {Content} c @param {import('./types.js').OperatorDef} d @param {number} row @param {number} col
  */
-function fits(c, d, row, col) {
+export function fits(c, d, row, col) {
   const tile = tileAt(c.level, row, col), melee = buildableFor(tile, 'MELEE'), ranged = buildableFor(tile, 'RANGED');
   return d.position === 'ALL' ? melee || ranged : buildableFor(tile, d.position) || (traitOfDef(d).rangedTiles && ranged);
 }
@@ -99,13 +99,22 @@ function deploy(w, c, seat, cmd) {
   p.deployed.push(cmd.op);
   w.units.push(u);
   w.events.push({ type: 'deploy', id: u.id, key: u.key, owner: seat });
+  arrive(w, c, u);
+}
+
+/**
+ * An operator's deployment takes hold (部署-2, 部署-9): the `enter` event, its trait, its attack mode, its deployment
+ * talents, its passive skill, its summon cards, then the `deploy` event — `move` for a 移动.
+ * @param {World} w @param {Content} c @param {import('./types.js').Unit} u @param {boolean} [move]
+ */
+export function arrive(w, c, u, move = false) {
   emit(w, 'enter', { unit: u });
   traitDeploy(w, c, u);
   modeDeploy(u, traitOf(c, u));
   deployTalents(w, c, u);
   onDeploy(w, c, u);
   supplySummons(w, c, u);
-  emit(w, 'deploy', { unit: u, initial: false });
+  emit(w, 'deploy', { unit: u, initial: false, ...(move ? { move: true } : {}) });
 }
 
 /**

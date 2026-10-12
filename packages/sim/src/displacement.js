@@ -83,7 +83,6 @@ export function push(w, c, t, force, o) {
   release(t);
   t.swing = null;
   if (!o.effect) step(c, t, t.slide.vx / FPS, t.slide.vy / FPS);
-  w.events.push({ type: 'push', id: t.id });
   return true;
 }
 
