@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
 import { createWorld, step } from '../src/index.js';
-import { kindOf, makeSkillState, statMods, skillMods, STAT_KEYS } from '../src/skills.js';
+import { kindOf, makeSkillState, statMods, skillMods, STAT_KEYS, beforeAttack } from '../src/skills.js';
 import { gainSp, timeSp, hurtSp } from '../src/sp.js';
 import { makeEnemy } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
@@ -254,4 +254,27 @@ test('[技能-8] while a skill with a range runs, the operator attacks within it
   assert.deepEqual([...reachKeys(c, g)].sort((a, b) => a - b), [7, 8, 9]);
   c.operators.guard.skill = { ...c.operators.guard.skill, range: undefined, rangeAll: true };
   assert.equal(reachKeys(c, g).size, 18);
+});
+
+test('[技能-9] what a description adds: every blocked enemy as targets or more of them, hits, arts, a status on each hit, modifiers', () => {
+  const c = /** @type {any} */ (tinyContent());
+  c.level.waves = [];
+  const extra = /** @type {any} */ ({ mods: { dodgePhys: 0.5 }, attack: { more: 1, times: 2, type: 'arts', hitStatus: { key: 'stun', seconds: 1 } } });
+  c.operators.guard = { ...c.operators.guard, range: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }], skill: sk({ cost: 1, init: 1, duration: 10, extra }) };
+  const w = createWorld(c, { seed: 1, players: 1 });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 }]]);
+  const g = w.units[0];
+  for (const col of [2, 3]) {
+    const e = makeEnemy(w, c, { key: 'slime', route: 0 });
+    e.x = col; e.y = 1; e.base = { ...e.base, maxHp: 1e6, res: 0 }; e.hp = e.maxHp = 1e6;
+    applyStatus(e, 'root', {});
+    w.units.push(e);
+  }
+  const ev = step(w, c, [[0, { type: 'skill', unit: g.id }]]);
+  const hits = ev.filter((e) => e.type === 'hit' && e.id === g.id);
+  assert.deepEqual(hits.map((e) => e.damage), [50, 50, 50, 50], 'two targets (one more), two hits each, arts (no resistance)');
+  assert.ok(w.units.slice(1).every((e) => e.buffs.some((b) => b.key === 'stun')));
+  assert.deepEqual(g.buffs.find((b) => b.key === 'skill')?.mods, { dodgePhys: 0.5 });
+  c.operators.guard.skill = { ...c.operators.guard.skill, extra: { attack: { blocked: true } } };
+  assert.deepEqual(beforeAttack(w, c, g).blocked, true);
 });

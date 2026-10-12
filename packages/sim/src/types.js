@@ -64,6 +64,12 @@
  */
 
 /**
+ * What a skill's description adds (技能-9): modifiers while it runs; and for its attacks, every enemy the operator blocks
+ * as targets, `more` targets than it would have, `times` hits, the damage type, a status each hit gives.
+ * @typedef {{ mods?: Record<string, number>, attack?: { blocked?: boolean, more?: number, times?: number, type?: DamageType,
+ *   hitStatus?: { key: import('./status.js').StatusKey, seconds: number } } }} SkillExtra
+ */
+/**
  * An enemy's skill (敌能-1): its name (prefabKey), first and later cooldowns in seconds, SP cost (spCost; 0 for none),
  * blackboard.
  * @typedef {{ key: string, cooldown: number, initCooldown: number, sp?: number, bb: Record<string, number> }} FoeSkill
@@ -89,6 +95,7 @@
  * @property {Record<string, number>} bb the blackboard
  * @property {boolean} [stoppable] the player may close it while it runs (技能-7)
  * @property {Cell[]} [range] the operator's attack range while it runs (技能-8)
+ * @property {SkillExtra} [extra] what its description adds to the blackboard's effects (技能-9)
  * @property {boolean} [rangeAll] while it runs the operator's attack reaches the whole map (技能-8)
  */
 /**
@@ -286,7 +293,7 @@
  * A projectile in flight (攻击-3): its shooter's and its target's ids, where it is (tile coordinates), its speed in
  * tiles per second, and what it carries — the damage type and amount, hits, 元素损伤 ('' and 0 for none).
  * @typedef {{ src: number, target: number, sx: number, sy: number, speed: number, type: DamageType, amount: number, times: number, element: string, ep: number,
- *   splash?: Splash | null, aftershock?: number, chain?: Chain | null }} Shot
+ *   splash?: Splash | null, aftershock?: number, chain?: Chain | null, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null }} Shot
  */
 
 /**

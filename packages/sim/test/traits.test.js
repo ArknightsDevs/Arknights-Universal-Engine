@@ -203,7 +203,7 @@ test('[职业-6] every context function acts on the battle: stats, buffs, status
   assert.equal(w.players[0].cost, Math.min(12, cost + 1));
 });
 
-test('[职业-6] [技能-6] the behaviour interface, version 1: a skill’s and a trait’s contexts have exactly the listed members', () => {
+test('[职业-6] [技能-6] the behaviour interface, version 2: a skill’s and a trait’s contexts have exactly the listed members', () => {
   /** @type {any[]} */
   const got = [];
   const { w, c, foe } = arena((cc) => {
@@ -214,9 +214,9 @@ test('[职业-6] [技能-6] the behaviour interface, version 1: a skill’s and 
   });
   run(w, c, 2, [deploy('guard', 1, 1)]);
   foe(1, 2);
-  assert.equal(BEHAVIOR_API_VERSION, 1);
+  assert.equal(BEHAVIOR_API_VERSION, 2);
   assert.deepEqual(got, [['trait', [...CONTEXT_MEMBERS]], ['skill', [...SKILL_CONTEXT_MEMBERS]]]);
-  assert.deepEqual(SKILL_CONTEXT_MEMBERS.filter((k) => !CONTEXT_MEMBERS.includes(k)), ['kind']);
+  assert.deepEqual(SKILL_CONTEXT_MEMBERS.filter((k) => !CONTEXT_MEMBERS.includes(k)), ['kind', 'extra']);
 });
 
 test('[部署-3] the 再部署惩罚: each leaving adds a layer (at most 2), the cost × 1.5 then × 2, rounded down', () => {

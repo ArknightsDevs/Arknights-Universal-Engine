@@ -58,3 +58,14 @@ test('[技能-8] the attack range while a skill runs: its level range when the d
   assert.deepEqual(skillDefOf('x', { ...LEVELS['skcom_atk_up[3]'], description: '治疗周围的友方', rangeId: 'x-4' }).range, undefined, 'a range that is not the attack range');
   assert.throws(() => skillDefOf('x', { ...LEVELS['skcom_atk_up[3]'], description: '攻击范围扩大', rangeId: 'nope' }), /no range nope/);
 });
+
+test('[技能-9] what descriptions add, on real skills: blocked targets, 二连击 with 阻挡数 0, dodge, 防御力 0, a stun on hit, more targets, arts', async () => {
+  const { loadTraining, operatorAt } = await import('../src/index.js');
+  const at = async (/** @type {string} */ id, /** @type {number} */ skill) => /** @type {any} */ (operatorAt(await loadTraining(id), { elite: 2, level: 1, potential: 1, trust: 0, skill, skillLevel: 7 }).skill).extra;
+  const [sophia, spikes, chilc, acguad, red, f12yin, nian] = await Promise.all([at('char_265_sophia', 1), at('char_271_spikes', 0), at('char_4144_chilc', 1),
+    at('char_609_acguad', 1), at('char_144_red', 1), at('char_264_f12yin', 0), at('char_2014_nian', 0)]);
+  assert.deepEqual([sophia.attack.blocked, spikes.attack.times, spikes.mods.blockCntMul, acguad.mods.defMul, f12yin.attack.more, nian.attack.type], [true, 2, 0, 0, 1, 'arts']);
+  assert.ok(chilc.mods.dodgePhys > 0, '获得{prob}的物理闪避');
+  assert.deepEqual(red.attack.hitStatus.key, 'stun');
+  assert.equal(def('skcom_atk_up[3]').extra, undefined, 'nothing it does not read');
+});

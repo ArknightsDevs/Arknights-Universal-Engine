@@ -17,7 +17,7 @@ import { foeTargets, foeAttack, foeHit, isFoeOf } from './foes.js';
 import { makeBuff } from './buffs.js';
 import { tileOf } from './body.js';
 import { tickSkill, beforeAttack, afterAttack } from './skills.js';
-import { palsyInterrupts } from './status.js';
+import { palsyInterrupts, applyStatus } from './status.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
 import { mayAttack, healsNow, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder } from './modes.js';
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill } from './traits.js';
@@ -62,7 +62,7 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * What an attack carries to one target: its damage type and amount, hits, 元素损伤, and an operator's splash and
  * aftershock (职业-8) and chain (职业-11).
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
- *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean }} Load
+ *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null }} Load
  */
 
 /**
@@ -78,6 +78,7 @@ function hitTarget(w, c, src, t, load) {
     if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
     if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
     if (el && load.ep > 0) dealEp(w, t, el, load.ep);
+    if (load.hitStatus && alive && t.hp > 0) applyStatus(t, load.hitStatus.key, { seconds: load.hitStatus.seconds, src });
     if (op && alive) traitHit(w, c, op, t);
   }
 }
@@ -105,7 +106,10 @@ function healForDamage(w, c, op, dealt) {
 const atkOf = (a, pct) => (pct ? statsOf({ ...a, buffs: [...a.buffs, makeBuff({ key: 'attackBonus', mods: { atkPct: pct } })] }).atk : statsOf(a).atk);
 
 /** What an attack carries to each target (攻击-2): its type, the attack × 倍率, hits, 元素损伤. @param {Unit} a @param {AttackMods} mods @returns {Load} */
-const loadOf = (a, mods) => ({ type: mods.type ?? a.base.dmgType, amount: atkOf(a, mods.atkPct) * mods.scale, times: mods.times, element: mods.element ?? '', ep: mods.ep ?? 0 });
+const loadOf = (a, mods) => ({
+  type: mods.type ?? a.base.dmgType, amount: atkOf(a, mods.atkPct) * mods.scale, times: mods.times, element: mods.element ?? '', ep: mods.ep ?? 0,
+  ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}),
+});
 
 /**
  * The units an enemy's tile splash reaches (敌能-7, 敌能-8): those it may attack on the target's tile and the four tiles
@@ -290,7 +294,8 @@ function operatorAttack(w, c, op) {
   if (hold > 0) { op.atkCd = hold - 1; op.anim = ANIM.IDLE; return; }
   if (found.length === 0) { op.anim = ANIM.IDLE; return; }
   const mods = beforeAttack(w, c, op), t = traitOf(c, op);
-  const targets = firstN(targetsOf(w, c, op), Math.max(mods.targets, traitTargets(t, op)));
+  const most = mods.blocked ? Math.max(1, statsOf(op).blockCnt) : Math.max(mods.targets, traitTargets(t, op)) + (mods.more ?? 0);
+  const targets = firstN(targetsOf(w, c, op), most);
   const arts = t.skillArts && op.skill?.active && !mods.type ? { type: /** @type {const} */ ('arts') } : {};
   startSwing(w, c, op, targets, modeMods(c, op, { ...mods, times: mods.times * t.hits, ...arts }));
 }

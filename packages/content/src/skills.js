@@ -34,8 +34,45 @@ export function skillDefOf(id, level) {
   return {
     id, type, sp, cost: level.spData.spCost, init: level.spData.initSp, charges: Math.max(1, level.spData.maxChargeTime),
     duration: level.duration, ammo: level.durationType === 'AMMO', bb: Object.fromEntries(level.blackboard.map((b) => [b.key, b.value])),
-    stoppable: level.stoppable ?? CLOSABLE.test(level.description ?? ''), ...rangeOf(level),
+    stoppable: level.stoppable ?? CLOSABLE.test(level.description ?? ''), ...rangeOf(level), ...extraOf(level),
   };
+}
+
+/** Chinese numerals of extra targets and hits (技能-9). */
+const COUNT = Object.freeze(/** @type {Record<string, number>} */ ({ 一: 1, 两: 2, 二: 2, 三: 3, 1: 1, 2: 2, 3: 3 }));
+
+/**
+ * One sentence of a description as what it adds (技能-9), or null for a sentence it does not read.
+ * @param {string} s the sentence, its placeholders as {key} @param {Record<string, number>} bb
+ * @returns {{ mods?: Record<string, number>, attack?: NonNullable<SkillDef['extra']>['attack'] } | null}
+ */
+function phraseOf(s, bb) {
+  let m;
+  if (s === '同时攻击阻挡的所有敌人') return { attack: { blocked: true } };
+  if ((m = /^(?:每次攻击)?额外攻击(一|两|1|2)(?:个|名)(?:目标|敌人)$/.exec(s))) return { attack: { more: COUNT[m[1]] } };
+  if ((m = /^攻击变为(二|三|2|3)(?:连击|连射)$/.exec(s))) return { attack: { times: COUNT[m[1]] } };
+  if (/^(?:普通攻击造成法术伤害|伤害类型变为法术|(?:每次)?攻击造成相当于攻击力\{(?:attack@)?atk_scale\}的法术伤害)$/.test(s)) return { attack: { type: 'arts' } };
+  if ((m = /^(?:且|并)?(?:攻击(?:会)?使|(?:并)?(?:使|令)(?:命中|击中))目标(晕眩|停顿)\{((?:attack@)?(?:stun|sluggish))\}秒$/.exec(s)) && Number.isFinite(bb[m[2]])) {
+    return { attack: { hitStatus: { key: m[1] === '晕眩' ? 'stun' : 'sluggish', seconds: bb[m[2]] } } };
+  }
+  if ((m = /^(?:并)?获得\{prob\}的?物理(和法术)?闪避$/.exec(s)) && Number.isFinite(bb.prob)) return { mods: { dodgePhys: bb.prob, ...(m[1] ? { dodgeArts: bb.prob } : {}) } };
+  if (s === '阻挡数变为0') return { mods: { blockCntMul: 0 } };
+  if (s === '防御力降至0') return { mods: { defMul: 0 } };
+  return null;
+}
+
+/**
+ * What a skill level's description adds to its blackboard's effects (技能-9): each sentence (split at ，。；, rich-text
+ * tags removed, placeholders as {key}) read by phraseOf; none when it reads none.
+ * @param {SkillLevel} level @returns {{ extra?: NonNullable<SkillDef['extra']> }}
+ */
+function extraOf(level) {
+  const bb = Object.fromEntries(level.blackboard.map((b) => [b.key, b.value]));
+  const parts = (level.description ?? '').replace(/<[^>]*>/g, '').split(/[，。；\n]/)
+    .map((raw) => phraseOf(raw.trim().replace(/\{([^}:]*)(?::[^}]*)?\}/g, '{$1}'), bb)).filter((p) => p !== null);
+  const mods = Object.assign({}, ...parts.map((p) => p.mods ?? {})), attack = Object.assign({}, ...parts.map((p) => p.attack ?? {}));
+  const has = (/** @type {object} */ o) => Object.keys(o).length > 0;
+  return has(mods) || has(attack) ? { extra: { ...(has(mods) ? { mods } : {}), ...(has(attack) ? { attack } : {}) } } : {};
 }
 
 /** A description that says the attack range changes (技能-8). */

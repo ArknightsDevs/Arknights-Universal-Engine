@@ -18,14 +18,15 @@ import { actorContext } from './traits.js';
  * a damage type in place of the attacker's, a cross-shaped splash, an attack bonus for this attack only, and a channel
  * (`hits` hits spread over `duration` seconds, the k-th at k × duration ÷ hits, then `after` seconds of cooldown).
  * @typedef {{ scale: number, times: number, targets: number, skill: boolean, element?: import('./elements.js').Element, ep?: number,
- *   type?: import('./types.js').DamageType, cross?: boolean, atkPct?: number, channel?: { hits: number, duration: number, after: number }, heal?: boolean, square?: boolean }} AttackMods
+ *   type?: import('./types.js').DamageType, cross?: boolean, atkPct?: number, channel?: { hits: number, duration: number, after: number }, heal?: boolean, square?: boolean, blocked?: boolean, more?: number,
+ *   hitStatus?: { key: import('./status.js').StatusKey, seconds: number } }} AttackMods
  */
 
 /**
  * The context a skill behaviour acts through (ADR 0055, 技能-6): the common one (traits.js TraitContext, api.js) with
  * the skill's blackboard, and the skill's kind. It reads the operator, its blackboard and its stats, and changes the
  * battle only through its functions.
- * @typedef {import('./traits.js').TraitContext & { kind: SkillKind }} SkillContext
+ * @typedef {import('./traits.js').TraitContext & { kind: SkillKind, extra: Record<string, number> }} SkillContext
  */
 
 /**
@@ -84,7 +85,7 @@ export const GENERIC = Object.freeze({
   start(ctx) {
     if ((ctx.kind === 'instant' || ctx.kind === 'duration') && ctx.bb.cost > 0) ctx.gainCost(ctx.bb.cost);
     if (ctx.kind === 'instant' || ctx.kind === 'next') return;
-    const mods = statMods(ctx.bb);
+    const mods = { ...statMods(ctx.bb), ...ctx.extra };
     if (Object.keys(mods).length > 0) ctx.addBuff(ctx.self, { key: 'skill', mods });
   },
   end(ctx) { ctx.removeBuff(ctx.self, 'skill'); },
@@ -98,7 +99,7 @@ const behaviorOf = (c, id) => (c.behaviors?.skills && Object.hasOwn(c.behaviors.
 /** @param {World} w @param {Content} c @param {Unit} op @returns {SkillContext} */
 function contextOf(w, c, op) {
   const def = defOf(c, op);
-  return { ...actorContext(w, c, op, def.bb), kind: kindOf(def) };
+  return { ...actorContext(w, c, op, def.bb), kind: kindOf(def), extra: def.extra?.mods ?? {} };
 }
 
 /** Ends a skill (技能-4): its behaviour's end, then the state at rest. @param {World} w @param {Content} c @param {Unit} op */
@@ -182,8 +183,20 @@ export function beforeAttack(w, c, op) {
   if (triggerOf(c, op) === 'attack' && canStart(c, op, 'AUTO')) activate(w, c, op);
   const kind = kindOf(defOf(c, op));
   if (!st.active || kind === 'instant' || kind === 'passive') return plain;
-  const mods = skillMods(defOf(c, op).bb), beh = behaviorOf(c, st.id);
+  const mods = withExtra(skillMods(defOf(c, op).bb), defOf(c, op)), beh = behaviorOf(c, st.id);
   return beh.attack ? beh.attack(contextOf(w, c, op), mods) : mods;
+}
+
+/**
+ * A skill's attack mods with what its description adds (技能-9): every blocked enemy as targets, more targets, hits
+ * (unless the blackboard gives them), the damage type, a status each hit gives.
+ * @param {AttackMods} mods @param {SkillDef} def @returns {AttackMods}
+ */
+function withExtra(mods, def) {
+  const a = def.extra?.attack;
+  if (!a) return mods;
+  const times = a.times && !('times' in def.bb) && !('attack@times' in def.bb) ? a.times : mods.times;
+  return { ...mods, times, ...(a.blocked ? { blocked: true } : {}), ...(a.more ? { more: a.more } : {}), ...(a.type ? { type: a.type } : {}), ...(a.hitStatus ? { hitStatus: a.hitStatus } : {}) };
 }
 
 /** The attack keys of a blackboard as mods (技能-5). @param {Readonly<Record<string, number>>} bb @returns {AttackMods} */
