@@ -4,6 +4,7 @@
 
 import { moreFoeBehaviors } from './abilities.js';
 import { prisonerBehaviors } from './prisoners.js';
+import { avengerBehaviors } from './avenger.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -77,11 +78,16 @@ const FirstAttack = Object.freeze({
   },
 });
 
-/** 帝国前锋精锐 (敌能-8): ATK up while below half its HP. @type {FoeBehavior} */
+/**
+ * 低血强化 (敌能-8): ATK up — by its `atk`, else by `AtkUp`'s — while its HP is below half its maximum, or with
+ * `hp_ratio` at most that share of it.
+ * @type {FoeBehavior}
+ */
 const atkup = Object.freeze({
   tick: (ctx) => {
-    const low = ctx.self.hp < ctx.stats(ctx.self).maxHp * 0.5, has = ctx.self.buffs.some((b) => b.key === 'atkup');
-    if (low && !has) ctx.addBuff(ctx.self, { key: 'atkup', mods: { atkPct: ctx.bb.atk } });
+    const max = ctx.stats(ctx.self).maxHp, hp = ctx.self.hp, ratio = ctx.bb.hp_ratio;
+    const low = ratio === undefined ? hp < max * 0.5 : hp <= max * ratio, has = ctx.self.buffs.some((b) => b.key === 'atkup');
+    if (low && !has) ctx.addBuff(ctx.self, { key: 'atkup', mods: { atkPct: ctx.bb.atk ?? ctx.talent('AtkUp')?.atk ?? 0 } });
     else if (!low && has) ctx.removeBuff(ctx.self, 'atkup');
   },
 });
@@ -173,7 +179,7 @@ const PowerHit = Object.freeze({
 });
 
 /** Behaviours by talent or skill name. @type {Readonly<Record<string, FoeBehavior>>} */
-export const foeBehaviors = Object.freeze({ boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors });
+export const foeBehaviors = Object.freeze({ boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors });
 
 /**
  * Talents with no behaviour of their own that are still covered (关卡-2): `dead` is the data's 生命 loss of a neutral

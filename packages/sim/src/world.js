@@ -11,7 +11,7 @@ import { placeDevice } from './devices.js';
 import { newStageState, tickStage, stageCount } from './stage.js';
 import { releaseAll } from './blocking.js';
 import { operatorsAttack, shotsFly } from './combat.js';
-import { foeEffects, foeDeath, releasePassengers } from './foes.js';
+import { foeEffects, foeDeath, foeFatal, releasePassengers } from './foes.js';
 import { applyCommand } from './commands.js';
 import { leaveField } from './deck.js';
 import { coolSummons, dismissSummons, expireSummons } from './summons.js';
@@ -58,14 +58,15 @@ function gainCost(w, c) {
 }
 
 /**
- * Removes units with no HP left (伤害-9): enemies killed by attacks die, enemies at the goal leave quietly; an operator
- * that falls releases what it blocks (阻挡-3) and leaves the field without a refund (部署-3), its summons with it (召唤-5).
+ * Removes units with no HP left (伤害-9): enemies killed by attacks die — unless an ability keeps them (敌能-2) —, enemies
+ * at the goal leave quietly; an operator that falls releases what it blocks (阻挡-3) and leaves the field without a
+ * refund (部署-3), its summons with it (召唤-5).
  * @param {World} w @param {Content} c
  */
 function removeDead(w, c) {
   const reachedGoal = new Set(w.events.filter((e) => e.type === 'goal').map((e) => e.id));
   for (const u of w.units) {
-    if (u.hp > 0) continue;
+    if (u.hp > 0 || (u.kind === KIND.ENEMY && !reachedGoal.has(u.id) && foeFatal(w, c, u))) continue;
     announceDeath(w, u, reachedGoal.has(u.id));
     u.anim = ANIM.DIE;
     if (!reachedGoal.has(u.id)) w.events.push({ type: 'death', id: u.id });

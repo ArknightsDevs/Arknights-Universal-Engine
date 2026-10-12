@@ -4,7 +4,7 @@
 import { FPS, secondsToFrames, hypot } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
-import { flowField, chain, keyAt, passable, crossable, isHole } from './paths.js';
+import { flowField, chain, keyAt, passable, crossable, isHole, routeTiles } from './paths.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').Route} Route @typedef {import('./types.js').Cell} Cell @typedef {import('./types.js').Checkpoint} Checkpoint */
@@ -167,6 +167,30 @@ export function displace(u, x, y) {
   if (u.kind !== KIND.ENEMY) return;
   u.path = [];
   u.pt = 0;
+}
+
+/**
+ * The tile keys of an enemy's way from its tile to the end of the move leg it is on (寻路-2), its own tile first; none
+ * when it is not on a move leg or off the map.
+ * @param {Content} c @param {Unit} e @returns {number[]}
+ */
+export function wayKeys(c, e) {
+  const m = c.level, route = m.routes[e.route], leg = e.route >= 0 ? legsOf(route)[e.leg] : null, k = keyAt(m, e.x, e.y);
+  if (!leg || leg.t !== 'move' || k < 0) return [];
+  return routeTiles(m, k, leg.r * m.width + leg.c, { fly: route.motion === 'FLY', diagonal: route.allowDiagonal ?? true }) ?? [k];
+}
+
+/**
+ * A detour (路线-6): on a move leg, the enemy goes to the centre of tile (row, col) first, then on to the leg's end —
+ * both planned as a leg is (路线-2).
+ * @param {Content} c @param {Unit} e @param {number} row @param {number} col
+ */
+export function detour(c, e, row, col) {
+  const route = c.level.routes[e.route], leg = legsOf(route)[e.leg];
+  if (leg.t !== 'move') return;
+  const first = planLeg(c, route, e, { t: 'move', r: row, c: col, x: col, y: row, final: false, patrol: false });
+  e.path = [...first, ...planLeg(c, route, /** @type {Unit} */ ({ ...e, x: col, y: row }), leg)];
+  e.pt = 0;
 }
 
 /**

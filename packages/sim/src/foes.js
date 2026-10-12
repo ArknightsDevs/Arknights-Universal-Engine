@@ -5,12 +5,13 @@ import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { addBuff, removeBuff, makeBuff, retune } from './buffs.js';
 import { inflict } from './status.js';
-import { dealDamage, heal } from './damage.js';
+import { dealDamage, heal, setHp } from './damage.js';
 import { dealEp } from './elements.js';
 import { selectable, sortAllies, friendly } from './targeting.js';
 import { tileOf } from './body.js';
 import { tileAt } from './level.js';
-import { board, alight } from './routes.js';
+import { board, alight, detour, wayKeys } from './routes.js';
+import { keyAt } from './paths.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').EnemyDef} EnemyDef @typedef {import('./types.js').Blast} Blast @typedef {import('./types.js').Bolt} Bolt */
@@ -65,6 +66,11 @@ export const BOLT_RADIUS = 0.3;
  * @property {() => Unit[]} inLine the units in its row or column a 直击 may select, nearest first
  * @property {(b: { x: number, y: number, radius: number, delay: number, air: boolean, sourced: boolean } & Payload) => void} blast
  * @property {(b: { dx: number, dy: number, blast?: number } & Payload) => void} bolt
+ * @property {(t: Unit, hp: number) => void} setHp sets a unit's HP outright (伤害-9)
+ * @property {() => void} resetSkills its skills' cooldowns back to their first ones (敌能-18)
+ * @property {(u: Unit) => boolean} onWay whether a unit's tile is on its way to the end of the move it is on, its own tile
+ *   included (寻路-2)
+ * @property {(row: number, col: number) => void} detour makes the centre of a tile the next point of the move it is on (路线-6)
  */
 
 /**
@@ -77,6 +83,8 @@ export const BOLT_RADIUS = 0.3;
  * @property {(ctx: FoeContext) => void} [death]
  * @property {(ctx: FoeContext, target: Unit, dealt: number, ranged: boolean) => void} [hit] a hit of its normal attack
  *   dealt damage (`ranged`: it came by a projectile)
+ * @property {(ctx: FoeContext) => boolean} [fatal] its HP ran out: true when the ability keeps it on the field, its HP
+ *   above 0
  */
 
 /** The squared distance between two points. @param {{ x: number, y: number }} a @param {{ x: number, y: number }} b */
@@ -146,6 +154,10 @@ function contextOf(w, c, e, of) {
       w.bolts.push({ src: e.id, x: e.x, y: e.y, dx: b.dx, dy: b.dy, type: b.type, amount: b.amount, status: b.status ?? null, blast: b.blast ?? 0 });
       w.events.push({ type: 'bolt', id: e.id });
     },
+    setHp: (t, hp) => { setHp(t, hp); },
+    resetSkills: () => { for (const s of defOf(c, e).skills ?? []) ab[`${s.key}.cd`] = secondsToFrames(s.initCooldown); },
+    onWay: (u) => wayKeys(c, e).includes(keyAt(c.level, u.x, u.y)),
+    detour: (row, col) => { detour(c, e, row, col); },
   };
 }
 
@@ -193,6 +205,16 @@ export function foeTick(w, c, e) {
   for (const s of defOf(c, e).skills ?? []) if ((ab[`${s.key}.cd`] ?? 0) > 0) ab[`${s.key}.cd`]--;
   ab['@hp'] = e.hp;
   ab['@blocked'] = e.blockedBy >= 0 ? 1 : 0;
+}
+
+/**
+ * An enemy whose HP ran out, before it leaves (敌能-2): whether one of its abilities keeps it on the field.
+ * @param {World} w @param {Content} c @param {Unit} e
+ */
+export function foeFatal(w, c, e) {
+  let kept = false;
+  each(w, c, e, (b, ctx) => { if (!kept && b.fatal) kept = b.fatal(ctx) && e.hp > 0; });
+  return kept;
 }
 
 /** The candidates of an enemy's attack after its abilities (敌能-2). @param {World} w @param {Content} c @param {Unit} e @param {Unit[]} cands */
