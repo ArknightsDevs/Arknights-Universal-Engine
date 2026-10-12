@@ -78,6 +78,19 @@ const drawnColor = (s) => {
 };
 
 /**
+ * A picture the page gave (an avatar, an icon) filling the rect, multiplied by the colour: the colour under the
+ * picture blended by multiply, cut to the picture's own shape.
+ * @param {string} url @param {number[]} col @returns {[string, string][]}
+ */
+function pictureBackground(url, col) {
+  const u = `url("${url}")`, white = col[0] > 0.995 && col[1] > 0.995 && col[2] > 0.995;
+  const fit = /** @type {[string, string][]} */ ([['backgroundImage', u], ['backgroundSize', 'cover'], ['backgroundPosition', 'center'], ['backgroundRepeat', 'no-repeat']]);
+  if (white) return [...fit, ['backgroundColor', ''], ['backgroundBlendMode', ''], ['maskImage', ''], ['webkitMaskImage', '']];
+  return [...fit, ['backgroundColor', rgba([col[0], col[1], col[2], 1])], ['backgroundBlendMode', 'multiply'],
+    ['maskImage', u], ['webkitMaskImage', u], ['maskSize', 'cover'], ['webkitMaskSize', 'cover'], ['maskPosition', 'center'], ['webkitMaskPosition', 'center']];
+}
+
+/**
  * The background of an image for its sprite, colour and size: none when its sprite is missing, the colour when it has
  * none (Unity draws white), the sprite tinted — nine-sliced to the size, tiled, or stretched (or fitted when it keeps
  * its aspect).
@@ -86,7 +99,7 @@ const drawnColor = (s) => {
  */
 function imageBackground(s, im, col, w, h) {
   const ctx = s.scr.ctx;
-  if (s.picture) return [['backgroundImage', `url("${s.picture}")`], ['backgroundSize', 'cover'], ['backgroundPosition', 'center'], ['backgroundColor', '']];
+  if (s.picture) return pictureBackground(s.picture, col);
   if (!s.sprite) return im.kind === 'atlas' ? [['backgroundImage', 'none'], ['backgroundColor', '']] : [['backgroundImage', 'none'], ['backgroundColor', rgba([col[0], col[1], col[2], 1])]];
   const sp = ctx.pack.sprites[s.sprite];
   if (!sp) return [['backgroundImage', 'none'], ['backgroundColor', '']];

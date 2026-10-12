@@ -47,7 +47,9 @@ export class Screen {
     this.wrap.className = 'aue-screen';
     if (o.z != null) this.wrap.style.zIndex = String(o.z);
     this.root = build(pn, null, o.at ?? '', this, o.at ?? '');
-    this.root.rt = copyRect(FULL_RT);
+    // a root with a rect of its own (a top bar along the top edge, a part of a canvas) keeps it; one without fills
+    // the canvas (or the frame)
+    if (!pn.rt) this.root.rt = copyRect(FULL_RT);
     stencilScan(this.root);
     this.wrap.appendChild(this.root.el);
   }

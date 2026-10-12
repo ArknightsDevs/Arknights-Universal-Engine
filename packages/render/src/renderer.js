@@ -3,7 +3,7 @@
 // bars) over it with the depth cleared (ADR 0027). The page owns the loop: it calls update() with each render state
 // from the worker and render() once per animation frame.
 import * as THREE from 'three';
-import { applyPose, DEFAULT_VIEW } from './camera.js';
+import { applyPose, DEFAULT_VIEW, screenOf, tileWorld } from './camera.js';
 import { createTerrain } from './terrain.js';
 import { createKitTerrain } from './kit.js';
 import { createHighlight } from './highlight.js';
@@ -96,6 +96,12 @@ export function createBattleRenderer(o) {
       renderer.clearDepth();
       renderer.render(overlays.scene, camera);
     },
+    /**
+     * Where a point of the field lands on the canvas, in its CSS pixels (渲染-13): tile coordinates (fractions allowed)
+     * and a height level (0 ground, 1 high ground).
+     * @param {number} col @param {number} row @param {number} heightLevel
+     */
+    screenOf: (col, row, heightLevel) => screenOf(camera, tileWorld(field, col, row, heightLevel), o.canvas.clientWidth, o.canvas.clientHeight),
     /** The tile under a point of the canvas, or null. @param {number} x @param {number} y client coordinates */
     pick(x, y) {
       const r = o.canvas.getBoundingClientRect();

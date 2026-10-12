@@ -41,7 +41,8 @@ const pack = () => ({
       N('mask', { mask: 'mask', maskHide: true, ...img('sprite/a') }),
       N('world', { canvas: {} }, [N('persp', {}, [N('dot', img('sprite/a'))])], R({ size: [100, 100], scale: [0.01, 0.01] })),
       N('screen', { canvas: {} }, [], R({ size: [0, 0] })),
-    ], R({})),
+    ]),
+    bar: N('bar', {}, [], R({ amin: [0, 1], amax: [1, 1], size: [0, 1], pivot: [0, 1] })),
     item: N('item', { slider: { fill: '@x', dir: 0, min: 0, max: 1, value: 0, whole: 0 } }, [N('x', img('sprite/a'))], R({ size: [40, 40] })),
   },
 });
@@ -72,8 +73,11 @@ test('[界面-1] screens fill the canvas and scale to the page', () => {
   assert.equal(refNode(/** @type {any} */ (sub.one('dot')), '@row'), null);
   assert.equal(refNode(sub.root, '@world/persp'), sub.root);
   assert.throws(() => ui.open('main', { at: 'nothing' }));
+  const top = ui.open('bar');
+  ui.tick(0);
+  assert.deepEqual(top.root.box, [0, 0, 1920, 1], 'a prefab root with its own rect keeps it: a strip along the top');
   ui.close(sub);
-  assert.equal(ui.screens.length, 1);
+  assert.equal(ui.screens.length, 2);
 });
 
 test('[界面-3] a layout group places its active children', () => {

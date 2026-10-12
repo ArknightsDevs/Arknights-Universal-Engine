@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { applyPose, toThree, tileWorld, adapt, DEFAULT_VIEW } from '../src/camera.js';
+import { applyPose, toThree, tileWorld, adapt, screenOf, DEFAULT_VIEW } from '../src/camera.js';
 
 /** Tile-Pos: world_to_screen_pos for the normal (not side) view. @param {readonly number[]} view @param {number} w @param {number} h @param {readonly number[]} p */
 function reference(view, w, h, p) {
@@ -54,4 +54,13 @@ test('camera: the 16:9 → 4:3 adaptation', () => {
   assert.ok(Math.abs(adapt(4 / 3) - 1) < 1e-12);
   assert.ok(Math.abs(adapt(1920 / 1200) - 1 / 3) < 1e-12);
   assert.ok(Math.abs(adapt(32 / 21) - 0.5) < 1e-12);
+});
+
+test('[渲染-13] a point of the field on the canvas: the camera\'s projection in CSS pixels', () => {
+  const level = { width: 12, height: 9 }, view = [0, -6.1, -9.76], cam = new THREE.PerspectiveCamera();
+  applyPose(cam, view, 1600 / 900);
+  for (const p of [tileWorld(level, 0, 0, 0), tileWorld(level, 11, 8, 1), tileWorld(level, 5.5, 3.25, 0)]) {
+    const [x, y] = screenOf(cam, p, 1600, 900), [rx, ry] = reference(view, 1600, 900, p);
+    assert.ok(Math.abs(x - rx) < 1e-3 && Math.abs(y - ry) < 1e-3, `${x},${y} vs ${rx},${ry}`);
+  }
 });

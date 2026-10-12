@@ -61,7 +61,10 @@ test('the session plays the server frames and posts a render state per frame tim
   const v = readView(frames.at(-1).view);
   assert.equal(v.frame, frames.at(-1).frame);
   assert.ok(Math.abs(v.frame - r.host.world.frame) <= 3, `client ${v.frame} vs server ${r.host.world.frame}`);
-  assert.deepEqual(frames.at(-1).status, { wave: 0, stage: -1, start: 0, stamps: 0, passed: 0, result: -1 }, 'the match status rides along');
+  const st = frames.at(-1).status;
+  assert.deepEqual({ ...st, players: undefined }, { wave: 0, stage: -1, start: 0, count: 0, stamps: 0, passed: 0, result: -1, players: undefined }, 'the match status rides along');
+  assert.deepEqual(st.players.map((/** @type {any} */ p) => [p.deployed, p.cards, p.revive, p.ask]), [[[], {}, -1, -1]], 'with the state of each player');
+  assert.ok(st.players[0].costTimer > 0);
 });
 
 test('a command reaches the field; the debug state matches the server at the same frame', () => {
@@ -155,6 +158,10 @@ test('[同步-9] a welcome with match settings: the content is made first, messa
   const d = session.debug();
   assert.equal(d.hash, host.hashes.get(d.frame));
   assert.equal(host.world.units.filter((u) => u.key === 'guard').length, 1);
+  const last = posts.filter((p) => p.type === 'frame').at(-1).status.players[0];
+  assert.deepEqual(last.deployed, ['guard'], 'the status has the made content\'s deck');
+  assert.deepEqual(last.cards, { guard: { cost: made.operators.guard.cost, ready: 0 } });
+  assert.equal(last.slots, made.level.options.characterLimit - 1, 'one deploy slot taken');
 });
 
 test('[同步-9] match content that cannot be made is reported', async () => {

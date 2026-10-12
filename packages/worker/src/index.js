@@ -2,3 +2,5 @@
 // served worker.js; BattleSession (session.js) is the platform-free core, tested in Node.
 export { startBattle } from './main.js';
 export { BattleSession } from './session.js';
+/** @typedef {import('./session.js').Status} Status */
+/** @typedef {import('./session.js').PlayerStatus} PlayerStatus */

@@ -6,6 +6,8 @@
 // z = −0.4); a tile (col, row) sits at x = col − (w − 1) / 2, y = row − (h − 1) / 2 (row 0 the nearest). three.js is
 // right-handed with y up, so a point (x, y, z) of the level's world is (x, −z, −y) in three.js.
 
+import * as THREE from 'three';
+
 export const FOV = 40, NEAR = 0.3, FAR = 1000;
 /** Height of high ground, in tiles, when the map theme gives none (渲染-7). */
 export const STEP_HEIGHT = 0.4;
@@ -28,6 +30,16 @@ export const toThree = ([x, y, z]) => [x, -z, -y];
  */
 export function tileWorld(level, col, row, heightLevel) {
   return [col - (level.width - 1) / 2, row - (level.height - 1) / 2, -(level.highland ?? STEP_HEIGHT) * heightLevel];
+}
+
+/**
+ * Where a point of the level's world lands on a canvas of w × h CSS pixels through a camera (渲染-13): x from the left,
+ * y from the top.
+ * @param {THREE.Camera} camera @param {Vec3} p @param {number} w @param {number} h @returns {[number, number]}
+ */
+export function screenOf(camera, p, w, h) {
+  const v = new THREE.Vector3(...toThree(p)).project(camera);
+  return [((1 + v.x) / 2) * w, ((1 - v.y) / 2) * h];
 }
 
 /** How far the screen is from 16:9 towards 4:3 (0 at 16:9 or wider). @param {number} aspect width / height */

@@ -12,3 +12,13 @@ export { evalKeys, applyCurve, spriteAt } from './curves.js';
 export { richHtml, isRich, faceOf, alignCss, shadowCss, bestFit, DEFAULT_FONTS } from './text.js';
 export { fillCss, gradientCss, sliceOf, isSliced, drawable, blendOf, uvSpeed, rgba } from './paint.js';
 export { drawNine } from './raster.js';
+export { createBattleHud, costView, speedSprite } from './battle/hud.js';
+export { createCards, cardViews, cardWidth, waitText } from './battle/cards.js';
+export { createCoopTop, coopSpeedSprite, reviveText } from './battle/coop.js';
+export { createFieldMenus, dragFacing, ARROW_DIRS } from './battle/menus.js';
+export { homography, matrix3d, mapPoint, groundTransform } from './persp.js';
+/** @typedef {import('./node.js').UiPack} UiPack */
+/** @typedef {import('./battle/hud.js').HudState} HudState */
+/** @typedef {import('./battle/cards.js').DeckCard} DeckCard */
+/** @typedef {import('./battle/menus.js').MenuSkill} MenuSkill */
+/** @typedef {import('./battle/coop.js').CoopState} CoopState */

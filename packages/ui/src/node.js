@@ -131,11 +131,11 @@ function buildText(s, c) {
   setText(s, c.text.text || '');
 }
 
-/** A text that wraps at its rect's width (Unity's horizontal overflow: wrap). @param {UiNode} s */
+/** A text that wraps at its rect's width (Unity's horizontal overflow: wrap), still placed by its alignment. @param {UiNode} s */
 function wrapText(s) {
   if (!s.t) return;
   s.wrapW = -1;
-  Object.assign(s.t.style, { display: 'block', whiteSpace: 'pre-wrap', wordBreak: 'break-all' });
+  Object.assign(s.t.style, { whiteSpace: 'pre-wrap', wordBreak: 'break-all' });
 }
 
 /**

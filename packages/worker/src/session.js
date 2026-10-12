@@ -2,7 +2,7 @@
 // state posted to the main thread after each frame time. Everything that touches the platform comes in through `io`,
 // so the session runs the same in a Worker and in a Node test.
 import { serverMessageProblem, PROTOCOL_VERSION } from '@aue/schema';
-import { toView, stateHash, contentHash } from '@aue/sim';
+import { toView, stateHash, contentHash, deck, traits } from '@aue/sim';
 import { LockstepClient } from '@aue/net';
 import { marksFor } from './marks.js';
 
@@ -20,13 +20,28 @@ import { marksFor } from './marks.js';
 const FRAME_MS = 1000 / 30, RECONNECT_MS = 1000;
 
 /**
+ * What the battle UI shows of a player besides the view (费用-1, 部署-3, 合作-4, 合作-5): the frames until its next cost
+ * point, the operators it has on the field and how many more it may deploy (部署-2), each card of its deck — the cost
+ * to deploy it now (再部署惩罚 included) and the frame it may be deployed again from —, the frames until it comes back
+ * when down (−1), the frames left of its open cost request (−1) and until it may ask again.
+ * @typedef {{ costTimer: number, deployed: string[], slots: number, cards: Record<string, { cost: number, ready: number }>, revive: number,
+ *   ask: number, askCd: number }} PlayerStatus
+ */
+/**
  * The match's state the page shows besides the view (合作-6, 波次-2, 结束-1): the current wave, the current stage, the
- * frame its clock starts at, the stamps, the stages passed, the result.
- * @typedef {{ wave: number, stage: number, start: number, stamps: number, passed: number, result: number }} Status
+ * frame its clock starts at, its count, the stamps, the stages passed, the result; each player's state.
+ * @typedef {{ wave: number, stage: number, start: number, count: number, stamps: number, passed: number, result: number, players: PlayerStatus[] }} Status
  */
 
-/** @param {import('@aue/sim').World} w @returns {Status} */
-const statusOf = (w) => ({ wave: w.sched.wave, stage: w.stage.index, start: w.stage.start, stamps: w.stage.stamps, passed: w.stage.passed, result: w.result });
+/** @param {import('@aue/sim').World} w @param {import('@aue/sim').Content} c @returns {Status} */
+const statusOf = (w, c) => ({
+  wave: w.sched.wave, stage: w.stage.index, start: w.stage.start, count: w.stage.count, stamps: w.stage.stamps, passed: w.stage.passed, result: w.result,
+  players: w.players.map((p, i) => ({
+    costTimer: p.costTimer, deployed: [...p.deployed], revive: p.revive, ask: p.ask, askCd: p.askCd,
+    slots: c.level.options.characterLimit - p.deployed.filter((k) => !traits.traitOfDef(c.operators[k]).free).length,
+    cards: Object.fromEntries((c.decks?.[i] ?? []).map((k) => [k, { cost: deck.deployCost(c, p, k), ready: deck.cardOf(p, k).ready }])),
+  })),
+});
 
 export class BattleSession {
   /** @param {import('@aue/sim').Content} content @param {SessionIO} io */
@@ -34,6 +49,8 @@ export class BattleSession {
     this.io = io;
     /** @type {Record<string, string | number>[]} */
     this.events = [];
+    /** the content of the client's match @type {import('@aue/sim').Content} */
+    this.content = content;
     this.client = this.clientFor(content);
     /** @type {string | null} the match the client's content was made from */
     this.match = null;
@@ -54,6 +71,7 @@ export class BattleSession {
 
   /** A lockstep client of this content, and the content's hash (同步-10). @param {import('@aue/sim').Content} content */
   clientFor(content) {
+    this.content = content;
     this.contentHash = contentHash(content);
     return new LockstepClient({
       content, send: (m) => this.socket?.send(JSON.stringify(m)), onFrame: (_w, ev) => { this.events.push(...ev); },
@@ -148,7 +166,7 @@ export class BattleSession {
     const played = this.client.pump(), w = this.client.world;
     if (played > 0 && w) {
       const view = toView(w);
-      this.io.post({ type: 'frame', frame: w.frame, view, events: this.events, keys: this.newKeys(w), status: statusOf(w) }, [view.buffer]);
+      this.io.post({ type: 'frame', frame: w.frame, view, events: this.events, keys: this.newKeys(w), status: statusOf(w, this.content) }, [view.buffer]);
       this.events = [];
     }
     this.ticks++;
