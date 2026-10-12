@@ -1,6 +1,6 @@
 // Pathfinding (docs/spec/paths.md 寻路-1…寻路-3): for each destination tile a flow field — a FIFO SPFA from the
-// destination over the four neighbours UP (row + 1), RIGHT, DOWN, LEFT, keeping the first parent that reaches a tile
-// and never crossing a closed edge (地图-2); then, row by row and in place, each tile's parent is moved up its chain to
+// destination over the four neighbours UP (row + 1), RIGHT, DOWN, LEFT, each step costing 1 (out of a 地穴 1,000,000 for
+// ground units, 地图-4), keeping the first parent that reaches a tile and never crossing a closed edge (地图-2); then, row by row and in place, each tile's parent is moved up its chain to
 // the farthest ancestor in line of sight. Fields and edges depend on the level only, so they are cached beside it, never
 // in the state. Tile keys are row × width + col.
 import { roundHalfEven } from '@aue/math';
@@ -62,6 +62,15 @@ export const passable = (t, fly) => !!t && (fly ? t.passable !== 'NONE' : t.pass
 /** @param {LevelMap} m @param {number} k @param {boolean} fly */
 const open = (m, k, fly) => passable(m.tiles[Math.floor(k / m.width)][k % m.width], fly);
 
+/** The ground pathing cost of a step out of a 地穴 (地图-4); any other step costs 1. */
+export const HOLE_COST = 1_000_000;
+/** Whether a tile is a 地穴 (地图-4). @param {Tile | null} t */
+export const isHole = (t) => !!t && t.key === 'tile_hole';
+/** The cost of a step out of tile k (寻路-1, 地图-4). @param {LevelMap} m @param {number} k @param {boolean} fly */
+const costOut = (m, k, fly) => (!fly && isHole(m.tiles[Math.floor(k / m.width)][k % m.width]) ? HOLE_COST : 1);
+/** Whether a line of sight may pass a tile (寻路-2): passable, and for ground units no 地穴 (地图-4). @param {LevelMap} m @param {number} k @param {boolean} fly */
+const seeThrough = (m, k, fly) => open(m, k, fly) && (fly || !isHole(m.tiles[Math.floor(k / m.width)][k % m.width]));
+
 /** The tile key of a position, rounded half to even (体积-1), or −1 off the map. @param {LevelMap} m @param {number} x @param {number} y */
 export function keyAt(m, x, y) {
   const r = roundHalfEven(y), c = roundHalfEven(x);
@@ -69,8 +78,8 @@ export function keyAt(m, x, y) {
 }
 
 /**
- * Distances and first parents toward `dest` (寻路-1): a FIFO SPFA, each step costing 1, a tile relaxed only by a strictly
- * shorter distance. −1 where the destination cannot be reached.
+ * Distances and first parents toward `dest` (寻路-1): a FIFO SPFA, each step costing 1 — out of a 地穴 HOLE_COST for
+ * ground units (地图-4) —, a tile relaxed only by a strictly shorter distance. −1 where the destination cannot be reached.
  * @param {LevelMap} m @param {number} dest @param {boolean} fly
  */
 function spfa(m, dest, fly) {
@@ -84,8 +93,9 @@ function spfa(m, dest, fly) {
     for (const [dr, dc] of FOUR) {
       const nr = r + dr, nc = c + dc, nb = nr * m.width + nc;
       if (nr < 0 || nr >= m.height || nc < 0 || nc >= m.width || !open(m, nb, fly) || !crossable(m, cur, nb, fly)) continue;
-      if (dist[nb] >= 0 && dist[cur] + 1 >= dist[nb]) continue;
-      dist[nb] = dist[cur] + 1;
+      const d = dist[cur] + costOut(m, nb, fly);
+      if (dist[nb] >= 0 && d >= dist[nb]) continue;
+      dist[nb] = d;
       parent[nb] = cur;
       if (!queued[nb]) { queue.push(nb); queued[nb] = 1; }
     }
@@ -94,15 +104,15 @@ function spfa(m, dest, fly) {
 }
 
 /**
- * Bresenham line of sight from tile a to tile b (寻路-2): every tile on the line passable, a diagonal step only with both
- * tiles beside it passable, and no step across a closed edge (地图-2). Without diagonal moves only a straight row or
+ * Bresenham line of sight from tile a to tile b (寻路-2): every tile on the line passable — for ground units no 地穴
+ * (地图-4) —, a diagonal step only with both tiles beside it so, and no step across a closed edge (地图-2). Without diagonal moves only a straight row or
  * column counts.
  * @param {LevelMap} m @param {number} a @param {number} b @param {boolean} fly @param {boolean} diagonal
  */
 export function lineOfSight(m, a, b, fly, diagonal) {
   const r = Math.floor(a / m.width), c = a % m.width, r1 = Math.floor(b / m.width), c1 = b % m.width;
   if (!diagonal && r !== r1 && c !== c1) return false;
-  const ok = (/** @type {number} */ rr, /** @type {number} */ cc) => open(m, rr * m.width + cc, fly);
+  const ok = (/** @type {number} */ rr, /** @type {number} */ cc) => seeThrough(m, rr * m.width + cc, fly);
   return ok(r, c) && bresenham(r, c, r1, c1, (r0, c0, rr, cc) =>
     ok(rr, cc) && (r0 === rr || c0 === cc || (ok(rr, c0) && ok(r0, cc))) && crossable(m, r0 * m.width + c0, rr * m.width + cc, fly));
 }

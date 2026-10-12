@@ -24,6 +24,7 @@ import { chargeBehavior } from './modes.js';
 import { auras } from './aura.js';
 import { regenAll } from './damage.js';
 import { emit, hasHook, runTimers } from './bus.js';
+import { fallIntoHoles } from './holes.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -132,6 +133,7 @@ export function step(w, c, commands = []) {
   tickBuffs(w, buffBehaviors(c));
   regenAll(w);
   enemiesAct(w, c);
+  fallIntoHoles(w, c);
   auras(w, c);
   operatorsAttack(w, c);
   shotsFly(w, c);

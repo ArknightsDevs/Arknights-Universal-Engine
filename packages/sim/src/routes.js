@@ -4,7 +4,7 @@
 import { FPS, secondsToFrames, hypot } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
-import { flowField, chain, keyAt, passable, crossable } from './paths.js';
+import { flowField, chain, keyAt, passable, crossable, isHole } from './paths.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').Route} Route @typedef {import('./types.js').Cell} Cell @typedef {import('./types.js').Checkpoint} Checkpoint */
@@ -76,8 +76,8 @@ export function speedOf(c, u) {
 
 /**
  * The tiles a straight segment passes through, in order (路线-2): tile (r, c) spans [c − ½, c + ½] × [r − ½, r + ½]; a
- * segment through a corner point steps diagonally and crosses neither tile beside it. Whether all are passable and no
- * step crosses a closed edge (地图-2).
+ * segment through a corner point steps diagonally and crosses neither tile beside it. Whether all are passable — for a
+ * ground unit none a 地穴 (地图-4) — and no step crosses a closed edge (地图-2).
  * @param {Level} m @param {{ x: number, y: number }} p @param {{ x: number, y: number }} q @param {boolean} fly
  */
 export function segmentClear(m, p, q, fly) {
@@ -86,7 +86,7 @@ export function segmentClear(m, p, q, fly) {
   const cEnd = Math.floor(x1 + 0.5), rEnd = Math.floor(y1 + 0.5), sc = Math.sign(dx), sr = Math.sign(dy);
   const ddx = dx !== 0 ? 1 / Math.abs(dx) : Infinity, ddy = dy !== 0 ? 1 / Math.abs(dy) : Infinity;
   let tx = dx !== 0 ? (sc > 0 ? c + 1 - X0 : X0 - c) * ddx : Infinity, ty = dy !== 0 ? (sr > 0 ? r + 1 - Y0 : Y0 - r) * ddy : Infinity;
-  const cell = (/** @type {number} */ rr, /** @type {number} */ cc) => rr >= 0 && rr < m.height && cc >= 0 && cc < m.width && passable(m.tiles[rr][cc], fly);
+  const cell = (/** @type {number} */ rr, /** @type {number} */ cc) => rr >= 0 && rr < m.height && cc >= 0 && cc < m.width && passable(m.tiles[rr][cc], fly) && (fly || !isHole(m.tiles[rr][cc]));
   if (!cell(r, c)) return false;
   for (let n = Math.abs(cEnd - c) + Math.abs(rEnd - r); n > 0 && (r !== rEnd || c !== cEnd); n--) {
     const from = r * m.width + c;
