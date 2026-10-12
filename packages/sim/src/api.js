@@ -1,8 +1,11 @@
 // The native behaviour interface (ADR 0055, 0046): its version, and the members of the context every behaviour acts
 // through — a skill's (技能-6), a trait's (职业-6). A change to either list is a new version.
 
-/** The behaviour interface's version. 1: skill, trait and buff behaviours with the contexts below; 2: a skill's context has its description's extra modifiers. */
-export const BEHAVIOR_API_VERSION = 2;
+/**
+ * The behaviour interface's version. 1: skill, trait and buff behaviours with the contexts below; 2: a skill's context
+ * has its description's extra modifiers; 3: a skill behaviour's end is told why the skill ends.
+ */
+export const BEHAVIOR_API_VERSION = 3;
 
 /** What every behaviour's context has (职业-6). */
 export const CONTEXT_MEMBERS = Object.freeze(['self', 'bb', 'frame', 'stats', 'addBuff', 'removeBuff', 'applyStatus', 'dealDamage', 'dealEp', 'heal', 'gainCost']);

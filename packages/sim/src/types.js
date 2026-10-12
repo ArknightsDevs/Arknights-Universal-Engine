@@ -307,7 +307,7 @@
 /**
  * An attack under way (攻击-2): frames until it lands, frames since it began, the ids of its locked targets, its mods;
  * a channel's hits still to come (敌能-6).
- * @typedef {{ wind: number, since: number, targets: number[], mods: import('./skills.js').AttackMods, left?: number }} Swing
+ * @typedef {{ wind: number, since: number, targets: number[], mods: import('./skills.js').AttackMods, left?: number, now?: boolean, free?: boolean }} Swing
  */
 /**
  * A delayed explosion (敌能-3): where, how far it reaches, frames left, whether it reaches flying units, its source's id

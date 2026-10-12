@@ -12,7 +12,8 @@ import { makeEnemy } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
 import { heal } from '../src/damage.js';
 import { statsOf } from '../src/attrs.js';
-import { pickTarget, targetsOf, traitScale } from '../src/combat.js';
+import { makeBuff } from '../src/buffs.js';
+import { pickTarget, targetsOf, traitScale, attackNow } from '../src/combat.js';
 import { BEHAVIOR_API_VERSION, CONTEXT_MEMBERS, SKILL_CONTEXT_MEMBERS } from '../src/api.js';
 
 /** @typedef {import('../src/types.js').Unit} Unit @typedef {import('../src/types.js').World} World */
@@ -203,19 +204,19 @@ test('[职业-6] every context function acts on the battle: stats, buffs, status
   assert.equal(w.players[0].cost, Math.min(12, cost + 1));
 });
 
-test('[职业-6] [技能-6] the behaviour interface, version 2: a skill’s and a trait’s contexts have exactly the listed members', () => {
+test('[职业-6] [技能-6] the behaviour interface, version 3: a skill’s and a trait’s contexts have exactly the listed members; a skill’s end is told why', () => {
   /** @type {any[]} */
   const got = [];
   const { w, c, foe } = arena((cc) => {
     cc.operators.guard.branch = 'b';
     cc.operators.guard.skill = { id: 's', type: 'AUTO', sp: 'time', cost: 1, init: 1, charges: 1, duration: 0, ammo: false, bb: { cost: 0 } };
-    cc.behaviors = { skills: { s: { trigger: 'ready', start: (/** @type {any} */ ctx) => { got.push(['skill', Object.keys(ctx)]); } } },
+    cc.behaviors = { skills: { s: { trigger: 'ready', start: (/** @type {any} */ ctx) => { got.push(['skill', Object.keys(ctx)]); }, end: (/** @type {any} */ _ctx, /** @type {string} */ why) => { got.push(['end', why]); } } },
       traits: { b: { deploy: (/** @type {any} */ ctx) => { got.push(['trait', Object.keys(ctx)]); } } } };
   });
   run(w, c, 2, [deploy('guard', 1, 1)]);
   foe(1, 2);
-  assert.equal(BEHAVIOR_API_VERSION, 2);
-  assert.deepEqual(got, [['trait', [...CONTEXT_MEMBERS]], ['skill', [...SKILL_CONTEXT_MEMBERS]]]);
+  assert.equal(BEHAVIOR_API_VERSION, 3);
+  assert.deepEqual(got, [['trait', [...CONTEXT_MEMBERS]], ['skill', [...SKILL_CONTEXT_MEMBERS]], ['end', 'instant']]);
   assert.deepEqual(SKILL_CONTEXT_MEMBERS.filter((k) => !CONTEXT_MEMBERS.includes(k)), ['kind', 'extra']);
 });
 
@@ -406,4 +407,17 @@ test('[职业-10] [撤退-1] the cost upkeep: paid every interval from deploymen
   const ev = run(w, c, 90);
   assert.deepEqual([ev.filter((e) => e.type === 'retreat').map((e) => e.f), w.units.length, w.players[0].cost, cardOf(w.players[0], 'guard').penalty], [[179], 0, 2, 1],
     'at 6 s 2 < 3: it retreats, no refund, a penalty layer');
+});
+
+test('[攻击-5] an attack now: at once, on the targets given or its own, its cooldown untouched, even while it makes no normal attacks', () => {
+  const { w, c, foe } = arena();
+  run(w, c, 1, [deploy('guard', 1, 1)]);
+  const guard = /** @type {Unit} */ (w.units[0]);
+  assert.equal(attackNow(w, c, guard), false, 'no target');
+  const near = foe(1, 1, { maxHp: 1e6, def: 0 }), cd = guard.atkCd;
+  assert.equal(attackNow(w, c, guard, [near]), true);
+  assert.deepEqual([1e6 - near.hp, guard.atkCd], [50, cd], 'its hit at once; its cooldown as it was');
+  guard.buffs.push(makeBuff({ key: 'hold', flags: { noAttack: true } }));
+  assert.equal(attackNow(w, c, guard), true, 'its own target, though it makes no normal attack now');
+  assert.equal(1e6 - near.hp, 100);
 });

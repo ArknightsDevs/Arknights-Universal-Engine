@@ -40,7 +40,7 @@ import { grantSummons, endSummons } from './summons.js';
  * @property {(ctx: SkillContext) => { kind?: SkillKind, seconds?: number } | null} [timing]
  * @property {(ctx: SkillContext) => void} [start]
  * @property {(ctx: SkillContext) => void} [tick]
- * @property {(ctx: SkillContext) => void} [end]
+ * @property {(ctx: SkillContext, reason: string) => void} [end] told why the skill ends, as the `skillEnd` event (API 3)
  * @property {(ctx: SkillContext, mods: AttackMods) => AttackMods} [attack]
  */
 
@@ -120,7 +120,7 @@ const contextOf = (w, c, op) => timingOf(w, c, op).ctx;
  */
 export function endSkill(w, c, op, reason = 'duration') {
   const st = /** @type {SkillState} */ (op.skill);
-  behaviorOf(c, st.id).end?.(contextOf(w, c, op));
+  behaviorOf(c, st.id).end?.(contextOf(w, c, op), reason);
   st.active = false; st.armed = false; st.dur = -1; st.ammo = 0;
   w.events.push({ type: 'skill', id: op.id, active: 0 });
   endSummons(w, c, op);
@@ -215,10 +215,20 @@ export function tickSkill(w, c, op) {
  * @param {World} w @param {Content} c @param {Unit} op @returns {AttackMods}
  */
 export function beforeAttack(w, c, op) {
+  const st = op.skill;
+  if (st && st.active && timingOf(w, c, op).kind === 'ammo' && st.ammo <= 0) endSkill(w, c, op, 'ammo');
+  if (st && triggerOf(c, op) === 'attack' && canStart(c, op, 'AUTO')) activate(w, c, op);
+  return attackMods(w, c, op);
+}
+
+/**
+ * The mods of an operator's attack as it is now (技能-5): its running skill's — its behaviour may change them —, plain
+ * without one; nothing starts or ends for it.
+ * @param {World} w @param {Content} c @param {Unit} op @returns {AttackMods}
+ */
+export function attackMods(w, c, op) {
   const st = op.skill, plain = { scale: 1, times: 1, targets: 1, skill: false };
   if (!st) return plain;
-  if (st.active && timingOf(w, c, op).kind === 'ammo' && st.ammo <= 0) endSkill(w, c, op, 'ammo');
-  if (triggerOf(c, op) === 'attack' && canStart(c, op, 'AUTO')) activate(w, c, op);
   const kind = timingOf(w, c, op).kind;
   if (!st.active || kind === 'instant' || kind === 'passive') return plain;
   const mods = withExtra(skillMods(defOf(c, op).bb), defOf(c, op)), beh = behaviorOf(c, st.id);

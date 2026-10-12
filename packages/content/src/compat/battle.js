@@ -4,7 +4,7 @@
 // throws is skipped and recorded (Stronghold isolates content errors the same way). Times are seconds to the kits and
 // whole frames to the engine (时间-2).
 import { secondsToFrames } from '@aue/math';
-import { KIND, bus, buffs, status, traits, blocking, draw, weightedPick, setExtraRange } from '@aue/sim';
+import { KIND, bus, buffs, status, traits, blocking, draw, weightedPick, setExtraRange, attackNow } from '@aue/sim';
 import { withGrid } from './grid.js';
 import { ShUnit } from './unit.js';
 import { STATUS_NAME, statusKeyOf, modsOf, flagsOf, buffKeyOf } from './mods.js';
@@ -211,6 +211,17 @@ export class ShBattle {
   remainingDistance(e) { return field.remainingDistance(this, e); }
   /** @param {ShUnit} u */
   releaseBlocked(u) { field.releaseBlocked(this, u); }
+  /**
+   * Stronghold's forceAttack: an attack now (攻击-5) on the targets given or those it would take; `noAmmo`: it spends
+   * no ammo. Whether it attacked.
+   * @param {ShUnit} unit @param {ShUnit[] | null} [targets] @param {{ noAmmo?: boolean }} [o]
+   */
+  forceAttack(unit, targets = null, o = {}) {
+    if (!unit?.u || !unit.alive) return false;
+    const given = targets ? targets.map((t) => t?.u).filter((u) => !!u) : null;
+    return attackNow(this.w, this.c, unit.u, /** @type {Unit[] | null} */ (given), { noAmmo: !!o.noAmmo });
+  }
+
   /** Stronghold's _unblock: one enemy no longer blocked (阻挡-3). @param {ShUnit} e */
   _unblock(e) { if (e?.u) blocking.release(e.u); }
   /** A knocked-out operator lying on a tile (`(r, c, except)`): none in these modes — the fallen leave the field. */

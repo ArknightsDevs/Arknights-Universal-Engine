@@ -99,11 +99,11 @@ export const SPEC_BEHAVIOR = Object.freeze({
     const r = specOf(ctx.self);
     if (r) call(r.b, r.p, r.spec.onTick, 'skill.onTick', { dt: constants.TICK });
   },
-  /** @param {any} ctx */
-  end(ctx) {
+  /** The spec's onEnd with why the skill ends (Stronghold's reason, the engine's: 技能-6), then its buff goes. @param {any} ctx @param {string} reason */
+  end(ctx, reason) {
     const r = specOf(ctx.self);
-    if (!r) { skills.GENERIC.end?.(ctx); return; }
-    call(r.b, r.p, r.spec.onEnd, 'skill.onEnd');
+    if (!r) { skills.GENERIC.end?.(ctx, reason); return; }
+    call(r.b, r.p, r.spec.onEnd, 'skill.onEnd', { reason });
     r.b.removeBuff(r.p, 'skill');
   },
   /** @param {any} ctx @param {any} mods */

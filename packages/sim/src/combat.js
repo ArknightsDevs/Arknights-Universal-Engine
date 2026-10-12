@@ -17,7 +17,7 @@ import { ALLY_COLLIDER_RADIUS } from './constants.js';
 import { foeTargets, foeAttack, foeHit, isFoeOf } from './foes.js';
 import { makeBuff } from './buffs.js';
 import { tileOf } from './body.js';
-import { tickSkill, beforeAttack, afterAttack } from './skills.js';
+import { tickSkill, beforeAttack, attackMods, afterAttack } from './skills.js';
 import { palsyInterrupts, inflict } from './status.js';
 import { draw } from './rng.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
@@ -265,10 +265,10 @@ function land(w, c, a) {
   if (palsyInterrupts(a)) { a.anim = ANIM.IDLE; return; }
   const op = a.kind === KIND.OPERATOR, heals = op && (traitOf(c, a).heal || !!sw.mods.heal);
   const reached = deliverAll(w, c, a, sw, !!heals);
-  const noAmmo = reached.length > 0 && !!emit(w, 'attack', { attacker: a, targets: reached, isSkill: !!sw.mods.skill, noAmmo: false }).noAmmo;
+  const noAmmo = reached.length > 0 && (!!emit(w, 'attack', { attacker: a, targets: reached, isSkill: !!sw.mods.skill, noAmmo: false }).noAmmo || !!sw.free);
   if (op) operatorLanded(w, c, a, { sw, reached: reached.length, heals: !!heals, noAmmo });
   const ch = sw.mods.channel;
-  if (ch && (sw.left ?? ch.hits) > 1) a.swing = { ...sw, wind: secondsToFrames(ch.duration / ch.hits), since: 0, left: (sw.left ?? ch.hits) - 1 };
+  if (ch && !sw.now && (sw.left ?? ch.hits) > 1) a.swing = { ...sw, wind: secondsToFrames(ch.duration / ch.hits), since: 0, left: (sw.left ?? ch.hits) - 1 };
 }
 
 /**
@@ -365,11 +365,39 @@ function operatorAttack(w, c, op) {
   const found = mayAttack(c, op) ? targetsOf(w, c, op) : [], hold = holdFrames(c, op, found.length > 0);
   if (hold > 0) { op.atkCd = hold - 1; op.anim = ANIM.IDLE; return; }
   if (found.length === 0) { op.anim = ANIM.IDLE; return; }
-  const mods = critMods(w, c, op, beforeAttack(w, c, op)), t = traitOf(c, op);
-  const most = mods.blocked ? Math.max(1, statsOf(op).blockCnt) : Math.max(mods.targets, traitTargets(t, op)) + (mods.more ?? 0);
-  const targets = firstN(targetsOf(w, c, op), most);
+  const a = armed(w, c, op, critMods(w, c, op, beforeAttack(w, c, op)));
+  startSwing(w, c, op, a.targets, a.mods);
+}
+
+/**
+ * An operator's attack with these mods (攻击-1, 职业-3): the first targets — as many as the mods or the trait allow,
+ * whichever is more — and the mods with the trait's hits (and its skill's arts) on them.
+ * @param {World} w @param {Content} c @param {Unit} op @param {AttackMods} mods @returns {{ targets: Unit[], mods: AttackMods }}
+ */
+function armed(w, c, op, mods) {
+  const t = traitOf(c, op), most = mods.blocked ? Math.max(1, statsOf(op).blockCnt) : Math.max(mods.targets, traitTargets(t, op)) + (mods.more ?? 0);
   const arts = t.skillArts && op.skill?.active && !mods.type ? { type: /** @type {const} */ ('arts') } : {};
-  startSwing(w, c, op, targets, modeMods(c, op, { ...mods, times: mods.times * t.hits, ...arts }));
+  return { targets: firstN(targetsOf(w, c, op), most), mods: modeMods(c, op, { ...mods, times: mods.times * t.hits, ...arts }) };
+}
+
+/**
+ * An attack now (攻击-5): content makes an operator attack at once — on the targets given that are on the field with HP,
+ * or on those its attack would take —: its attack as it is now (no skill starts for it, its chance talents drawn), the
+ * targets locked (`beforeAttack`), no wind-up and its cooldown untouched; it lands as any attack (攻击-2) — spending no
+ * ammo with `noAmmo`. A swing under way goes on after it. Whether it attacked.
+ * @param {World} w @param {Content} c @param {Unit} op @param {Unit[] | null} [given] @param {{ noAmmo?: boolean }} [o]
+ */
+export function attackNow(w, c, op, given = null, o = {}) {
+  if (op.kind !== KIND.OPERATOR || op.hp <= 0 || !w.units.includes(op)) return false;
+  const a = armed(w, c, op, critMods(w, c, op, attackMods(w, c, op)));
+  const targets = lockTargets(w, op, given ? given.filter((u) => u.hp > 0 && w.units.includes(u)) : a.targets, a.mods);
+  if (targets.length === 0 || op.hp <= 0) return false;
+  const prev = op.swing;
+  for (const t of targets) w.events.push({ type: 'attack', id: op.id, target: t.id, wind: 0 });
+  op.swing = { wind: 0, since: 0, targets: targets.map((t) => t.id), mods: a.mods, now: true, free: !!o.noAmmo };
+  land(w, c, op);
+  op.swing = prev;
+  return true;
 }
 
 /**
