@@ -33,9 +33,11 @@ import { grantSummons, endSummons } from './summons.js';
 
 /**
  * A skill's behaviour (ADR 0055). `trigger` says when an AUTO skill starts: as soon as it is ready, or when the
- * operator is about to attack. `attack` may change the mods of the attacks the skill makes.
+ * operator is about to attack. `attack` may change the mods of the attacks the skill makes. `timing` may give the
+ * operator's skill another kind and time than its record's (技能-6).
  * @typedef {object} SkillBehavior
  * @property {'ready' | 'attack'} [trigger]
+ * @property {(ctx: SkillContext) => { kind?: SkillKind, seconds?: number } | null} [timing]
  * @property {(ctx: SkillContext) => void} [start]
  * @property {(ctx: SkillContext) => void} [tick]
  * @property {(ctx: SkillContext) => void} [end]
@@ -98,11 +100,18 @@ const defOf = (c, op) => /** @type {SkillDef} */ (c.operators[op.key].skill);
 /** @param {Content} c @param {string} id @returns {SkillBehavior} */
 const behaviorOf = (c, id) => (c.behaviors?.skills && Object.hasOwn(c.behaviors.skills, id) ? c.behaviors.skills[id] : GENERIC);
 
-/** @param {World} w @param {Content} c @param {Unit} op @returns {SkillContext} */
-function contextOf(w, c, op) {
-  const def = defOf(c, op);
-  return { ...actorContext(w, c, op, def.bb), kind: kindOf(def), extra: def.extra?.mods ?? {} };
+/**
+ * A skill's kind and seconds for its operator now (技能-1, 技能-6): its behaviour's timing over its record's.
+ * @param {World} w @param {Content} c @param {Unit} op @returns {{ kind: SkillKind, seconds: number, ctx: SkillContext }}
+ */
+function timingOf(w, c, op) {
+  const def = defOf(c, op), ctx = { ...actorContext(w, c, op, def.bb), kind: kindOf(def), extra: def.extra?.mods ?? {} };
+  const t = behaviorOf(c, def.id).timing?.(ctx) ?? null;
+  return { kind: t?.kind ?? ctx.kind, seconds: t?.seconds ?? def.duration, ctx: { ...ctx, kind: t?.kind ?? ctx.kind } };
 }
+
+/** @param {World} w @param {Content} c @param {Unit} op @returns {SkillContext} */
+const contextOf = (w, c, op) => timingOf(w, c, op).ctx;
 
 /**
  * Ends a skill (技能-4): its behaviour's end, then the state at rest, then the `skillEnd` event (钩子-3) with why —
@@ -135,11 +144,11 @@ export function setTimeLeft(st, frames) {
  * @param {World} w @param {Content} c @param {Unit} op @param {string} [reason] @param {boolean} [free]
  */
 export function activate(w, c, op, reason = 'auto', free = false) {
-  const st = /** @type {SkillState} */ (op.skill), def = defOf(c, op), kind = kindOf(def);
+  const st = /** @type {SkillState} */ (op.skill), def = defOf(c, op), { kind, seconds } = timingOf(w, c, op);
   if (!free) spendSp(st);
   st.active = true; st.at = w.frame;
   st.armed = kind === 'next';
-  st.dur = (kind === 'duration' || kind === 'passive' || kind === 'ammo') && def.duration > 0 ? secondsToFrames(def.duration) : -1;
+  st.dur = (kind === 'duration' || kind === 'passive' || kind === 'ammo') && seconds > 0 && Number.isFinite(seconds) ? secondsToFrames(seconds) : -1;
   st.ammo = kind === 'ammo' ? Math.max(1, def.bb['attack@trigger_time'] ?? def.bb.cnt ?? 1) : 0;
   w.events.push({ type: 'skill', id: op.id, active: 1 });
   behaviorOf(c, st.id).start?.(contextOf(w, c, op));
@@ -200,9 +209,9 @@ export function tickSkill(w, c, op) {
 export function beforeAttack(w, c, op) {
   const st = op.skill, plain = { scale: 1, times: 1, targets: 1, skill: false };
   if (!st) return plain;
-  if (st.active && kindOf(defOf(c, op)) === 'ammo' && st.ammo <= 0) endSkill(w, c, op, 'ammo');
+  if (st.active && timingOf(w, c, op).kind === 'ammo' && st.ammo <= 0) endSkill(w, c, op, 'ammo');
   if (triggerOf(c, op) === 'attack' && canStart(c, op, 'AUTO')) activate(w, c, op);
-  const kind = kindOf(defOf(c, op));
+  const kind = timingOf(w, c, op).kind;
   if (!st.active || kind === 'instant' || kind === 'passive') return plain;
   const mods = withExtra(skillMods(defOf(c, op).bb), defOf(c, op)), beh = behaviorOf(c, st.id);
   return beh.attack ? beh.attack(contextOf(w, c, op), mods) : mods;

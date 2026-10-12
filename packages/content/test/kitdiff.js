@@ -22,14 +22,23 @@ import { loadTraining, operatorAt } from '../src/operators.js';
 import { TOKENS, loadToken, tokenAt } from '../src/tokens.js';
 
 const SECONDS = 40;
+/**
+ * AUE_KITDIFF_TRACE=<char id>:<skill index> prints every damaged event of that run on both sides (a debugging aid).
+ * @type {{ on: boolean }}
+ */
+const TRACE = { on: false };
+
 /** @param {number} x */
 const r1 = (x) => Math.round(x * 10) / 10;
 /** @param {[string, unknown]} a @param {[string, unknown]} b */
 const byKey = (a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
 
-/** Buffs as key → sorted mods, without the ones that change nothing and the skill's. @param {any[]} list */
+/**
+ * Buffs as key → sorted mods, without the ones that change nothing, the skill's, and our engine's own branch-trait buff
+ * (`trait`, 职业-6: Stronghold keeps a trait's flags in the unit's profile instead). @param {any[]} list
+ */
 const buffMap = (list) => Object.fromEntries(list
-  .filter((b) => !String(b.key).startsWith('skill') && (Object.keys(b.mods ?? {}).length > 0 || Object.values(b.flags ?? {}).some(Boolean)))
+  .filter((b) => !String(b.key).startsWith('skill') && b.key !== 'trait' && (Object.keys(b.mods ?? {}).length > 0 || Object.values(b.flags ?? {}).some(Boolean)))
   .map((b) => /** @type {[string, unknown]} */ ([b.key, Object.fromEntries(Object.entries(b.mods ?? {}).sort(byKey).map(([k, v]) => [k, Math.round(Number(v) * 1e6) / 1e6]))]))
   .sort(byKey));
 
@@ -61,6 +70,7 @@ function strongholdRun(H, charId, skillIndex, uniEquipId) {
   const buffs = buffMap(u.buffs);
   h.run(SECONDS - 1);
   const mine = (/** @type {any} */ x) => x.source === u || x.source?.id === u.id;
+  if (TRACE.on) for (const x of h.hooksOf('damaged')) console.log(`stronghold ${x.source?.defId ?? '-'} → ${x.target?.defId ?? '-'} ${r1(x.amount)} ${x.type} ${(x.dmg?.tags ?? []).join(',')}`);
   return {
     atk: u.base.atk, buffs,
     hits: h.hooksOf('damaged').filter((/** @type {any} */ x) => mine(x) && x.type !== 'element').map((/** @type {any} */ x) => r1(x.amount)),
@@ -86,7 +96,10 @@ const bare = ({ talentBb, fieldTalents, rangeTalents, critTalents, timedTalents,
  * @param {any} w @param {() => any} op @param {{ hits: number[], heals: number[], starts: number, statuses: Set<string> }} log
  */
 function record(w, op, log) {
-  bus.on(w, 'damaged', (k) => { if (k.source === op()) log.hits.push(r1(k.amount)); }, { priority: -1e9 });
+  bus.on(w, 'damaged', (k) => {
+    if (TRACE.on) console.log(`ours ${w.frame} ${k.source?.key ?? '-'} → ${k.target?.key ?? '-'} ${r1(k.amount)} ${k.type} ${(k.dmg?.tags ?? []).join(',')}`);
+    if (k.source === op()) log.hits.push(r1(k.amount));
+  }, { priority: -1e9 });
   bus.on(w, 'heal', (k) => { if (k.source === op()) log.heals.push(r1(k.amount)); }, { priority: -1e9 });
   bus.on(w, 'skillStart', (k) => { if (k.unit === op()) log.starts++; });
   bus.on(w, 'beforeStatus', (k) => { if (k.source === op()) log.statuses.add(`${STATUS_NAME[k.status] ?? k.status}:${k.frames < 0 ? Infinity : r1(k.frames / 30)}`); }, { priority: -1e9 });
@@ -135,7 +148,9 @@ export async function kitDiff(charId) {
   const factory = (await loadUnderGrid(() => import(kitRoot + KIT_FILES[charId]))).default[charId], t = await loadTraining(charId);
   const m = t.modules.length - 1, uni = m >= 0 ? t.modules[m].id : null, out = [];
   for (let skill = 0; skill < t.skills.length; skill++) {
+    TRACE.on = process.env['AUE_KITDIFF_TRACE'] === `${charId}:${skill}`;
     const sh = strongholdRun(harness, charId, skill, uni), ours = await ourRun(charId, factory, skill, m), k = sh.atk / ours.atk, d = [];
+    TRACE.on = false;
     if (JSON.stringify(sh.buffs) !== JSON.stringify(ours.buffs)) d.push(`buffs ${JSON.stringify(sh.buffs)} ≠ ${JSON.stringify(ours.buffs)}`);
     if (!near(distinct(ours.hits, k), distinct(sh.hits, 1))) d.push(`hits ${distinct(sh.hits, 1).slice(0, 8)} ≠ ${distinct(ours.hits, k).slice(0, 8)}`);
     if (!near(distinct(ours.heals, k), distinct(sh.heals, 1))) d.push(`heals ${distinct(sh.heals, 1).slice(0, 6)} ≠ ${distinct(ours.heals, k).slice(0, 6)}`);

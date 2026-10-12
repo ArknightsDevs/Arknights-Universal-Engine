@@ -34,6 +34,13 @@ function call(b, p, fn, label, more) {
 }
 
 /**
+ * Stronghold's spec kinds that give a skill a time, and the engine's kind (技能-1): a toggle runs until it is closed or its
+ * duration ends. Its `instant` stays the record's kind — a next-attack skill when it has an attack, else instant.
+ * @type {Readonly<Record<string, import('@aue/sim').skills.SkillKind>>}
+ */
+const TIMED = Object.freeze({ duration: 'duration', toggle: 'duration', ammo: 'ammo', passive: 'passive' });
+
+/**
  * A spec's attack override as the engine's attack mods (技能-5): 倍率, hits, targets (every one in range for
  * `allInRange`), damage type or a heal, a status each hit gives.
  * @param {Record<string, any>} spec @param {import('@aue/sim').skills.AttackMods} mods
@@ -57,12 +64,19 @@ function attackOf(spec, mods) {
  * @type {Readonly<SkillBehavior>}
  */
 export const SPEC_BEHAVIOR = Object.freeze({
+  /** The spec's kind and time over the record's (技能-6): a duration or a toggle runs its `duration`, else its kind. @param {any} ctx */
+  timing(ctx) {
+    const spec = specOf(ctx.self)?.spec;
+    const kind = spec ? TIMED[spec.kind] : undefined, seconds = Number(spec?.duration);
+    return kind ? { kind, ...(Number.isFinite(seconds) && seconds > 0 ? { seconds } : {}) } : null;
+  },
   /** @param {any} ctx */
   start(ctx) {
     const r = specOf(ctx.self);
     if (!r) { skills.GENERIC.start?.(ctx); return; }
     const { b, p, spec } = r;
-    if (spec.mods || spec.flags) b.giveBuff(p, { key: 'skill', mods: modsOf(spec.mods), flags: flagsOf(spec.flags) });
+    const flags = { ...spec.flags, ...(spec.attack?.noAttack ? { noAttack: true } : {}) };
+    if (spec.mods || Object.keys(flags).length) b.giveBuff(p, { key: 'skill', mods: modsOf(spec.mods), flags: flagsOf(flags) });
     call(b, p, spec.onStart, 'skill.onStart');
   },
   /** @param {any} ctx */
@@ -78,9 +92,14 @@ export const SPEC_BEHAVIOR = Object.freeze({
     r.b.removeBuff(r.p, 'skill');
   },
   /** @param {any} ctx @param {any} mods */
+  /**
+   * A spec's attacks (兼容-5): the operator's own attack with the spec's overrides only — the blackboard's attack keys are
+   * the spec's to read (令's S3 atk_scale is its pulses', not her attacks').
+   * @param {any} ctx @param {any} mods
+   */
   attack(ctx, mods) {
     const r = specOf(ctx.self);
-    return r ? attackOf(r.spec, mods) : mods;
+    return r ? attackOf(r.spec, { ...mods, scale: 1, times: 1, targets: 1 }) : mods;
   },
 });
 

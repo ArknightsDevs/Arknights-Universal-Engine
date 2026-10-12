@@ -12,6 +12,7 @@ import * as field from './field.js';
 import * as summoning from './summons.js';
 import { ShGrid } from './tiles.js';
 import { CompatGap } from './sh/gap.js';
+import { effectiveProfile } from './sh/ai.js';
 
 /** @typedef {import('@aue/sim').World} World @typedef {import('@aue/sim').Content} Content @typedef {import('@aue/sim').Unit} Unit */
 /** @typedef {(ctx: any, b: ShBattle) => void} Handler */
@@ -94,6 +95,11 @@ export class ShBattle {
     this.pendingKit = null;
     this.rng = makeRng(w);
   }
+
+  /** Battle seconds: the frame's start (Stronghold's tickCount × dt, the same in every handler of a frame). */
+  get time() { return this.w.frame * TICK; }
+  /** The battle is over (结束-1). */
+  get finished() { return this.w.result >= 0; }
 
   // ---- units -------------------------------------------------------------------------------------------------------
 
@@ -225,6 +231,9 @@ export class ShBattle {
    * @param {ShUnit | number | null} owner @param {string} tokenId @param {number} row @param {number} col @param {Record<string, any>} [opts]
    */
   spawnToken(owner, tokenId, row, col, opts) { return summoning.spawnToken(this, owner, tokenId, { row, col }, opts); }
+
+  /** A unit's attack profile now, with its running skill's overrides (sh/ai.js). @param {ShUnit} unit */
+  effectiveProfile(unit) { return effectiveProfile(unit); }
 
   /** Stronghold's range cache (`(unit)`): the engine's range is computed when read. */
   refreshRange() {}

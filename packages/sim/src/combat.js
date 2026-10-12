@@ -56,6 +56,14 @@ export function targetsOf(w, c, op) {
   return sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary });
 }
 
+/**
+ * Content sets the frames until a unit's next attack may start (攻击-2): content that resets or clears it; at least 0.
+ * @param {Unit} u @param {number} frames
+ */
+export function setAtkCd(u, frames) {
+  u.atkCd = Math.max(0, Math.round(frames));
+}
+
 /** The enemy an operator attacks first (索敌-3). @param {World} w @param {Content} c @param {Unit} op @returns {Unit | null} */
 export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
 

@@ -3,7 +3,7 @@
 // to the engine's unit while it is deployed, unbound in between — so the hooks its kit installs once see every
 // deployment. An enemy is the engine's unit itself. Fields Stronghold's kits keep their own state in (`mem`, `trait`)
 // live here, outside the engine's state (ADR 0057).
-import { KIND, attrs, body, traits, buffs, status, damage, reachKeys, setRange } from '@aue/sim';
+import { KIND, attrs, body, traits, buffs, status, damage, reachKeys, setRange, setAtkCd } from '@aue/sim';
 import { ShSkill } from './skill.js';
 import { STATUS_NAME } from './mods.js';
 
@@ -95,6 +95,15 @@ export class ShUnit {
   get hp() { return this.u ? this.u.hp : 0; }
   get hitArea() { return /** @type {any} */ (this.u?.base)?.hitArea ?? null; }
   get hidden() { return !!this.u?.hidden; }
+  /** When it was deployed, in battle seconds (−Infinity before). */
+  get deployedAt() { return this.u ? this.u.born / FPS : -Infinity; }
+  /** On the ground: an ally on a ground tile, an enemy not in the air. */
+  get ground() { return !!this.u && (this.u.kind === KIND.OPERATOR ? this.u.z === 0 : !attrs.statsOf(this.u).flying); }
+  /** A leader (levelType BOSS). */
+  get isBoss() { return this.u?.base.levelType === 'BOSS'; }
+  /** Seconds until its next attack may start; a kit may set them (whole frames). */
+  get atkCd() { return this.u ? this.u.atkCd / FPS : 0; }
+  set atkCd(s) { if (this.u) setAtkCd(this.u, Number(s) * FPS); }
   /** The unit's attributes now (属性-1…属性-3). */
   get s() { return this.u ? attrs.statsOf(this.u) : null; }
   get maxHp() { return this.s?.maxHp ?? 0; }

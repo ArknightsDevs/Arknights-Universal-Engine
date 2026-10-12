@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
-import { createWorld, step } from '../src/index.js';
+import { createWorld, step, setAtkCd } from '../src/index.js';
 import { kindOf, makeSkillState, statMods, skillMods, STAT_KEYS, beforeAttack, setTimeLeft } from '../src/skills.js';
 import { gainSp, forceSp, timeSp, hurtSp } from '../src/sp.js';
 import { makeEnemy } from '../src/units.js';
@@ -299,4 +299,27 @@ test('[攻击-1] content may give an operator its own attack range and take it b
   setRange(a.guard, null);
   assert.deepEqual([...reachKeys(a.c, a.guard)], own);
   assert.equal('range' in a.guard, false);
+});
+
+test('[技能-6] [职业-13] [攻击-2] a behaviour\'s timing: another kind and time than the record\'s; a buff flag noAttack; content sets the attack cooldown', () => {
+  const a = arena(sk({ id: 'timed', type: 'AUTO', cost: 2, init: 2, duration: 0, bb: { atk_scale: 3 } }));
+  /** @type {import('../src/skills.js').SkillBehavior} */
+  const timed = { trigger: 'ready', timing: () => ({ kind: 'duration', seconds: 2 }), start(ctx) { ctx.addBuff(ctx.self, { key: 'hold', flags: { noAttack: true } }); },
+    end(ctx) { ctx.removeBuff(ctx.self, 'hold'); } };
+  a.c.behaviors = { skills: { timed } };
+  run(a.w, a.c, 1);
+  assert.deepEqual([a.guard.skill?.active, a.guard.skill?.dur], [true, 60], 'a next-attack skill by its record, two seconds by its timing');
+  const ev = run(a.w, a.c, 50);
+  assert.equal(ev.filter((e) => e.type === 'attack' && e.id === a.guard.id).length, 0, 'held back from attacking by the flag');
+  run(a.w, a.c, 10);
+  assert.equal(a.guard.skill?.active, false);
+  assert.ok(run(a.w, a.c, 40).some((e) => e.type === 'attack' && e.id === a.guard.id), 'the flag gone: it attacks again');
+  const plain = arena(sk({ id: 'plain', type: 'AUTO', cost: 1, init: 1, duration: 0, bb: { atk_scale: 3 } }));
+  plain.c.behaviors = { skills: { plain: { timing: () => null } } };
+  run(plain.w, plain.c, 1);
+  assert.equal(plain.guard.skill?.dur, -1, 'no timing: the record\'s kind');
+  setAtkCd(a.guard, 12.4);
+  assert.equal(a.guard.atkCd, 12);
+  setAtkCd(a.guard, -3);
+  assert.equal(a.guard.atkCd, 0);
 });
