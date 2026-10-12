@@ -1,6 +1,8 @@
 // Stronghold's battle grid over the level's tiles (docs/spec/compat.md 兼容-4): the whole map is the battle's
 // rectangle; each tile as Stronghold describes it — low or high ground, what may be deployed on it, how units pass it
-// (地形-1), start and goal tiles. Obstacles that content places and pathfinding are not here yet (gaps).
+// (地形-1), start and goal tiles; the tiles an enemy's ground way crosses (寻路-2). Obstacles that content places are not
+// here yet (gaps).
+import { paths } from '@aue/sim';
 import { gap } from './sh/gap.js';
 
 /** @typedef {{ key: string, height: string, buildable: string, passable: string }} LevelTile */
@@ -21,6 +23,8 @@ const infoOf = (t) => Object.freeze({
 export class ShGrid {
   /** @param {{ width: number, height: number, tiles: LevelTile[][] }} level */
   constructor(level) {
+    /** the level, for its ways (寻路-2) */
+    this.level = level;
     this.rows = level.height; this.cols = level.width;
     this.rect = Object.freeze({ r0: 0, r1: level.height - 1, c0: 0, c1: level.width - 1 });
     /** @type {Readonly<TileInfo>[]} */
@@ -35,6 +39,17 @@ export class ShGrid {
   inRect(r, c) { return this.inBounds(r, c); }
   /** @param {number} r @param {number} c @returns {Readonly<TileInfo>} */
   tile(r, c) { return this.inBounds(r, c) ? this.tiles[r * this.cols + c] : NOWHERE; }
+  /**
+   * The tiles an enemy's ground way from (sr, sc) to (er, ec) crosses (寻路-2), as [row, col]; null when it cannot reach.
+   * No content obstacles exist, so Stronghold's `ignoreObstacles` changes nothing.
+   * @param {number} sr @param {number} sc @param {number} er @param {number} ec @returns {[number, number][] | null}
+   */
+  findPath(sr, sc, er, ec) {
+    if (!this.inBounds(sr, sc) || !this.inBounds(er, ec)) return null;
+    const tiles = paths.routeTiles(/** @type {any} */ (this.level), this.key(sr, sc), this.key(er, ec));
+    return tiles ? tiles.map((k) => /** @type {[number, number]} */ ([Math.floor(k / this.cols), k % this.cols])) : null;
+  }
+
   /** Ground units may stand here. @param {number} r @param {number} c */
   groundPassable(r, c) { return this.tile(r, c).pass === 'ALL'; }
   /** @param {number} r @param {number} c */
@@ -71,4 +86,4 @@ export class ShGrid {
   }
 }
 
-Object.assign(ShGrid.prototype, { findPath: gap('grid.findPath'), waypoints: gap('grid.waypoints'), setObstacle: gap('grid.setObstacle'), flowField: gap('grid.flowField') });
+Object.assign(ShGrid.prototype, { waypoints: gap('grid.waypoints'), setObstacle: gap('grid.setObstacle'), flowField: gap('grid.flowField') });

@@ -172,3 +172,20 @@ test('[兼容-3] battle.data.rawToken: none for a summon no piece of the battle 
   const { box } = match({ kind: 'duration', duration: 30 });
   assert.equal(/** @type {ShBattle} */ (box.b).data.rawToken('token_nope'), null);
 });
+
+test('[兼容-4] the targets an attack would take, the tiles a way crosses, a unit a kit moves (路线-5)', async () => {
+  const { acquireTargets } = await import('../src/compat/sh/ai.js');
+  const { w, c, box, guard } = match({ kind: 'duration', duration: 30 });
+  const b = /** @type {ShBattle} */ (box.b), u = b.unitOf(guard);
+  assert.deepEqual(acquireTargets(b, u, u.profile), [], 'nothing in range yet');
+  /** @type {any} */
+  let slime;
+  for (let i = 0; i < 900 && !(slime = w.units.find((x) => x.key === 'slime')); i++) step(w, c);
+  const s = b.unitOf(slime);
+  s.x = guard.x;
+  s.y = guard.y;
+  assert.deepEqual([slime.x, slime.y, slime.path], [guard.x, guard.y, []], 'moved, its way planned afresh');
+  assert.deepEqual(acquireTargets(b, u, u.profile).map((/** @type {any} */ x) => x.defId), ['slime']);
+  const way = b.grid.findPath(1, 0, 1, 3);
+  assert.deepEqual([way?.[0], way?.at(-1), b.grid.findPath(1, 0, 99, 99)], [[1, 0], [1, 3], null]);
+});

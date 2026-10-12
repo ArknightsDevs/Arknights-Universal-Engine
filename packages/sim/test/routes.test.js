@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step } from '../src/index.js';
 import { oneWave, spawnAt } from '@aue/testkit';
-import { legsOf, nextLeg, planLeg, segmentClear, followRoute, pathDistance } from '../src/routes.js';
+import { legsOf, nextLeg, planLeg, segmentClear, followRoute, pathDistance, displace } from '../src/routes.js';
 import { makeEnemy, makeOperator } from '../src/units.js';
 import { selectable } from '../src/targeting.js';
 import { tryBlock } from '../src/blocking.js';
@@ -181,4 +181,17 @@ test('[索敌-6] after appearing the distance counts from where the enemy appear
   const c = content(OPEN, [{ start: at(0, 0), end: at(3, 7), motion: 'WALK', checkpoints: [cp('MOVE', 0, 2), cp('DISAPPEAR', 0, 0), cp('APPEAR_AT_POS', 3, 5)] }]);
   const [, e] = withEnemy(c);
   assert.equal(pathDistance(c, e), 2 + 2);
+});
+
+test('[路线-5] content moves an enemy: it stands there at once and walks its leg on from there, round the walls', () => {
+  const rows = ['........', '..##....', '..##....', '........'];
+  const c = content(rows, [{ start: at(2, 0), end: at(2, 6), motion: 'WALK', checkpoints: [] }]);
+  const [w, e] = withEnemy(c);
+  for (let f = 0; f < 5; f++) { w.frame = f; followRoute(w, c, e, 0.1); }
+  displace(e, 1, 0);
+  assert.deepEqual([e.x, e.y, e.path, e.leg], [1, 0, [], 0], 'its plan dropped, its leg kept');
+  const { end } = runRoute(w, c, e);
+  assert.ok(end > 0 && e.x === 6 && e.y === 2);
+  displace(e, NaN, 3);
+  assert.deepEqual([e.x, e.y], [6, 2], 'no number: it stays');
 });

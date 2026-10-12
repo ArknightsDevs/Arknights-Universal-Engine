@@ -1,6 +1,8 @@
-// Routes (docs/spec/paths.md 路线-1…路线-4, 索敌-6): an enemy's route as legs — moves along the flow field (flyers
-// straight), waits, disappearing and appearing, patrols — walked a frame at a time; and its 路径距离 for 仇恨值.
+// Routes (docs/spec/paths.md 路线-1…路线-5, 索敌-6): an enemy's route as legs — moves along the flow field (flyers
+// straight), waits, disappearing and appearing, patrols — walked a frame at a time; units content moves; and its 路径距离
+// for 仇恨值.
 import { FPS, secondsToFrames, hypot } from '@aue/math';
+import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { flowField, chain, keyAt, passable } from './paths.js';
 
@@ -149,6 +151,20 @@ function holds(w, e, leg, moved) {
   if (e.wait === 0) return false;
   e.wait--;
   return true;
+}
+
+/**
+ * Content moves a unit (路线-5): it stands at (x, y) at once; an enemy plans the move leg it is on afresh from there —
+ * its leg, a wait it is in and its route stay.
+ * @param {Unit} u @param {number} x @param {number} y
+ */
+export function displace(u, x, y) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  u.x = x;
+  u.y = y;
+  if (u.kind !== KIND.ENEMY) return;
+  u.path = [];
+  u.pt = 0;
 }
 
 /**

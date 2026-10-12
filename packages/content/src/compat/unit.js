@@ -3,7 +3,7 @@
 // to the engine's unit while it is deployed, unbound in between — so the hooks its kit installs once see every
 // deployment. An enemy is the engine's unit itself. Fields Stronghold's kits keep their own state in (`mem`, `trait`)
 // live here, outside the engine's state (ADR 0057).
-import { KIND, attrs, body, traits, buffs, status, damage, dir, elements, reachKeys, setRange, setAtkCd } from '@aue/sim';
+import { KIND, attrs, body, traits, buffs, status, damage, dir, elements, routes, reachKeys, setRange, setAtkCd } from '@aue/sim';
 import { ShSkill } from './skill.js';
 import { STATUS_NAME, buffKeyOf, buffNameOf, shFlagsOf } from './mods.js';
 import { STAND_INS } from './standins.js';
@@ -93,7 +93,10 @@ export class ShUnit {
   get id() { return this.pieceId >= 0 ? this.pieceId : this.u ? this.u.id : -1; }
   get name() { return this.def?.name ?? this.defId; }
   get x() { return this.u ? this.u.x : NaN; }
+  /** A kit may move the unit (路线-5). */
+  set x(v) { if (this.u) routes.displace(this.u, Number(v), this.u.y); }
   get y() { return this.u ? this.u.y : NaN; }
+  set y(v) { if (this.u) routes.displace(this.u, this.u.x, Number(v)); }
   get tileR() { return this.u ? body.tileOf(this.u)[0] : -1; }
   get tileC() { return this.u ? body.tileOf(this.u)[1] : -1; }
   /** @returns {import('@aue/sim').Dir} */
