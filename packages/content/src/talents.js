@@ -200,3 +200,30 @@ export function rangePart(c) {
   if (!got || clauses.slice(got.n).join('，').includes('效果')) return null;
   return { side: head[1] === '敌军' || head[1] === '敌人' ? 'enemy' : 'ally', ranged: head[1] === '远程干员', mods: got.mods };
 }
+
+/** A chance on each attack to raise its 倍率 (干员-12): 攻击时 / 每次攻击 / 造成伤害时, a chance, 攻击力提升至. */
+const CRIT = /^(?:攻击时|每次攻击|造成(?:物理)?伤害时)[，,]?有?\d+(?:\.\d+)?[%％]的?(?:几率|概率)(?:使)?(?:当次攻击的?)?攻击力提升至\d+(?:\.\d+)?[%％]$/u;
+/** What may follow it in the same sentence (干员-12). */
+const CRIT_STUN = /^并(?:使敌人)?晕眩(?:敌人)?\d+(?:\.\d+)?秒$/u;
+const CRIT_MORE = /^且额外攻击一个目标$/u;
+
+/**
+ * The chance part of a talent (干员-12): in its first sentence a clause 「攻击时（，）（有）N%（的）几率/概率（当次攻击的）攻击力
+ * 提升至M%」 (or 每次攻击 / 造成伤害时), the blackboard having `prob` and `atk_scale`; the clause after it may add a stun of
+ * `stun` seconds (「并使敌人晕眩N秒」) or one more target (「且额外攻击一个目标」). Null otherwise; hidden talents have none.
+ * @param {Talent} c @returns {{ prob: number, scale: number, stun?: number, more?: number } | null}
+ */
+export function critPart(c) {
+  if (c.hidden || !c.description || !Number.isFinite(c.bb.prob) || !Number.isFinite(c.bb.atk_scale)) return null;
+  const clauses = c.description.replace(/<[^>]*>/g, '').replace(/（[^）]*）/g, '').split(/[。；]/)[0].split('，').map((x) => x.trim());
+  // 「攻击时」 may stand as a clause of its own before the chance
+  const joined = clauses.map((x, k) => (/^(?:攻击时|造成(?:物理)?伤害时)$/u.test(x) ? `${x}，${clauses[k + 1] ?? ''}` : x));
+  const i = joined.findIndex((x) => CRIT.test(x));
+  if (i < 0) return null;
+  const next = clauses[joined[i] === clauses[i] ? i + 1 : i + 2] ?? '';
+  return {
+    prob: c.bb.prob, scale: c.bb.atk_scale,
+    ...(CRIT_STUN.test(next) && Number.isFinite(c.bb.stun) ? { stun: c.bb.stun } : {}), ...(CRIT_MORE.test(next) ? { more: 1 } : {}),
+  };
+}
+

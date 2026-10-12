@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadTraining, operatorAt, skeletonContent, ROSTER } from '../src/index.js';
 import { traitAt, teamTalentsAt } from '../src/operators.js';
-import { talentsAt, alwaysOn, teamPart, rangePart } from '../src/talents.js';
+import { talentsAt, alwaysOn, teamPart, rangePart, critPart } from '../src/talents.js';
 import { matchContent } from '../src/index.js';
 
 /** @typedef {import('../src/operators.js').Build} Build */
@@ -140,4 +140,17 @@ test('[干员-11] in-range parts: whom, and the modifier by the % of the text; �
     c('攻击范围内的敌人生命少于40%时，令其获得33%的脆弱效果', { hp_ratio: 0.4 })], [null, null, null]);
   assert.deepEqual(operatorAt(await loadTraining('char_134_ifrit'), E2).rangeTalents, [{ side: 'enemy', ranged: false, mods: { resPct: -0.4 } }]);
   assert.equal(alwaysOn({ description: '防御力+70', bb: { def: 70 }, hidden: false }), null, 'a share written without %: not read as one');
+});
+
+test('[干员-12] chance parts: 攻击时 N% 几率 攻击力提升至 M%, with a stun or one more target after it', async () => {
+  const c = (/** @type {string} */ description, /** @type {Record<string, number>} */ bb) => critPart({ description, bb, hidden: false });
+  assert.deepEqual([
+    c('攻击时，20%几率当次攻击的攻击力提升至160%', { prob: 0.2, atk_scale: 1.6 }),
+    c('攻击时，18%<@ba.talpu>（+3%）</>几率当次攻击的攻击力提升至200%，并晕眩敌人1秒', { prob: 0.18, atk_scale: 2, stun: 1 }),
+    c('攻击速度+8，攻击时有20%的概率攻击力提升至150%', { attack_speed: 8, prob: 0.2, atk_scale: 1.5 }),
+    c('每次攻击有25%的概率攻击力提升至130%，且额外攻击一个目标', { prob: 0.25, atk_scale: 1.3 }),
+  ], [{ prob: 0.2, scale: 1.6 }, { prob: 0.18, scale: 2, stun: 1 }, { prob: 0.2, scale: 1.5 }, { prob: 0.25, scale: 1.3, more: 1 }]);
+  assert.deepEqual([c('攻击时，20%几率当次攻击的攻击力提升至160%', { atk_scale: 1.6 }), c('攻击力+8%', { prob: 0.1, atk_scale: 1 })], [null, null]);
+  const bpipe = operatorAt(await loadTraining('char_222_bpipe'), E2);
+  assert.deepEqual(bpipe.critTalents?.map((k) => k.more), [1], '风笛 精密填弹');
 });

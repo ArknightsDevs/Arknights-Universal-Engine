@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step, rangeCell, deployProblem, damage, status, attrs } from '../src/index.js';
 import { tinyContent } from '@aue/testkit';
+import { makeEnemy } from '../src/units.js';
 
 const c = tinyContent();
 /** @param {number} [players] */
@@ -210,4 +211,27 @@ test('[部署-4] [属性-4] an operator with always-on talents is deployed with 
   const plain = fresh(1);
   step(plain, c, [[0, deploy({})]]);
   assert.deepEqual(plain.units[0].buffs, [], 'none without talents');
+});
+
+test('[攻击-4] [随机-1] a chance talent: one draw per attack; under the chance the attack strikes harder, stuns, reaches one more', () => {
+  const cc = tinyContent();
+  cc.level.waves = [];
+  cc.operators.guard = { ...cc.operators.guard, range: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }], critTalents: [{ prob: 1, scale: 2, stun: 1, more: 1 }] };
+  const w = createWorld(cc, { seed: 1, players: 1 });
+  step(w, cc, [[0, deploy({ row: 1, col: 1 })]]);
+  const foes = [2, 3].map((col) => {
+    const e = makeEnemy(w, cc, { key: 'slime', route: 0 });
+    e.x = col; e.y = 1; e.base = { ...e.base, def: 0, maxHp: 1e6 }; e.hp = e.maxHp = 1e6;
+    status.applyStatus(e, 'root', {});
+    w.units.push(e);
+    return e;
+  });
+  const rng = w.rng;
+  const hits = step(w, cc).filter((e) => e.type === 'hit');
+  assert.notEqual(w.rng, rng, 'it drew');
+  assert.deepEqual(hits.map((e) => e.damage), [100, 100], 'two targets at 200 %');
+  assert.ok(foes.every((e) => e.buffs.some((b) => b.key === 'stun')));
+  cc.operators.guard.critTalents = [{ prob: 0, scale: 2 }];
+  for (let i = 0; i < 31; i++) step(w, cc);
+  assert.ok(w.units.slice(1).every((e) => e.hp < 1e6));
 });

@@ -155,10 +155,17 @@
  * An operator: `branch` is its profession branch (subProfessionId), `trait` the branch's trait (职业-1), `respawnTime`
  * its 再部署时间 in seconds (部署-3; default 60), `talentBb` the blackboard of its always-on talents (部署-4),
  * `fieldTalents` its talents for every operator of a profession or faction while it is on the field (部署-5), `powers`
- * its factions, `rangeTalents` its talents for the units in its attack range while it is on the field (部署-6).
+ * its factions, `rangeTalents` its talents for the units in its attack range while it is on the field (部署-6),
+ * `critTalents` its chances to strike harder (攻击-4).
  * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
  *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, trait?: Partial<TraitDef>, respawnTime?: number, char?: string,
- *   talentBb?: Record<string, number>, fieldTalents?: TeamTalent[], powers?: string[], rangeTalents?: RangeTalent[] }} OperatorDef
+ *   talentBb?: Record<string, number>, fieldTalents?: TeamTalent[], powers?: string[], rangeTalents?: RangeTalent[],
+ *   critTalents?: CritTalent[] }} OperatorDef
+ */
+/**
+ * A chance talent (攻击-4): on each attack, with chance `prob`, the attack's 倍率 × `scale`, and maybe a stun of `stun`
+ * seconds on each hit and `more` targets.
+ * @typedef {{ prob: number, scale: number, stun?: number, more?: number }} CritTalent
  */
 /**
  * An in-range talent (部署-6): modifiers for the enemies, or the (ranged) operators, in the holder's attack range.

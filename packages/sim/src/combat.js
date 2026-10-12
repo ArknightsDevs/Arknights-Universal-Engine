@@ -18,6 +18,7 @@ import { makeBuff } from './buffs.js';
 import { tileOf } from './body.js';
 import { tickSkill, beforeAttack, afterAttack } from './skills.js';
 import { palsyInterrupts, applyStatus } from './status.js';
+import { draw } from './rng.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
 import { mayAttack, healsNow, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder } from './modes.js';
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill } from './traits.js';
@@ -293,11 +294,26 @@ function operatorAttack(w, c, op) {
   const found = mayAttack(c, op) ? targetsOf(w, c, op) : [], hold = holdFrames(c, op, found.length > 0);
   if (hold > 0) { op.atkCd = hold - 1; op.anim = ANIM.IDLE; return; }
   if (found.length === 0) { op.anim = ANIM.IDLE; return; }
-  const mods = beforeAttack(w, c, op), t = traitOf(c, op);
+  const mods = critMods(w, c, op, beforeAttack(w, c, op)), t = traitOf(c, op);
   const most = mods.blocked ? Math.max(1, statsOf(op).blockCnt) : Math.max(mods.targets, traitTargets(t, op)) + (mods.more ?? 0);
   const targets = firstN(targetsOf(w, c, op), most);
   const arts = t.skillArts && op.skill?.active && !mods.type ? { type: /** @type {const} */ ('arts') } : {};
   startSwing(w, c, op, targets, modeMods(c, op, { ...mods, times: mods.times * t.hits, ...arts }));
+}
+
+/**
+ * The chance talents of an operator's attack (攻击-4): for each, in order, one draw (随机-1); under its chance the
+ * attack's 倍率 × its scale, its stun on each hit, its more targets. A healing attack draws none.
+ * @param {World} w @param {Content} c @param {Unit} op @param {AttackMods} mods @returns {AttackMods}
+ */
+function critMods(w, c, op, mods) {
+  let out = mods;
+  if (mods.heal || traitOf(c, op).heal) return out;
+  for (const k of c.operators[op.key].critTalents ?? []) {
+    if (draw(w) >= k.prob) continue;
+    out = { ...out, scale: out.scale * k.scale, ...(k.stun ? { hitStatus: { key: 'stun', seconds: k.stun } } : {}), ...(k.more ? { more: (out.more ?? 0) + k.more } : {}) };
+  }
+  return out;
 }
 
 /**

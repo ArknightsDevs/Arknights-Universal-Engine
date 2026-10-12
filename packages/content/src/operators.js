@@ -4,7 +4,7 @@
 import index from '../data/operators/index.json' with { type: 'json' };
 import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
-import { unlockedAt, talentsAt, alwaysOnBb, teamPart, rangePart } from './talents.js';
+import { unlockedAt, talentsAt, alwaysOnBb, teamPart, rangePart, critPart } from './talents.js';
 
 /** @typedef {import('@aue/sim').OperatorDef} OperatorDef */
 /**
@@ -134,12 +134,12 @@ export function operatorAt(t, b) {
   if (b.skill >= 0 && (!slot || slot.phase > b.elite)) throw new RangeError(`${t.name}: skill ${b.skill} is not unlocked at elite ${b.elite}`);
   const mod = moduleAt(t, b), s = statsAt(t, b, mod), level = slot ? slot.levels[clamp(b.skillLevel, 1, slot.levels.length) - 1] : null;
   const talents = upgradedTalents(t, b, mod), { cost = 0, respawn_time: respawn = 0, ...talentBb } = alwaysOnBb(talents), { field } = teamTalentsAt(t, b);
-  const inRange = talents.map(rangePart).filter((p) => p !== null);
+  const inRange = talents.map(rangePart).filter((p) => p !== null), crits = talents.map(critPart).filter((p) => p !== null);
   return withTrait({
     name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: phase.range, traitBb: traitAt(t, b),
     maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: Math.max(0, s.cost + cost), blockCnt: s.blockCnt, baseAttackTime: s.baseAttackTime,
     respawnTime: Math.max(0, s.respawnTime + respawn), aspd: s.aspd, tauntLevel: s.tauntLevel, massLevel: s.massLevel,
-    ...(Object.keys(talentBb).length ? { talentBb } : {}), ...(field.length ? { fieldTalents: field } : {}), ...(inRange.length ? { rangeTalents: inRange } : {}),
+    ...(Object.keys(talentBb).length ? { talentBb } : {}), ...(field.length ? { fieldTalents: field } : {}), ...(inRange.length ? { rangeTalents: inRange } : {}), ...(crits.length ? { critTalents: crits } : {}),
     ...(slot && level ? { skill: skillDefOf(slot.id, level) } : {}),
   });
 }
