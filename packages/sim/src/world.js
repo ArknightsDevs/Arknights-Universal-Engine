@@ -21,9 +21,9 @@ import { upkeepBehaviors, timedBehaviors } from './upkeep.js';
 import { chargeBehavior } from './modes.js';
 import { auras } from './aura.js';
 import { regenAll } from './damage.js';
-import { emit, runTimers } from './bus.js';
+import { emit, hasHook, runTimers } from './bus.js';
 
-/** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
+/** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('@aue/schema').Command} Command */
 
 /**
@@ -62,7 +62,7 @@ function removeDead(w, c) {
   const reachedGoal = new Set(w.events.filter((e) => e.type === 'goal').map((e) => e.id));
   for (const u of w.units) {
     if (u.hp > 0) continue;
-    emit(w, 'death', { unit: u, reason: reachedGoal.has(u.id) ? 'leak' : 'killed', killer: null });
+    announceDeath(w, u, reachedGoal.has(u.id));
     u.anim = ANIM.DIE;
     if (!reachedGoal.has(u.id)) w.events.push({ type: 'death', id: u.id });
     if (!reachedGoal.has(u.id) && u.kind === KIND.ENEMY && u.base.neutral === true) neutralDown(w, c, u);
@@ -73,6 +73,30 @@ function removeDead(w, c) {
     if (u.kind === KIND.OPERATOR) leaveField(w, c, u, false);
   }
   w.units = w.units.filter((u) => u.hp > 0);
+}
+
+/**
+ * The unit whose hit this frame brought `u` to 0 HP — the last hit on it this frame —, while it is on the field; null
+ * for none or a hit without a source (钩子-3).
+ * @param {World} w @param {Unit} u @returns {Unit | null}
+ */
+function killerOf(w, u) {
+  for (let i = w.events.length - 1; i >= 0; i--) {
+    const e = /** @type {any} */ (w.events[i]);
+    if (e.type === 'hit' && e.target === u.id) return e.id >= 0 ? w.units.find((x) => x.id === e.id) ?? null : null;
+  }
+  return null;
+}
+
+/**
+ * The events of a unit leaving at 0 HP (钩子-3): `kill` when a unit's hit brought it there, then `death` — `leak` for
+ * an enemy that reached a goal, else `killed` with its killer.
+ * @param {World} w @param {Unit} u @param {boolean} leak
+ */
+function announceDeath(w, u, leak) {
+  const killer = leak || !(hasHook(w, 'kill') || hasHook(w, 'death')) ? null : killerOf(w, u);
+  if (killer) emit(w, 'kill', { killer, victim: u });
+  emit(w, 'death', { unit: u, reason: leak ? 'leak' : 'killed', killer });
 }
 
 /** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12); content cannot replace them. @param {Content} c */

@@ -80,7 +80,7 @@ export function actorContext(w, c, op, bb) {
     applyStatus: (t, key, o) => { applyStatus(t, key, { ...o, src: op }); },
     dealDamage: (t, dmg) => creditedDamage(w, c, op, t, dmg),
     dealEp: (t, el, amount) => dealEp(w, t, el, amount),
-    heal: (t, amount) => heal(op, t, amount),
+    heal: (t, amount) => heal(w, op, t, amount),
     gainCost: (n) => { gainCost(w, c, op.owner, n); },
   };
 }

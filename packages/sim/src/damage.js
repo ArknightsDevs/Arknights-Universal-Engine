@@ -1,22 +1,31 @@
 // Damage and healing (docs/spec/damage.md): the official formulas, then the source's damage multipliers, then the
-// target's 伤判 effects one buff at a time in event priority and acquisition order, then the HP.
+// target's 伤判 effects one buff at a time in event priority and acquisition order, then the HP; the hook events on the
+// way (钩子-3).
 import { powi, FPS } from '@aue/math';
 import { statsOf, activeBuffs } from './attrs.js';
 import { removeBuff } from './buffs.js';
 import { draw } from './rng.js';
 import { MIN_DAMAGE_RATIO } from './constants.js';
 import { hurtSp } from './sp.js';
+import { emit, hasHook } from './bus.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').DamageType} DamageType */
 
 /**
- * A hit. `amount` is the base damage (伤害-6). `pen` adds to the source's penetration for this hit. `hpLoss` makes it
- * 生命流失 (伤害-10). `canDodge` defaults to true for physical and arts damage.
+ * A hit, with the names of the Stronghold-compatible content interface (ADR 0012). `amount` is the base damage (伤害-6);
+ * `mul` multiplies it after the defences and `cancel` stops it — both a `hit` handler's (钩子-3); the four ignore values
+ * add to the source's penetration for this hit. Where it comes from: `isAttack` (an attack's hit), `isSkill` (made while
+ * the skill runs or by it), `isSplash`, `isProjectile`, `tags`. `hpLoss` makes it 生命流失 (伤害-10). `canDodge` defaults
+ * to true for physical and arts damage.
  * @typedef {object} Damage
  * @property {DamageType} type
  * @property {number} amount
- * @property {{ defIgnorePct?: number, defIgnoreFlat?: number, resIgnorePct?: number, resIgnoreFlat?: number }} [pen]
+ * @property {number} [mul]
+ * @property {boolean} [cancel]
+ * @property {number} [defIgnorePct] @property {number} [defIgnoreFlat] @property {number} [resIgnorePct] @property {number} [resIgnoreFlat]
+ * @property {boolean} [isAttack] @property {boolean} [isSkill] @property {boolean} [isSplash] @property {boolean} [isProjectile]
+ * @property {string[]} [tags]
  * @property {boolean} [canDodge]
  * @property {boolean} [hpLoss]
  */
@@ -48,7 +57,7 @@ export function mitigate(amount, type, t, pen) {
 /**
  * The penetration of a hit: the source's plus the hit's own, the ratios held to [0, 1] and the fixed values to ≥ 0
  * (属性-3).
- * @param {import('./attrs.js').Stats | null} s @param {Damage['pen']} [extra] @returns {Penetration}
+ * @param {import('./attrs.js').Stats | null} s @param {Partial<Penetration>} [extra] the hit's own (a Damage) @returns {Penetration}
  */
 export function penetration(s, extra = {}) {
   /** @param {'defIgnorePct' | 'defIgnoreFlat' | 'resIgnorePct' | 'resIgnoreFlat'} k */
@@ -80,14 +89,14 @@ function dropIfSpent(u, b) {
 
 /**
  * One buff's 伤判 effects on a hit, in a fixed order within the buff: dodge, taken multipliers, shield, barrier
- * (伤害-8). Returns the damage left; 0 ends the step.
+ * (伤害-8). Returns the damage left — 0 ends the step, −1 when the hit is dodged.
  * @param {World} w @param {Unit} u @param {Buff} b @param {number} amount @param {Damage} dmg
  */
 function judge(w, u, b, amount, dmg) {
   const p = dmg.type === 'phys' ? b.mods.dodgePhys : dmg.type === 'arts' ? b.mods.dodgeArts : undefined;
   if (p !== undefined && p > 0 && (dmg.canDodge ?? true)) {
     const miss = 1 - powi(1 - clamp01(p), b.stacks);
-    if (draw(w) < miss) return 0;
+    if (draw(w) < miss) return -1;
   }
   let left = amount * takenMul(b, dmg.type);
   if (b.shieldHits > 0 && absorbs(b, dmg.type)) {
@@ -106,28 +115,63 @@ function judge(w, u, b, amount, dmg) {
 
 /**
  * The target's 伤判 effects in turn (伤害-8): its active buffs by event priority, highest first, then acquisition order.
- * One that cancels the hit or brings it to 0 ends the step.
- * @param {World} w @param {Unit} u @param {number} amount @param {Damage} dmg
+ * One that cancels the hit or brings it to 0 ends the step; a dodge is the `dodge` event (钩子-3).
+ * @param {World} w @param {Unit} u @param {number} amount @param {Damage} dmg @param {Unit | null} [src]
  */
-export function takeDamage(w, u, amount, dmg) {
+export function takeDamage(w, u, amount, dmg, src = null) {
   const order = activeBuffs(u.buffs).map((b, i) => ({ b, i })).sort((x, y) => y.b.prio - x.b.prio || x.i - y.i);
   let left = amount;
   for (const { b } of order) {
     left = judge(w, u, b, left, dmg);
+    if (left < 0) emit(w, 'dodge', { source: src, target: u, dmg });
     if (!(left > 0)) return 0;
   }
   return left;
 }
 
 /**
- * Takes HP (伤害-9): at 0 or below the unit is at 0 and leaves the field at the end of the frame (帧-1).
- * @param {World} w @param {Unit | null} src @param {Unit} t @param {number} amount
+ * Takes HP (伤害-9): at 0 or below the unit is at 0 and leaves the field at the end of the frame (帧-1) — unless a
+ * `fatal` handler prevents it (钩子-3): then it keeps 1 HP (its maximum when below 1). Then the `damaged` event.
+ * @param {World} w @param {Unit | null} src @param {Unit} t @param {number} amount @param {Damage} dmg
  */
-function loseHpNow(w, src, t, amount) {
+function loseHp(w, src, t, amount, dmg) {
   t.hp -= amount;
-  if (t.hp <= 0) t.hp = 0;
+  if (t.hp <= 0) {
+    t.hp = 0;
+    const saved = hasHook(w, 'fatal') && emit(w, 'fatal', { unit: t, source: src, dmg, amount, prevented: false }).prevented;
+    if (saved && t.hp < 1) t.hp = Math.min(1, statsOf(t).maxHp);
+  }
   w.events.push({ type: 'hit', id: src ? src.id : -1, target: t.id, damage: amount });
+  if (hasHook(w, 'damaged')) emit(w, 'damaged', { source: src, target: t, amount, type: dmg.type, dmg });
   return amount;
+}
+
+/** A hit's fields the events show, filled in (钩子-3): `mul` 1, no `tags`, not cancelled. @param {Damage} dmg */
+function settle(dmg) {
+  dmg.mul ??= 1;
+  dmg.tags ??= [];
+  dmg.cancel ??= false;
+}
+
+/**
+ * The `hit` event before the defences (钩子-3): whether the hit goes on — not cancelled, the target still on the field
+ * with HP, not made invincible by a handler.
+ * @param {World} w @param {Unit | null} src @param {Unit} target @param {Damage} dmg
+ */
+function hitGoesOn(w, src, target, dmg) {
+  if (!hasHook(w, 'hit')) return true;
+  emit(w, 'hit', { source: src, target, dmg });
+  return !dmg.cancel && target.hp > 0 && w.units.includes(target) && !statsOf(target).invincible;
+}
+
+/**
+ * The `hpDamage` event after the 伤判 effects (钩子-3): a handler may lower what reaches the HP, never raise it.
+ * @param {World} w @param {Unit | null} src @param {Unit} target @param {number} amount @param {Damage} dmg
+ */
+function hpDamage(w, src, target, amount, dmg) {
+  if (!(amount > 0) || !hasHook(w, 'hpDamage')) return amount;
+  const k = emit(w, 'hpDamage', { source: src, target, amount, dmg });
+  return Number.isFinite(k.amount) ? Math.max(0, Math.min(amount, k.amount)) : amount;
 }
 
 /**
@@ -145,35 +189,40 @@ export function regenAll(w) {
 
 /**
  * Deals a hit (伤害-7): nothing to a unit already at 0 HP; 生命流失 goes straight to the HP; nothing to an invincible
- * unit (无敌, 沉睡, disappeared: 路线-4); otherwise the hit counts for 受击回复 (技能-2), then the target's defences, the
- * source's multiplier, the target's 伤判 effects, then the HP.
+ * unit (无敌, 沉睡, disappeared: 路线-4); otherwise the `hit` event, then the hit counts for 受击回复 (技能-2), then the
+ * target's defences, `mul`, the source's multiplier, the target's 伤判 effects, the `hpDamage` event, then the HP.
  * Returns the HP taken.
  * @param {World} w @param {Unit | null} src @param {Unit} target @param {Damage} dmg
  */
 export function dealDamage(w, src, target, dmg) {
   if (target.hp <= 0) return 0;
-  if (dmg.hpLoss) return loseHpNow(w, src, target, dmg.amount);
-  const ts = statsOf(target);
-  if (ts.invincible || target.hidden) return 0;
+  settle(dmg);
+  if (dmg.hpLoss) return loseHp(w, src, target, dmg.amount, dmg);
+  if (statsOf(target).invincible || target.hidden || !hitGoesOn(w, src, target, dmg)) return 0;
   hurtSp(target);
   const ss = src ? statsOf(src) : null;
-  let amount = mitigate(dmg.amount, dmg.type, ts, penetration(ss, dmg.pen));
+  let amount = mitigate(dmg.amount, dmg.type, statsOf(target), penetration(ss, dmg)) * /** @type {number} */ (dmg.mul);
   if (ss) amount *= dealtMul(ss, dmg.type);
-  amount = takeDamage(w, target, amount, dmg);
-  return amount > 0 ? loseHpNow(w, src, target, amount) : 0;
+  amount = hpDamage(w, src, target, takeDamage(w, target, amount, dmg, src), dmg);
+  return amount > 0 ? loseHp(w, src, target, amount, dmg) : 0;
 }
 
 /**
  * Heals (伤害-11): the amount times the healer's 治疗倍率 and the target's 受到治疗倍率, nothing under 禁疗, never above
- * the maximum HP. A unit no ally may heal (`noAllyHeal`, 职业-9) takes heals only from itself, and those even under
- * 禁疗. Returns the HP restored.
- * @param {Unit | null} src @param {Unit} target @param {number} amount
+ * the maximum HP; a `heal` handler may change the amount before it is applied (钩子-3). A unit no ally may heal
+ * (`noAllyHeal`, 职业-9) takes heals only from itself, and those even under 禁疗. Returns the HP restored.
+ * @param {World} w @param {Unit | null} src @param {Unit} target @param {number} amount
  */
-export function heal(src, target, amount) {
+export function heal(w, src, target, amount) {
   if (target.hp <= 0) return 0;
   const ts = statsOf(target), own = src === target && ts.flags.noAllyHeal === true;
   if ((ts.flags.noAllyHeal && src !== target) || (ts.flags.healFree && !own)) return 0;
-  const amt = amount * (src ? statsOf(src).healingDealtMul : 1) * ts.healingTakenMul;
+  let amt = amount * (src ? statsOf(src).healingDealtMul : 1) * ts.healingTakenMul;
+  if (hasHook(w, 'heal')) {
+    const k = emit(w, 'heal', { source: src, target, amount: amt });
+    amt = Number.isFinite(k.amount) ? Math.max(0, k.amount) : 0;
+    if (target.hp <= 0 || !w.units.includes(target)) return 0;
+  }
   const actual = Math.max(0, Math.min(amt, ts.maxHp - target.hp));
   target.hp = Math.min(ts.maxHp, target.hp + actual);
   return actual;

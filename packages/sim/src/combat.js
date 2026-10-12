@@ -61,10 +61,23 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
 /** @typedef {import('./skills.js').AttackMods} AttackMods @typedef {import('./types.js').Swing} Swing */
 /**
  * What an attack carries to one target: its damage type and amount, hits, 元素损伤, and an operator's splash and
- * aftershock (职业-8) and chain (职业-11).
+ * aftershock (职业-8) and chain (职业-11); whether the skill makes it, and which of its hits this is (钩子-3).
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
- *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null }} Load
+ *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null,
+ *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock' }} Load
  */
+
+/**
+ * A hit's damage, with where it comes from (钩子-3, the names of Stronghold's content): an attack's hit on its target,
+ * on one splashed or jumped to; an aftershock is a splash and no attack's hit; whether the skill made it; a projectile's.
+ * @param {Load} load @returns {import('./damage.js').Damage}
+ */
+function damageOf(load) {
+  const how = load.hit, d = /** @type {import('./damage.js').Damage} */ ({ type: load.type, amount: load.amount, isAttack: how !== 'aftershock', isSkill: !!load.skill, isProjectile: !!load.ranged });
+  if (how === 'splash' || how === 'aftershock') d.isSplash = true;
+  if (how === 'chain' || how === 'aftershock') d.tags = [how];
+  return d;
+}
 
 /**
  * One target's hits of an attack that lands (伤害-6, 伤害-7, 元素-2, 职业-4, 职业-5): `times` hits of the amount, each
@@ -75,7 +88,7 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
 function hitTarget(w, c, src, t, load) {
   const el = /** @type {import('./elements.js').Element | ''} */ (load.element), op = src && src.kind === KIND.OPERATOR ? src : null;
   for (let k = 0; k < load.times; k++) {
-    const alive = t.hp > 0, dealt = dealDamage(w, src, t, { type: load.type, amount: load.amount });
+    const alive = t.hp > 0, dealt = dealDamage(w, src, t, damageOf(load));
     if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
     if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
     if (el && load.ep > 0) dealEp(w, t, el, load.ep);
@@ -100,7 +113,7 @@ function afterDamage(w, c, h) {
  */
 function healForDamage(w, c, op, dealt) {
   const share = traitOf(c, op).healOnHit, to = share > 0 ? woundedInRange(w, c, op) : null;
-  if (to) w.events.push({ type: 'heal', id: op.id, target: to.id, amount: heal(op, to, dealt * share) });
+  if (to) w.events.push({ type: 'heal', id: op.id, target: to.id, amount: heal(w, op, to, dealt * share) });
 }
 
 /** The attack of an attacker, with an attack bonus for this attack only (敌能-11). @param {Unit} a @param {number} [pct] */
@@ -109,7 +122,7 @@ const atkOf = (a, pct) => (pct ? statsOf({ ...a, buffs: [...a.buffs, makeBuff({ 
 /** What an attack carries to each target (攻击-2): its type, the attack × 倍率, hits, 元素损伤. @param {Unit} a @param {AttackMods} mods @returns {Load} */
 const loadOf = (a, mods) => ({
   type: mods.type ?? a.base.dmgType, amount: atkOf(a, mods.atkPct) * mods.scale, times: mods.times, element: mods.element ?? '', ep: mods.ep ?? 0,
-  ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}),
+  ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.skill ? { skill: true } : {}),
 });
 
 /**
@@ -155,8 +168,9 @@ function splashOf(w, t, s) {
 export function impact(w, c, src, t, load) {
   const s = load.splash, around = s ? splashOf(w, t, s) : [];
   for (const k of load.aftershock ? [1, load.aftershock] : [1]) {
-    if (t.hp > 0) hitTarget(w, c, src, t, { ...load, amount: load.amount * k });
-    for (const u of around) if (u.hp > 0) hitTarget(w, c, src, u, { ...load, amount: load.amount * k * (s?.scale ?? 1) });
+    const shock = k === 1 ? {} : { hit: /** @type {const} */ ('aftershock') };
+    if (t.hp > 0) hitTarget(w, c, src, t, { ...load, amount: load.amount * k, ...shock });
+    for (const u of around) if (u.hp > 0) hitTarget(w, c, src, u, { ...load, amount: load.amount * k * (s?.scale ?? 1), hit: 'splash', ...shock });
   }
   if (load.chain) jumpHits(w, c, src, t, load);
 }
@@ -171,7 +185,7 @@ function jumpHits(w, c, src, t, load) {
   let amount = load.amount;
   for (const u of chainOf(w, c, t, ch, { heals: false, antiAir })) {
     amount *= ch.scale;
-    hitTarget(w, c, src, u, { ...load, amount });
+    hitTarget(w, c, src, u, { ...load, amount, hit: 'chain' });
   }
 }
 
@@ -185,7 +199,7 @@ function heals(w, c, a, t, how) {
   let amount = how.load.amount;
   for (const u of [t, ...how.jumps]) {
     for (let k = 0; k < how.load.times; k++) {
-      w.events.push({ type: 'heal', id: a.id, target: u.id, amount: heal(a, u, amount) });
+      w.events.push({ type: 'heal', id: a.id, target: u.id, amount: heal(w, a, u, amount) });
       if (ep > 0 && !statsOf(u).flags.healFree) restoreEp(u, amount * ep);
     }
     amount *= how.load.chain?.scale ?? 1;
@@ -234,7 +248,7 @@ function selfHeal(w, c, a, reached) {
   const t = traitOf(c, a);
   if (t.selfHeal <= 0 || reached === 0 || t.heal) return;
   const cap = t.selfHealMax === 'blockCnt' ? Math.max(1, statsOf(a).blockCnt) : t.selfHealMax;
-  for (let k = 0; k < Math.min(reached, cap); k++) w.events.push({ type: 'heal', id: a.id, target: a.id, amount: heal(a, a, t.selfHeal) });
+  for (let k = 0; k < Math.min(reached, cap); k++) w.events.push({ type: 'heal', id: a.id, target: a.id, amount: heal(w, a, a, t.selfHeal) });
 }
 
 /**
@@ -245,7 +259,7 @@ function selfHeal(w, c, a, reached) {
 function deliver(w, c, a, t, how) {
   const load = loadFor(c, a, t, how.load);
   if (how.heals) heals(w, c, a, t, { load, jumps: load.chain ? chainOf(w, c, t, load.chain, { heals: true, antiAir: true }) : [] });
-  else if (how.area) for (const u of areaOf(w, a, t, how.area)) hitTarget(w, c, a, u, load);
+  else if (how.area) for (const u of areaOf(w, a, t, how.area)) hitTarget(w, c, a, u, u === t ? load : { ...load, hit: 'splash' });
   else if (shoots(c, a, how.heals)) launch(w, a, t, load);
   else impact(w, c, a, t, load);
 }

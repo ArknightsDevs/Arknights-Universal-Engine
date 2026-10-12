@@ -54,12 +54,14 @@
 1. 目标生命已为 0：不造成伤害。
 2. 生命流失：直接扣除生命（伤害-10）。
 3. 目标无敌（无敌、沉睡）：不造成伤害。
-4. 按伤害类型和目标的防御、法抗、元素抗性计算（伤害-1 至 伤害-5）。
-5. 乘以来源的伤害倍率：`dmgDealtMul` × 物理时 `physDealtMul`、法术时 `artsDealtMul`。无来源的伤害没有这一步。
-6. 目标的伤判效果（伤害-8）。
-7. 剩下的伤害大于 0 时扣除生命（伤害-9）。
+4. `hit` 事件（钩子-3）：处理函数取消时不造成伤害。
+5. 按伤害类型和目标的防御、法抗、元素抗性计算（伤害-1 至 伤害-5），乘以这次伤害的 `mul`（默认 1）。
+6. 乘以来源的伤害倍率：`dmgDealtMul` × 物理时 `physDealtMul`、法术时 `artsDealtMul`。无来源的伤害没有这一步。
+7. 目标的伤判效果（伤害-8）。
+8. `hpDamage` 事件（钩子-3）。
+9. 剩下的伤害大于 0 时扣除生命（伤害-9），其间的 `fatal`、之后的 `damaged` 事件（钩子-3）。
 
-- 来源：[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)「伤害及其处理」：先计算伤害（ON_CALCULATE_DAMAGE），来源的伤害倍率在 ON_OUTPUT_DAMAGE，伤判在 ON_TAKE_DAMAGE；[PRTS「伤判效果」oldid=439572](https://prts.wiki/index.php?title=%E4%BC%A4%E5%88%A4%E6%95%88%E6%9E%9C&oldid=439572)：伤判在防御和法抗计算之后；[PRTS「异常效果」oldid=440606](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=440606) 无敌：「受到的伤害与元素值变为0」
+- 来源：[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)「伤害及其处理」：先计算伤害（ON_CALCULATE_DAMAGE），来源的伤害倍率在 ON_OUTPUT_DAMAGE，伤判在 ON_TAKE_DAMAGE；[PRTS「伤判效果」oldid=439572](https://prts.wiki/index.php?title=%E4%BC%A4%E5%88%A4%E6%95%88%E6%9E%9C&oldid=439572)：伤判在防御和法抗计算之后；[PRTS「异常效果」oldid=440606](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=440606) 无敌：「受到的伤害与元素值变为0」；事件点与 `mul` 为设计决定（钩子-3，ADR 0057）
 
 ### 伤害-8 伤判效果
 
@@ -95,6 +97,7 @@
 治疗量 = 基本治疗量 × 来源的治疗倍率 `healingDealtMul` × 目标的受到治疗倍率 `healingTakenMul`。
 
 - 目标有禁疗时为 0；目标生命为 0 时不治疗。
+- 回复之前是 `heal` 事件（钩子-3）。
 - 生命不超过最大生命值，超出的部分不计。
 
-- 来源：[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「治疗量」：「基本治疗量 = 攻击力 × 攻击力倍率」；[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)「伤害及其处理」：治疗倍率在 ON_OUTPUT_MODIFIER，受到治疗倍率在 ON_APPLYING_MODIFIER；[PRTS「异常效果」oldid=440606](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=440606) 禁疗；溢出转为额外生命的规则在 M3
+- 来源：[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「治疗量」：「基本治疗量 = 攻击力 × 攻击力倍率」；[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)「伤害及其处理」：治疗倍率在 ON_OUTPUT_MODIFIER，受到治疗倍率在 ON_APPLYING_MODIFIER；[PRTS「异常效果」oldid=440606](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=440606) 禁疗；溢出转为额外生命的规则在 M3；`heal` 事件为设计决定（钩子-3）

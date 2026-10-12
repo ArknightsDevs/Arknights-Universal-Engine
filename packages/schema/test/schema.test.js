@@ -85,19 +85,19 @@ test('client messages: generated well-formed deploys are accepted', () => {
   fc.assert(fc.property(fc.integer({ min: 0, max: 1_000_000 }), deploy, (at, cmd) => clientMessageProblem({ t: 'cmd', at, cmd }) === null), { seed: SEED, numRuns: 1000 });
 });
 
-test('snapshot envelope v11', () => {
-  assert.equal(snapshotProblem({ v: 11, frame: 0, data: {} }), null, 'version 11: projectiles carry the status their hits give');
-  assert.equal(snapshotProblem({ v: 10, frame: 0, data: {} }), 'snapshot version 10, expected 11');
+test('snapshot envelope v12', () => {
+  assert.equal(snapshotProblem({ v: 12, frame: 0, data: {} }), null, 'version 12: projectiles carry whether the skill made them');
+  assert.equal(snapshotProblem({ v: 11, frame: 0, data: {} }), 'snapshot version 11, expected 12');
   assert.equal(snapshotProblem([]), 'snapshot is not an object');
-  assert.equal(snapshotProblem({ v: 12, frame: 0, data: {} }), 'snapshot version 12, expected 11');
-  assert.equal(snapshotProblem({ v: 11, frame: -1, data: {} }), 'snapshot.frame out of range');
-  assert.equal(snapshotProblem({ v: 11, frame: 0, data: [] }), 'snapshot.data is not an object');
-  assert.equal(snapshotProblem({ v: 11, frame: 0 }), 'missing field data');
+  assert.equal(snapshotProblem({ v: 13, frame: 0, data: {} }), 'snapshot version 13, expected 12');
+  assert.equal(snapshotProblem({ v: 12, frame: -1, data: {} }), 'snapshot.frame out of range');
+  assert.equal(snapshotProblem({ v: 12, frame: 0, data: [] }), 'snapshot.data is not an object');
+  assert.equal(snapshotProblem({ v: 12, frame: 0 }), 'missing field data');
 });
 
 test('server messages: well-formed ones pass; broken ones are reported, never thrown', () => {
   const ok = [
-    { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: { v: 11, frame: 0, data: {} }, match: null, content: 7 },
+    { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: { v: 12, frame: 0, data: {} }, match: null, content: 7 },
     { t: 'frames', from: 3, to: 5, cmds: [[4, 1, DEPLOY], [5, 0, { type: 'retreat', unit: 2 }]] },
     { t: 'restamp', from: 3, to: 7 }, { t: 'resync', snapshot: {} }, { t: 'error', code: 'x', message: 'y' },
     { t: 'control', fast: [1, 0], held: 0, asker: -1, resuming: 0 }, { t: 'frames', from: 1, to: 1, cmds: [[1, 1, { type: 'answer', accept: 1 }]] },

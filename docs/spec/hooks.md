@@ -27,9 +27,18 @@
 | `tick` | 每帧，投射物等结算之后、移除阵亡单位之前（帧-1 第 8 步末） | `frames`：1 |
 | `deploy` | 干员部署完（特性、天赋、被动技能都已生效，部署-1…）之后；敌人出现（波次-1）之后 | `unit`，`initial`：否 |
 | `enemySpawn` | 敌人出现，紧接在它的 `deploy` 之后 | `enemy` |
-| `death` | 单位离场时：生命归零的单位在帧末移除（帧-1 第 9 步，`reason` 为 `killed`，到达目标点的为 `leak`），撤退的干员离场时（撤退-1，`retreat`） | `unit`、`reason`、`killer`（暂为空） |
+| `death` | 单位离场时：生命归零的单位在帧末移除（帧-1 第 9 步，`reason` 为 `killed`，到达目标点的为 `leak`），撤退的干员离场时（撤退-1，`retreat`） | `unit`、`reason`、`killer`：`killed` 时为这一帧最后一次命中它、仍在场上的单位，没有则为空 |
+| `kill` | 生命归零的单位离场、有击杀者时，紧接在它的 `death` 之前 | `killer`、`victim` |
+| `hit` | 一次伤害（伤害-7）判定无敌之后、计算防御之前 | `source`、`target`、`dmg`：处理函数可改 `amount`、`mul`、`type` 与四项穿透，设 `cancel` 取消这次伤害 |
+| `dodge` | 伤判效果里闪避了这次伤害时（伤害-8） | `source`、`target`、`dmg` |
+| `hpDamage` | 伤判效果之后、扣生命之前，剩下的伤害大于 0 时 | `source`、`target`、`amount`（只能调低）、`dmg` |
+| `fatal` | 扣生命使它归零时（含生命流失） | `unit`、`source`、`dmg`、`amount`、`prevented`：设为是时它留下 1 点生命（生命上限不足 1 时为上限） |
+| `damaged` | 扣生命之后（含生命流失） | `source`、`target`、`amount`、`type`、`dmg` |
+| `heal` | 治疗算完倍率、回复生命之前（伤害-11） | `source`、`target`、`amount`（可改） |
 
-- 来源：设计决定，见 [ADR 0057](../adr/0057-hook-bus-and-timers.md)；事件名与 Stronghold 的钩子一致（`docs/SIM.md` §5）
+伤害信息 `dmg` 用 Stronghold 内容接口的字段名（ADR 0012）：`type`、`amount`、`mul`、`cancel`、四项穿透，以及来源标记——`isAttack`（一次攻击的命中，含溅射与跳跃）、`isSkill`（技能运行时或技能造成）、`isSplash`（溅射，余震也算）、`isProjectile`、`tags`（跳跃为 `chain`，余震为 `aftershock`；余震不算攻击的命中）、`hpLoss`（生命流失）。伤害开始结算时补齐缺省的字段：`mul` 为 1，`tags` 为空，`cancel` 为否。
+
+- 来源：设计决定，见 [ADR 0057](../adr/0057-hook-bus-and-timers.md)；事件名、时机与上下文同 Stronghold 的钩子（`docs/SIM.md` §5，`server/sim/damage.js` 的伤害与治疗流程，GPL-3.0-or-later）
 
 ### 钩子-4 每局的挂接
 

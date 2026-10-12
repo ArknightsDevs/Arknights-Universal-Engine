@@ -334,8 +334,8 @@ test('[职业-9] no ally heals a noAllyHeal operator, not even a healer picks it
   const own = ev.filter((e) => e.type === 'heal' && e.target === guard.id);
   assert.deepEqual(own.map((e) => e.amount), [30, 30], 'one heal per enemy reached, its 阻挡数 (2) at most, despite 禁疗');
   assert.equal(guard.hp, 160);
-  assert.equal(heal(guard, guard, 10), 10);
-  assert.equal(heal(w.units[1] ?? null, guard, 10), 0, 'another unit\'s heal does nothing');
+  assert.equal(heal(w, guard, guard, 10), 10);
+  assert.equal(heal(w, w.units[1] ?? null, guard, 10), 0, 'another unit\'s heal does nothing');
 });
 
 test('[职业-10] [部署-1] a melee operator whose trait allows it may stand on a ranged tile', () => {

@@ -61,7 +61,7 @@ export function deployTalents(w, c, op) {
     if (t.sp && op.skill) gainSp(op.skill, t.sp[1] - t.sp[0] > 1 ? t.sp[0] + Math.floor(draw(w) * (t.sp[1] - t.sp[0])) : t.sp[0]);
     if (t.heal) {
       const amount = 'value' in t.heal ? t.heal.value : t.heal.scale * statsOf(op).atk;
-      for (const u of w.units) if (u.kind === KIND.OPERATOR && u.hp > 0) w.events.push({ type: 'heal', id: op.id, target: u.id, amount: heal(op, u, amount) });
+      for (const u of w.units) if (u.kind === KIND.OPERATOR && u.hp > 0) w.events.push({ type: 'heal', id: op.id, target: u.id, amount: heal(w, op, u, amount) });
     }
     if (t.shield) addBuff(op, makeBuff({ key: 'deployShield', src: op.id, shieldHits: t.shield }));
   }

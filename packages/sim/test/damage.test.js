@@ -184,20 +184,20 @@ test('[伤害-10] 生命流失 skips defences, 伤判 and invincibility', () => 
 });
 
 test('[伤害-11] healing: the healer\'s and the target\'s multipliers, capped at the maximum, nothing under 禁疗', () => {
-  const src = mk(1), t = mk(2);
+  const w = world(), src = mk(1), t = mk(2);
   t.hp = 500;
   src.buffs.push(makeBuff({ key: 'h', mods: { healingDealtMul: 1.5 } }));
   t.buffs.push(makeBuff({ key: 'r', mods: { healingTakenMul: 2 } }));
-  assert.equal(heal(src, t, 100), 300);
+  assert.equal(heal(w, src, t, 100), 300);
   assert.equal(t.hp, 800);
-  assert.equal(heal(null, t, 1000), 200);
+  assert.equal(heal(w, null, t, 1000), 200);
   assert.equal(t.hp, 1000);
   applyStatus(t, 'healFree', {});
   t.hp = 10;
-  assert.equal(heal(src, t, 100), 0);
-  assert.equal(heal(null, mk(3), 100), 0, 'full HP');
+  assert.equal(heal(w, src, t, 100), 0);
+  assert.equal(heal(w, null, mk(3), 100), 0, 'full HP');
   const dead = mk(4);
   dead.hp = 0;
-  assert.equal(heal(null, dead, 100), 0, 'no healing at 0 HP');
+  assert.equal(heal(w, null, dead, 100), 0, 'no healing at 0 HP');
   assert.equal(dead.hp, 0);
 });

@@ -37,15 +37,15 @@ const bare = ({ talentBb, fieldTalents, rangeTalents, critTalents, timedTalents,
 
 /**
  * The tiny level with 推进之王 (her kit), a 先锋 without a kit and a sniper; tougher enemies, more cost.
- * @param {Record<string, any>} [kits] other kits instead of hers
+ * @param {Record<string, any>} [kits] other kits instead of hers @param {string[]} [deck]
  */
-function match(kits) {
+function match(kits, deck = ['siege', 'texas', 'sniper']) {
   const c = /** @type {any} */ (tinyContent());
   c.enemies.slime.maxHp = 4000;
   Object.assign(c.level.options, { initialCost: 40, maxCost: 99, characterLimit: 4 });
   c.operators.siege = { ...bare(operatorAt(training, BUILD)), respawnTime: 1 };
   c.operators.texas = { ...c.operators.guard, name: 'texas', profession: 'PIONEER' };
-  c.decks = [['siege', 'texas', 'sniper']];
+  c.decks = [deck];
   const box = /** @type {{ b: any }} */ ({ b: null });
   c.behaviors = { world: kitsWorld(kits ?? { siege: { factory, def: defOf(SIEGE, training, BUILD) } }, (x) => { box.b = x; }) };
   const w = createWorld(c, { seed: 1, players: 1 });
@@ -173,4 +173,30 @@ test('[兼容-4] the same battle twice: the same state frame by frame', () => {
     return hashes;
   };
   assert.deepEqual(run(), run());
+});
+
+test('[兼容-4] damage as a kit sees it: hit may scale it, hpDamage lower it, fatal prevent it; kill names the killer', () => {
+  const log = /** @type {string[]} */ ([]);
+  const kit = () => ({ skills: {}, install(/** @type {ShBattle} */ b, /** @type {any} */ u) {
+    b.on('hit', (k) => { if (k.source === u) { k.dmg.mul *= 2; log.push(`hit:${k.dmg.isAttack ? 'attack' : 'other'}`); } }, { owner: u });
+    b.on('hpDamage', (k) => { if (k.target === u) k.amount = Math.min(k.amount, 1); }, { owner: u });
+    b.on('fatal', (k) => { if (k.unit === u && !u.mem.saved) { u.mem.saved = true; k.prevented = true; } }, { owner: u });
+    b.on('kill', (k) => log.push(`kill:${k.killer?.defId}>${k.victim.defId}`), { owner: u });
+    b.on('heal', (k) => { if (k.target === u) k.amount *= 2; }, { owner: u });
+  } });
+  const { c, w, b } = match({ guard: { def: { name: 'guard', skill: null, raw: {} }, factory: kit } }, ['guard']);
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 3, dir: 2 }]]);
+  for (let i = 0; i < 60 && !unit(w, 'slime'); i++) step(w, c);
+  const g = b.unitOf(unit(w, 'guard')), e = b.unitOf(unit(w, 'slime'));
+  assert.equal(b.dealDamage(g, e, { amount: 100, type: 'phys' }), 180, '(100 − 10) × 2');
+  assert.equal(b.dealDamage(null, g, { amount: 5000, type: 'true' }), 1, 'hpDamage: at most 1 a hit');
+  /** @type {any} */ (g.u).hp = 1;
+  assert.deepEqual([b.loseHp(g, 50), g.hp], [50, 1], 'fatal: kept at 1 HP');
+  assert.deepEqual([b.heal(null, g, 10), g.hp], [20, 21]);
+  assert.deepEqual([b.enemiesInKeys([e.tileR * 6 + e.tileC], g).map((x) => x.defId), b.foesInRadius(e.x, e.y, 0.4).length, b.unitAt(1, 3)?.defId], [['slime'], 1, 'guard']);
+  while (unit(w, 'slime')) step(w, c);
+  assert.ok(log.includes('hit:attack') && log.includes('kill:guard>slime'), log.join(' '));
+  b.retreat(g);
+  assert.equal(unit(w, 'guard'), undefined);
+  assert.deepEqual(b.errors, []);
 });

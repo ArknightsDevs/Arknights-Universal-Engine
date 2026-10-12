@@ -7,6 +7,9 @@ import { secondsToFrames } from '@aue/math';
 import { KIND, bus, buffs, status, traits, draw, weightedPick } from '@aue/sim';
 import { withGrid } from './grid.js';
 import { ShUnit } from './unit.js';
+import * as field from './field.js';
+import { ShGrid } from './tiles.js';
+import { CompatGap } from './sh/gap.js';
 
 /** @typedef {import('@aue/sim').World} World @typedef {import('@aue/sim').Content} Content @typedef {import('@aue/sim').Unit} Unit */
 /** @typedef {(ctx: any, b: ShBattle) => void} Handler */
@@ -14,20 +17,41 @@ import { ShUnit } from './unit.js';
 /** Seconds a frame (时间-1). */
 export const TICK = 1 / 30;
 
+/** Stronghold's status names → the engine's (状态-5), where they differ. @type {Record<string, string>} */
+const STATUS_KEY = { bind: 'root', resist: 'buffres' };
+
 /** Stronghold's buff refresh rules → the engine's same-key rules (状态-2). @type {Record<string, string>} */
 const RULES = { extend: 'extend', stack: 'stack', independent: 'independent' };
 
+/** A unit as a kit sees it, or null. @param {ShBattle} b @param {Unit | null | undefined} u */
+const sh = (b, u) => (u ? b.unitOf(u) : null);
+
 /**
- * An engine event's context as Stronghold's (兼容-4): units as ShUnits, `frames` as `dt` seconds.
+ * An engine event's context as Stronghold's (兼容-4), by event: units as ShUnits, `frames` as `dt` seconds; the damage
+ * info is the engine's own (the same names, ADR 0012); what a handler may change reads and writes the engine's context.
+ * @type {Record<string, (b: ShBattle, k: Record<string, any>) => Record<string, any>>}
+ */
+const SHAPES = {
+  deploy: (b, k) => ({ unit: sh(b, k.unit), initial: k.initial }),
+  death: (b, k) => ({ unit: sh(b, k.unit), reason: k.reason, killer: sh(b, k.killer), dying: false }),
+  kill: (b, k) => ({ killer: sh(b, k.killer), victim: sh(b, k.victim) }),
+  enemySpawn: (b, k) => ({ enemy: sh(b, k.enemy) }),
+  tick: (_b, k) => ({ dt: k.frames * TICK }),
+  hit: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), dmg: k.dmg, credit: sh(b, k.source) }),
+  dodge: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), dmg: k.dmg }),
+  damaged: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), amount: k.amount, type: k.type, dmg: k.dmg, credit: sh(b, k.source) }),
+  hpDamage: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), dmg: k.dmg, credit: sh(b, k.source),
+    get amount() { return k.amount; }, set amount(v) { k.amount = v; } }),
+  fatal: (b, k) => ({ unit: sh(b, k.unit), source: sh(b, k.source), credit: sh(b, k.source), dmg: k.dmg, amount: k.amount,
+    get prevented() { return k.prevented; }, set prevented(v) { k.prevented = v; } }),
+  heal: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), opts: {}, get amount() { return k.amount; }, set amount(v) { k.amount = v; } }),
+};
+
+/**
+ * An engine event's context as Stronghold's (兼容-4); a custom event's as it is.
  * @param {ShBattle} b @param {string} name @param {Record<string, any>} k @returns {Record<string, any>}
  */
-function shapeOf(b, name, k) {
-  if (name === 'deploy') return { unit: b.unitOf(k.unit), initial: k.initial };
-  if (name === 'death') return { unit: b.unitOf(k.unit), reason: k.reason, killer: k.killer ? b.unitOf(k.killer) : null, dying: false };
-  if (name === 'enemySpawn') return { enemy: b.unitOf(k.enemy) };
-  if (name === 'tick') return { dt: k.frames * TICK };
-  return k;
-}
+const shapeOf = (b, name, k) => (Object.hasOwn(SHAPES, name) ? SHAPES[name](b, k) : k);
 
 export class ShBattle {
   /** @param {World} w @param {Content} c */
@@ -37,6 +61,8 @@ export class ShBattle {
     /** @type {Content} */
     this.c = c;
     this.dt = TICK; this.started = false;
+    /** the level's tiles as Stronghold's grid */
+    this.grid = new ShGrid(c.level);
     /** @type {{ label: string, who: string, message: string }[]} handler errors, recorded and skipped */
     this.errors = [];
     /** @type {WeakMap<object, any>} the data a kit stored with a buff */
@@ -67,7 +93,7 @@ export class ShBattle {
     return s;
   }
 
-  /** The unit of an engine id on the field, or null. @param {number} id */
+  /** The unit of an engine id on the field, or null. @param {number} id @returns {ShUnit | null} */
   unitById(id) {
     const u = this.w.units.find((x) => x.id === id);
     return u ? this.unitOf(u) : null;
@@ -131,7 +157,28 @@ export class ShBattle {
     return t;
   }
 
-  // ---- the field ---------------------------------------------------------------------------------------------------
+  // ---- the field (field.js) ----------------------------------------------------------------------------------------
+
+  /** @param {Iterable<number> | null | undefined} keys @param {ShUnit | null} attacker @param {Record<string, any>} [profile] */
+  enemiesInKeys(keys, attacker, profile) { return field.enemiesInKeys(this, keys, attacker, profile); }
+  /** @param {number} x @param {number} y @param {number} r @param {boolean} [centre] */
+  enemiesInRadius(x, y, r, centre = false) { return field.enemiesInRadius(this, x, y, r, centre); }
+  /** @param {number} x @param {number} y @param {number} r @param {boolean} [centre] */
+  foesInRadius(x, y, r, centre = false) { return field.foesInRadius(this, x, y, r, centre); }
+  /** @param {number} r @param {number} c */
+  unitAt(r, c) { return field.unitAt(this, r, c); }
+  /** @param {ShUnit} unit */
+  alliesInGrid(unit) { return field.alliesInGrid(this, unit); }
+  /** @param {ShUnit} u @param {Record<string, any>} [profile] */
+  blockedTargets(u, profile) { return field.blockedTargets(u, profile); }
+  /** @param {ShUnit | null} source @param {ShUnit} target @param {Record<string, any>} dmg */
+  dealDamage(source, target, dmg) { return field.dealDamage(this, source, target, dmg); }
+  /** @param {ShUnit | null} source @param {ShUnit} target @param {number} amount */
+  heal(source, target, amount) { return field.heal(this, source, target, amount); }
+  /** @param {ShUnit} target @param {number} amount @param {{ source?: ShUnit | null, tags?: string[] }} [o] */
+  loseHp(target, amount, o) { return field.loseHp(this, target, amount, o); }
+  /** @param {ShUnit} unit */
+  retreat(unit) { field.retreat(this, unit); }
 
   /** Presentation effects (`(kind, params)`; none drawn yet). */
   fx() {}
@@ -160,6 +207,18 @@ export class ShBattle {
     buffs.addBuff(u, b);
   }
 
+  /**
+   * 效果取最高 (状态-2, the engine's rule `max`): of the buffs of the key the strongest value takes effect, the weaker
+   * wait with their own time.
+   * @param {ShUnit} target @param {string} key @param {{ duration?: number, value?: number, mods?: (v: number) => Record<string, number>, source?: ShUnit | null }} [o]
+   */
+  applyStrongest(target, key, o = {}) {
+    const v = Number(o.value);
+    if (!target?.alive || !(Number(o.duration) > 0) || !Number.isFinite(v) || typeof o.mods !== 'function') return false;
+    buffs.addBuff(/** @type {Unit} */ (target.u), buffs.makeBuff({ key, src: o.source?.u?.id ?? -1, rule: 'max', value: v, mods: o.mods(v), left: framesLeft(o.duration) }));
+    return true;
+  }
+
   /** @param {ShUnit} unit @param {string | { key: string }} which */
   removeBuff(unit, which) {
     const key = typeof which === 'string' ? which : which.key;
@@ -174,8 +233,9 @@ export class ShBattle {
    */
   applyStatus(target, key, o = {}) {
     if (!target.alive) return false;
-    const frames = o.duration === undefined ? undefined : secondsToFrames(Math.max(0, o.duration));
-    return status.applyStatus(/** @type {Unit} */ (target.u), /** @type {any} */ (key), { frames, src: o.source?.u ?? null, value: o.value }) !== null;
+    const k = STATUS_KEY[key] ?? key, frames = o.duration === undefined ? undefined : secondsToFrames(Math.max(0, o.duration));
+    if (!Object.hasOwn(status.STATUS, k)) throw new CompatGap(`status.${key}`);
+    return status.applyStatus(/** @type {Unit} */ (target.u), /** @type {any} */ (k), { frames, src: o.source?.u ?? null, value: o.value }) !== null;
   }
 }
 

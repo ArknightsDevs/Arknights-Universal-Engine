@@ -113,7 +113,7 @@ function contextOf(w, c, e, of) {
     applyStatus: (t, key, o) => { applyStatus(t, /** @type {any} */ (key), { ...o, src: e }); },
     dealDamage: (t, dmg) => dealDamage(w, e, t, dmg),
     dealEp: (t, el, amount) => dealEp(w, t, /** @type {any} */ (el), amount),
-    heal: (t, amount) => heal(e, t, amount),
+    heal: (t, amount) => heal(w, e, t, amount),
     gainCost: () => {},
     state: { get: (k) => ab[`${name}.${k}`] ?? 0, set: (k, v) => { ab[`${name}.${k}`] = v; } },
     blocked: e.blockedBy >= 0,
