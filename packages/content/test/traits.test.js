@@ -11,10 +11,10 @@ import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, oper
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
 
-test('[职业-7] the covered branches are 63 of the 72 official ones', () => {
+test('[职业-7] the covered branches are 64 of the 72 official ones', () => {
   assert.equal(Object.keys(ALL).length, 72);
   for (const b of Object.keys(BRANCHES)) assert.ok(Object.hasOwn(ALL, b), b);
-  assert.equal(Object.keys(BRANCHES).length, 63);
+  assert.equal(Object.keys(BRANCHES).length, 64);
   assert.ok(coveredBranch('fastshot') && coveredBranch('funnel') && coveredBranch('loopshooter') && !coveredBranch('traper') && !coveredBranch('toString'));
 });
 

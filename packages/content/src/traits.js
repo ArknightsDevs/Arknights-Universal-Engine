@@ -63,6 +63,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   siegesniper: { trait: () => ({ filter: 'MASS_DES' }) },
   aoesniper: { trait: () => ({ splash: { radius: 1, scale: 1, ground: false } }) },
   bombarder: { trait: (bb) => ({ antiAir: false, splash: { radius: 0.9, scale: 1, ground: true }, aftershock: bb['attack@append_atk_scale'] ?? 0.5 }) },
+  // melee on what it blocks or what stands on its tile, ranged with a 1.0 splash on the others in its range (职业-12)
+  fortress: { trait: () => ({ fortress: 1 }) },
   // air too; blocks 2 flying enemies once it took off (职业-12)
   skywalker: { trait: () => ({ antiAir: true, liftoffBlock: 2 }) },
   // air too, the blocked first; up in the air (起飞) while its skill does not run, attacking only flying enemies and those it

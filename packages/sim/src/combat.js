@@ -21,7 +21,7 @@ import { tickSkill, beforeAttack, attackMods, afterAttack } from './skills.js';
 import { palsyInterrupts, inflict } from './status.js';
 import { draw } from './rng.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
-import { mayAttack, healsNow, healerNow, inSkill, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale } from './modes.js';
+import { mayAttack, healsNow, healerNow, inSkill, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale, fortressTargets, fortressSplash } from './modes.js';
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitAsk } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_CUT_FRAMES } from './swing.js';
 
@@ -53,7 +53,7 @@ export function targetsOf(w, c, op) {
   const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id, air = t.idleAirOnly && !inSkill(op);
   const cands = w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true
     && ((held(u) && selectable(u, { canHitFly: true })) || (selectable(u, { canHitFly: t.antiAir }) && inKeys(u, keys, grid) && (!air || statsOf(u).flying))));
-  return sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary });
+  return fortressTargets(w, c, op, sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary }));
 }
 
 /**
@@ -301,10 +301,10 @@ function selfHeal(w, c, a, reached) {
  * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t @param {{ load: Load, heals: boolean, area: 'cross' | 'square' | null }} how
  */
 function deliver(w, c, a, t, how) {
-  const load = loadFor(c, a, t, how.load);
+  const far = how.heals ? null : fortressSplash(c, a, t), load = far ? { ...loadFor(c, a, t, how.load), splash: far } : loadFor(c, a, t, how.load);
   if (how.heals) heals(w, c, a, t, { load, jumps: load.chain ? chainOf(w, c, t, load.chain, { heals: true, antiAir: true }) : [] });
   else if (how.area) for (const u of areaOf(w, a, t, how.area)) hitTarget(w, c, a, u, u === t ? load : { ...load, hit: 'splash' });
-  else if (shoots(c, a, how.heals)) launch(w, a, t, a.kind === KIND.OPERATOR ? { ...load, boomerang: traitOf(c, a).boomerang } : load);
+  else if (far || shoots(c, a, how.heals)) launch(w, a, t, a.kind === KIND.OPERATOR ? { ...load, boomerang: traitOf(c, a).boomerang } : load);
   else impact(w, c, a, t, load);
 }
 

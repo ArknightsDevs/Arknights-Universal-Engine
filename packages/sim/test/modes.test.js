@@ -284,3 +284,15 @@ test('[职业-12] up in the air while the skill does not run: flags, flying enem
   assert.ok(hits.includes(a.id) && hits.includes(b.id), 'in the skill: the ground enemy and the one splashed');
   assert.equal(buffOf(op, 'idle'), undefined, 'landed');
 });
+
+test('[职业-12] 要塞: a ranged attack with its splash on what is in its range, a melee one on what stands on its tile', () => {
+  const { w, foe, put, run } = arena((c) => { c.operators.guard = { ...c.operators.guard, range: [{ row: 0, col: 1 }, { row: 0, col: 2 }], trait: { fortress: 1 } }; });
+  const op = put('guard', 1, 1), far = foe(1, 3), near = foe(1, 3.6);
+  const ev = run(60);
+  assert.ok(ev.some((x) => x.type === 'shot' && x.id === op.id), 'ranged: a projectile');
+  const hit = ev.filter((x) => x.type === 'hit' && x.id === op.id).map((x) => x.target);
+  assert.ok(hit.includes(far.id) && hit.includes(near.id), 'its splash');
+  for (const e of [far, near]) w.units.splice(w.units.indexOf(e), 1);
+  const mine = foe(1, 1), ev2 = run(60);
+  assert.ok(!ev2.some((x) => x.type === 'shot' && x.id === op.id) && ev2.some((x) => x.type === 'hit' && x.id === op.id && x.target === mine.id), 'melee on its own tile');
+});

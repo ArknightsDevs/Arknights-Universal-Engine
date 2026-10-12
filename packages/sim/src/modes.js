@@ -6,7 +6,8 @@ import { KIND } from '@aue/schema';
 import { statsOf, intervalFrames } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune, count } from './buffs.js';
 import { ELEMENTS, epOf, currentElement } from './elements.js';
-import { precisionKey, insertionSort } from './targeting.js';
+import { precisionKey, insertionSort, selectable } from './targeting.js';
+import { tileOf } from './body.js';
 import { traitOf, traitAsk } from './traits.js';
 import { launch } from './swing.js';
 import { gainSp } from './sp.js';
@@ -167,6 +168,32 @@ export function healOrder(c, op, cands) {
   const lowest = (/** @type {Unit} */ u) => { const el = currentElement(u); return el ? epOf(u, el) : Infinity; };
   const rows = cands.filter((u) => u.hp < u.maxHp || (ep && epDamaged(u))).map((u) => ({ u, k: precisionKey(u.hp / u.maxHp, 0.001), e: ep ? lowest(u) : 0 }));
   return insertionSort(rows, (a, b) => a.k - b.k || a.e - b.e).map((r) => r.u);
+}
+
+/** Whether a 要塞's target is one for its melee attack (职业-12): it blocks it, or it stands on its tile. @param {Unit} op @param {Unit} t */
+const fortressMelee = (op, t) => t.blockedBy === op.id || (tileOf(t)[0] === tileOf(op)[0] && tileOf(t)[1] === tileOf(op)[1]);
+
+/**
+ * A 要塞's candidates (职业-12): the others, then the enemies on its own tile (its melee range, which its range need not
+ * hold) — those it may select, in creation order.
+ * @param {World} w @param {Content} c @param {Unit} op @param {Unit[]} found the others, in their order
+ */
+export function fortressTargets(w, c, op, found) {
+  if (!(traitOf(c, op).fortress > 0)) return found;
+  const [r, col] = tileOf(op);
+  const own = w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && !found.includes(u) && selectable(u)
+    && tileOf(u)[0] === r && tileOf(u)[1] === col);
+  return [...found, ...own];
+}
+
+/**
+ * The splash of a 要塞's ranged attack on a target (职业-12), or null: its melee attack's — on one it blocks or that
+ * stands on its tile — and any other operator's have none of their own.
+ * @param {Content} c @param {Unit} op @param {Unit} t @returns {import('./types.js').Splash | null}
+ */
+export function fortressSplash(c, op, t) {
+  const r = op.kind === KIND.OPERATOR ? traitOf(c, op).fortress : 0;
+  return r > 0 && !fortressMelee(op, t) ? { radius: r, scale: 1, ground: false } : null;
 }
 
 /**

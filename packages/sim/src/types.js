@@ -136,6 +136,8 @@
  *   blocks (职业-12)
  * @property {Splash | null} skillSplash its attack's splash while its skill runs (职业-12)
  * @property {number} liftoffBlock its block count while it took off (起飞), 0 for its 阻挡数 (阻挡-2, 职业-12)
+ * @property {number} fortress a 要塞's ranged attack's splash radius, 0 for none: a melee attack on the enemies it blocks or
+ *   on its tile, a ranged one with that splash on the others (职业-12)
  * @property {{ atk: number, steps: number, init?: number } | null} charge while its skill does not run, a step a second up to
  *   `steps`, each `atk` ÷ `steps` attack (直接乘算), from the steps of `init` attack at deployment; back to 0 after the
  *   skill ran (职业-12)
