@@ -17,14 +17,14 @@ import { readView } from '@aue/schema';
 export function startBattle(o) {
   const worker = new Worker(o.workerUrl, { type: 'module' });
   /** @type {((d: any) => void)[]} */
-  const waiting = [], reaching = /** @type {((d: any) => void)[]} */ ([]);
+  const waiting = [], marking = /** @type {((d: any) => void)[]} */ ([]);
   worker.onmessage = (e) => {
     const m = e.data;
     if (m.type === 'frame') o.onFrame(readView(m.view), m.events, m.keys, m.status);
     else if (m.type === 'net') o.onNet?.(m);
     else if (m.type === 'control') o.onControl?.(m);
     else if (m.type === 'debug') waiting.shift()?.(m);
-    else if (m.type === 'reach') reaching.shift()?.(m);
+    else if (m.type === 'marks') marking.shift()?.(m);
   };
   worker.postMessage({ type: 'start', url: o.wsUrl, seat: o.seat, key: o.key });
   return {
@@ -41,10 +41,11 @@ export function startBattle(o) {
     /** @returns {Promise<{ frame: number, hash: number, sealed: number, stats: object }>} */
     debug: () => new Promise((resolve) => { waiting.push(resolve); worker.postMessage({ type: 'debug' }); }),
     /**
-     * What an operator on the field reaches now (render spec 渲染-9): tile keys (row × width + col) and whether it heals.
-     * @param {number} unit @returns {Promise<{ keys: number[], heal: boolean }>}
+     * The field marks (render spec 渲染-8, 渲染-9) for the selected operator and facing and the pointer's tile: the tiles
+     * to highlight and the range to show (tile keys row × width + col).
+     * @param {import('./marks.js').MarkQuery} q @returns {Promise<import('./marks.js').Marks>}
      */
-    reach: (unit) => new Promise((resolve) => { reaching.push(resolve); worker.postMessage({ type: 'reach', unit }); }),
+    marks: (q) => new Promise((resolve) => { marking.push(resolve); worker.postMessage({ type: 'marks', ...q }); }),
     stop: () => { worker.postMessage({ type: 'stop' }); worker.terminate(); },
   };
 }

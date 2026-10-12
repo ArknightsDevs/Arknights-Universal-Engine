@@ -3,7 +3,7 @@
 //   { type: 'command', cmd }            a player command (validated before it is sent)
 //   { type: 'speed', on } | { type: 'pause' } | { type: 'pauseReply', accept } | { type: 'resume' }   the controls
 //   { type: 'debug' }                   reply with { type: 'debug', frame, hash, sealed, stats }
-//   { type: 'reach', unit }             reply with { type: 'reach', unit, keys, heal } (render spec 渲染-9)
+//   { type: 'marks', op, dir, tile }    reply with { type: 'marks', deployable, range } (render spec 渲染-8, 渲染-9)
 //   { type: 'stop' }
 import { commandProblem } from '@aue/schema';
 import { skeletonContent, matchContent } from '@aue/content';
@@ -39,7 +39,8 @@ const HANDLERS = {
   pause: () => session.control({ type: 'pause' }),
   resume: () => session.control({ type: 'resume' }),
   debug: () => scope.postMessage(session.debug()),
-  reach: (m) => scope.postMessage(session.reach(Number(m.unit))),
+  marks: (m) => scope.postMessage(session.marks({ op: typeof m.op === 'string' ? m.op : null, dir: Number(m.dir) || 0,
+    tile: m.tile ? { row: Number(m.tile.row), col: Number(m.tile.col) } : null })),
   stop: () => session.stop(),
 };
 

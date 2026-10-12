@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readView, clientMessageProblem } from '@aue/schema';
 import { LockstepHost } from '@aue/net';
-import { reachKeys } from '@aue/sim';
+import { reachKeys, placedReach } from '@aue/sim';
 import { tinyContent } from '@aue/testkit';
 import { BattleSession } from '../src/index.js';
 
@@ -77,7 +77,7 @@ test('a command reaches the field; the debug state matches the server at the sam
   assert.ok(Object.values(keys).includes('guard') && Object.values(keys).includes('slime'), JSON.stringify(keys));
 });
 
-test('[渲染-9] reach: an operator\'s tile keys now and whether it heals, from the session\'s world; none for others', () => {
+test('[渲染-8] [渲染-9] marks: from the session\'s world and seat — deployable tiles, the preview, an own operator\'s reach', () => {
   const r = rig();
   r.session.start({ url: 'ws://x', seat: 0, key: 'k' });
   r.t.run(300, (now) => r.host.tick(now));
@@ -86,10 +86,14 @@ test('[渲染-9] reach: an operator\'s tile keys now and whether it heals, from 
   const w = /** @type {import('@aue/sim').World} */ (r.session.client.world), op = w.units.find((u) => u.key === 'guard');
   assert.ok(op);
   const c = r.session.client.o.content;
-  assert.deepEqual(r.session.reach(op.id), { type: 'reach', unit: op.id, keys: [...reachKeys(c, op)], heal: false });
-  assert.ok(r.session.reach(op.id).keys.includes(1 * c.level.width + 2), 'the tile in front of it');
-  const enemy = w.units.find((u) => u.kind !== op.kind);
-  assert.deepEqual(r.session.reach(enemy?.id ?? -1).keys, []);
+  assert.deepEqual(r.session.marks({ tile: { row: 1, col: 1 } }), { type: 'marks', deployable: [], range: { keys: [...reachKeys(c, op)], heal: false } });
+  // the sniper fits the four wall tiles (keys 2, 3, 14, 15); the guard's tile is taken but is not a wall anyway
+  const m = r.session.marks({ op: 'sniper', dir: 0, tile: { row: 0, col: 2 } });
+  assert.deepEqual(m.deployable, [2, 3, 14, 15]);
+  assert.deepEqual(m.range?.keys.sort((x, y) => x - y), [...placedReach(c, 'sniper', 0, 2, 0).keys].sort((x, y) => x - y));
+  assert.deepEqual(r.session.marks({ op: 'guard', dir: 0, tile: { row: 1, col: 1 } }).range, null, 'a taken tile previews nothing');
+  assert.ok(!r.session.marks({ op: 'guard' }).deployable.includes(7), 'nor is it deployable');
+  assert.deepEqual(r.session.marks({ tile: { row: 2, col: 0 } }), { type: 'marks', deployable: [], range: null }, 'no own operator there');
 });
 
 test('a closed socket reconnects and the session resumes from the server snapshot', () => {
