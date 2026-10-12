@@ -1,11 +1,12 @@
-// Enemies: each enemy's turn (帧-1): blocking (阻挡-1, 阻挡-3), its attack (敌人攻击-1), walking its route (移动-1) and
-// reaching the goal (目标-1). They spawn by the waves (waves.js, 出怪-1).
+// Enemies: each enemy's turn (帧-1): its 失衡 slide (位移-3), blocking (阻挡-1, 阻挡-3), its attack (敌人攻击-1), walking
+// its route (移动-1) and reaching the goal (目标-1). They spawn by the waves (waves.js, 出怪-1).
 import { KIND, ANIM } from '@aue/schema';
 import { followRoute, speedOf } from './routes.js';
 import { enemyAtGoal, goalSeats } from './coop.js';
 import { tryBlock, keepOrRelease } from './blocking.js';
 import { enemyAttack } from './combat.js';
 import { foeTick, carried } from './foes.js';
+import { slideStep } from './displacement.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 
@@ -21,12 +22,18 @@ function reachGoal(w, c, e) {
 }
 
 /**
- * One enemy's turn (帧-1): it is released if its blocker is gone or cannot block; it may be blocked; it attacks; an
- * enemy that is not blocked and did not attack walks, and may be blocked where it arrives.
+ * One enemy's turn (帧-1): one in 失衡 only slides (位移-3); otherwise it is released if its blocker is gone or cannot
+ * block; it may be blocked; it attacks; an enemy that is not blocked and did not attack walks, and may be blocked where
+ * it arrives.
  * @param {World} w @param {Content} c @param {Unit} e
  */
 function enemyTurn(w, c, e) {
   foeTick(w, c, e);
+  if (e.slide) {
+    slideStep(c, e);
+    e.anim = ANIM.IDLE;
+    return;
+  }
   keepOrRelease(w, e);
   tryBlock(w, c, e);
   const attacked = enemyAttack(w, c, e);

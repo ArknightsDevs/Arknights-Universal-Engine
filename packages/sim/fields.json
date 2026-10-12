@@ -125,7 +125,11 @@
   "act": [],
   "paid": [],
   "swing": [
-    "packages/sim/src/combat.js"
+    "packages/sim/src/combat.js",
+    "packages/sim/src/displacement.js"
+  ],
+  "slide": [
+    "packages/sim/src/displacement.js"
   ],
   "wind": [
     "packages/sim/src/combat.js"

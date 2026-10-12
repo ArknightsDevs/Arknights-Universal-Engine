@@ -48,6 +48,7 @@
 - [targeting.md](targeting.md)：攻击范围、可选性、目标顺序、仇恨值
 - [blocking.md](blocking.md)：阻挡的条件、阻挡数、解除、被阻挡的敌人
 - [paths.md](paths.md)：寻路（流场、平滑）、路线指令、巡逻、消失
+- [displacement.md](displacement.md)：位移：受力等级、推力、失衡（摩擦滑行、撞墙、硬直）
 - [skills.md](skills.md)：技能的种类、技力、发动、运行与结束、通用效果、行为接口、主动关闭
 - [elements.md](elements.md)：元素值、元素损伤、爆发与爆发冷却、各元素的爆发效果、当前损伤元素
 - [traits.md](traits.md)：职业与分支特性：按位置的默认值、治疗、目标数与伤害次数、在场修饰器与命中效果、击杀费用、行为接口、官方分支表

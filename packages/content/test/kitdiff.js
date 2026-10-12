@@ -1,10 +1,11 @@
 // The per-kit differential (docs/spec/compat.md 兼容-6, ADR 0058): one kit, one skill, in the pinned Stronghold's own
 // battle harness and in our engine through the compat layer — the same training (its 自选 elite form: E2 60, 潜能 6,
 // trust 0, skill rank 7, its last module at stage 3), alone against a still dummy (1e7 HP, 0 DEF and RES) in front of
-// it for 40 s; a MANUAL skill starts as soon as it is ready on our side (the player's). Compared: the buffs one second
-// after deployment (those that change something, the skill's aside), the HP each of its hits took (元素损伤 aside) and
-// each of its heals gave (as sets, Stronghold's attributes rounded, so within 0.5 %), the skill starts (±1), the
-// statuses it applied (key and seconds), and our side's recorded kit errors.
+// it for 40 s; a MANUAL skill starts once it is ready on our side (the player's), no sooner than 3 s after the
+// deployment and after it last started — Stronghold's automatic operations. Compared: the buffs one second after
+// deployment (those that change something, the skill's aside), the HP each of its hits took (元素损伤 aside) and each of
+// its heals gave (as sets, Stronghold's attributes rounded, so within 0.5 %), the skill starts (±1), the statuses it
+// applied (key and seconds), and our side's recorded kit errors.
 // The kits load from a copy of the commit's content files (.cache/kitroot/), so the compat hook never touches
 // Stronghold's own harness, which runs from the commit itself.
 import { register } from 'node:module';
@@ -134,8 +135,19 @@ function record(w, op, log) {
   bus.on(w, 'beforeStatus', (k) => { if (k.source === op()) log.statuses.add(`${STATUS_NAME[k.status] ?? k.status}:${k.frames < 0 ? Infinity : r1(k.frames / 30)}`); }, { priority: -1e9 });
 }
 
-/** The skill command for a MANUAL skill that is ready (the player's part). @param {any} u */
-const startWhenReady = (u) => /** @type {any[]} */ (u?.skill && !u.skill.active && u.skill.sp >= u.skill.cost ? [[0, { type: 'skill', unit: u.id }]] : []);
+/**
+ * The player's part, as Stronghold's automatic operations: the skill command for a MANUAL skill that is ready, no sooner
+ * than 3 s (its AUTO_OP_COOLDOWN) after the deployment and after the skill last started.
+ * @param {any} w @param {() => any} op @returns {() => any[]}
+ */
+function player(w, op) {
+  let next = 90;
+  bus.on(w, 'skillStart', (k) => { if (k.unit === op()) next = w.frame + 90; });
+  return () => {
+    const u = op();
+    return u?.skill && !u.skill.active && u.skill.sp >= u.skill.cost && w.frame >= next ? [[0, { type: 'skill', unit: u.id }]] : [];
+  };
+}
 
 /**
  * Our run. @param {string} charId @param {Function} factory @param {number} skill @param {number} module
@@ -160,7 +172,8 @@ async function ourRun(charId, factory, skill, module) {
   step(w, c, [[0, { type: 'deploy', op: 'op', row: 1, col: 2, dir: 0 }]]);
   for (let i = 0; i < 30; i++) step(w, c);
   const u = op(), buffs = u ? buffMap(u.buffs, ourRoles(w.units, u, box.b.unitOf(u))) : null, manual = c.operators.op.skill?.type === 'MANUAL';
-  for (let i = 30; i < SECONDS * 30; i++) step(w, c, manual ? startWhenReady(op()) : []);
+  const play = player(w, op);
+  for (let i = 30; i < SECONDS * 30; i++) step(w, c, manual ? play() : []);
   return { atk: c.operators.op.atk, buffs, ...log, statuses: [...log.statuses].sort(), errors: [...new Set(box.b.errors.map((/** @type {any} */ e) => `${e.label}: ${e.message}`))] };
 }
 

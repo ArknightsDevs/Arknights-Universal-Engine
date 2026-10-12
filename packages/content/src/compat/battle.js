@@ -4,7 +4,7 @@
 // throws is skipped and recorded (Stronghold isolates content errors the same way). Times are seconds to the kits and
 // whole frames to the engine (时间-2).
 import { secondsToFrames } from '@aue/math';
-import { KIND, bus, buffs, status, traits, blocking, draw, weightedPick, setExtraRange, attackNow } from '@aue/sim';
+import { KIND, bus, buffs, status, traits, blocking, displacement, draw, weightedPick, setExtraRange, attackNow } from '@aue/sim';
 import { withGrid } from './grid.js';
 import { ShUnit } from './unit.js';
 import { STATUS_NAME, statusKeyOf, modsOf, flagsOf, buffKeyOf } from './mods.js';
@@ -220,6 +220,18 @@ export class ShBattle {
     if (!unit?.u || !unit.alive) return false;
     const given = targets ? targets.map((t) => t?.u).filter((u) => !!u) : null;
     return attackNow(this.w, this.c, unit.u, /** @type {Unit[] | null} */ (given), { noAmmo: !!o.noAmmo });
+  }
+
+  /**
+   * Stronghold's push (位移-2): 力度 `force` on an enemy from `from`'s centre — along `dir` ({x, y}) when given, `fixed`
+   * / `fixedAngle` waiving the corrections, `inward` towards `from`, `effect` an effect's push. 1 when it got a speed,
+   * else 0 (the slide that follows takes its frames, 位移-3).
+   * @param {ShUnit} e @param {number} force @param {{ from?: { x: number, y: number } | null, dir?: { x: number, y: number } | null, fixed?: boolean, fixedAngle?: boolean, inward?: boolean, effect?: boolean }} [o]
+   */
+  push(e, force, o = {}) {
+    if (!e?.u || !e.alive) return 0;
+    const from = o.from ? { x: Number(o.from.x), y: Number(o.from.y) } : { x: e.x, y: e.y };
+    return displacement.push(this.w, this.c, e.u, Number(force), { from, dir: o.dir ?? null, fixed: !!o.fixed, anyAngle: !!o.fixedAngle, toward: !!o.inward, effect: !!o.effect }) ? 1 : 0;
   }
 
   /** Stronghold's _unblock: one enemy no longer blocked (阻挡-3). @param {ShUnit} e */

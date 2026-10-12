@@ -24,6 +24,7 @@ export * as elements from './elements.js';
 export * as traits from './traits.js';
 export * as deck from './deck.js';
 export * as summons from './summons.js';
+export * as displacement from './displacement.js';
 export * as swing from './swing.js';
 export * as coop from './coop.js';
 export * as waves from './waves.js';
