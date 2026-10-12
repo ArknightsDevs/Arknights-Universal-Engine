@@ -23,6 +23,8 @@ import { spineModel } from './spine.js';
  * @property {readonly number[]} [view] the level's camera view vector
  * @property {import('./units.js').Models} [models] Spine models by content key (operators by character id)
  * @property {Set<string>} [leaders] content keys of leader enemies (red HP bars)
+ * @property {boolean} [bars] whether the renderer draws the units' bars (渲染-5; default true): false when the page draws
+ *   the battle UI's own (界面-19)
  * @property {import('./kit.js').LoadedKit | null} [kit] the map theme's tile kit (渲染-7); without one the tiles are flat
  *   textures
  * @property {import('./fx/player.js').FxPack | null} [effects] the units' attack effects (渲染-10…渲染-12); none without
@@ -60,7 +62,7 @@ export function createBattleRenderer(o) {
   const units = createUnits(o.textures, o.models), field = { ...o.level, highland: o.kit?.kit.highland };
   const range = createRange(field, o.textures.get('ui:range')), effects = o.effects ? createEffects(o.effects, field, { skills: o.skills }) : null, clock = battleClock();
   scene.add(terrain.object, range.object, units.shadows, units.object, ...(effects ? [effects.object] : []));
-  const overlays = createOverlays(o.textures, o.leaders);
+  const overlays = createOverlays(o.bars === false ? new Map() : o.textures, o.leaders);
   const ray = new THREE.Raycaster();
 
   const resize = () => {
@@ -112,6 +114,8 @@ export function createBattleRenderer(o) {
       const hit = ray.intersectObjects(terrain.object.children, false).find((/** @type {THREE.Intersection} */ h) => h.object.userData.col !== undefined);
       return hit ? { col: hit.object.userData.col, row: hit.object.userData.row } : null;
     },
+    /** Whether a unit is drawn (a figure or a card). @param {number} id */
+    shows: (id) => units.shows(id),
     /** What the last frame drew and what the GPU holds (for measuring): draw calls, triangles, geometries, textures and their estimated bytes. */
     stats: () => drawStats(renderer, [scene, overlays.scene]),
     dispose() { terrain.dispose(); range.dispose(); highlight.dispose(); units.dispose(); overlays.dispose(); effects?.dispose(); renderer.dispose(); },

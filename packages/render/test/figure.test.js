@@ -7,7 +7,7 @@ import { newFigure, follow, attacked, dies, deathOver, clipAt } from '../src/fig
 import { tinyModel } from './model.js';
 
 /** A view unit doing `anim`. @param {number} kind @param {number} anim */
-const unit = (kind, anim) => ({ id: 1, kind, owner: 0, x: 1, y: 1, z: 0, dir: 0, hp: 1, maxHp: 1, anim, sp: -1, spCost: 0, skill: 0, skillLeft: -1, status: 0 });
+const unit = (kind, anim) => ({ id: 1, kind, owner: 0, x: 1, y: 1, z: 0, dir: 0, hp: 1, maxHp: 1, anim, sp: -1, spCost: 0, skill: 0, skillLeft: -1, status: 0, element: 0, ep: 1, burst: 0 });
 /** A clip's name, time rounded to 1e-9, and looping. @param {{ name: string, time: number, loop: boolean }} c */
 const at = (c) => [c.name, Math.round(c.time * 1e9) / 1e9, c.loop];
 

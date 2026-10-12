@@ -1,5 +1,5 @@
 {
-  "$comment": "Render state version 3, written by hand from the layout in ADR 0053 (version 2 adds each unit's SP, SP cost, skill state and skill frames left; version 3 its statuses, STATUS_BIT or-ed). A layout change must bump VIEW_VERSION and replace this file.",
+  "$comment": "Render state version 4, written by hand from the layout in ADR 0053 (version 2 adds each unit's SP, SP cost, skill state and skill frames left; version 3 its statuses, STATUS_BIT or-ed; version 4 its element, element value share and burst flag). A layout change must bump VIEW_VERSION and replace this file.",
   "view": {
     "frame": 42,
     "players": [
@@ -28,7 +28,10 @@
         "spCost": 30,
         "skill": 1,
         "skillLeft": -1,
-        "status": 0
+        "status": 0,
+        "element": 0,
+        "ep": 1,
+        "burst": 0
       },
       {
         "id": 3,
@@ -45,7 +48,10 @@
         "spCost": 40,
         "skill": 3,
         "skillLeft": 450,
-        "status": 514
+        "status": 514,
+        "element": 3,
+        "ep": 0.375,
+        "burst": 0
       },
       {
         "id": 2,
@@ -62,12 +68,15 @@
         "spCost": 0,
         "skill": 0,
         "skillLeft": -1,
-        "status": 9
+        "status": 9,
+        "element": 1,
+        "ep": 0.5,
+        "burst": 1
       }
     ]
   },
   "numbers": [
-    3,
+    4,
     42,
     3,
     2,
@@ -90,6 +99,9 @@
     1,
     -1,
     0,
+    0,
+    1,
+    0,
     3,
     0,
     1,
@@ -105,6 +117,9 @@
     3,
     450,
     514,
+    3,
+    0.375,
+    0,
     2,
     1,
     -1,
@@ -119,6 +134,9 @@
     0,
     0,
     -1,
-    9
+    9,
+    1,
+    0.5,
+    1
   ]
 }

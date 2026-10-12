@@ -12,6 +12,7 @@ import { applyStatus, palsyInterrupts, PALSY_DECAY_FRAMES, PALSY_SHAKE_FRAMES } 
 import { makeBuff, addBuff } from '../src/buffs.js';
 import { statsOf } from '../src/attrs.js';
 import { canStart } from '../src/skills.js';
+import { elementOf } from '../src/view.js';
 
 /** @typedef {import('../src/types.js').Unit} Unit @typedef {import('../src/types.js').World} World */
 
@@ -108,6 +109,18 @@ test('[元素-3] at 0 the burst begins: the values lock, the first element to re
   assert.ok(!bursting(guard));
   assert.deepEqual(guard.ep, {}, 'all back at the maximum');
   assert.equal(currentElement(guard), null);
+});
+
+test('[界面-20] [元素-5] the render state’s element: none and full, the current element’s share, the share of a burst gone by', () => {
+  const { w, c, guard } = arena();
+  assert.deepEqual(elementOf(guard), { element: 0, ep: 1, burst: 0 });
+  dealEp(w, guard, 'FIRE', 250);
+  dealEp(w, guard, 'DARK', 100);
+  assert.deepEqual(elementOf(guard), { element: 3, ep: 0.75, burst: 0 }, 'FIRE (3) is the lowest');
+  dealEp(w, guard, 'FIRE', 750);
+  assert.deepEqual(elementOf(guard), { element: 3, ep: 0, burst: 1 });
+  run(w, c, 150);
+  assert.deepEqual(elementOf(guard), { element: 3, ep: 0.5, burst: 1 }, 'half the 10 s burst gone');
 });
 
 test('[元素-5] the 当前损伤元素: the lowest value, the lower id of equals', () => {

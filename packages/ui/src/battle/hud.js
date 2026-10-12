@@ -8,6 +8,7 @@ import { createCoopTop } from './coop.js';
 import { createFieldMenus } from './menus.js';
 import { createCostAsk } from './coopcost.js';
 import { createStates } from './states.js';
+import { createUnitBars } from './unitbars.js';
 
 /** @typedef {import('../node.js').UiNode} UiNode */
 /** @typedef {import('../screen.js').Screen} Screen */
@@ -18,7 +19,7 @@ import { createStates } from './states.js';
  * match of two the co-op top bar's state.
  * @typedef {import('./cards.js').DeckState & { costTimer: number, costPeriod: number, maxCost: number, selected: string | null,
  *   life: number, speed: number, paused: boolean, coop?: import('./coop.js').CoopState & { cost?: import('./coopcost.js').CostAsk },
- *   states?: import('./states.js').BattleStates }} HudState
+ *   states?: import('./states.js').BattleStates, units?: import('./unitbars.js').UnitBar[] }} HudState
  */
 
 /**
@@ -66,9 +67,9 @@ export function createBattleHud(ui, o) {
     tapRef(scr, root, t.pause, () => emit('pause'));
   }
   const menus = createFieldMenus(ui, hud, { cancel: () => emit('cancel'), withdraw: () => emit('withdraw'), skill: () => emit('skill') });
-  const states = createStates(ui, scr, !!coop);
+  const states = createStates(ui, scr, !!coop), bars = hud.units ? createUnitBars(scr, hud.units) : null;
   return {
-    screen: scr, cards, coop, cost, states, direction: menus.direction, menu: menus.menu,
+    screen: scr, cards, coop, cost, states, bars, direction: menus.direction, menu: menus.menu,
     /** @param {string} name @param {(arg?: string) => void} fn */
     on(name, fn) { (handlers[name] ??= []).push(fn); },
     /** @param {HudState} s */
@@ -78,6 +79,7 @@ export function createBattleHud(ui, o) {
       if (coop && s.coop) coop.update(s.coop);
       if (cost && s.coop?.cost) cost.update(s.coop.cost);
       if (s.states) states.update(s.states);
+      if (bars && s.units) bars.update(s.units, [ui.canvas.w, ui.canvas.h]);
       showTop(scr, t, s);
     },
   };

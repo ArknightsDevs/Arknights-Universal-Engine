@@ -1,6 +1,8 @@
 // The world as the renderer sees it (schema render state v2).
 import { writeView, SKILL_STATE, STATUS_BIT } from '@aue/schema';
 import { codeOfDir } from './dir.js';
+import { currentElement, epOf, ELEMENTS } from './elements.js';
+import { statsOf } from './attrs.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').SkillState} SkillState */
 
@@ -21,9 +23,21 @@ export function toView(w, out) {
     units: w.units.map((u) => ({
       id: u.id, kind: u.kind, owner: u.owner, x: u.x, y: u.y, z: u.z, dir: codeOfDir(u.dir), hp: u.hp, maxHp: u.maxHp, anim: u.anim,
       sp: u.skill ? u.skill.sp : -1, spCost: u.skill ? u.skill.cost : 0, skill: skillState(u.skill), skillLeft: u.skill && u.skill.active ? u.skill.dur : -1,
-      status: statusBits(u),
+      status: statusBits(u), ...elementOf(u),
     })),
   }, out);
+}
+
+/**
+ * A unit's element for the view (元素-3, 元素-5): during a burst its element and the share of the burst gone by; else
+ * its 当前损伤元素 and that value's share of the maximum; none (and a full share) when every value is full.
+ * @param {import('./types.js').Unit} u @returns {{ element: number, ep: number, burst: number }}
+ */
+export function elementOf(u) {
+  const b = u.buffs.find((x) => x.key.startsWith('burst:'));
+  if (b) return { element: ELEMENTS.indexOf(/** @type {any} */ (b.key.slice(6))) + 1, ep: b.value > 0 ? Math.min(1, Math.max(0, 1 - b.left / b.value)) : 1, burst: 1 };
+  const el = currentElement(u);
+  return el ? { element: ELEMENTS.indexOf(el) + 1, ep: epOf(u, el) / statsOf(u).maxEp, burst: 0 } : { element: 0, ep: 1, burst: 0 };
 }
 
 /** The view's status bit of each status buff (状态-5); the others show nothing. */

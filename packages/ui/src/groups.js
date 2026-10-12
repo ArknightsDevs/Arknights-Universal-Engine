@@ -1,12 +1,13 @@
 // Unity's auto layout, simplified (docs/spec/ui.md 界面-3): horizontal and vertical layout groups (padding, spacing,
-// child alignment, controlling and force-expanding the children's size, reverse order), layout elements (ignored,
+// child alignment, controlling and force-expanding the children's size, reverse order), grid layout groups (fixed cells
+// row by row from the upper left), layout elements (ignored,
 // minimum, preferred and flexible sizes) and content size fitters (a rect sized to its preferred size).
 
 /** @typedef {import('./node.js').UiNode} UiNode */
 /** @typedef {{ dir: string, pad: number[], spacing: number, align: number, cw: number, ch: number, fw: number, fh: number, rev: number }} Group */
 
-/** The children a group lays out: active, not ignoring layout. @param {UiNode} s */
-export const groupKids = (s) => s.kids.filter((k) => k.active && !k.n.comps.le?.ignore);
+/** The children a group lays out: active, not ignoring layout (nor placed freely by the page). @param {UiNode} s */
+export const groupKids = (s) => s.kids.filter((k) => k.active && !k.free && !k.n.comps.le?.ignore);
 
 /** A child's flexible size on an axis (0 when it has none). @param {UiNode} k @param {number} ax */
 const flexOf = (k, ax) => { const le = k.n.comps.le; return le?.flex && le.flex[ax] > 0 ? le.flex[ax] : 0; };
@@ -21,6 +22,7 @@ export function prefSize(s, ax) {
   let v;
   if (le && le.pref[ax] >= 0) v = le.pref[ax];
   else if (s.n.comps.lg) v = groupPref(s, ax);
+  else if (s.n.comps.grid) v = gridPref(s, ax);
   else if (s.t) v = s.scr.ctx.measure(s)[ax];
   else v = s.rt.size[ax];
   return le && le.min[ax] >= 0 ? Math.max(v, le.min[ax]) : v;
@@ -82,6 +84,50 @@ export function arrange(s, w, h) {
     const c0 = (cross === 0 ? g.pad[0] : g.pad[2]) + (inner[cross] - z[cross]) * alignCross;
     k.lgRect = main === 0 ? { x: cur, y: c0, w: z[0], h: z[1] } : { x: c0, y: cur, w: z[0], h: z[1] };
     cur += z[main] + g.spacing;
+  });
+  for (const k of s.kids) if (!kids.includes(k)) k.lgRect = null;
+}
+
+/** @typedef {{ pad: number[], cell: number[], spacing: number[], corner: number, axis: number, align: number, constraint: number, count: number }} Grid */
+
+/**
+ * A grid's columns for its children (界面-3): a fixed column count, columns enough for a fixed row count, or as many
+ * cells as fit across its width (at least one).
+ * @param {Grid} g @param {number} n children @param {number} w its width
+ */
+export function gridColumns(g, n, w) {
+  if (g.constraint === 1) return Math.max(1, g.count);
+  if (g.constraint === 2) return Math.max(1, Math.ceil(n / Math.max(1, g.count)));
+  return Math.max(1, Math.floor((w - g.pad[0] - g.pad[1] + g.spacing[0] + 0.001) / (g.cell[0] + g.spacing[0])));
+}
+
+/**
+ * A grid's preferred size on an axis: across, its preferred columns (fixed, or the square root of its children
+ * rounded up when flexible); down, the rows its children take at its width; padding included.
+ * @param {UiNode} s @param {number} ax
+ */
+export function gridPref(s, ax) {
+  const g = /** @type {Grid} */ (s.n.comps.grid), n = groupKids(s).length;
+  if (ax === 0) {
+    const cols = g.constraint === 0 ? Math.ceil(Math.sqrt(n)) : gridColumns(g, n, 0);
+    return g.pad[0] + g.pad[1] + cols * g.cell[0] + Math.max(0, cols - 1) * g.spacing[0];
+  }
+  const rows = Math.ceil(n / gridColumns(g, n, s.w || s.rt.size[0]));
+  return g.pad[2] + g.pad[3] + rows * g.cell[1] + Math.max(0, rows - 1) * g.spacing[1];
+}
+
+/**
+ * Places a grid's children in cells of its cell size, row by row from the upper left, the block aligned in its w × h
+ * rect by its child alignment.
+ * @param {UiNode} s @param {number} w @param {number} h
+ */
+export function gridArrange(s, w, h) {
+  const g = /** @type {Grid} */ (s.n.comps.grid), kids = groupKids(s), cols = gridColumns(g, kids.length, w), rows = Math.ceil(kids.length / cols);
+  const bw = cols * g.cell[0] + Math.max(0, cols - 1) * g.spacing[0], bh = rows * g.cell[1] + Math.max(0, rows - 1) * g.spacing[1];
+  const x0 = g.pad[0] + (w - g.pad[0] - g.pad[1] - bw) * (g.align % 3) / 2, y0 = g.pad[2] + (h - g.pad[2] - g.pad[3] - bh) * Math.floor(g.align / 3) / 2;
+  kids.forEach((k, i) => {
+    const c = i % cols, r = Math.floor(i / cols);
+    k.lgRect = { x: x0 + c * (g.cell[0] + g.spacing[0]), y: y0 + r * (g.cell[1] + g.spacing[1]), w: g.cell[0], h: g.cell[1] };
   });
   for (const k of s.kids) if (!kids.includes(k)) k.lgRect = null;
 }

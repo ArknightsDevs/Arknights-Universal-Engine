@@ -1,7 +1,7 @@
 // The layout pass (docs/spec/ui.md 界面-2–界面-4): every frame each shown node's box from its rect (or its layout
 // group's placement), written as CSS only when it changed; content size fitters, best-fit texts, stencil masks.
 import { originCss, rectBox, transformCss } from './rect.js';
-import { arrange, prefSize } from './groups.js';
+import { arrange, gridArrange, prefSize } from './groups.js';
 import { paintGraphic, rgba, sty } from './paint.js';
 import { stencilUri } from './raster.js';
 import { bestFit } from './text.js';
@@ -71,6 +71,7 @@ export function layout(s, PW, PH, ppivot, shownUp) {
   if (s.t && s.color) { sty(s, s.t, 'color', rgba(s.color)); fitText(s, w, h); }
   paintGraphic(s, w, h);
   if (s.n.comps.lg) arrange(s, w, h);
+  else if (s.n.comps.grid) gridArrange(s, w, h);
   for (const k of s.kids) layout(k, w, h, rt.pivot, s.shown);
   if (s.stW) applyStencil(s, s.stW, w, h);
   for (const k of s.kids) if (k.stOuter && k.box) applyStencil(k, k.stOuter, k.box[2], k.box[3], [k.box[0], k.box[1]]);

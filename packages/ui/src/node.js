@@ -57,6 +57,7 @@ export class UiNode {
     /** @type {UiNode | null} */ this.stOuter = null;
     this.stHide = false; this.stKey = ''; this.paintKey = '';
     /** its hidden subtree is marked not shown @type {boolean} */ this.sealed = false;
+    /** placed by its rect even in a layout group (the page put it there) @type {boolean} */ this.free = false;
     /** @type {string} */ this.txt = '';
     /** @type {number} */ this.wrapW = 0;
     /** the root of the prefab instance the node belongs to, and that root's path in its prefab @type {UiNode} */

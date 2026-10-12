@@ -7,7 +7,7 @@ import { tinyContent } from '@aue/testkit';
 import { barsOf, BAR, createOverlays } from '../src/overlays.js';
 
 /** A view unit. @param {Record<string, number>} v */
-const unit = (v) => ({ id: 1, kind: 0, owner: 0, x: 1, y: 1, z: 0, dir: 0, hp: 50, maxHp: 100, anim: 0, sp: -1, spCost: 0, skill: SKILL_STATE.NONE, skillLeft: -1, status: 0, ...v });
+const unit = (v) => ({ id: 1, kind: 0, owner: 0, x: 1, y: 1, z: 0, dir: 0, hp: 50, maxHp: 100, anim: 0, sp: -1, spCost: 0, skill: SKILL_STATE.NONE, skillLeft: -1, status: 0, element: 0, ep: 1, burst: 0, ...v });
 
 test('[渲染-5] bars: blue HP for operators, orange for enemies, red for leaders; SP gathering, ready, running', () => {
   const c = BAR.colors;

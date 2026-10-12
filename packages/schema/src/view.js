@@ -1,20 +1,22 @@
-// The render state, version 3 (ADR 0053; version 2 adds each unit's skill, version 3 its statuses): one Float64Array per simulated frame,
+// The render state, version 4 (ADR 0053; version 2 adds each unit's skill, version 3 its statuses, version 4 its element): one Float64Array per simulated frame,
 // transferred from the worker to the main thread without a copy. Layout: the header, then each player's fields, then
 // each unit's fields.
 // Positions are in tile coordinates of the level: x = column, y = row (row 0 the nearest), z = the height level of the
 // tile under the unit (0 ground, 1 high ground); the renderer turns them into world coordinates. `owner` is the player
 // index of an operator, −1 for enemies. `sp` is the unit's SP (−1 without a skill), `spCost` what one use takes, `skill`
 // the skill's state (SKILL_STATE), `skillLeft` the frames left of a running skill's duration (−1 for none), `status`
-// the statuses it has (STATUS_BIT, or-ed).
+// the statuses it has (STATUS_BIT, or-ed); `element` its 当前损伤元素 (ELEMENT; NONE when every element value is full),
+// `ep` that element's value as a share of the maximum — while a burst locks it, the share of the burst gone by —, and
+// `burst` 1 during a burst.
 
-export const VIEW_VERSION = 3;
+export const VIEW_VERSION = 4;
 
 /** The header fields, in order. */
 export const VIEW_HEADER = Object.freeze(['version', 'frame', 'units', 'players']);
 /** Each player's fields, in order. */
 export const VIEW_PLAYER = Object.freeze(['life', 'cost']);
 /** Each unit's fields, in order. */
-export const VIEW_UNIT = Object.freeze(['id', 'kind', 'owner', 'x', 'y', 'z', 'dir', 'hp', 'maxHp', 'anim', 'sp', 'spCost', 'skill', 'skillLeft', 'status']);
+export const VIEW_UNIT = Object.freeze(['id', 'kind', 'owner', 'x', 'y', 'z', 'dir', 'hp', 'maxHp', 'anim', 'sp', 'spCost', 'skill', 'skillLeft', 'status', 'element', 'ep', 'burst']);
 
 /** Unit kinds. */
 export const KIND = Object.freeze({ OPERATOR: 0, ENEMY: 1 });
@@ -24,6 +26,8 @@ export const ANIM = Object.freeze({ IDLE: 0, MOVE: 1, ATTACK: 2, DIE: 3 });
 export const SKILL_STATE = Object.freeze({ NONE: 0, CHARGING: 1, READY: 2, RUNNING: 3 });
 /** Operator facing: the four deploy directions. */
 export const DIR = Object.freeze({ RIGHT: 0, UP: 1, LEFT: 2, DOWN: 3 });
+/** A unit's 当前损伤元素 in the render state: none, or the elements in the order of their ids 1…5 (元素-1). */
+export const ELEMENT = Object.freeze({ NONE: 0, SANITY: 1, WATER: 2, FIRE: 3, DARK: 4, ANGER: 5 });
 /** The statuses a unit shows (the render state's `status`, or-ed bits). */
 export const STATUS_BIT = Object.freeze({
   stun: 1, freeze: 2, sleep: 4, cold: 8, silence: 16, sluggish: 32, fragile: 64, weaken: 128, fear: 256, levitate: 512, root: 1024, invincible: 2048,
@@ -32,7 +36,7 @@ export const STATUS_BIT = Object.freeze({
 /** @typedef {{ life: number, cost: number }} ViewPlayer */
 /**
  * @typedef {{ id: number, kind: number, owner: number, x: number, y: number, z: number, dir: number, hp: number, maxHp: number, anim: number,
- *   sp: number, spCost: number, skill: number, skillLeft: number, status: number }} ViewUnit
+ *   sp: number, spCost: number, skill: number, skillLeft: number, status: number, element: number, ep: number, burst: number }} ViewUnit
  */
 /** @typedef {{ frame: number, players: ViewPlayer[], units: ViewUnit[] }} View */
 

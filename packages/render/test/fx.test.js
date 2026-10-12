@@ -147,7 +147,7 @@ test('[渲染-12] markers on the start and end tiles, a skill\'s own hit, deploy
   const road = (/** @type {string} */ key) => ({ key, height: 'LOWLAND' });
   const fx = createEffects({ data, textures: tex }, { width: 3, height: 1, tiles: [[road('tile_start_cooperate'), road('tile_road'), road('tile_end_cooperate')]] }, { skills: { op: 2 } });
   assert.equal(fx.count(), 2, 'a marker on each end tile');
-  const unit = (/** @type {Record<string, any>} */ o) => ({ owner: 0, z: 0, dir: DIR.RIGHT, hp: 1, maxHp: 1, anim: 0, sp: -1, spCost: 0, skill: 0, skillLeft: -1, status: 0, y: 0, ...o });
+  const unit = (/** @type {Record<string, any>} */ o) => ({ owner: 0, z: 0, dir: DIR.RIGHT, hp: 1, maxHp: 1, anim: 0, sp: -1, spCost: 0, skill: 0, skillLeft: -1, status: 0, element: 0, ep: 1, burst: 0, y: 0, ...o });
   const view = (/** @type {number} */ frame, /** @type {number} */ status) => /** @type {any} */ ({ frame, players: [], units: [
     unit({ id: 1, kind: KIND.OPERATOR, x: 1, skill: SKILL_STATE.RUNNING }), unit({ id: 2, kind: KIND.ENEMY, owner: -1, x: 2, status })] });
   fx.update(view(1, STATUS_BIT.stun), { 1: 'op', 2: 'foe' }, [{ type: 'deploy', id: 1, key: 'op', owner: 0 }, { type: 'hit', id: 1, target: 2 }]);
