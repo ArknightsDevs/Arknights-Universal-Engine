@@ -3,7 +3,7 @@
 // to the engine's unit while it is deployed, unbound in between — so the hooks its kit installs once see every
 // deployment. An enemy is the engine's unit itself. Fields Stronghold's kits keep their own state in (`mem`, `trait`)
 // live here, outside the engine's state (ADR 0057).
-import { KIND, attrs, body, traits, buffs, status, reachKeys } from '@aue/sim';
+import { KIND, attrs, body, traits, buffs, status, damage, reachKeys, setRange } from '@aue/sim';
 import { ShSkill } from './skill.js';
 import { STATUS_NAME } from './mods.js';
 
@@ -31,13 +31,16 @@ export class ShBuff {
   get status() { const k = this.buff.key; return Object.hasOwn(status.STATUS, k) ? STATUS_NAME[k] ?? k : null; }
   get flags() { return this.buff.flags; }
   get shield() { return this.buff.shield; }
+  set shield(v) { damage.setShield(this.holder, this.buff, v); }
   get value() { return this.buff.value; }
   /** The unit that gave it, or null. */
   get source() { return this.b.unitById(this.buff.src); }
   /** The data its giver stored with it. */
   get data() { return this.b.buffData.get(this.buff) ?? null; }
-  /** Seconds left, Infinity for none. */
+  set data(v) { this.b.buffData.set(this.buff, v); }
+  /** Seconds left, Infinity for none; a kit may set them (whole frames). */
   get timeLeft() { return this.buff.left < 0 ? Infinity : this.buff.left / FPS; }
+  set timeLeft(s) { buffs.setLeft(this.buff, s === Infinity ? -1 : Number(s) * FPS); }
   get stacks() { return this.buff.stacks; }
   get mods() { return this.buff.mods; }
   set mods(m) { buffs.retune(this.holder, this.buff, this.buff.value, m ?? {}); }
@@ -117,8 +120,11 @@ export class ShUnit {
   /** An operator's attack range now (索敌-1, 技能-8): its tile keys. */
   get rangeKeySet() { return this.u && this.u.kind === KIND.OPERATOR ? reachKeys(this.b.c, this.u) : new Set(); }
   get rangeKeys() { return [...this.rangeKeySet]; }
-  /** Its range grid as the record gives it. */
-  get rangeGrid() { return this.def?.raw?.rangeGrid ?? this.def?.rangeGrid ?? null; }
+  /** Its own range grid: the one a kit gave it on the field, else its record's. A kit may set it (攻击-1); null takes it back. */
+  get rangeGrid() { return this.u?.range ? this.u.range.map((x) => [x.row, x.col]) : this.def?.raw?.rangeGrid ?? this.def?.rangeGrid ?? null; }
+  set rangeGrid(g) { if (this.u) setRange(this.u, Array.isArray(g) ? g.map(([row, col]) => ({ row, col })) : null); }
+  /** Stronghold's stat cache: the engine's are computed when read. */
+  markDirty() {}
   /**
    * What its attacks may select, as Stronghold's profile names it: an operator's trait (职业-1) — flying units when it can
    * hit them; an enemy's none.

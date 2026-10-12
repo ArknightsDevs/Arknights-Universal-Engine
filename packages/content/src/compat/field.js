@@ -2,7 +2,7 @@
 // the enemies on tiles or within a radius that an ability may select (索敌-2), the unit on a tile, the enemies a unit
 // blocks; damage (伤害-7, 元素-2), healing (伤害-11), 生命流失 (伤害-10) and retreat (撤退-1). The battle's methods
 // (battle.js) call these; units are the kits' (unit.js).
-import { KIND, attrs, body, damage, traits, elements, deck } from '@aue/sim';
+import { KIND, attrs, body, damage, traits, elements, deck, blocking, routes } from '@aue/sim';
 import { canTargetEnemy } from './sh/targeting.js';
 
 /** @typedef {import('./battle.js').ShBattle} ShBattle @typedef {import('./unit.js').ShUnit} ShUnit @typedef {import('@aue/sim').Unit} Unit */
@@ -53,6 +53,36 @@ export function unitAt(b, r, c) {
 export function alliesInGrid(b, unit) {
   const keys = unit.rangeKeySet, g = gridOf(b);
   return b.allies().filter((a) => !a.hidden && body.bodyKeys(a, g).some((k) => keys.has(k)) && b.allySelectable(a, unit));
+}
+
+/**
+ * The allies on the tile keys a healer may heal that need it — HP below the maximum (or, with `element`, 元素损伤 taken) —,
+ * the lowest HP ratio first; one under 禁疗 or no ally may heal only for itself.
+ * @param {ShBattle} b @param {Iterable<number> | null | undefined} keys @param {ShUnit | null} healer @param {boolean} [element]
+ */
+export function injuredAlliesInKeys(b, keys, healer, element = false) {
+  if (!keys) return [];
+  const set = new Set(keys), g = gridOf(b);
+  const out = b.allies().filter((a) => {
+    const s = attrs.statsOf(/** @type {Unit} */ (a.u));
+    if (a.hidden || !body.bodyKeys(a, g).some((k) => set.has(k))) return false;
+    if (a !== healer && (s.flags.healFree || s.flags.noAllyHeal)) return false;
+    return a.hp < s.maxHp - 1e-6 || (element && Object.keys(/** @type {Unit} */ (a.u).ep ?? {}).length > 0);
+  });
+  return out.map((a, i) => ({ a, i })).sort((x, y) => x.a.hpRatio - y.a.hpRatio || x.i - y.i).map((x) => x.a);
+}
+
+/** Whether a tile takes no unit placed by content: off the map, or a unit on it. @param {ShBattle} b @param {number} r @param {number} c */
+export function isReservedTile(b, r, c) {
+  return !b.grid.inBounds(r, c) || b.w.units.some((u) => u.hp > 0 && u.kind === KIND.OPERATOR && body.tileOf(u)[0] === r && body.tileOf(u)[1] === c);
+}
+
+/** What is left of an enemy's route, in tiles (索敌-6). @param {ShBattle} b @param {ShUnit} e */
+export const remainingDistance = (b, e) => (e?.u && e.u.kind === KIND.ENEMY ? routes.pathDistance(b.c, e.u) : 0);
+
+/** A unit lets go of every enemy it blocks (阻挡-3). @param {ShBattle} b @param {ShUnit} u */
+export function releaseBlocked(b, u) {
+  if (u?.u) blocking.releaseAll(b.w, u.u.id);
 }
 
 /** The enemies a unit blocks that it may select with `profile`. @param {ShUnit} u @param {Record<string, any>} [profile] */

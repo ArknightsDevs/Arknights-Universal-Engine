@@ -117,6 +117,15 @@ export function endSkill(w, c, op, reason = 'duration') {
 }
 
 /**
+ * Sets the frames a running timed skill has left (content that shortens or lengthens it, 技能-4): at least 1 — it ends
+ * in that frame's turn.
+ * @param {SkillState} st @param {number} frames
+ */
+export function setTimeLeft(st, frames) {
+  if (st.active && st.dur > 0) st.dur = Math.max(1, Math.round(frames));
+}
+
+/**
  * Starts a skill (技能-3, 技能-4): it takes its cost; by kind it lasts its duration, holds its ammo, waits for the next
  * attack, or acts at once and ends. The `skillStart` event (钩子-3) follows its behaviour's start, with why: `manual`,
  * `auto` or `deploy` (a passive skill). A free start (content's own, 技能-3) takes no cost.

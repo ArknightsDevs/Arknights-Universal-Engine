@@ -97,6 +97,11 @@ export function retune(u, b, value, mods) {
   refreshHp(u);
 }
 
+/** Sets the frames a buff has left (content that changes it, 状态-1): whole frames, −1 for no end. @param {Buff} b @param {number} frames */
+export function setLeft(b, frames) {
+  b.left = frames < 0 ? -1 : Math.max(0, Math.round(frames));
+}
+
 /** Takes one layer of a stacking buff; the last one removes it (状态-8). @param {Unit} u @param {Buff} b */
 export function consumeStack(u, b) {
   if (b.stacks > 1) b.stacks--;

@@ -39,9 +39,12 @@ export class ShSkill {
   get spCost() { return this.st?.cost ?? 0; }
   get maxCharges() { const st = this.st; return st && st.cost > 0 ? Math.round(st.cap / st.cost) : 1; }
   get charges() { const st = this.st; return st && st.cost > 0 ? Math.floor(st.sp / st.cost) : 0; }
+  /** Whole charges, the SP toward the next kept. */
+  set charges(n) { const st = this.st; if (st && st.cost > 0) sp.setSp(st, Math.max(0, Math.floor(Number(n) || 0)) * st.cost + (st.sp % st.cost)); }
   get ready() { const st = this.st; return !!st && !this.noSkill && st.sp >= st.cost; }
   /** Seconds left of a running timed skill, 0 otherwise. */
   get timeLeft() { const st = this.st; return st?.active && st.dur > 0 ? st.dur / FPS : 0; }
+  set timeLeft(s) { if (this.st) skills.setTimeLeft(this.st, Number(s) * FPS); }
   /** Its duration in seconds, as the content gives it. */
   get duration() { return this.def?.duration ?? 0; }
   get ammoLeft() { const st = this.st; return st?.active ? st.ammo : 0; }

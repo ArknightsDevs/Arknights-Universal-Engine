@@ -5,7 +5,7 @@ import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import { loadOracle } from '@aue/testkit';
-import { mitigate, penetration, dealtMul, takenMul, takeDamage, dealDamage, heal } from '../src/damage.js';
+import { mitigate, penetration, dealtMul, takenMul, takeDamage, dealDamage, heal, setShield } from '../src/damage.js';
 import { makeBuff } from '../src/buffs.js';
 import { applyStatus } from '../src/status.js';
 import { seedState } from '../src/rng.js';
@@ -200,4 +200,17 @@ test('[伤害-11] healing: the healer\'s and the target\'s multipliers, capped a
   dead.hp = 0;
   assert.equal(heal(w, null, dead, 100), 0, 'no healing at 0 HP');
   assert.equal(dead.hp, 0);
+});
+
+test('[伤害-8] content may set what a shield holds: at least 0; a buff that is only a used-up shield goes', () => {
+  const u = mk(1), w = world();
+  u.buffs.push(makeBuff({ key: 's', shield: 100 }), makeBuff({ key: 'm', shield: 50, mods: { atkPct: 0.1 } }));
+  setShield(u, u.buffs[0], 30);
+  assert.equal(takeDamage(w, u, 40, { type: 'phys', amount: 40 }), 0, '30, then 10 of the 50');
+  assert.deepEqual(u.buffs.map((b) => [b.key, b.shield]), [['m', 40]], 'the first used up: gone');
+  setShield(u, u.buffs[0], -5);
+  assert.deepEqual(u.buffs.map((b) => [b.key, b.shield]), [['m', 0]], 'at least 0; it has modifiers: it stays');
+  u.buffs.push(makeBuff({ key: 'only', shield: 20 }));
+  setShield(u, u.buffs[1], 0);
+  assert.deepEqual(u.buffs.map((b) => b.key), ['m'], 'only a shield, now empty: gone');
 });

@@ -4,14 +4,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
 import { createWorld, step } from '../src/index.js';
-import { kindOf, makeSkillState, statMods, skillMods, STAT_KEYS, beforeAttack } from '../src/skills.js';
+import { kindOf, makeSkillState, statMods, skillMods, STAT_KEYS, beforeAttack, setTimeLeft } from '../src/skills.js';
 import { gainSp, forceSp, timeSp, hurtSp } from '../src/sp.js';
 import { makeEnemy } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
 import { dealDamage } from '../src/damage.js';
 import { makeBuff } from '../src/buffs.js';
 import { statsOf } from '../src/attrs.js';
-import { reachKeys } from '../src/reach.js';
+import { reachKeys, setRange } from '../src/reach.js';
 
 /** @typedef {import('../src/types.js').SkillDef} SkillDef @typedef {import('../src/types.js').Unit} Unit @typedef {import('../src/types.js').World} World */
 
@@ -278,4 +278,25 @@ test('[技能-9] what a description adds: every blocked enemy as targets or more
   assert.deepEqual(g.buffs.find((b) => b.key === 'skill')?.mods, { dodgePhys: 0.5 });
   c.operators.guard.skill = { ...c.operators.guard.skill, extra: { attack: { blocked: true } } };
   assert.deepEqual(beforeAttack(w, c, g).blocked, true);
+});
+
+test('[技能-4] content may set the frames a running timed skill has left: at least 1, ended in that frame’s turn', () => {
+  const a = arena(sk({ cost: 1, init: 1, duration: 10 }), 0);
+  run(a.w, a.c, 1, [[0, { type: 'skill', unit: a.guard.id }]]);
+  const st = /** @type {import('../src/types.js').SkillState} */ (a.guard.skill);
+  setTimeLeft(st, 0);
+  assert.equal(st.dur, 1);
+  run(a.w, a.c, 1);
+  assert.equal(st.active, false);
+  setTimeLeft(st, 50);
+  assert.equal(st.dur, -1, 'not running: unchanged');
+});
+
+test('[攻击-1] content may give an operator its own attack range and take it back', () => {
+  const a = arena(sk({}), 0), own = [...reachKeys(a.c, a.guard)];
+  setRange(a.guard, [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 0, col: 3 }]);
+  assert.deepEqual([...reachKeys(a.c, a.guard)].sort((x, y) => x - y), [7, 8, 9, 10], 'row 1, columns 1–4, facing right');
+  setRange(a.guard, null);
+  assert.deepEqual([...reachKeys(a.c, a.guard)], own);
+  assert.equal('range' in a.guard, false);
 });

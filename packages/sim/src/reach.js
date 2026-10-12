@@ -1,5 +1,5 @@
 // An operator's attack range now (docs/spec/skills.md 技能-8, 攻击-1): its skill's while the skill runs and has one, its
-// own otherwise — turned with it, extended by its 攻击距离.
+// own otherwise — the one content gave it, else its record's —, turned with it, extended by its 攻击距离.
 import { statsOf } from './attrs.js';
 import { rangeKeys } from './targeting.js';
 import { traitOfDef } from './traits.js';
@@ -15,7 +15,17 @@ import { dirOfCode } from './dir.js';
 export function reachKeys(c, op) {
   const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], sk = op.skill && op.skill.active ? d.skill : undefined;
   if (sk && sk.rangeAll) return new Set(Array.from({ length: grid.rows * grid.cols }, (_, k) => k));
-  return rangeKeys(grid, op, (sk && sk.range) || d.range, statsOf(op).rangeExtend);
+  return rangeKeys(grid, op, (sk && sk.range) || op.range || d.range, statsOf(op).rangeExtend);
+}
+
+/**
+ * Content changes an operator's own attack range (攻击-1): offsets as its record gives them, facing right; none brings
+ * back its record's.
+ * @param {Unit} op @param {readonly { row: number, col: number }[] | null} cells
+ */
+export function setRange(op, cells) {
+  if (cells) op.range = cells.map((x) => ({ row: x.row, col: x.col }));
+  else delete op.range;
 }
 
 /**

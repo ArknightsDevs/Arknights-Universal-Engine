@@ -135,5 +135,8 @@
   ],
   "sy": [
     "packages/sim/src/swing.js"
+  ],
+  "range": [
+    "packages/sim/src/reach.js"
   ]
 }

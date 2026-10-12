@@ -88,6 +88,15 @@ function dropIfSpent(u, b) {
 }
 
 /**
+ * Sets what a buff's shield holds (content that changes it, 伤害-8): at least 0; a buff that is only a used-up shield goes.
+ * @param {Unit} u @param {Buff} b @param {number} amount
+ */
+export function setShield(u, b, amount) {
+  b.shield = Math.max(0, Number(amount) || 0);
+  if (b.shield === 0) dropIfSpent(u, b);
+}
+
+/**
  * One buff's 伤判 effects on a hit, in a fixed order within the buff: dodge, taken multipliers, shield, barrier
  * (伤害-8). Returns the damage left — 0 ends the step, −1 when the hit is dodged.
  * @param {World} w @param {Unit} u @param {Buff} b @param {number} amount @param {Damage} dmg

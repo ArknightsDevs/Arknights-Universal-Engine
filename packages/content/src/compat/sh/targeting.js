@@ -1,7 +1,7 @@
 // Stands in for Stronghold's server/sim/targeting.js (兼容-2): the names its operator kits import — the range keys, a
-// unit's tile key and whether an ability may select an enemy, by the engine's own rules (索敌-1, 索敌-2, 体积-1); the rest
-// still gaps.
-import { targeting, body, attrs } from '@aue/sim';
+// unit's tile key, whether an ability may select an enemy and the order of an ability's candidates, by the engine's own
+// rules (索敌-1…索敌-3, 体积-1); the rest still gaps.
+import { targeting, body, attrs, routes } from '@aue/sim';
 import { COLS, ROWS } from '../grid.js';
 import { gap } from './gap.js';
 
@@ -41,5 +41,37 @@ export function canTargetEnemy(_attacker, e, profile) {
   return !(typeof p.skipEnemy === 'function' && p.skipEnemy(e));
 }
 
+/** Stronghold's priorities that are the engine's own 仇恨过滤器 (索敌-3). @type {Record<string, import('@aue/sim').targeting.FilterName>} */
+const FILTER = { lowDef: 'DEF_ASC', heaviest: 'MASS_DES' };
+
+/** Its other priorities, as a key (lower first) over the engine's order. @type {Record<string, (e: any, a: any) => number>} */
+const KEY = {
+  fly: (e) => (e.isFlying ? 0 : 1), ground: (e) => (e.isFlying ? 1 : 0), highDef: (e) => -(e.s?.def ?? 0), highestAtk: (e) => -(e.s?.atk ?? 0),
+  lowestHp: (e) => e.hp, highestHp: (e) => -e.hp, lowestHpRatio: (e) => e.hpRatio, notBurst: (e) => (e.flags.burstLock ? 1 : 0),
+  nearest: (e, a) => body.bodyDist(e, a.x, a.y), farthest: (e, a) => -body.bodyDist(e, a.x, a.y),
+  ranged: (e) => (e.base?.rangeRadius > 0 && e.base?.applyWay !== 'MELEE' ? 0 : 1), boss: (e) => (e.base?.levelType === 'BOSS' ? 0 : 1),
+  elite: (e) => (e.base?.levelType === 'ELITE' || e.base?.levelType === 'BOSS' ? 0 : 1),
+};
+
+/**
+ * An ability's candidates in order (索敌-3), in place: the engine's order with the priority's 仇恨过滤器, or by 仇恨值
+ * and then the priority's key; the enemies the attacker blocks first — after the flying ones for the air priority (as
+ * Stronghold has it).
+ * @param {{ c: import('@aue/sim').Content }} battle @param {{ u: import('@aue/sim').Unit | null, x: number, y: number }} attacker
+ * @param {Target[]} cands @param {string | null | undefined} priority @returns {Target[]}
+ */
+export function sortEnemyTargets(battle, attacker, cands, priority) {
+  if (cands.length <= 1) return cands;
+  const of = new Map(cands.filter((e) => e.u).map((e) => [e.u, e])), p = priority ?? '';
+  const order = targeting.sortEnemies(/** @type {any} */ (attacker.u), [...of.keys()].map((u) => /** @type {import('@aue/sim').Unit} */ (u)),
+    { blockedFirst: false, pathDist: (e) => routes.pathDistance(battle.c, e), filter: FILTER[p] ?? 'HATRED_DES' });
+  let list = order.map((u) => /** @type {Target} */ (of.get(u)));
+  const key = KEY[p];
+  if (key) list = targeting.insertionSort(list.map((e) => ({ e, k: key(e, attacker) })), (a, b) => a.k - b.k).map((r) => r.e);
+  const id = attacker.u?.id ?? -2, mine = (/** @type {Target} */ e) => e.u?.blockedBy === id;
+  if (p !== 'fly') list = [...list.filter(mine), ...list.filter((e) => !mine(e))];
+  cands.splice(0, cands.length, ...list);
+  return cands;
+}
+
 export const aggroCmp = gap('targeting.aggroCmp');
-export const sortEnemyTargets = gap('targeting.sortEnemyTargets');

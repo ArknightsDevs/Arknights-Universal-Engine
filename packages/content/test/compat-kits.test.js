@@ -42,7 +42,7 @@ test('[兼容-2] the table: an engine module goes to its stand-in, content loads
 test('[兼容-2] the pinned oracle’s 72 operator kits load unchanged; a name the layer does not provide yet throws when called', () => {
   assert.equal(kits.length, 72);
   for (const [f, charId, factory] of kits) assert.equal(typeof factory, 'function', `${f} ${charId}`);
-  assert.throws(() => targeting.sortEnemyTargets(), (e) => e instanceof CompatGap && e.what === 'targeting.sortEnemyTargets');
+  assert.throws(() => targeting.aggroCmp(), (e) => e instanceof CompatGap && e.what === 'targeting.aggroCmp');
 });
 
 test('[兼容-2] the stand-in direction helpers: facing-RIGHT offsets turned a quarter per step, row 0 at the bottom', () => {

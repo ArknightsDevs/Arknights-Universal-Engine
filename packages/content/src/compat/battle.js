@@ -186,6 +186,20 @@ export class ShBattle {
   unitAt(r, c) { return field.unitAt(this, r, c); }
   /** @param {ShUnit} unit */
   alliesInGrid(unit) { return field.alliesInGrid(this, unit); }
+  /** @param {Iterable<number> | null | undefined} keys @param {ShUnit | null} healer @param {boolean} [element] */
+  injuredAlliesInKeys(keys, healer, element = false) { return field.injuredAlliesInKeys(this, keys, healer, element); }
+  /** @param {number} r @param {number} c */
+  isReservedTile(r, c) { return field.isReservedTile(this, r, c); }
+  /** @param {ShUnit} e */
+  remainingDistance(e) { return field.remainingDistance(this, e); }
+  /** @param {ShUnit} u */
+  releaseBlocked(u) { field.releaseBlocked(this, u); }
+  /** A knocked-out operator lying on a tile (`(r, c, except)`): none in these modes — the fallen leave the field. */
+  downOn() { return null; }
+  /** Allies the enemies' side may select, on tiles (`(keys, attacker)`): none in these modes. @returns {ShUnit[]} */
+  allyTargetsInKeys() { return []; }
+  /** … within a radius (`(x, y, r, attacker)`): none in these modes. @returns {ShUnit[]} */
+  allyTargetsInRadius() { return []; }
   /** @param {ShUnit} u @param {Record<string, any>} [profile] */
   blockedTargets(u, profile) { return field.blockedTargets(u, profile); }
   /** @param {ShUnit | null} source @param {ShUnit} target @param {Record<string, any>} dmg */
@@ -196,6 +210,9 @@ export class ShBattle {
   loseHp(target, amount, o) { return field.loseHp(this, target, amount, o); }
   /** @param {ShUnit} unit */
   retreat(unit) { field.retreat(this, unit); }
+
+  /** Stronghold's range cache (`(unit)`): the engine's range is computed when read. */
+  refreshRange() {}
 
   /** Presentation effects (`(kind, params)`; none drawn yet). */
   fx() {}
@@ -260,13 +277,12 @@ export class ShBattle {
 const framesLeft = (seconds) => (seconds === undefined || seconds === Infinity ? -1 : secondsToFrames(Math.max(0, seconds)));
 
 /**
- * Stronghold's random numbers over the battle's own stream (随机-1): `rng()` in [0, 1), chance, pick, int, range,
- * shuffle and weighted picks.
+ * Stronghold's random numbers over the battle's own stream (随机-1): `rng()` in [0, 1), and as its methods chance, pick,
+ * int, range, shuffle and weighted picks.
  * @param {World} w
  */
 function makeRng(w) {
-  const r = () => draw(w);
-  return Object.assign(r, {
+  return Object.setPrototypeOf(() => draw(w), {
     /** @param {number} p */ chance: (p) => draw(w) < p,
     /** @template T @param {T[]} list @returns {T | undefined} */ pick: (list) => (list.length ? list[Math.floor(draw(w) * list.length)] : undefined),
     /** @param {number} a @param {number} b */ int: (a, b) => a + Math.floor(draw(w) * (b - a + 1)),

@@ -226,3 +226,26 @@ test('[兼容-4] attacks, skills and statuses as a kit sees them: targets it may
   assert.ok(log.some((x) => /^attack:slime,slime:/.test(x)), log.join(' '));
   assert.deepEqual(b.errors, []);
 });
+
+test('[兼容-4] what a kit may change: its range, a buff’s time, shield and data, its skill’s time and charges; the field’s order', () => {
+  const skill = { id: 'guardS', type: 'MANUAL', sp: 'time', cost: 2, init: 6, charges: 3, duration: 10, ammo: false, bb: {} };
+  const { c, w, b } = match({}, ['guard', 'sniper'], (x) => { x.operators.guard.skill = skill; });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 3, dir: 2 }], [0, { type: 'deploy', op: 'sniper', row: 0, col: 2, dir: 0 }]]);
+  const g = b.unitOf(unit(w, 'guard')), s = b.unitOf(unit(w, 'sniper'));
+  g.rangeGrid = [[0, 0], [0, 1], [0, 2]];
+  assert.deepEqual([g.rangeKeys.sort((x, y) => x - y), g.rangeGrid], [[7, 8, 9], [[0, 0], [0, 1], [0, 2]]], 'facing left from (1, 3)');
+  b.addBuff(g, { key: 'wall', shield: 0, mods: { defPct: 0.1 }, duration: 5, data: { n: 1 } });
+  const wall = /** @type {any} */ (g.findBuff('wall'));
+  wall.timeLeft = 2; wall.data = { n: 2 };
+  assert.deepEqual([g.findBuff('wall')?.timeLeft, g.findBuff('wall')?.data], [2, { n: 2 }]);
+  const sk = /** @type {any} */ (g.skill);
+  assert.equal(sk.charges, 3);
+  sk.charges = 1;
+  assert.deepEqual([sk.sp, sk.activate('manual'), sk.charges], [2, true, 0]);
+  sk.timeLeft = 1;
+  assert.equal(sk.timeLeft, 1);
+  /** @type {any} */ (s.u).hp = 100;
+  assert.deepEqual([b.injuredAlliesInKeys(s.rangeKeys.concat(g.rangeKeys, [2 * 6 + 2, 0 * 6 + 2]), g).map((x) => x.defId), b.isReservedTile(1, 3), b.isReservedTile(1, 0), b.isReservedTile(9, 9)],
+    [['sniper'], true, false, true]);
+  assert.deepEqual(b.errors, []);
+});

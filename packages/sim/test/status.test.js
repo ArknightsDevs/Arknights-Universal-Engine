@@ -8,7 +8,7 @@ import { loadOracle } from '@aue/testkit';
 import { KIND, STATUS_BIT } from '@aue/schema';
 import { newSchedule } from '../src/waves.js';
 import { newStageState } from '../src/stage.js';
-import { makeBuff, addBuff, removeBuff, tickUnitBuffs, tickBuffs, decayRate } from '../src/buffs.js';
+import { makeBuff, addBuff, removeBuff, tickUnitBuffs, tickBuffs, decayRate, setLeft } from '../src/buffs.js';
 import { STATUS, applyStatus, statusBuff } from '../src/status.js';
 import { statusBits } from '../src/view.js';
 import { statsOf, activeBuffs } from '../src/attrs.js';
@@ -278,3 +278,13 @@ test('[状态-6] [状态-1] freeze from an enemy is the enemy kind; the buff rec
   assert.equal(applyStatus(u, 'silence', {})?.src, -1);
 });
 
+
+test('[状态-1] content may set the frames a buff has left: whole frames, −1 for no end', () => {
+  const b = makeBuff({ key: 'x', left: 30 });
+  setLeft(b, 12.4);
+  assert.equal(b.left, 12);
+  setLeft(b, -3);
+  assert.equal(b.left, -1);
+  setLeft(b, 0);
+  assert.equal(b.left, 0);
+});
