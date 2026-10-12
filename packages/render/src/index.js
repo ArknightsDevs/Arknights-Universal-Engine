@@ -7,3 +7,4 @@ export { barsOf, BAR } from './overlays.js';
 export { cameraPose, applyPose, toThree, tileWorld, adapt, DEFAULT_VIEW, FOV, STEP_HEIGHT } from './camera.js';
 export { tileKeys } from './terrain.js';
 export { unitTextureKey } from './units.js';
+export { SHADOW } from './shadows.js';

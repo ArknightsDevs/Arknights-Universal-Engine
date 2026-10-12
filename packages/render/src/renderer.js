@@ -1,6 +1,6 @@
-// The battle renderer: a three.js scene of systems — terrain, units (Spine figures or cards) — under the official
-// camera, then the overlays (HP and SP bars) over it with the depth cleared (ADR 0027). The page owns the loop: it
-// calls update() with each render state from the worker and render() once per animation frame.
+// The battle renderer: a three.js scene of systems — terrain, the units' shadows, units (Spine figures or cards) —
+// under the official camera, then the overlays (HP and SP bars) over it with the depth cleared (ADR 0027). The page
+// owns the loop: it calls update() with each render state from the worker and render() once per animation frame.
 import * as THREE from 'three';
 import { applyPose, DEFAULT_VIEW } from './camera.js';
 import { createTerrain } from './terrain.js';
@@ -12,7 +12,7 @@ import { spineModel } from './spine.js';
  * @typedef {object} RendererOptions
  * @property {HTMLCanvasElement} canvas
  * @property {import('./terrain.js').TerrainLevel} level
- * @property {Map<string, THREE.Texture>} textures keyed 'tile:<key>', 'avatar:<charId>', 'enemy:<enemyKey>', 'ui:bar'
+ * @property {Map<string, THREE.Texture>} textures keyed 'tile:<key>', 'avatar:<charId>', 'enemy:<enemyKey>', 'ui:bar', 'ui:shadow'
  * @property {readonly number[]} [view] the level's camera view vector
  * @property {import('./units.js').Models} [models] Spine models by content key (operators by character id)
  * @property {Set<string>} [leaders] content keys of leader enemies (red HP bars)
@@ -25,7 +25,7 @@ export function createBattleRenderer(o) {
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera();
   scene.background = new THREE.Color(0x404040);
   const terrain = createTerrain(o.level, o.textures), units = createUnits(o.textures, o.models);
-  scene.add(terrain.object, units.object);
+  scene.add(terrain.object, units.shadows, units.object);
   const overlays = createOverlays(o.textures, o.leaders);
   const ray = new THREE.Raycaster();
 

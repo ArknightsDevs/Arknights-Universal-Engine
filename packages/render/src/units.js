@@ -1,11 +1,12 @@
 // The units system: each unit is a Spine figure when its model is loaded (docs/spec/render.md 渲染-1 … 渲染-4), else a
 // card with the operator's avatar or the enemy's icon standing at its feet; a unit with neither is not drawn. Figures
 // and cards are depth-tested against the terrain without writing depth (ADR 0027). A figure whose unit died stays to
-// play its die clip.
+// play its die clip. Every figure and card has a shadow (渲染-6) for as long as it is drawn.
 import * as THREE from 'three';
 import { KIND } from '@aue/schema';
 import { toThree, tileWorld } from './camera.js';
 import { FPS, newFigure, follow, attacked, dies, deathOver, poseFigure } from './figure.js';
+import { createShadows } from './shadows.js';
 
 const CARD = 0.8;
 
@@ -28,10 +29,11 @@ function newCard(map) {
 const disposeFigure = (f) => { for (const x of Object.values(f.sides)) x.dispose(); };
 
 /**
+ * The units system; its shadows are a separate object (drawn before every unit).
  * @param {Map<string, THREE.Texture>} textures @param {Models} [models] by content key (operators by character id)
  */
 export function createUnits(textures, models = new Map()) {
-  const group = new THREE.Group();
+  const group = new THREE.Group(), shadows = createShadows(textures.get('ui:shadow'));
   /** @type {Map<number, THREE.Sprite>} */
   const cards = new Map();
   /** @type {Map<number, Figure>} */
@@ -62,18 +64,17 @@ export function createUnits(textures, models = new Map()) {
    * @param {Set<number>} seen @param {Set<number>} died @param {number} frame
    */
   const prune = (seen, died, frame) => {
-    for (const [id, s] of cards) if (!seen.has(id)) { group.remove(s); s.material.dispose(); cards.delete(id); }
+    for (const [id, s] of cards) if (!seen.has(id)) { group.remove(s); s.material.dispose(); cards.delete(id); shadows.drop(id); }
     for (const [id, f] of figures) {
       if (seen.has(id)) continue;
       if (f.dying ? !deathOver(f, frame) : died.has(id) && dies(f, frame)) continue;
-      group.remove(f.group);
-      disposeFigure(f);
-      figures.delete(id);
+      group.remove(f.group); disposeFigure(f); figures.delete(id); shadows.drop(id);
     }
   };
 
   return {
     object: group,
+    shadows: shadows.object,
     /**
      * @param {import('@aue/schema').View} view @param {Record<string, string>} newKeys @param {{ width: number, height: number }} level
      * @param {number} [now] ms @param {Event[]} [events] the frame's presentation events
@@ -86,9 +87,9 @@ export function createUnits(textures, models = new Map()) {
         seen.add(u.id);
         const at = toThree(tileWorld(level, u.x, u.y, u.z));
         const f = figures.get(u.id) ?? (cards.has(u.id) ? null : figure(u, view.frame));
-        if (f) { follow(f, u, view.frame); f.group.position.set(...at); continue; }
+        if (f) { follow(f, u, view.frame); f.group.position.set(...at); shadows.place(u.id, at); continue; }
         const s = cards.get(u.id) ?? card(u);
-        if (s) s.position.set(...at);
+        if (s) { s.position.set(...at); shadows.place(u.id, at); }
       }
       for (const e of events) if (e.type === 'attack') { const f = figures.get(Number(e.id)); if (f && !f.dying) attacked(f, Number(e.wind), view.frame); }
       prune(seen, new Set(events.filter((e) => e.type === 'death').map((e) => Number(e.id))), view.frame);
@@ -104,7 +105,7 @@ export function createUnits(textures, models = new Map()) {
     dispose() {
       for (const s of cards.values()) s.material.dispose();
       for (const f of figures.values()) disposeFigure(f);
-      cards.clear(); figures.clear();
+      cards.clear(); figures.clear(); shadows.dispose();
     },
   };
 }
