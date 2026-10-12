@@ -1,9 +1,11 @@
-// The battle renderer: a three.js scene of systems — terrain, the units' shadows, units (Spine figures or cards) —
-// under the official camera, then the overlays (HP and SP bars) over it with the depth cleared (ADR 0027). The page
-// owns the loop: it calls update() with each render state from the worker and render() once per animation frame.
+// The battle renderer: a three.js scene of systems — terrain (a map theme's tile kit, or flat textures), the units'
+// shadows, units (Spine figures or cards) — under the official camera, then the overlays (HP and SP bars) over it with
+// the depth cleared (ADR 0027). The page owns the loop: it calls update() with each render state from the worker and
+// render() once per animation frame.
 import * as THREE from 'three';
 import { applyPose, DEFAULT_VIEW } from './camera.js';
 import { createTerrain } from './terrain.js';
+import { createKitTerrain } from './kit.js';
 import { createUnits } from './units.js';
 import { createOverlays } from './overlays.js';
 import { spineModel } from './spine.js';
@@ -16,6 +18,8 @@ import { spineModel } from './spine.js';
  * @property {readonly number[]} [view] the level's camera view vector
  * @property {import('./units.js').Models} [models] Spine models by content key (operators by character id)
  * @property {Set<string>} [leaders] content keys of leader enemies (red HP bars)
+ * @property {import('./kit.js').LoadedKit | null} [kit] the map theme's tile kit (渲染-7); without one the tiles are flat
+ *   textures
  */
 
 /** @param {RendererOptions} o */
@@ -24,7 +28,8 @@ export function createBattleRenderer(o) {
   renderer.autoClear = false;
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera();
   scene.background = new THREE.Color(0x404040);
-  const terrain = createTerrain(o.level, o.textures), units = createUnits(o.textures, o.models);
+  const terrain = o.kit ? createKitTerrain(o.level, o.kit, o.textures) : createTerrain(o.level, o.textures);
+  const units = createUnits(o.textures, o.models), field = { ...o.level, highland: o.kit?.kit.highland };
   scene.add(terrain.object, units.shadows, units.object);
   const overlays = createOverlays(o.textures, o.leaders);
   const ray = new THREE.Raycaster();
@@ -45,8 +50,8 @@ export function createBattleRenderer(o) {
      * @param {Record<string, string | number>[]} [events] the frame's presentation events
      */
     update(view, keys, events = []) {
-      units.update(view, keys, o.level, performance.now(), events);
-      overlays.update(view, keys, o.level, units.shows);
+      units.update(view, keys, field, performance.now(), events);
+      overlays.update(view, keys, field, units.shows);
     },
     render() {
       units.pose(camera);
@@ -79,6 +84,31 @@ export async function loadTextures(manifest, baseUrl) {
     out.set(key, t);
   }));
   return out;
+}
+
+/**
+ * The tile kits of the assets (渲染-7): per theme its kit file, the default theme and the themes of particular levels.
+ * @typedef {{ version: number, default: string, levels?: Record<string, string>, kits: Record<string, string> }} KitIndex
+ */
+
+/**
+ * Loads the tile kit a level uses (渲染-7) — the index's theme for the level, else the default — with its textures
+ * (sRGB, repeating); paths relative to baseUrl. Null when the index names no kit for it.
+ * @param {KitIndex} index @param {string} baseUrl @param {string} levelId @returns {Promise<import('./kit.js').LoadedKit | null>}
+ */
+export async function loadTileKit(index, baseUrl, levelId) {
+  const path = index.kits[index.levels?.[levelId] ?? index.default];
+  if (!path) return null;
+  const url = new URL(path, baseUrl), kit = /** @type {import('./kit.js').TileKit} */ (await fetch(url).then((r) => r.json()));
+  const loader = new THREE.TextureLoader(), textures = new Map();
+  const files = new Set(kit.materials.flatMap((m) => [m.map, m.emissiveMap]).filter((f) => f !== null));
+  await Promise.all([...files].map(async (f) => {
+    const t = await loader.loadAsync(new URL(/** @type {string} */ (f), url).href);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    textures.set(f, t);
+  }));
+  return { kit, textures };
 }
 
 /**

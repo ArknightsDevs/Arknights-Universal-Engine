@@ -7,7 +7,7 @@
 // right-handed with y up, so a point (x, y, z) of the level's world is (x, −z, −y) in three.js.
 
 export const FOV = 40, NEAR = 0.3, FAR = 1000;
-/** Height of one step of high ground, in tiles. */
+/** Height of high ground, in tiles, when the map theme gives none (渲染-7). */
 export const STEP_HEIGHT = 0.4;
 /** The default view vector (cameraView 0), for levels without their own. */
 export const DEFAULT_VIEW = Object.freeze([0, -4.81, -7.76]);
@@ -21,11 +21,13 @@ const COS = Math.cos(TILT), SIN = Math.sin(TILT);
 export const toThree = ([x, y, z]) => [x, -z, -y];
 
 /**
- * The level-world position of a tile's centre at a height level (0 ground, 1 high ground).
- * @param {{ width: number, height: number }} level @param {number} col @param {number} row @param {number} heightLevel @returns {Vec3}
+ * The level-world position of a tile's centre at a height level (0 ground, 1 high ground); high ground is the map
+ * theme's `highland` height, else STEP_HEIGHT.
+ * @param {{ width: number, height: number, highland?: number }} level @param {number} col @param {number} row @param {number} heightLevel
+ * @returns {Vec3}
  */
 export function tileWorld(level, col, row, heightLevel) {
-  return [col - (level.width - 1) / 2, row - (level.height - 1) / 2, -STEP_HEIGHT * heightLevel];
+  return [col - (level.width - 1) / 2, row - (level.height - 1) / 2, -(level.highland ?? STEP_HEIGHT) * heightLevel];
 }
 
 /** How far the screen is from 16:9 towards 4:3 (0 at 16:9 or wider). @param {number} aspect width / height */
