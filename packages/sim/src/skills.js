@@ -157,7 +157,7 @@ export function activate(w, c, op, reason = 'auto', free = false) {
   st.active = true; st.at = w.frame;
   st.armed = kind === 'next';
   st.dur = (kind === 'duration' || kind === 'passive' || kind === 'ammo') && seconds > 0 && Number.isFinite(seconds) ? secondsToFrames(seconds) : -1;
-  st.ammo = kind === 'ammo' ? Math.max(1, def.bb['attack@trigger_time'] ?? def.bb.cnt ?? 1) : 0;
+  st.ammo = kind === 'ammo' ? Math.max(1, def.bb['attack@trigger_time'] ?? def.bb.trigger_time ?? def.bb.cnt ?? 1) : 0;
   w.events.push({ type: 'skill', id: op.id, active: 1 });
   behaviorOf(c, st.id).start?.(contextOf(w, c, op));
   grantSummons(w, c, op, 'start');

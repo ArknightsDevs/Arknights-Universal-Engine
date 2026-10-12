@@ -81,4 +81,4 @@ kit 为技能写的说明（Stronghold 的 SkillSpec）接到引擎的技能运�
 - **载入**：按对局里的干员，载入其中已启用的 kit，按角色 id 的顺序逐个载入（兼容-1 的载入网格）；载入不了的记下，那名干员按引擎自己的实现。Node 里从固定提交的目录载入（兼容-2 的加载钩子）；浏览器里从平台提供的、已按映射表改写导入的副本载入，浏览器端不改写。
 - **对局内容**：有 kit 的干员用 kit：它的记录去掉天赋部分（天赋由 kit 施加），它的队伍天赋不由引擎再给；kit 的每局挂接与技能行为（兼容-4、兼容-5）加进内容。内容记下固定提交与所用的 kit（按角色 id 排序），这一项计入内容哈希（同步-10）：两端载入的 kit 不同，就不开局。
 
-- 来源：设计决定，见 [ADR 0058](../adr/0058-stronghold-kits-in-matches.md)、[ADR 0010](../adr/0010-import-mapping-table.md)；固定提交里 72 个文件各自导出它那名干员的 kit；载入推进之王后，她的对局内容不含天赋字段，部署后由 kit 给出两项天赋（`packages/content/test/compat-match.test.js`）；2026-10-12 的全量对照中 59 个 kit 的所有技能与 Stronghold 一致，即启用名单（`packages/content/test/compat-diff.test.js`，`AUE_KITDIFF_REPORT` 出全量报告）
+- 来源：设计决定，见 [ADR 0058](../adr/0058-stronghold-kits-in-matches.md)、[ADR 0010](../adr/0010-import-mapping-table.md)；固定提交里 72 个文件各自导出它那名干员的 kit；载入推进之王后，她的对局内容不含天赋字段，部署后由 kit 给出两项天赋（`packages/content/test/compat-match.test.js`）；2026-10-12 的全量对照中 60 个 kit 的所有技能与 Stronghold 一致，即启用名单（`packages/content/test/compat-diff.test.js`，`AUE_KITDIFF_REPORT` 出全量报告）

@@ -323,3 +323,9 @@ test('[技能-6] [职业-13] [攻击-2] a behaviour\'s timing: another kind and 
   setAtkCd(a.guard, -3);
   assert.equal(a.guard.atkCd, 0);
 });
+
+test('[技能-4] the ammo count of a skill whose blackboard says trigger_time ("装有{trigger_time}发弹药")', () => {
+  const a = arena(sk({ cost: 1, init: 1, ammo: true, bb: { trigger_time: 3, 'attack@atk_scale': 3 } }));
+  const ev = run(a.w, a.c, 30 * 5, [[0, { type: 'skill', unit: a.guard.id }]]);
+  assert.deepEqual(ev.filter((e) => e.type === 'hit').map((e) => e.damage).slice(0, 4), [150, 150, 150, 50]);
+});
