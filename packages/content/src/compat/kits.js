@@ -7,7 +7,7 @@
 import { KIND, bus, reserveIds } from '@aue/sim';
 import { ShBattle } from './battle.js';
 import { ShUnit } from './unit.js';
-import { battles, SPEC_BEHAVIOR, onAttackHit, onAttackDone, onSpecHit } from './specs.js';
+import { battles, SPEC_BEHAVIOR, KIT_TRAIT_BEHAVIOR, onAttackHit, onAttackDone, onSpecHit } from './specs.js';
 import { KIT_BUFF, KIT_BUFF_BEHAVIOR, worldBattles } from './buffhooks.js';
 
 /** @typedef {import('@aue/sim').World} World @typedef {import('@aue/sim').Content} Content @typedef {import('@aue/sim').Unit} Unit */
@@ -54,8 +54,9 @@ function install(b, seat, key, entry) {
   if (!kit) return;
   piece.kit = kit;
   if (piece.skill) piece.skill.spec = kit.skills?.[def.skill?.id] ?? null;
-  b.safe(() => kit.install?.(b, piece), 'install', piece);
+  b.safe(() => kit.trait?.install?.(b, piece), 'profile.install', piece);
   for (const t of kit.talents ?? []) b.safe(() => t.install?.(b, piece), 'talent', piece);
+  b.safe(() => kit.install?.(b, piece), 'install', piece);
 }
 
 /**
@@ -80,11 +81,15 @@ function bind(b, u) {
 
 /**
  * What content needs to bring kits into its battles (兼容-4, 兼容-5): the world setup, the skill behaviour of every
- * skill a kit describes, by skill id, and the behaviour of a kit's buffs with callbacks.
+ * skill a kit describes, by skill id, the behaviour of a kit's buffs with callbacks, and the trait behaviour of every
+ * branch a kitted operator has (职业-6).
  * @param {Record<string, KitEntry>} kits by operator key @param {(b: ShBattle) => void} [seen]
- * @returns {{ world: (w: World, c: Content) => void, skills: Record<string, import('@aue/sim').SkillBehavior>, buffs: Record<string, import('@aue/sim').buffs.Behavior> }}
+ * @returns {{ world: (w: World, c: Content) => void, skills: Record<string, import('@aue/sim').SkillBehavior>, buffs: Record<string, import('@aue/sim').buffs.Behavior>,
+ *   traits: Record<string, import('@aue/sim').TraitBehavior> }}
  */
 export function kitsBehaviors(kits, seen) {
   const ids = Object.values(kits).flatMap((e) => [e.def.skill?.id, ...Object.values(e.tokens ?? {}).map((d) => d.skill?.id)]).filter((id) => typeof id === 'string');
-  return { world: kitsWorld(kits, seen), skills: Object.fromEntries(ids.map((id) => [id, SPEC_BEHAVIOR])), buffs: { [KIT_BUFF]: KIT_BUFF_BEHAVIOR } };
+  const branches = [...new Set(Object.values(kits).map((e) => e.def.subProf).filter((x) => typeof x === 'string'))];
+  return { world: kitsWorld(kits, seen), skills: Object.fromEntries(ids.map((id) => [id, SPEC_BEHAVIOR])), buffs: { [KIT_BUFF]: KIT_BUFF_BEHAVIOR },
+    traits: Object.fromEntries(branches.map((x) => [x, KIT_TRAIT_BEHAVIOR])) };
 }

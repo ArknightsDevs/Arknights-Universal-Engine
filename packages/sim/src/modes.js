@@ -7,7 +7,7 @@ import { statsOf, intervalFrames } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune, count } from './buffs.js';
 import { ELEMENTS, epOf, currentElement } from './elements.js';
 import { precisionKey, insertionSort } from './targeting.js';
-import { traitOf } from './traits.js';
+import { traitOf, traitAsk } from './traits.js';
 import { launch } from './swing.js';
 import { gainSp } from './sp.js';
 import { draw } from './rng.js';
@@ -101,15 +101,18 @@ export function skillIdle(op, t) {
 /**
  * The frames an operator's turn is spent on something other than an attack (职业-12), or 0: a reload — one bullet, for
  * its base attack interval — when it has no bullet, or has room for one and no target; a store of attack energy —
- * one, for its attack interval — when it has no target and room for one.
- * @param {Content} c @param {Unit} op @param {boolean} target whether it has a target
+ * one, for its attack interval — when it has no target and room for one; with no target, its trait behaviour's `store`
+ * decides instead when it says (职业-6: stored, for its attack interval; or nothing).
+ * @param {World} w @param {Content} c @param {Unit} op @param {boolean} target whether it has a target
  */
-export function holdFrames(c, op, target) {
+export function holdFrames(w, c, op, target) {
   const t = traitOf(c, op), bullets = held(op, 'bullets'), energy = held(op, 'energy');
   if (t.bullets && bullets && bullets.value < t.bullets.max && (bullets.value === 0 || !target)) {
     retune(op, bullets, bullets.value + 1, {});
     return Math.max(1, secondsToFrames(op.base.bat));
   }
+  const own = target ? undefined : traitAsk(w, c, op, 'store');
+  if (own !== undefined) return own ? intervalFrames(statsOf(op).bat, statsOf(op).aspd) : 0;
   if (energy && !target && energy.value < t.store) {
     retune(op, energy, energy.value + 1, {});
     const s = statsOf(op);

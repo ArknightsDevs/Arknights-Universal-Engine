@@ -111,11 +111,14 @@ function strongholdRun(H, charId, skillIndex, uniEquipId) {
   };
 }
 
-/** Our level: 7 × 3 open tiles; the operator at (1, 2) facing right, the dummy appearing at (1, 3) at once. */
+/**
+ * Our level: 7 × 3 open tiles; the operator at (1, 2) facing right, the dummy appearing at (1, 3) at once — off its route, which
+ * runs along row 0 past them, as Stronghold's dummy stands off the lane its route takes (row 9 of its field).
+ */
 function level() {
   const t = { key: 'tile_road', height: 'LOWLAND', buildable: 'ALL', passable: 'ALL', side: 'ALL' };
   return { id: 'kitdiff', width: 7, height: 3, options: { maxLifePoint: 3, initialCost: 99, maxCost: 99, costIncreaseTime: 1, characterLimit: 8, moveMultiplier: 1 },
-    tiles: [0, 1, 2].map(() => Array.from({ length: 7 }, () => t)), routes: [{ start: { row: 1, col: 3 }, end: { row: 1, col: 6 }, motion: 'WALK', checkpoints: [] }],
+    tiles: [0, 1, 2].map(() => Array.from({ length: 7 }, () => t)), routes: [{ start: { row: 0, col: 6 }, end: { row: 0, col: 0 }, motion: 'WALK', checkpoints: [], spawnOffset: { x: -3, y: 1 } }],
     waves: [oneWave([spawnAt(0, 'dummy')])] };
 }
 

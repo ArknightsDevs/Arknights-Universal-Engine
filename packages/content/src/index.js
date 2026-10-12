@@ -89,7 +89,7 @@ export async function matchContent(match, levels = LEVELS, kits = {}) {
   }));
   const used = [...new Set(Object.keys(entries).map((k) => k.split('#')[0]))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const kb = used.length ? kitsBehaviors(entries) : null;
-  const behaviors = kb ? { ...BEHAVIORS, world: kb.world, skills: { ...BEHAVIORS.skills, ...kb.skills }, buffs: kb.buffs } : BEHAVIORS;
+  const behaviors = kb ? { ...BEHAVIORS, world: kb.world, skills: { ...BEHAVIORS.skills, ...kb.skills }, buffs: kb.buffs, traits: kb.traits } : BEHAVIORS;
   return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), operators, decks, behaviors, ...(used.length ? { kits: { sha: KIT_SOURCE.sha, used } } : {}) });
 }
 

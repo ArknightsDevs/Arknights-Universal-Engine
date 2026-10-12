@@ -22,7 +22,7 @@ import { palsyInterrupts, inflict } from './status.js';
 import { draw } from './rng.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
 import { mayAttack, healsNow, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale } from './modes.js';
-import { traitOf, traitOfDef, traitTargets, traitHit, traitKill } from './traits.js';
+import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitAsk } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, PALSY_CUT_FRAMES } from './swing.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
@@ -362,7 +362,7 @@ function operatorAttack(w, c, op) {
   if (op.swing) advanceSwing(w, c, op);
   if (op.atkCd > 0) { op.atkCd--; return; }
   if (op.swing) return;
-  const found = mayAttack(c, op) ? targetsOf(w, c, op) : [], hold = holdFrames(c, op, found.length > 0);
+  const found = mayAttack(c, op) && traitAsk(w, c, op, 'canAttack') !== false ? targetsOf(w, c, op) : [], hold = holdFrames(w, c, op, found.length > 0);
   if (hold > 0) { op.atkCd = hold - 1; op.anim = ANIM.IDLE; return; }
   if (found.length === 0) { op.anim = ANIM.IDLE; return; }
   const a = armed(w, c, op, critMods(w, c, op, beforeAttack(w, c, op)));

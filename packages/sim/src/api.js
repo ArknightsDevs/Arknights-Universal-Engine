@@ -3,9 +3,10 @@
 
 /**
  * The behaviour interface's version. 1: skill, trait and buff behaviours with the contexts below; 2: a skill's context
- * has its description's extra modifiers; 3: a skill behaviour's end is told why the skill ends.
+ * has its description's extra modifiers; 3: a skill behaviour's end is told why the skill ends; 4: a trait behaviour may
+ * say whether its operator may attack (canAttack) and what an attack turn without a target does (store).
  */
-export const BEHAVIOR_API_VERSION = 3;
+export const BEHAVIOR_API_VERSION = 4;
 
 /** What every behaviour's context has (职业-6). */
 export const CONTEXT_MEMBERS = Object.freeze(['self', 'bb', 'frame', 'stats', 'addBuff', 'removeBuff', 'applyStatus', 'dealDamage', 'dealEp', 'heal', 'gainCost']);

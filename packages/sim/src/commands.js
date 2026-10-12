@@ -4,7 +4,7 @@ import { KIND } from '@aue/schema';
 import { tileAt, buildableFor } from './level.js';
 import { makeOperator } from './units.js';
 import { onDeploy, commandSkill } from './skills.js';
-import { traitDeploy, traitOfDef, traitOf } from './traits.js';
+import { traitDeploy, traitOfDef, traitOf, traitAsk } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
 import { cardOf, deployCost, withdraw } from './deck.js';
 import { occupying, summonProblem, deploySummon, supplySummons, inOwnerRange } from './summons.js';
@@ -110,7 +110,7 @@ function deploy(w, c, seat, cmd) {
 export function arrive(w, c, u, move = false) {
   emit(w, 'enter', { unit: u });
   traitDeploy(w, c, u);
-  modeDeploy(u, traitOf(c, u));
+  if (traitAsk(w, c, u, 'own') !== true) modeDeploy(u, traitOf(c, u));
   deployTalents(w, c, u);
   onDeploy(w, c, u);
   supplySummons(w, c, u);

@@ -7,7 +7,7 @@ import { tinyContent } from '@aue/testkit';
 import { createWorld, step } from '../src/index.js';
 import { makeEnemy } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
-import { statsOf } from '../src/attrs.js';
+import { statsOf, intervalFrames } from '../src/attrs.js';
 import { makeBuff, addBuff } from '../src/buffs.js';
 import { deployProblem } from '../src/commands.js';
 
@@ -215,4 +215,38 @@ test('[职业-12] funnel: init on a new target, delta more for each attack on th
   foe(1, 3);
   assert.deepEqual(dmg().slice(0, 2), [6, 10.5]);
   assert.equal(buffOf(op, 'funnel')?.value, w.units.at(-1)?.id, 'the target it counts for');
+});
+
+test('[职业-6] [职业-12] a trait behaviour says whether its operator may attack, and what a turn without a target does', () => {
+  const said = { attack: true, store: /** @type {boolean | undefined} */ (undefined) }, turns = /** @type {number[]} */ ([]);
+  const { foe, put, run } = arena((cc) => {
+    cc.operators.sniper = { ...cc.operators.sniper, branch: 'b', trait: { store: 2 } };
+    cc.behaviors = { traits: { b: { canAttack: () => said.attack, store: (/** @type {any} */ ctx) => { turns.push(ctx.frame); return said.store; } } } };
+  });
+  const op = put('sniper', 2, 2);
+  foe(1, 2);
+  said.attack = false;
+  run(60);
+  assert.equal(buffOf(op, 'energy')?.value, 2, 'no attack: as if it had no target — the engine\'s own store');
+  said.store = true;
+  const at = turns.length, every = intervalFrames(statsOf(op).bat, statsOf(op).aspd);
+  run(200);
+  const mine = turns.slice(at);
+  assert.ok(mine.length >= 3 && mine.every((f, i) => i === 0 || f - mine[i - 1] === every), 'its own store, an attack interval each');
+  said.attack = true;
+  assert.ok(run(200).some((x) => x.type === 'hit' && x.id === op.id));
+});
+
+test('[职业-6] [职业-12] a trait behaviour that owns its operator\'s deployment: no trait buff or mode buffs from the engine', () => {
+  const owned = new Set(/** @type {number[]} */ ([]));
+  const { put } = arena((cc) => {
+    cc.operators.sniper = { ...cc.operators.sniper, branch: 'b', trait: { bullets: { max: 2, scale: 1.5 }, mods: { dodgePhys: 0.5 } } };
+    cc.operators.guard = { ...cc.operators.guard, branch: 'b', trait: { bullets: { max: 2, scale: 1.5 }, mods: { dodgePhys: 0.5 } } };
+    cc.behaviors = { traits: { b: { own: (/** @type {any} */ ctx) => owned.has(ctx.self.id) || undefined } } };
+  });
+  const theirs = put('guard', 1, 1);
+  owned.add(/** @type {number} */ (theirs.id) + 1);
+  const mine = put('sniper', 2, 2);
+  assert.deepEqual([buffOf(theirs, 'trait')?.mods, buffOf(theirs, 'bullets')?.value], [{ dodgePhys: 0.5 }, 2]);
+  assert.deepEqual([buffOf(mine, 'trait'), buffOf(mine, 'bullets')], [undefined, undefined]);
 });

@@ -3,6 +3,10 @@
 // flags while it runs, its start, tick and end, its attack (倍率, hits, targets, damage type, a status each hit gives),
 // its hit and attack callbacks — in place of the engine's generic effects from the blackboard. An operator with the same
 // skill but no kit keeps the generic ones. When it starts stays the engine's rule (技能-3): a MANUAL skill by the player.
+// A kit's own `trait` callbacks run the same way at every attack — Stronghold lays them over the profession's profile
+// and the running skill's attack over both (its resolveProfile, effectiveProfile): whether it may attack now and what a
+// turn without a target does (the trait behaviour, 职业-6), its main target's hits and 倍率, after each victim, after
+// each target, after an attack.
 import { skills, constants, traitScale } from '@aue/sim';
 import { modsOf, flagsOf, statusKeyOf } from './mods.js';
 import { kitHits } from './field.js';
@@ -17,6 +21,67 @@ export const battles = new WeakMap();
 function specOf(u) {
   const b = battles.get(u), p = b?.unitOf(u), spec = p?.skill?.spec;
   return b && p && spec ? { b, p, spec } : null;
+}
+
+/** An engine unit's battle and piece when it has a kit, or null. @param {Unit} u */
+function pieceOf(u) {
+  const b = battles.get(u), p = b?.unitOf(u);
+  return b && p?.kit ? { b, p } : null;
+}
+
+/**
+ * A callback of a piece's attack profile now (Stronghold's effectiveProfile): its skill's attack's while `skillOn`, else
+ * its kit trait's; null without one.
+ * @param {ShUnit} p @param {string} name @param {boolean} skillOn
+ * @returns {((...args: any[]) => any) | null}
+ */
+function profileFn(p, name, skillOn) {
+  const a = skillOn ? p.skill?.spec?.attack?.[name] : undefined, t = p.kit?.trait?.[name];
+  return typeof a === 'function' ? a : typeof t === 'function' ? t : null;
+}
+
+/**
+ * The trait behaviour of a branch that has kits (职业-6): a kit's say, through its profile, on whether its operator may
+ * attack now (`canAttack`) and what a turn without a target does (`storeEnergy`: an energy stored); a kit trait with its
+ * own `install` owns the branch's deployment effects (Stronghold's profession install gives way to it). An operator
+ * without a kit, or a kit without them, leaves these to the engine.
+ * @type {Readonly<import('@aue/sim').TraitBehavior>}
+ */
+export const KIT_TRAIT_BEHAVIOR = Object.freeze({
+  /** @param {any} ctx */
+  canAttack(ctx) {
+    const r = pieceOf(ctx.self), fn = r ? profileFn(r.p, 'canAttack', !!r.p.skill?.active) : null;
+    if (!r || !fn) return undefined;
+    const v = r.b.safe(() => fn(r.b, r.p), 'profile.canAttack', r.p);
+    return v === undefined ? undefined : !!v;
+  },
+  /** A kit trait with an `install` of its own takes the place of the branch's (Stronghold's profession install). @param {any} ctx */
+  own(ctx) {
+    const r = pieceOf(ctx.self);
+    return r && typeof r.p.kit?.trait?.install === 'function' ? true : undefined;
+  },
+  /** @param {any} ctx */
+  store(ctx) {
+    const r = pieceOf(ctx.self), fn = r ? profileFn(r.p, 'storeEnergy', !!r.p.skill?.active) : null;
+    if (!r || !fn) return undefined;
+    r.p.trait.hadTarget = false;
+    return !!r.b.safe(() => fn(r.b, r.p), 'profile.storeEnergy', r.p);
+  },
+});
+
+/** Each piece's count of attacks landing and the main target of the latest (Stronghold's attackId and `main`). @type {WeakMap<ShUnit, { id: number, main: ShUnit | null }>} */
+const landing = new WeakMap();
+
+/**
+ * One victim's hit as Stronghold's profile callbacks see it: what it dealt, its kind (an aftershock is a splash), the
+ * attack's main target and id, whether a skill's. A main target's starts the count of another attack.
+ * @param {ShUnit} p @param {Record<string, any>} k the engine's `attackHit` @param {ShUnit} target
+ */
+function hitOf(p, k, target) {
+  const kind = k.kind === 'aftershock' ? 'splash' : k.kind;
+  if (kind === 'main') landing.set(p, { id: (landing.get(p)?.id ?? 0) + 1, main: target });
+  const now = landing.get(p) ?? { id: 0, main: null };
+  return { dealt: k.dealt, kind, isSplash: kind === 'splash', isChain: kind === 'chain', main: now.main, attackId: now.id, isSkill: k.isSkill };
 }
 
 /** A spec callback's context, as Stronghold's. @param {ShBattle} b @param {ShUnit} p @param {Record<string, unknown>} [more] */
@@ -119,17 +184,23 @@ export const SPEC_BEHAVIOR = Object.freeze({
 });
 
 /**
- * The spec's hit callbacks after an attack's hits on one target (the engine's `attackHit`), while the skill runs or for
- * its own attack landing later (a next-attack skill's projectile): `attack.onEachHit` for every victim — the main
- * target, a splashed or a jumped-to one —; `attack.onHit` and `onHit` for the main target.
+ * The profile's callbacks after an attack's hits on one target (the engine's `attackHit`, 兼容-5): the kit trait's
+ * `onEachHit(battle, unit, victim, hit)` for every victim — the main target, a splashed or a jumped-to one — and the
+ * profile's `afterHit` after the main target's; while the skill runs or for its own attack landing later (a next-attack
+ * skill's projectile), the spec's `attack.onEachHit` for every victim and `attack.onHit`, `onHit` for the main target.
  * @param {Record<string, any>} k the engine's context
  */
 export function onAttackHit(k) {
-  const r = specOf(k.attacker);
-  if (!r || !(r.p.skill?.active || k.isSkill)) return;
-  const { b, p, spec } = r, target = b.unitOf(k.target), kind = k.kind === 'aftershock' ? 'splash' : k.kind;
-  call(b, p, spec.attack?.onEachHit, 'skill.attack.onEachHit', { target, dealt: k.dealt, kind, isSplash: kind === 'splash', isChain: kind === 'chain', isSkill: k.isSkill });
+  const r = pieceOf(k.attacker);
+  if (!r) return;
+  const { b, p } = r, target = b.unitOf(k.target), hc = hitOf(p, k, target), kind = hc.kind, skillOn = !!(p.skill?.active || k.isSkill);
+  const each = p.kit?.trait?.onEachHit, spec = skillOn ? p.skill?.spec : null;
+  if (typeof each === 'function') b.safe(() => each(b, p, target, hc), 'profile.onEachHit', p);
+  if (spec) call(b, p, spec.attack?.onEachHit, 'skill.attack.onEachHit', { target, ...hc });
   if (kind !== 'main') return;
+  const after = profileFn(p, 'afterHit', skillOn);
+  if (after) b.safe(() => after(b, p, target, { dealt: k.dealt, x: target.x, y: target.y, isSkill: k.isSkill }), 'profile.afterHit', p);
+  if (!spec) return;
   call(b, p, spec.attack?.onHit, 'skill.attack.onHit', { target, dealt: k.dealt, x: target.x, y: target.y });
   call(b, p, spec.onHit, 'skill.onHit', { target, dealt: k.dealt, x: target.x, y: target.y });
 }
@@ -138,24 +209,28 @@ export function onAttackHit(k) {
 const mainHit = (d) => !!d.isAttack && !kitHits.has(d) && !d.isSplash && !(d.tags ?? []).some((/** @type {string} */ t) => t === 'chain' || t === 'aftershock');
 
 /**
- * A spec attack's own say on its main target's hit (the engine's `hit`, before the defences and any other handler):
- * `hitsFn` giving 0 — the attack deals nothing itself — cancels it and ends the dispatch (its hit callbacks still run,
- * with nothing dealt, as Stronghold's); a per-target `dmgMul(battle, unit, target)` takes the place of the trait's 倍率
- * for that target (职业-8, 职业-11) — as Stronghold's skill profile replaces its profession's — so the hit's amount × it ÷
- * the trait's.
+ * The profile's own say on its main target's hit (the engine's `hit`, before the defences and any other handler) — the
+ * spec attack's while the skill runs (or its attack lands later), else the kit trait's: `hitsFn` giving 0 — the attack
+ * deals nothing itself — cancels it and ends the dispatch (its hit callbacks still run, with nothing dealt, as
+ * Stronghold's); a `dmgMul` — per target `(battle, unit, target)`, or a kit trait's number — takes the place of the
+ * trait's 倍率 for that target (职业-8, 职业-11), as Stronghold's profile replaces its profession's: the hit's amount × it
+ * ÷ the trait's.
  * @param {Record<string, any>} k the engine's context
  */
 export function onSpecHit(k) {
-  const r = k.source ? specOf(k.source) : null, a = r?.spec.attack;
-  if (!r || !a || !(r.p.skill?.active || k.dmg.isSkill) || !mainHit(k.dmg)) return;
-  if (typeof a.hitsFn === 'function' && Number(r.b.safe(() => a.hitsFn(r.b, r.p, {}), 'skill.attack.hitsFn', r.p)) === 0) {
+  const r = k.source ? pieceOf(k.source) : null;
+  if (!r || !mainHit(k.dmg)) return;
+  const { b, p } = r, skillOn = !!(p.skill?.active || k.dmg.isSkill), hits = profileFn(p, 'hitsFn', skillOn);
+  if (hits && Number(b.safe(() => hits(b, p, {}), 'profile.hitsFn', p)) === 0) {
     k.dmg.cancel = true;
     k.stopPropagation = true;
     return;
   }
-  if (typeof a.dmgMul !== 'function') return;
-  const m = r.b.safe(() => a.dmgMul(r.b, r.p, r.b.unitOf(k.target)), 'skill.attack.dmgMul', r.p), own = traitScale(r.b.c, k.source, k.target);
-  if (Number.isFinite(m)) k.dmg.amount *= /** @type {number} */ (m) / (own > 0 ? own : 1);
+  const fn = profileFn(p, 'dmgMul', skillOn), n = p.kit?.trait?.dmgMul;
+  const m = fn ? b.safe(() => fn(b, p, b.unitOf(k.target)), 'profile.dmgMul', p) : typeof n === 'number' ? n : undefined;
+  if (!Number.isFinite(m)) return;
+  const own = traitScale(b.c, k.source, k.target);
+  k.dmg.amount *= /** @type {number} */ (m) / (own > 0 ? own : 1);
 }
 
 /**
@@ -164,8 +239,11 @@ export function onSpecHit(k) {
  * @param {Record<string, any>} k the engine's context
  */
 export function onAttackDone(k) {
-  const r = specOf(k.attacker);
-  if (!r || !r.p.skill?.active) return;
-  const ctx = call(r.b, r.p, r.spec.onAttack, 'skill.onAttack', { targets: k.targets.map((/** @type {Unit} */ t) => r.b.unitOf(t)), noAmmo: false });
+  const r = pieceOf(k.attacker);
+  if (!r) return;
+  const { b, p } = r, targets = k.targets.map((/** @type {Unit} */ t) => b.unitOf(t)), after = profileFn(p, 'afterAttack', !!p.skill?.active);
+  if (after) b.safe(() => after(b, p, targets), 'profile.afterAttack', p);
+  if (!p.skill?.active || !p.skill.spec) return;
+  const ctx = call(b, p, p.skill.spec.onAttack, 'skill.onAttack', { targets, noAmmo: false });
   if (ctx?.noAmmo) k.noAmmo = true;
 }
