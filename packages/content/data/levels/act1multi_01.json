@@ -7884,7 +7884,11 @@
         "objective": "protect",
         "goal": 4,
         "time": 150,
-        "rest": 0
+        "rest": 0,
+        "task": {
+          "title": "营救",
+          "basic": "保护4位乌萨斯平民进入目标点"
+        }
       },
       {
         "alias": "trap_179_muctrl#2",
@@ -7892,7 +7896,12 @@
         "goal": 3,
         "advanced": 5,
         "time": 210,
-        "rest": 10
+        "rest": 10,
+        "task": {
+          "title": "营救",
+          "basic": "保护3位乌萨斯平民进入目标点",
+          "advanced": "保护5位乌萨斯平民进入目标点"
+        }
       }
     ],
     "view": [

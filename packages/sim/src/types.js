@@ -22,9 +22,10 @@
 /** A predefined unit (波次-6). @typedef {{ alias: string, key: string, hidden: boolean }} Predefine */
 /**
  * A co-op stage (合作-6, 合作-7): the alias of its controller, its objective, the minimum and advanced targets (for 突击 as
- * fractions of `hpMax`; for 生存 in seconds), its time limit and the rest before it in seconds, the enemy 渗透 counts.
+ * fractions of `hpMax`; for 生存 in seconds), its time limit and the rest before it in seconds, the enemy 渗透 counts; its
+ * task's title and texts for the page (关卡-5).
  * @typedef {{ alias: string, objective: 'protect' | 'target' | 'kill' | 'survive' | 'boss' | 'tower' | 'car', goal: number, advanced?: number,
- *   time: number, rest: number, enemy?: string, hpMax?: number }} Stage
+ *   time: number, rest: number, enemy?: string, hpMax?: number, task?: { title: string, basic: string, advanced?: string } }} Stage
  */
 /**
  * A level's options; `costTransfer` is the most a cost request moves (合作-5; default 15).

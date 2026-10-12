@@ -78,7 +78,7 @@ test('[关卡-2] a difficulty\'s runes: hidden groups enabled and disabled, the 
   assert.deepEqual(difficultyOf(null, 'NORMAL'), { hiddenGroups: [], enemyMul: [], replace: {}, unsupported: [] });
 });
 
-test('[关卡-1] [关卡-2] [关卡-3] [关卡-4] the committed act1multi_01 is a fresh extraction of the pinned data (AUE_GAMEDATA, AUE_LEVEL_MAP)', {
+test('[关卡-1] [关卡-2] [关卡-3] [关卡-4] [关卡-5] the committed act1multi_01 is a fresh extraction of the pinned data (AUE_GAMEDATA, AUE_LEVEL_MAP)', {
   skip: process.env.AUE_GAMEDATA && process.env.AUE_LEVEL_MAP ? false : 'AUE_GAMEDATA or AUE_LEVEL_MAP is not set',
 }, () => {
   const committed = readFileSync(new URL('../../content/data/levels/act1multi_01.json', import.meta.url), 'utf8');
@@ -100,6 +100,18 @@ test('[关卡-4] a stage\'s code and name from its stage table entry; none witho
   const none = /** @type {any} */ (extractLevel({ id: 'x', level: makeLevel(), enemyDb: db(), commit: 'c' }));
   assert.deepEqual(['code' in none.level, 'name' in none.level], [false, false]);
   assert.throws(() => extractLevel({ id: 'x', level: makeLevel(), enemyDb: db(), commit: 'c', stage: { code: 1 } }));
+});
+
+test('[关卡-5] stage task texts: the missions in order, basic then advanced per stage; none when they do not match the goals', () => {
+  const stage = (/** @type {number} */ i, /** @type {Record<string, number | string>} */ bb) => ({ alias: `trap_179_muctrl#${i}`, hidden: true, inst: { characterKey: 'trap_179_muctrl' },
+    overrideSkillBlackboard: Object.entries(bb).map(([key, v]) => (typeof v === 'string' ? { key, value: 0, valueStr: v } : { key, value: v, valueStr: null })) });
+  const level = { ...makeLevel(), predefines: { characterInsts: [], tokenInsts: [stage(1, { ability_name: 'protect', protect_y1: 4, protect_y2: 9, basic: 1, time_x: 150 }),
+    stage(2, { ability_name: 'protect', protect_y1: 3, protect_y2: 5, time_x: 210, rest_time: 10 })] } };
+  const m = (/** @type {number} */ n) => ({ id: `m${n}`, sortId: n, title: '营救', battleDesc: 'x', description: `保护${n}位平民` });
+  const out = /** @type {any} */ (extractLevel({ id: 'x', level, enemyDb: db(), commit: 'c', missions: [m(1), m(2), m(3)] }));
+  assert.deepEqual(out.level.stages.map((/** @type {any} */ s) => s.task), [{ title: '营救', basic: '保护1位平民' }, { title: '营救', basic: '保护2位平民', advanced: '保护3位平民' }]);
+  const short = /** @type {any} */ (extractLevel({ id: 'x', level, enemyDb: db(), commit: 'c', missions: [m(1), m(2)] }));
+  assert.deepEqual(short.level.stages.map((/** @type {any} */ s) => 'task' in s), [false, false], 'two missions for three goals: no texts');
 });
 
 test('[关卡-2] runes: the max cost, the operators\' block count, shared enemies written as their own rune', () => {

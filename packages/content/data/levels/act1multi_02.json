@@ -8304,7 +8304,11 @@
         "goal": 6,
         "time": 180,
         "rest": 0,
-        "enemy": "enemy_1315_wdyjd_2"
+        "enemy": "enemy_1315_wdyjd_2",
+        "task": {
+          "title": "渗透",
+          "basic": "击倒6个岗哨密探长"
+        }
       },
       {
         "alias": "trap_179_muctrl#2",
@@ -8313,7 +8317,12 @@
         "advanced": 12,
         "time": 210,
         "rest": 10,
-        "enemy": "enemy_1315_wdyjd_2"
+        "enemy": "enemy_1315_wdyjd_2",
+        "task": {
+          "title": "渗透",
+          "basic": "击倒6个岗哨密探长",
+          "advanced": "击倒12个岗哨密探长"
+        }
       }
     ],
     "view": [

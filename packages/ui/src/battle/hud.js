@@ -10,6 +10,7 @@ import { createCostAsk } from './coopcost.js';
 import { createStates } from './states.js';
 import { createUnitBars } from './unitbars.js';
 import { createStart } from './start.js';
+import { createBanner } from './banner.js';
 
 /** @typedef {import('../node.js').UiNode} UiNode */
 /** @typedef {import('../screen.js').Screen} Screen */
@@ -20,7 +21,7 @@ import { createStart } from './start.js';
  * match of two the co-op top bar's state.
  * @typedef {import('./cards.js').DeckState & { costTimer: number, costPeriod: number, maxCost: number, selected: string | null,
  *   life: number, speed: number, paused: boolean, coop?: import('./coop.js').CoopState & { cost?: import('./coopcost.js').CostAsk },
- *   states?: import('./states.js').BattleStates, units?: import('./unitbars.js').UnitBar[] }} HudState
+ *   states?: import('./states.js').BattleStates, units?: import('./unitbars.js').UnitBar[], stageStart?: import('./banner.js').StageStart | null }} HudState
  */
 
 /**
@@ -70,9 +71,9 @@ export function createBattleHud(ui, o) {
     tapRef(scr, root, t.pause, () => emit('pause'));
   }
   const menus = createFieldMenus(ui, hud, { cancel: () => emit('cancel'), withdraw: () => emit('withdraw'), skill: () => emit('skill') });
-  const { states, bars, start } = overlays(ui, scr, hud, !!coop, o.stage ?? null);
+  const { states, bars, start, banner } = overlays(ui, scr, hud, !!coop, o.stage ?? null);
   return {
-    screen: scr, cards, coop, cost, states, bars, start, direction: menus.direction, menu: menus.menu,
+    screen: scr, cards, coop, cost, states, bars, start, banner, direction: menus.direction, menu: menus.menu,
     /** @param {string} name @param {(arg?: string) => void} fn */
     on(name, fn) { (handlers[name] ??= []).push(fn); },
     /** @param {HudState} s */
@@ -84,21 +85,22 @@ export function createBattleHud(ui, o) {
       if (s.states) states.update(s.states);
       if (bars && s.units) bars.update(s.units, [ui.canvas.w, ui.canvas.h]);
       start?.begin();
+      if (s.stageStart !== undefined) banner?.update(s.stageStart);
       showTop(scr, t, s);
     },
   };
 }
 
 /**
- * The panels over the battle: the state panels (界面-18), the units' bars when the pack has them (界面-19), the start
- * panel in a match of two given its stage (界面-21).
+ * The panels over the battle: the state panels (界面-18), the units' bars when the pack has them (界面-19); in a match
+ * of two the start panel given its stage (界面-21) and the stage start banner (界面-22).
  * @param {ReturnType<typeof import('../ui.js').createUi>} ui @param {Screen} scr @param {Record<string, any>} hud @param {boolean} coop
  * @param {import('./start.js').StageInfo | null} stage
  */
 function overlays(ui, scr, hud, coop, stage) {
   return {
     states: createStates(ui, scr, coop), bars: hud.units ? createUnitBars(scr, hud.units) : null,
-    start: coop && stage ? createStart(ui, stage) : null,
+    start: coop && stage ? createStart(ui, stage) : null, banner: coop ? createBanner(ui) : null,
   };
 }
 

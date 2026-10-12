@@ -13104,7 +13104,11 @@
         "objective": "survive",
         "goal": 150,
         "time": 150,
-        "rest": 0
+        "rest": 0,
+        "task": {
+          "title": "生存",
+          "basic": "坚持存活150秒"
+        }
       },
       {
         "alias": "trap_179_muctrl#2",
@@ -13112,7 +13116,12 @@
         "goal": 150,
         "advanced": 180,
         "time": 180,
-        "rest": 10
+        "rest": 10,
+        "task": {
+          "title": "生存",
+          "basic": "坚持存活150秒",
+          "advanced": "坚持存活180秒"
+        }
       }
     ],
     "view": [

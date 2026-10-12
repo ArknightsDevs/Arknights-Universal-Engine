@@ -102,11 +102,31 @@ function stageNames(stage) {
 }
 
 /**
- * A whole level (关卡-1…关卡-4): `id` names it in the content.
- * @param {{ id: string, level: unknown, enemyDb: unknown, handbook?: unknown, commit: string, view?: { vector: unknown, source: string }, stage?: unknown }} input
+ * The stages with their tasks' texts (关卡-5): the missions, in order, give each stage its basic task and then, when it
+ * has an advanced goal, its advanced one; without missions, or when they are not one per goal, the stages as they are.
+ * @param {ReturnType<typeof stagesOf>} stages @param {unknown} missions @returns {Record<string, unknown>[]}
+ */
+function withTasks(stages, missions) {
+  if (missions === undefined) return stages;
+  const list = asArray(missions, 'missions').map((m, i) => {
+    const o = asObject(m, `missions[${i}]`);
+    return { title: asString(field(o, 'title', `missions[${i}]`), `missions[${i}].title`), text: asString(field(o, 'description', `missions[${i}]`), `missions[${i}].description`) };
+  });
+  if (list.length !== stages.reduce((n, st) => n + (st.advanced === undefined ? 1 : 2), 0)) return stages;
+  let k = 0;
+  return stages.map((st) => {
+    const basic = list[k++], advanced = st.advanced === undefined ? null : list[k++];
+    return { ...st, task: { title: basic.title, basic: basic.text, ...(advanced ? { advanced: advanced.text } : {}) } };
+  });
+}
+
+/**
+ * A whole level (关卡-1…关卡-5): `id` names it in the content.
+ * @param {{ id: string, level: unknown, enemyDb: unknown, handbook?: unknown, commit: string, view?: { vector: unknown, source: string }, stage?: unknown,
+ *   missions?: unknown }} input
  * @returns {Record<string, unknown>}
  */
-export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage }) {
+export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage, missions }) {
   const lv = asObject(level, 'level');
   const { width, height, tiles } = extractTiles(field(lv, 'mapData', 'level'));
   const { routes, routeOf } = routeTable(field(lv, 'routes', 'level'));
@@ -122,7 +142,7 @@ export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage
   return {
     source: { repo: 'Kengxxiao/ArknightsGameData', commit, server: 'zh_CN', ...(view ? { view: view.source } : {}) },
     level: { id, ...stageNames(stage), width, height, options: extractOptions(field(lv, 'options', 'level')), tiles, routes, waves, predefines: predefinesOf(lv.predefines),
-      stages: stagesOf(lv.predefines),
+      stages: withTasks(stagesOf(lv.predefines), missions),
       ...(view ? { view: viewOf(view.vector) } : {}) },
     difficulties,
     enemies: Object.fromEntries(keys.map((k) => [k, { ...enemyOf(enemyDb, k, refs.get(k)), ...damageTypeOf(handbook, k), ...(shared.has(k) ? { shared: true } : {}) }])),

@@ -24,6 +24,20 @@ function findLevel(dir, name) {
   return null;
 }
 
+/**
+ * A co-op stage's missions in order (关卡-5): the activity table's multiplayer activity that maps the stage, its
+ * missions by sort id; none for other stages.
+ * @param {string} data the gamedata directory @param {string} id @returns {unknown[] | undefined}
+ */
+function missionsOf(data, id) {
+  const acts = /** @type {{ activity: Record<string, Record<string, any>> }} */ (readJson(join(data, 'excel', 'activity_table.json'))).activity.MULTIPLAY_V3 ?? {};
+  for (const a of Object.values(acts)) {
+    const ids = a.mapDataDict?.[id]?.missionIdList;
+    if (Array.isArray(ids)) return ids.map((m) => a.targetMissionDataDict[m]).toSorted((x, y) => x.sortId - y.sortId);
+  }
+  return undefined;
+}
+
 /** @param {string} dir @returns {string} */
 function gitCommit(dir) {
   try {
@@ -35,7 +49,7 @@ function gitCommit(dir) {
 
 /**
  * Extract level `id` from a checkout, with its camera view from a map file when given (the first vector of its path)
- * and its code and name from the stage table (关卡-4).
+ * and its code and name from the stage table (关卡-4), its stages' task texts from the activity table (关卡-5).
  * @param {string} root the checkout directory @param {string} id @param {{ file: string, source: string }} [map]
  * @returns {Record<string, unknown>}
  */
@@ -51,6 +65,7 @@ export function extractLevelFromCheckout(root, id, map) {
     handbook: readJson(join(data, 'excel', 'enemy_handbook_table.json')), commit: gitCommit(root),
     view: map && vectors ? { vector: vectors[0], source: map.source } : undefined,
     stage: /** @type {{ stages: Record<string, unknown> }} */ (readJson(join(data, 'excel', 'stage_table.json'))).stages[id],
+    missions: missionsOf(data, id),
   });
 }
 
