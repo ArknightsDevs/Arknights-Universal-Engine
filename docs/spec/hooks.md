@@ -41,6 +41,7 @@
 | `attackHit` | 一次攻击对一个目标的各段伤害结算之后（引擎自己的事件） | `attacker`、`target`、`dealt`（各段合计）、`kind`：`main`、`splash`、`chain`、`aftershock`，`isSkill` |
 | `skillStart` | 技能发动、它的行为开始之后（技能-3、技能-4） | `unit`、`reason`：`manual`（玩家发动）、`auto`、`deploy`（被动技能） |
 | `skillEnd` | 技能结束之后（技能-4、技能-7）；运行中的干员离场时，先于它的 `death` | `unit`、`reason`：`duration`、`instant`（立即生效或下次攻击的技能）、`ammo`、`stopped`（玩家关闭）、`death`（离场）、`move`（一般方式的移动，部署-9） |
+| `merchantPay` | 干员的费用消耗扣费之前（职业-10） | `unit`、`cost`（可改，负数按 0）、`cancel`：设为是时这次不扣费 |
 | `beforeStatus` | 战斗中施加一个状态之前（状态-5） | `source`、`target`、`status`、`frames`（−1 为无期限；改为 0 或更少则不施加）、`strength`（状态的数值）、`cancel` |
 
 伤害信息 `dmg` 用 Stronghold 内容接口的字段名（ADR 0012）：`type`、`amount`、`mul`、`cancel`、四项穿透，以及来源标记——`isAttack`（一次攻击的命中，含溅射与跳跃）、`isSkill`（技能运行时或技能造成）、`isSplash`（溅射，余震也算）、`isProjectile`、`tags`（跳跃为 `chain`，余震为 `aftershock`；余震不算攻击的命中）、`hpLoss`（生命流失）。伤害开始结算时补齐缺省的字段：`mul` 为 1，`tags` 为空，`cancel` 为否，四项穿透为 0。

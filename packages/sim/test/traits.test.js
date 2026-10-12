@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
 import { KIND } from '@aue/schema';
-import { createWorld, step, deployProblem, stateHash, takeSnapshot, restoreSnapshot } from '../src/index.js';
+import { createWorld, step, deployProblem, stateHash, takeSnapshot, restoreSnapshot, bus } from '../src/index.js';
 import { defaultTrait, traitTargets, traitOfDef } from '../src/traits.js';
 import { deployCost, cardOf, MAX_PENALTY } from '../src/deck.js';
 import { makeEnemy } from '../src/units.js';
@@ -407,6 +407,15 @@ test('[职业-10] [撤退-1] the cost upkeep: paid every interval from deploymen
   const ev = run(w, c, 90);
   assert.deepEqual([ev.filter((e) => e.type === 'retreat').map((e) => e.f), w.units.length, w.players[0].cost, cardOf(w.players[0], 'guard').penalty], [[179], 0, 2, 1],
     'at 6 s 2 < 3: it retreats, no refund, a penalty layer');
+});
+
+test('[职业-10] [钩子-3] merchantPay before each payment: a handler changes its cost or cancels it', () => {
+  const { w, c } = arena((cc) => { cc.operators.guard.trait = { refund: 0, costDrain: { every: 3, cost: 3 } }; cc.level.options.costIncreaseTime = 1000; });
+  const seen = /** @type {number[]} */ ([]);
+  let n = 0;
+  bus.on(w, 'merchantPay', (k) => { seen.push(k.cost); n++; if (n === 1) k.cost = 1; else k.cancel = true; });
+  run(w, c, 180, [deploy('guard', 1, 1)]);
+  assert.deepEqual([seen, w.players[0].cost, w.units.length], [[3, 3], 4, 1], 'paid 1 at 3 s, nothing at 6 s');
 });
 
 test('[攻击-5] an attack now: at once, on the targets given or its own, its cooldown untouched, even while it makes no normal attacks', () => {

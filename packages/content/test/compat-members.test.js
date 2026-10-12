@@ -215,3 +215,9 @@ test('[兼容-4] moveRedeploy: the 移动 that keeps all (部署-9), a new deplo
   assert.deepEqual([u.u, u.tileR, u.tileC, guard.hp, u.deploySeq, u.deployedAt, got], [guard, 1, 4, hp, seq + 1, w.frame / 30, [['guard', false, true]]]);
   assert.equal(guard.skill.active, true, 'its running skill kept');
 });
+
+test('[兼容-4] a player as kits read it: its cost and its units; none for a seat nobody has', () => {
+  const { w, box, guard } = match({ kind: 'duration', duration: 30 });
+  const b = /** @type {ShBattle} */ (box.b), p = /** @type {any} */ (b.getPlayer(0));
+  assert.deepEqual([p.dp, p.units.includes(b.unitOf(guard)), p.mirror, b.getPlayer(5)], [w.players[0].cost, true, false, null]);
+});

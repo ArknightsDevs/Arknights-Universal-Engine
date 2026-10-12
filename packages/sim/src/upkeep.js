@@ -4,13 +4,15 @@ import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune } from './buffs.js';
 import { dealDamage } from './damage.js';
 import { withdraw } from './deck.js';
+import { emit } from './bus.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./buffs.js').Behavior} Behavior */
 
 /**
  * The upkeep buffs' behaviours (职业-10): `drain` takes its value × the maximum HP as 生命流失 (伤害-10), never the last
- * point; `upkeep` takes its value of the owner's cost, or withdraws the operator when there is less (撤退-1).
+ * point; `upkeep` takes its value of the owner's cost — after the `merchantPay` event, whose handlers may change it or
+ * cancel the payment (钩子-3) —, or withdraws the operator when there is less (撤退-1).
  * @param {Content} c @returns {Record<string, Behavior>}
  */
 export function upkeepBehaviors(c) {
@@ -20,8 +22,10 @@ export function upkeepBehaviors(c) {
       if (n > 0) dealDamage(w, u, u, { type: 'true', amount: n, hpLoss: true });
     } },
     upkeep: { tick: (w, u, b) => {
-      const p = w.players[u.owner];
-      if (p.cost >= b.value) p.cost -= b.value;
+      const k = emit(w, 'merchantPay', { unit: u, cost: b.value, cancel: false });
+      if (k.cancel || u.hp <= 0 || !w.units.includes(u)) return;
+      const p = w.players[u.owner], cost = Number.isFinite(k.cost) ? Math.max(0, k.cost) : b.value;
+      if (p.cost >= cost) p.cost -= cost;
       else withdraw(w, c, u);
     } },
   };

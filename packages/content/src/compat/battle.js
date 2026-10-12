@@ -54,6 +54,7 @@ const SHAPES = {
   attack: (b, k) => ({ attacker: sh(b, k.attacker), targets: k.targets.map((/** @type {Unit} */ t) => b.unitOf(t)), isSkill: k.isSkill }),
   skillStart: (b, k) => ({ unit: sh(b, k.unit), skill: sh(b, k.unit)?.skill ?? null, reason: k.reason }),
   skillEnd: (b, k) => ({ unit: sh(b, k.unit), skill: sh(b, k.unit)?.skill ?? null, reason: k.reason }),
+  merchantPay: (b, k) => ({ unit: sh(b, k.unit), get cost() { return k.cost; }, set cost(v) { k.cost = v; }, get cancel() { return k.cancel; }, set cancel(v) { k.cancel = v; } }),
   beforeStatus: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), status: STATUS_NAME[k.status] ?? k.status,
     get duration() { return k.frames < 0 ? Infinity : k.frames * TICK; }, set duration(v) { k.frames = v === Infinity ? -1 : secondsToFrames(Math.max(0, Number(v) || 0)); },
     get value() { return k.strength; }, set value(v) { k.strength = v; }, get cancel() { return k.cancel; }, set cancel(v) { k.cancel = v; } }),
@@ -296,6 +297,15 @@ export class ShBattle {
 
   /** Cost for a player (费用-1: up to the level's cap). @param {number} playerId @param {number} n */
   addDp(playerId, n) { traits.gainCost(this.w, this.c, playerId, n); }
+  /**
+   * A player as Stronghold's kits read it: its cost (`dp`) and its units on the field (the unmirrored side); null for no
+   * such seat.
+   * @param {number} id
+   */
+  getPlayer(id) {
+    const p = this.w.players[id], b = this;
+    return p ? { id, mirror: false, get dp() { return p.cost; }, get units() { return b.allyUnits.filter((u) => u.ownerId === id); } } : null;
+  }
 
   /**
    * A buff (兼容-4): Stronghold's refresh rule as the engine's (状态-2); seconds as frames; one that `persist`s is given
