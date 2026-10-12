@@ -1,34 +1,72 @@
-// The deploy cards (docs/spec/ui.md 界面-10): one card a deck operator not on the field, in the deck's order along the
-// bottom of the screen — its avatar, profession, rarity, elite phase and deploy cost; greyed while it cannot be
-// deployed; the 再部署 countdown over it while it waits; raised while selected.
+// The deploy cards (docs/spec/ui.md 界面-10, 界面-23): one card a deck operator not on the field, in the deck's order along
+// the bottom of the screen — its avatar, profession, rarity, elite phase and deploy cost; greyed while it cannot be
+// deployed; the 再部署 countdown over it while it waits; raised while selected. A summon's card shows the copies held.
 import { refNode } from '../node.js';
 
 /** @typedef {import('../node.js').UiNode} UiNode */
 /** @typedef {import('../screen.js').Screen} Screen */
 /**
  * A deck operator's card as the page gives it: its avatar (a URL; none: the card has none), profession (the data's
- * name: WARRIOR, SNIPER, …), rarity 1–6, elite phase 0–2, 再部署时间 in seconds.
- * @typedef {{ id: string, avatar: string | null, profession: string, rarity: number, phase: number, respawn: number }} DeckCard
+ * name: WARRIOR, SNIPER, …), rarity 1–6, elite phase 0–2, 再部署时间 in seconds; `summon` for a summon's card (界面-23).
+ * @typedef {{ id: string, avatar: string | null, profession: string, rarity: number, phase: number, respawn: number, summon?: boolean }} DeckCard
  */
-/** What a card shows now. @typedef {{ id: string, cost: number, waiting: boolean, wait: number, ratio: number, usable: boolean }} CardView */
+/**
+ * What a card shows now: its cost, its countdown, whether it may be deployed, the copies a summon's card holds (−1: none shown).
+ * @typedef {{ id: string, cost: number, waiting: boolean, wait: number, ratio: number, usable: boolean, count: number }} CardView
+ */
+/**
+ * A summon card's state (界面-23): its cost, the frame it may be deployed from, the copies held, whether it is shown, as
+ * many on the field as may be, whether it takes a deploy place.
+ * @typedef {{ cost: number, ready: number, held: number, shown: boolean, full: boolean, occupy: boolean }} SummonCardState
+ */
 /**
  * The deck's state: the frame and frames a second, the cost the player has, each card's cost now and the frame it may
- * be deployed again from, the operators on the field, how many more the player may deploy.
- * @typedef {{ frame: number, fps: number, cost: number, cards: Record<string, { cost: number, ready: number }>, deployed: string[], slots: number }} DeckState
+ * be deployed again from, the operators on the field, how many more the player may deploy, the summon cards.
+ * @typedef {{ frame: number, fps: number, cost: number, cards: Record<string, { cost: number, ready: number }>, deployed: string[], slots: number,
+ *   summons?: Record<string, SummonCardState> }} DeckState
  */
 
 /**
- * The cards shown (界面-10): the deck's operators not on the field, in the deck's order; each waits while the frame is
- * before its ready frame (the seconds left, and their share of its 再部署时间); usable when not waiting, its cost is paid
- * and a deploy slot is left.
+ * A card's countdown: waiting while the frame is before its ready frame, the seconds left and their share of its
+ * 再部署时间.
+ * @param {DeckCard} d @param {DeckState} s @param {number} ready
+ */
+function countdown(d, s, ready) {
+  const waiting = s.frame < ready, wait = waiting ? (ready - s.frame) / s.fps : 0;
+  return { waiting, wait, ratio: waiting && d.respawn > 0 ? Math.min(1, wait / d.respawn) : 0 };
+}
+
+/**
+ * The cards shown (界面-10, 界面-23): the deck's operators not on the field and the summon cards shown, in the deck's
+ * order; an operator's usable when not waiting, its cost is paid and a deploy slot is left; a summon's when not waiting,
+ * a copy is held, fewer are on the field than may be, its cost is paid and — when it takes a place — a slot is left.
  * @param {DeckCard[]} deck @param {DeckState} s @returns {CardView[]}
  */
 export function cardViews(deck, s) {
-  return deck.filter((d) => !s.deployed.includes(d.id)).map((d) => {
-    const c = s.cards[d.id] ?? { cost: 0, ready: 0 }, waiting = s.frame < c.ready, wait = waiting ? (c.ready - s.frame) / s.fps : 0;
-    const ratio = waiting && d.respawn > 0 ? Math.min(1, wait / d.respawn) : 0;
-    return { id: d.id, cost: c.cost, waiting, wait, ratio, usable: !waiting && c.cost <= s.cost && s.slots > 0 };
+  return deck.filter((d) => (d.summon ? !!s.summons?.[d.id]?.shown : !s.deployed.includes(d.id))).map((d) => {
+    if (d.summon) {
+      const m = /** @type {SummonCardState} */ (s.summons?.[d.id]), t = countdown(d, s, m.ready);
+      return { id: d.id, cost: m.cost, ...t, count: m.held, usable: !t.waiting && m.held > 0 && !m.full && m.cost <= s.cost && (!m.occupy || s.slots > 0) };
+    }
+    const c = s.cards[d.id] ?? { cost: 0, ready: 0 }, t = countdown(d, s, c.ready);
+    return { id: d.id, cost: c.cost, ...t, count: -1, usable: !t.waiting && c.cost <= s.cost && s.slots > 0 };
   });
+}
+
+/**
+ * The deck with its summon cards (界面-23): each inserted, in cost order then id order, before the first card that costs
+ * more or as much with a larger id; the operators' cards keep their order.
+ * @param {DeckCard[]} deck @param {DeckCard[]} summons @param {(id: string) => number} cost the initial cost of a card
+ * @returns {DeckCard[]}
+ */
+export function placeSummons(deck, summons, cost) {
+  const after = (/** @type {DeckCard} */ a, /** @type {DeckCard} */ b) => cost(a.id) > cost(b.id) || (cost(a.id) === cost(b.id) && a.id > b.id);
+  const out = [...deck];
+  for (const s of [...summons].sort((a, b) => (after(a, b) ? 1 : after(b, a) ? -1 : 0))) {
+    const i = out.findIndex((d) => after(d, s));
+    out.splice(i < 0 ? out.length : i, 0, s);
+  }
+  return out;
 }
 
 /** A card's width for n cards on a canvas w wide: the canvas shared, within the pack's range. @param {number} n @param {number} w @param {number[]} range */
@@ -112,4 +150,7 @@ function showCard(scr, c, k, v, o) {
   for (const [n, base] of k.tints) n.color = [base[0] * tint[0], base[1] * tint[1], base[2] * tint[2], base[3] * tint[3]];
   const content = k.node('content');
   if (content) content.rt.pos[1] = k.top + (o.selected ? c.raise : 0);
+  const back = k.node('remainBack'), count = k.node('remainCount');
+  if (back) back.active = v.count >= 0;
+  if (count) { count.active = v.count >= 0; if (v.count >= 0) scr.text('', String(v.count), count); }
 }

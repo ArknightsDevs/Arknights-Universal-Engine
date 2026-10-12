@@ -2,7 +2,7 @@
 // deployment, the tiles it may be deployed on now and, on one of them, its range deployed there; without one, what this
 // seat's operator on the pointer's tile reaches now.
 import { KIND } from '@aue/schema';
-import { fitsTile, placedReach, reachKeys, healsNow } from '@aue/sim';
+import { fitsTile, placedReach, reachKeys, healsNow, summons } from '@aue/sim';
 
 /** @typedef {import('@aue/sim').World} World @typedef {import('@aue/sim').Content} Content */
 /**
@@ -12,15 +12,18 @@ import { fitsTile, placedReach, reachKeys, healsNow } from '@aue/sim';
 /** @typedef {{ deployable: number[], range: { keys: number[], heal: boolean } | null }} Marks tile keys are row × width + col */
 
 /**
- * The tiles an operator may be deployed on now (渲染-8): the ones it fits (部署-1) with no operator on them.
- * @param {World} w @param {Content} c @param {string} op @returns {number[]}
+ * The tiles an operator may be deployed on now (渲染-8): the ones it fits (部署-1) with no operator on them — for a
+ * summon of `seat` that may only stand in its owner's attack range, within it (召唤-4).
+ * @param {World} w @param {Content} c @param {string} op @param {number} [seat] @returns {number[]}
  */
-export function deployableKeys(w, c, op) {
+export function deployableKeys(w, c, op, seat = 0) {
   const { width, height } = c.level;
   const taken = new Set(w.units.filter((u) => u.kind === KIND.OPERATOR).map((u) => u.y * width + u.x));
   const keys = [];
   for (let row = 0; row < height; row++) {
-    for (let col = 0; col < width; col++) if (!taken.has(row * width + col) && fitsTile(c, op, row, col)) keys.push(row * width + col);
+    for (let col = 0; col < width; col++) {
+      if (!taken.has(row * width + col) && fitsTile(c, op, row, col) && summons.inOwnerRange(w, c, seat, op, { row, col })) keys.push(row * width + col);
+    }
   }
   return keys;
 }
@@ -35,7 +38,7 @@ export function marksFor(w, c, seat, q) {
   if (!w) return { deployable: [], range: null };
   const t = q.tile ?? null;
   if (q.op && Object.hasOwn(c.operators, q.op)) {
-    const deployable = deployableKeys(w, c, q.op);
+    const deployable = deployableKeys(w, c, q.op, seat);
     if (!t || !deployable.includes(t.row * c.level.width + t.col)) return { deployable, range: null };
     const r = placedReach(c, q.op, t.row, t.col, q.dir ?? 0);
     return { deployable, range: { keys: [...r.keys], heal: r.heal } };

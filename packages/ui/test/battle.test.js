@@ -1,7 +1,7 @@
 // The battle HUD (docs/spec/ui.md 界面-10–界面-14) on a small pack shaped like the battle UI's, in a minimal document.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createUi, createBattleHud, cardViews, cardWidth, waitText, costView, speedSprite, coopSpeedSprite, reviveText, dragFacing, ARROW_DIRS,
+import { createUi, createBattleHud, cardViews, cardWidth, waitText, placeSummons, costView, speedSprite, coopSpeedSprite, reviveText, dragFacing, ARROW_DIRS,
   homography, mapPoint, matrix3d, groundTransform, copyRect, DEF_RT } from '../src/index.js';
 import { fakeDocument, fakeHost } from './dom.js';
 
@@ -36,7 +36,8 @@ const battle = N('UI', {}, [
   ], R({ amin: [0, 0], amax: [0, 0], size: [1920, 1080], scale: [0.00337, 0.00337] })),
 ]);
 const card = N('card', {}, [N('content', {}, [N('avatar', img(null)), N('prof', img()), N('mark', img()), N('rarity', img()), N('elite', img()), N('cost', text),
-  N('respawn', slider('@content/respawn/fill'), [N('fill', img('sprite/a', { type: 3, fillMethod: 4 }))]), N('respawnText', text), N('toggle', img()), N('combo', img()), N('assist', img())], R({ amin: [0, 0], amax: [1, 1], size: [0, 0], pivot: [0.5, 0] }))],
+  N('respawn', slider('@content/respawn/fill'), [N('fill', img('sprite/a', { type: 3, fillMethod: 4 }))]), N('respawnText', text), N('toggle', img()), N('combo', img()), N('assist', img()),
+  N('remainBack', img()), N('remainCount', text)], R({ amin: [0, 0], amax: [1, 1], size: [0, 0], pivot: [0.5, 0] }))],
 R({ amin: [0, 0], amax: [0, 0], size: [178, 184], pivot: [0.5, 0] }));
 const coopTop = N('coop', {}, [
   N('btn_speed_level', img(), [N('btn_speed_level_icon', img('sprite/s1'), [N('hotspot', { nodraw: 'raycast' })]), N('pause_on_me', img('sprite/a', { color: [0, 0.6, 0.9, 0] })), N('pause_on_mate', img('sprite/a', { color: [0, 0.6, 0.5, 0] }))]),
@@ -49,7 +50,8 @@ coopTop.children[2].active = false;
 
 const hud = {
   card: { nodes: { avatar: '@content/avatar', profession: '@content/prof', mark: '@content/mark', rarity: '@content/rarity', elite: '@content/elite', assist: '@content/assist',
-    cost: '@content/cost', respawn: '@content/respawn', respawnText: '@content/respawnText', toggle: '@content/toggle', content: '@content' },
+    cost: '@content/cost', respawn: '@content/respawn', respawnText: '@content/respawnText', toggle: '@content/toggle', content: '@content',
+    remainBack: '@content/remainBack', remainCount: '@content/remainCount' },
   extras: ['@content/combo'], professions: { SNIPER: { sprite: 'sprite/sniper', color: [0.7, 0.1, 0.1, 1] } }, rarity: ['sprite/r1', 'sprite/r2', 'sprite/r3', 'sprite/r4', 'sprite/r5', 'sprite/r6'],
   elite: [null, 'sprite/e1', 'sprite/e2'], tint: ['@content/avatar', '@content/cost'], normal: [1, 1, 1, 1], disabled: [0.5, 0.5, 0.5, 1], raise: 20 },
   list: { container: '@orthogonal_root/list', widths: [109, 178] },
@@ -126,6 +128,41 @@ test('[界面-10] the cards on the screen: faces, greyed, the countdown, raised 
   assert.equal(a.root.active, false, 'on the field: no card');
   assert.equal(a.node('content').rt.pos[1], 20, 'a hidden card keeps its last state');
   assert.equal(b.root.rt.size[0], 178);
+});
+
+/** A summon card of the deck and its state (界面-23). @param {Record<string, any>} [more] */
+const summonState = (more = {}) => state({ summons: { s: { cost: 3, ready: 0, held: 2, shown: true, full: false, occupy: true, ...more } } });
+const WITH_SUMMON = [...DECK, { id: 's', avatar: null, profession: 'TOKEN', rarity: 1, phase: 0, respawn: 10, summon: true }];
+
+test('[界面-23] a summon card: shown when its state says so, the copies held, usable by its own rules', () => {
+  const view = (/** @type {Record<string, any>} */ more = {}, /** @type {Record<string, any>} */ top = {}) => cardViews(WITH_SUMMON, { ...summonState(more), ...top }).find((v) => v.id === 's');
+  assert.deepEqual(view(), { id: 's', cost: 3, waiting: false, wait: 0, ratio: 0, count: 2, usable: true });
+  assert.equal(cardViews(DECK, state())[0].count, -1, 'an operator\'s card shows no count');
+  assert.equal(view({ shown: false }), undefined);
+  assert.equal(cardViews(WITH_SUMMON, state()).some((v) => v.id === 's'), false, 'no summon state: not shown');
+  assert.deepEqual([view({ held: 0 })?.usable, view({ full: true })?.usable, view({ cost: 11 })?.usable], [false, false, false]);
+  assert.deepEqual([view({}, { slots: 0 })?.usable, view({ occupy: false }, { slots: 0 })?.usable], [false, true], 'a place only for 部署占用数 1');
+  assert.deepEqual([view({ ready: 450 })?.waiting, view({ ready: 450 })?.wait, view({ ready: 450 })?.ratio], [true, 5, 0.5]);
+});
+
+test('[界面-23] summon cards go in by cost, then by id, before the first card that costs more; the operators keep their order', () => {
+  const card = (/** @type {string} */ id) => ({ id, avatar: null, profession: 'TOKEN', rarity: 1, phase: 0, respawn: 0, summon: true });
+  const costs = /** @type {Record<string, number>} */ ({ a: 9, b: 12, c: 5, s1: 10, s2: 3, s3: 9, s0: 9 });
+  const ids = placeSummons(DECK, ['s1', 's2', 's3', 's0'].map(card), (id) => costs[id]).map((d) => d.id);
+  assert.deepEqual(ids, ['s2', 'a', 's0', 's3', 's1', 'b', 'c']);
+  assert.deepEqual(placeSummons(DECK, [], (id) => costs[id]).map((d) => d.id), ['a', 'b', 'c']);
+  assert.deepEqual(placeSummons([], [card('s1')], (id) => costs[id]).map((d) => d.id), ['s1']);
+});
+
+test('[界面-23] a summon card on the screen shows its copies; an operator\'s card hides the count', () => {
+  const doc = fakeDocument(), ui = createUi({ pack: pack(), host: fakeHost(doc), base: '/u/' });
+  ui.resize(1920, 1080);
+  const hud = createBattleHud(ui, { deck: WITH_SUMMON, coop: false });
+  hud.update(summonState());
+  ui.tick(0);
+  const s = /** @type {any} */ (hud.cards.cards.get('s')), a = /** @type {any} */ (hud.cards.cards.get('a'));
+  assert.deepEqual([s.root.active, s.node('remainBack').active, s.node('remainCount').active, s.node('remainCount').txt], [true, true, true, '2']);
+  assert.deepEqual([a.node('remainBack').active, a.node('remainCount').active], [false, false]);
 });
 
 test('[界面-10] a press on a card\'s frame is the page\'s', () => {

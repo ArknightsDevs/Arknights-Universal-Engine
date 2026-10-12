@@ -6,6 +6,7 @@ import { KIND, DIR } from '@aue/schema';
 import { tileAt } from './level.js';
 import { makeOperator } from './units.js';
 import { releaseAll } from './blocking.js';
+import { reachKeys } from './reach.js';
 import { onDeploy } from './skills.js';
 import { traitDeploy, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
@@ -52,6 +53,17 @@ export function summonProblem(w, c, seat, key) {
   if (onField(w, seat, key).length >= s.deployLimit) return 'summon limit reached';
   if (w.frame < card.ready) return 'redeploying';
   return null;
+}
+
+/**
+ * Whether a record may stand on a tile for its owner now (召唤-4): a summon that may only stand in its owner's attack
+ * range, on a tile of the range its owner has now; any other, anywhere.
+ * @param {World} w @param {Content} c @param {number} seat @param {string} key @param {{ row: number, col: number }} at
+ */
+export function inOwnerRange(w, c, seat, key, at) {
+  if (c.operators[key]?.summon?.ownerRange !== true) return true;
+  const owner = summonerOf(w, c, seat, key);
+  return !!owner && reachKeys(c, owner).has(at.row * c.level.width + at.col);
 }
 
 /**

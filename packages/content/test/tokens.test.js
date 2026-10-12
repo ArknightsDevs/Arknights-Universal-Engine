@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ROSTER, loadTraining } from '../src/operators.js';
-import { TOKENS, SUMMON_PAGES, loadToken, tokenAt, tokenBuild, limitsAt, supplyAt } from '../src/tokens.js';
+import { TOKENS, SUMMON_PAGES, loadToken, tokenAt, tokenBuild, limitsAt, supplyAt, effectsOf } from '../src/tokens.js';
 
 /** @param {Partial<import('../src/operators.js').Build>} o @returns {import('../src/operators.js').Build} */
 const build = (o) => ({ elite: 2, level: 90, potential: 1, trust: 0, skill: 0, skillLevel: 7, ...o });
@@ -92,4 +92,13 @@ test('[召唤-4] the card: the talent cnt that names the summon, or talent 0\'s 
   assert.equal(tokenAt(await loadToken('token_10064_wang_stone1'), 'token_10064_wang_stone1', await loadTraining('char_2027_wang'), build({})).position, 'ALL');
   assert.equal(Object.keys(SUMMON_PAGES).length, 74);
   for (const [id, p] of Object.entries(SUMMON_PAGES)) assert.ok(Object.hasOwn(TOKENS, id) && p.oldid > 0 && [0, 1].includes(p.occupy), id);
+});
+
+test('[召唤-7] a summon holds what its page says: not attacked, 禁疗, 无敌, 孤立, the immunities; devices are not selected by enemies', async () => {
+  const relay = tokenAt(await loadToken('token_10070_aphris_pc'), 'token_10070_aphris_pc', await loadTraining('char_4229_aphris'), build({}));
+  assert.deepEqual(relay.trait?.flags, { untargetable: true, invincible: true, healFree: true, isolated: true, noAllyHeal: true });
+  assert.deepEqual(effectsOf(SUMMON_PAGES.token_10056_angel2_target).immune, ['stun', 'freeze', 'levitate', 'silence', 'fear', 'palsy', 'palsyShake']);
+  assert.deepEqual(effectsOf(SUMMON_PAGES.token_10002_kalts_mon3tr), { flags: { healFree: true }, immune: [] });
+  assert.deepEqual(effectsOf(SUMMON_PAGES.token_10064_wang_stone1).flags, { untargetable: true }, 'a device');
+  assert.deepEqual(effectsOf(null), { flags: {}, immune: [] });
 });

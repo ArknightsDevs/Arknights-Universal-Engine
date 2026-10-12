@@ -1,7 +1,7 @@
 // Summons on the field (docs/spec/summons.md 召唤-4…召唤-6) on the tiny level. Test names cite the clauses.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createWorld, step, deployProblem, summons, bus } from '../src/index.js';
+import { createWorld, step, deployProblem, summons, bus, targeting } from '../src/index.js';
 import { tinyContent } from '@aue/testkit';
 
 /** @typedef {import('../src/types.js').OperatorDef} OperatorDef @typedef {import('../src/types.js').SummonDef} SummonDef */
@@ -144,4 +144,23 @@ test('[召唤-5] [召唤-6] content summons on a free tile for nothing; the summ
   again.hp = 0;
   step(w, c);
   assert.deepEqual(w.units.map((u) => u.key), ['probe'], 'a fallen owner\'s summons leave the same frame');
+});
+
+test('[召唤-7] a summon deploys with its record\'s flags and immunities: enemies do not select an untargetable one', () => {
+  const marked = { ...c, operators: { ...c.operators, shadow: { ...c.operators.shadow, trait: { flags: { untargetable: true, healFree: true } }, immune: ['stun'] } } };
+  const w = createWorld(marked, { seed: 1, players: 1 });
+  step(w, marked, [[0, deploy({})]]);
+  const s = /** @type {import('../src/types.js').Unit} */ (summons.spawnSummon(w, marked, unitsOf(w, 'guard')[0], 'shadow', { row: 1, col: 3 }));
+  assert.equal(targeting.selectable(s), false);
+  assert.deepEqual(s.base.immune, ['stun']);
+  assert.equal(targeting.selectable(unitsOf(w, 'guard')[0]), true);
+});
+
+test('[召唤-4] a summon that may only stand in its owner\'s attack range: refused outside the range its owner has now', () => {
+  const ranged = { ...c, operators: { ...c.operators, tentacle: { ...c.operators.tentacle, summon: { ...c.operators.tentacle.summon, ownerRange: true } } } };
+  const w = createWorld(ranged, { seed: 1, players: 1 });
+  w.players[0].cost = 99;
+  step(w, ranged, [[0, deploy({})]]);
+  assert.equal(deployProblem(w, ranged, 0, deploy({ op: 'tentacle', col: 4 })), 'outside the summoner\'s range');
+  assert.equal(deployProblem(w, ranged, 0, deploy({ op: 'tentacle', col: 3 })), null);
 });

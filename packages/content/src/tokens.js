@@ -14,7 +14,7 @@ import { talentsAt, unlockedAt } from './talents.js';
  * A summon's PRTS fields (召唤-4, 召唤-5): 部署占用数, 再部署策略, 实体类型 装置, 部署位置 when it differs, whether it
  * stays when its owner leaves, and the page revision.
  * @typedef {{ page: string, oldid: number, occupy: number, respawn: 'default' | 'unique' | 'queue', device: boolean, position?: string,
- *   stays?: boolean, occupyUnknown?: boolean }} SummonPage
+ *   stays?: boolean, occupyUnknown?: boolean, effects?: string[], immune?: string[], unattacked?: boolean, ownerRange?: boolean }} SummonPage
  */
 
 /** Every summon there is training data for, by id: name and position. */
@@ -94,18 +94,46 @@ export function supplyAt(owner, b, id) {
   return 0;
 }
 
+/** The engine's flags of the 异常效果 a summon holds (召唤-7). @type {Readonly<Record<string, string[]>>} */
+const HELD = Object.freeze({ 禁疗: ['healFree'], 无敌: ['invincible'], 孤立: ['isolated', 'noAllyHeal'], 不可阻挡: ['unblockable'], 静默: ['mute'] });
+/** The flags of the 异常效果 a summon may be immune to (召唤-7, 状态-7). @type {Readonly<Record<string, string>>} */
+const IMMUNE = Object.freeze({ 晕眩: 'stun', 冻结: 'freeze', 沉睡: 'sleep', 浮空: 'levitate', 沉默: 'silence', 恐惧: 'fear', 麻痹: 'palsy', 麻痹震颤: 'palsyShake' });
+
 /**
- * A summon at its owner's training as @aue/sim reads it (召唤-2…召唤-4): its record, with its PRTS position, and `summon` —
- * its limits, what the owner's deployment adds to its card, 部署占用数, 再部署策略, whether it stays when the owner leaves.
+ * What a summon's page says it holds (召唤-7): the flags it is deployed with — untargetable when it is not attacked or is
+ * a device, those of the effects it holds — and the flags it is immune to; the effects the engine has none for are left out.
+ * @param {SummonPage | null} page
+ */
+export function effectsOf(page) {
+  const held = (page?.effects ?? []).flatMap((e) => HELD[e] ?? []), untargetable = page?.unattacked === true || page?.device === true;
+  return { flags: Object.fromEntries([...(untargetable ? ['untargetable'] : []), ...held].map((f) => [f, true])), immune: (page?.immune ?? []).map((e) => IMMUNE[e]).filter(Boolean) };
+}
+
+/**
+ * A record with a summon's effects (召唤-7): the flags on its trait, the immunities with its own.
+ * @param {import('@aue/sim').OperatorDef} rec @param {SummonPage | null} page @returns {import('@aue/sim').OperatorDef}
+ */
+function withEffects(rec, page) {
+  const { flags, immune } = effectsOf(page);
+  return {
+    ...rec, ...(Object.keys(flags).length ? { trait: { ...rec.trait, flags: { ...rec.trait?.flags, ...flags } } } : {}),
+    ...(immune.length ? { immune: [...(rec.immune ?? []), ...immune] } : {}),
+  };
+}
+
+/**
+ * A summon at its owner's training as @aue/sim reads it (召唤-2…召唤-4, 召唤-7): its record, with its PRTS position and
+ * effects, and `summon` — its limits, what the owner's deployment adds to its card, 部署占用数, 再部署策略, whether it stays
+ * when the owner leaves.
  * @param {Training} token @param {string} id @param {Training} owner @param {Build} b @returns {import('@aue/sim').OperatorDef}
  */
 export function tokenAt(token, id, owner, b) {
   const tb = tokenBuild(token, b), mod = tokenModule(owner, b, id), page = Object.hasOwn(SUMMON_PAGES, id) ? SUMMON_PAGES[id] : null;
   return {
-    ...recordAt(token, tb, mod), ...(page?.position ? { position: /** @type {'MELEE' | 'RANGED'} */ (page.position) } : {}),
+    ...withEffects(recordAt(token, tb, mod), page), ...(page?.position ? { position: /** @type {'MELEE' | 'RANGED'} */ (page.position) } : {}),
     summon: {
       ...limitsAt(token, tb, mod), supply: supplyAt(owner, b, id), occupy: page?.occupy ?? 0, respawn: page?.respawn ?? 'default',
-      ...(page?.stays ? { stays: true } : {}),
+      ...(page?.stays ? { stays: true } : {}), ...(page?.ownerRange ? { ownerRange: true } : {}),
     },
   };
 }

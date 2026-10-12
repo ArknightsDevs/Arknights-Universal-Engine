@@ -7,7 +7,7 @@ import { onDeploy, commandSkill } from './skills.js';
 import { traitDeploy, traitOfDef, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
 import { cardOf, deployCost, withdraw } from './deck.js';
-import { occupying, summonProblem, deploySummon, supplySummons } from './summons.js';
+import { occupying, summonProblem, deploySummon, supplySummons, inOwnerRange } from './summons.js';
 import { isDown, askCost, answerCost } from './coop.js';
 import { emit } from './bus.js';
 
@@ -43,8 +43,15 @@ export function deployProblem(w, c, seat, cmd) {
   if (!d || !p) return 'unknown operator or seat';
   if (c.decks && !c.decks[seat]?.includes(d.summon ? d.summoner ?? '' : cmd.op)) return 'not in the deck';
   if (isDown(p)) return 'player down';
-  return d.summon ? summonProblem(w, c, seat, cmd.op) ?? limitProblem(w, c, seat, d) ?? placeProblem(w, c, seat, cmd, d.cost) : operatorProblem(w, c, seat, cmd);
+  return d.summon ? summonProblem(w, c, seat, cmd.op) ?? limitProblem(w, c, seat, d) ?? placeProblem(w, c, seat, cmd, d.cost) ?? rangeProblem(w, c, seat, cmd)
+    : operatorProblem(w, c, seat, cmd);
 }
+
+/**
+ * A summon that may only stand in its owner's attack range (召唤-4), on a tile outside it.
+ * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd
+ */
+const rangeProblem = (w, c, seat, cmd) => (inOwnerRange(w, c, seat, cmd.op, cmd) ? null : 'outside the summoner\'s range');
 
 /**
  * An operator's own reasons (部署-2, 部署-3): on the field already, the deploy limit, redeploying, then the place's.
