@@ -860,6 +860,338 @@
         }
       ]
     ],
+    "blockEdges": [
+      {
+        "row": 7,
+        "col": 3,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 7,
+        "col": 4,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 7,
+        "col": 5,
+        "dir": "DOWN",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 6,
+        "col": 4,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 4,
+        "col": 4,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 3,
+        "col": 5,
+        "dir": "LEFT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 2,
+        "col": 4,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 1,
+        "col": 4,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 0,
+        "col": 4,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 0,
+        "col": 3,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 2,
+        "col": 4,
+        "dir": "LEFT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 2,
+        "col": 3,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 4,
+        "col": 3,
+        "dir": "DOWN",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 4,
+        "col": 3,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 4,
+        "col": 2,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 4,
+        "col": 2,
+        "dir": "DOWN",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 6,
+        "col": 2,
+        "dir": "DOWN",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 6,
+        "col": 2,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 6,
+        "col": 3,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 6,
+        "col": 3,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 3,
+        "col": 5,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 2,
+        "col": 5,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 1,
+        "col": 6,
+        "dir": "LEFT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 3,
+        "col": 6,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 2,
+        "col": 6,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 2,
+        "col": 7,
+        "dir": "DOWN",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 2,
+        "col": 8,
+        "dir": "DOWN",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 1,
+        "col": 8,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 1,
+        "col": 8,
+        "dir": "DOWN",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 1,
+        "col": 7,
+        "dir": "DOWN",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 1,
+        "col": 6,
+        "dir": "DOWN",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 3,
+        "col": 8,
+        "dir": "LEFT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 4,
+        "col": 8,
+        "dir": "LEFT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 5,
+        "col": 8,
+        "dir": "LEFT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 6,
+        "col": 7,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 6,
+        "col": 7,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 6,
+        "col": 6,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 7,
+        "col": 5,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 7,
+        "col": 6,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 7,
+        "col": 7,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 7,
+        "col": 8,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 7,
+        "col": 9,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 6,
+        "col": 8,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 5,
+        "col": 8,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 4,
+        "col": 9,
+        "dir": "LEFT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 3,
+        "col": 8,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 2,
+        "col": 8,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 4,
+        "col": 4,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 6,
+        "col": 4,
+        "dir": "DOWN",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 6,
+        "col": 2,
+        "dir": "LEFT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 4,
+        "col": 1,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 6,
+        "col": 2,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 4,
+        "col": 2,
+        "dir": "RIGHT",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 3,
+        "col": 6,
+        "dir": "UP",
+        "mask": "WALK_ONLY"
+      },
+      {
+        "row": 7,
+        "col": 9,
+        "dir": "DOWN",
+        "mask": "WALK_ONLY"
+      }
+    ],
     "routes": [
       {
         "start": {

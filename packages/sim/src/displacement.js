@@ -8,6 +8,7 @@ import { statsOf } from './attrs.js';
 import { release } from './blocking.js';
 import { tileAt } from './level.js';
 import { displace } from './routes.js';
+import { crossable } from './paths.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /**
@@ -87,13 +88,14 @@ export function push(w, c, t, force, o) {
 }
 
 /**
- * Moves a sliding unit by (dx, dy) unless that leaves the map or, for a ground unit, enters a tile it cannot walk
- * (位移-3): then it stops where it is.
+ * Moves a sliding unit by (dx, dy) unless that leaves the map or, for a ground unit, enters a tile it cannot walk or
+ * crosses a closed edge (位移-3, 地图-2): then it stops where it is.
  * @param {Content} c @param {Unit} t @param {number} dx @param {number} dy
  */
 function step(c, t, dx, dy) {
-  const nx = t.x + dx, ny = t.y + dy, tile = tileAt(c.level, Math.round(ny), Math.round(nx));
-  if (!tile || tile.passable !== 'ALL') {
+  const m = c.level, nx = t.x + dx, ny = t.y + dy, r = Math.round(ny), col = Math.round(nx), r0 = Math.round(t.y), c0 = Math.round(t.x), tile = tileAt(m, r, col);
+  const walled = (r !== r0 || col !== c0) && tileAt(m, r0, c0) !== null && !crossable(m, r0 * m.width + c0, r * m.width + col, false);
+  if (!tile || tile.passable !== 'ALL' || walled) {
     if (t.slide) t.slide = { ...t.slide, vx: 0, vy: 0 };
     return;
   }

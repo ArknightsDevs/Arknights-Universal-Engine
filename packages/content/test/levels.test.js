@@ -2,9 +2,10 @@
 // its waves, stage and civilians at work.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createWorld, step, stateHash } from '@aue/sim';
+import { createWorld, step, stateHash, paths } from '@aue/sim';
 import { levelContent, levelAt, LEVELS, matchContent } from '../src/index.js';
 import { uncoveredAbilities } from '../src/foes.js';
+import hard02 from '../data/levels/act1multi_hard-02.json' with { type: 'json' };
 
 const raw = LEVELS.act1multi_01;
 
@@ -92,4 +93,30 @@ test('[关卡-2] char_blockcnt_add: act1multi_06 at 突袭 takes one off every o
   const deck = [{ id: 'char_122_beagle', build: { elite: 0, level: 30, potential: 1, trust: 0, skill: 0, skillLevel: 4 } }];
   const easy = await matchContent({ level: 'x', difficulty: 'NORMAL', seed: 1, decks: [deck] }, blocks), hard = await matchContent({ level: 'x', difficulty: 'FOUR_STAR', seed: 1, decks: [deck] }, blocks);
   assert.equal(hard.operators['char_122_beagle#0'].blockCnt, easy.operators['char_122_beagle#0'].blockCnt - 1);
+});
+
+/** The pairs of walkable tiles side by side, one a 玉门天灾工事 and the other neither one nor a 云梯 (地图-2). @param {any} m @returns {[number, number][]} */
+function worksBorders(m) {
+  const WORKS = ['tile_passable_wall', 'tile_passable_wall_forbidden'], out = /** @type {[number, number][]} */ ([]);
+  const keyOf = (/** @type {number} */ t) => m.tiles[Math.floor(t / m.width)][t % m.width].key;
+  const border = (/** @type {number} */ a, /** @type {number} */ b) => WORKS.includes(keyOf(a)) !== WORKS.includes(keyOf(b)) && keyOf(a) !== 'tile_stairs' && keyOf(b) !== 'tile_stairs';
+  const walk = (/** @type {number} */ r, /** @type {number} */ c) => r < m.height && c < m.width && m.tiles[r][c].passable === 'ALL';
+  for (let t = 0; t < m.width * m.height; t++) {
+    const r = Math.floor(t / m.width), c = t % m.width;
+    if (walk(r + 1, c) && walk(r, c) && border(t, t + m.width)) out.push([t, t + m.width]);
+    if (walk(r, c + 1) && walk(r, c) && border(t, t + 1)) out.push([t, t + 1]);
+  }
+  return out;
+}
+
+test('[地图-2] the 工事 levels: every edge between a 工事 and a walkable tile neither 工事 nor 云梯 is closed to ground units, and every ground route still connects', () => {
+  for (const [id, lv] of /** @type {[string, any][]} */ ([['act1multi_06', LEVELS.act1multi_06], ['act1multi_hard-02', hard02]])) {
+    const m = lv.level, k = (/** @type {{ row: number, col: number }} */ p) => p.row * m.width + p.col, borders = worksBorders(m);
+    assert.ok(borders.length > 25, `${id}: ${borders.length} edges between 工事 and the ground`);
+    for (const [a, b] of borders) assert.ok(!paths.crossable(m, a, b, false), `${id}: tiles ${a} | ${b}`);
+    for (const route of m.routes.filter((/** @type {any} */ r) => r.motion === 'WALK')) {
+      const pts = [route.start, ...route.checkpoints.filter((/** @type {any} */ p) => p.type === 'MOVE'), route.end];
+      for (let j = 1; j < pts.length; j++) assert.ok(paths.routeTiles(m, k(pts[j - 1]), k(pts[j])), `${id}: ${JSON.stringify(pts[j - 1])} → ${JSON.stringify(pts[j])}`);
+    }
+  }
 });

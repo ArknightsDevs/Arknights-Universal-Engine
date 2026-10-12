@@ -4,7 +4,8 @@
  * A tile: `goal` is the side a goal tile belongs to — 'A', 'B', 'Shared', or '' (合作-1).
  * @typedef {{ key: string, height: string, buildable: string, passable: string, side: string, goal?: string }} Tile
  */
-/** @typedef {{ width: number, height: number, tiles: Tile[][] }} LevelMap */
+/** A closed tile edge (地图-2). @typedef {{ row: number, col: number, dir: string, mask: string }} BlockEdge */
+/** @typedef {{ width: number, height: number, tiles: Tile[][], blockEdges?: BlockEdge[] }} LevelMap */
 
 /** @param {LevelMap} map @param {number} row @param {number} col @returns {Tile | null} */
 export function tileAt(map, row, col) {

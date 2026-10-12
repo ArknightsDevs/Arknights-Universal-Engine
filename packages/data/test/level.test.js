@@ -121,3 +121,14 @@ test('[关卡-2] runes: the max cost, the operators\' block count, shared enemie
   assert.deepEqual(difficultyOf(runes, 'FOUR_STAR'), { hiddenGroups: [], maxCost: 30, blockAdd: -1, enemyMul: [], replace: {}, unsupported: [] });
   assert.deepEqual([...sharedEnemies(runes)], ['e_a', 'e_b']);
 });
+
+test('[地图-2] closed edges: a tile, its side and the mask, in data order; none without blockEdges; unknown sides and masks refused', () => {
+  const lv = /** @type {any} */ (makeLevel()), out = (/** @type {any} */ l) => /** @type {any} */ (extractLevel({ id: 'lv', level: l, enemyDb: db(), commit: 'c' })).level;
+  assert.equal(out(lv).blockEdges, undefined);
+  lv.mapData.blockEdges = [{ pos: pos(0, 1), direction: 'UP', blockMask: 'WALK_ONLY' }, { pos: pos(1, 2), direction: 'LEFT', blockMask: 'FLY_ONLY' }];
+  assert.deepEqual(out(lv).blockEdges, [{ row: 0, col: 1, dir: 'UP', mask: 'WALK_ONLY' }, { row: 1, col: 2, dir: 'LEFT', mask: 'FLY_ONLY' }]);
+  lv.mapData.blockEdges = [{ pos: pos(0, 1), direction: 'NORTH', blockMask: 'WALK_ONLY' }];
+  assert.throws(() => out(lv), /direction: unknown NORTH/);
+  lv.mapData.blockEdges = [{ pos: pos(0, 1), direction: 'UP', blockMask: 'SOME' }];
+  assert.throws(() => out(lv), /blockMask: unknown SOME/);
+});

@@ -53,6 +53,24 @@ export function extractTiles(mapDataRaw) {
   return { width, height: grid.length, tiles: grid.reverse() };
 }
 
+/** The directions and masks a closed edge may have (地图-2). */
+const EDGE_DIRS = Object.freeze(['UP', 'RIGHT', 'DOWN', 'LEFT']), EDGE_MASKS = Object.freeze(['WALK_ONLY', 'FLY_ONLY', 'ALL', 'NONE']);
+
+/**
+ * The closed tile edges (地图-2), in data order: a tile (row 0 at the bottom, as route positions), the side of it — UP
+ * is toward row + 1 — and whom the edge stops. None when the map has no `blockEdges`.
+ * @param {unknown} mapDataRaw @returns {{ row: number, col: number, dir: string, mask: string }[]}
+ */
+export function extractEdges(mapDataRaw) {
+  const raw = asObject(mapDataRaw, 'level.mapData').blockEdges;
+  return (raw === undefined || raw === null ? [] : asArray(raw, 'level.mapData.blockEdges')).map((e, i) => {
+    const p = `level.mapData.blockEdges[${i}]`, o = asObject(e, p), dir = asString(field(o, 'direction', p), `${p}.direction`), mask = asString(field(o, 'blockMask', p), `${p}.blockMask`);
+    if (!EDGE_DIRS.includes(dir)) throw new Error(`${p}.direction: unknown ${dir}`);
+    if (!EDGE_MASKS.includes(mask)) throw new Error(`${p}.blockMask: unknown ${mask}`);
+    return { ...asPos(field(o, 'pos', p), `${p}.pos`), dir, mask };
+  });
+}
+
 /**
  * @param {unknown} raw
  * @param {string} p

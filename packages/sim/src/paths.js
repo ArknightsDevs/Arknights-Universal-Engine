@@ -1,7 +1,8 @@
 // Pathfinding (docs/spec/paths.md 寻路-1…寻路-3): for each destination tile a flow field — a FIFO SPFA from the
-// destination over the four neighbours UP (row + 1), RIGHT, DOWN, LEFT, keeping the first parent that reaches a tile;
-// then, row by row and in place, each tile's parent is moved up its chain to the farthest ancestor in line of sight.
-// Fields depend on the level only, so they are cached beside it, never in the state. Tile keys are row × width + col.
+// destination over the four neighbours UP (row + 1), RIGHT, DOWN, LEFT, keeping the first parent that reaches a tile
+// and never crossing a closed edge (地图-2); then, row by row and in place, each tile's parent is moved up its chain to
+// the farthest ancestor in line of sight. Fields and edges depend on the level only, so they are cached beside it, never
+// in the state. Tile keys are row × width + col.
 import { roundHalfEven } from '@aue/math';
 
 /** @typedef {import('./level.js').LevelMap} LevelMap @typedef {import('./level.js').Tile} Tile */
@@ -12,6 +13,48 @@ const FOUR = Object.freeze([[1, 0], [0, 1], [-1, 0], [0, -1]]);
 
 /** @type {WeakMap<LevelMap, Map<string, Field>>} */
 const CACHE = new WeakMap();
+/** @type {WeakMap<LevelMap, { walk: Uint8Array, fly: Uint8Array }>} */
+const EDGES = new WeakMap();
+
+/** An edge's direction by name, as its index in FOUR (地图-2). @type {Readonly<Record<string, number>>} */
+const DIR = Object.freeze({ UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 });
+/** The bit of the edge toward a neighbour one step away (dr, dc). @param {number} dr @param {number} dc */
+const bitOf = (dr, dc) => 1 << (dr === 1 ? 0 : dc === 1 ? 1 : dr === -1 ? 2 : 3);
+
+/**
+ * Per tile, a bit for each of its four edges (FOUR's order) closed to units of this motion (地图-2): a WALK_ONLY edge to
+ * ground units, a FLY_ONLY one to flyers, an ALL one to both; an edge closes both its tiles' sides. Cached per level.
+ * @param {LevelMap} m @param {boolean} fly
+ */
+function edgesOf(m, fly) {
+  let e = EDGES.get(m);
+  if (!e) {
+    const walk = new Uint8Array(m.width * m.height), air = new Uint8Array(m.width * m.height);
+    const at = (/** @type {number} */ r, /** @type {number} */ c) => (r >= 0 && r < m.height && c >= 0 && c < m.width ? r * m.width + c : -1);
+    for (const x of m.blockEdges ?? []) {
+      const d = DIR[x.dir], a = at(x.row, x.col), b = at(x.row + FOUR[d][0], x.col + FOUR[d][1]);
+      for (const bits of [x.mask === 'WALK_ONLY' || x.mask === 'ALL' ? walk : null, x.mask === 'FLY_ONLY' || x.mask === 'ALL' ? air : null]) {
+        if (!bits) continue;
+        if (a >= 0) bits[a] |= 1 << d;
+        if (b >= 0) bits[b] |= 1 << ((d + 2) % 4);
+      }
+    }
+    e = { walk, fly: air };
+    EDGES.set(m, e);
+  }
+  return fly ? e.fly : e.walk;
+}
+
+/**
+ * Whether a unit of this motion may step from tile a to tile b beside it or corner to corner (地图-2): side by side, the
+ * edge between them is open; corner to corner, all four edges meeting at the corner are.
+ * @param {LevelMap} m @param {number} a @param {number} b @param {boolean} fly
+ */
+export function crossable(m, a, b, fly) {
+  const e = edgesOf(m, fly), r0 = Math.floor(a / m.width), c0 = a % m.width, dr = Math.floor(b / m.width) - r0, dc = b % m.width - c0;
+  if (dr === 0 || dc === 0) return (e[a] & bitOf(dr, dc)) === 0;
+  return (e[a] & (bitOf(dr, 0) | bitOf(0, dc))) === 0 && (e[b] & (bitOf(-dr, 0) | bitOf(0, -dc))) === 0;
+}
 
 /** Whether a unit of this motion may stand on a tile (寻路-1): ground units on ALL tiles, flying ones on any but NONE. @param {Tile | null} t @param {boolean} fly */
 export const passable = (t, fly) => !!t && (fly ? t.passable !== 'NONE' : t.passable === 'ALL');
@@ -40,7 +83,7 @@ function spfa(m, dest, fly) {
     queued[cur] = 0;
     for (const [dr, dc] of FOUR) {
       const nr = r + dr, nc = c + dc, nb = nr * m.width + nc;
-      if (nr < 0 || nr >= m.height || nc < 0 || nc >= m.width || !open(m, nb, fly)) continue;
+      if (nr < 0 || nr >= m.height || nc < 0 || nc >= m.width || !open(m, nb, fly) || !crossable(m, cur, nb, fly)) continue;
       if (dist[nb] >= 0 && dist[cur] + 1 >= dist[nb]) continue;
       dist[nb] = dist[cur] + 1;
       parent[nb] = cur;
@@ -51,33 +94,33 @@ function spfa(m, dest, fly) {
 }
 
 /**
- * Bresenham line of sight from tile a to tile b (寻路-2): every tile on the line passable, and a diagonal step only
- * with both tiles beside it passable. Without diagonal moves only a straight row or column counts.
+ * Bresenham line of sight from tile a to tile b (寻路-2): every tile on the line passable, a diagonal step only with both
+ * tiles beside it passable, and no step across a closed edge (地图-2). Without diagonal moves only a straight row or
+ * column counts.
  * @param {LevelMap} m @param {number} a @param {number} b @param {boolean} fly @param {boolean} diagonal
  */
 export function lineOfSight(m, a, b, fly, diagonal) {
   const r = Math.floor(a / m.width), c = a % m.width, r1 = Math.floor(b / m.width), c1 = b % m.width;
   if (!diagonal && r !== r1 && c !== c1) return false;
-  return bresenham(r, c, r1, c1, (rr, cc) => open(m, rr * m.width + cc, fly));
+  const ok = (/** @type {number} */ rr, /** @type {number} */ cc) => open(m, rr * m.width + cc, fly);
+  return ok(r, c) && bresenham(r, c, r1, c1, (r0, c0, rr, cc) =>
+    ok(rr, cc) && (r0 === rr || c0 === cc || (ok(rr, c0) && ok(r0, cc))) && crossable(m, r0 * m.width + c0, rr * m.width + cc, fly));
 }
 
 /**
- * Walks the Bresenham line from (r, c) to (r1, c1): every tile `ok`, and a diagonal step only with both tiles beside it
- * `ok`.
- * @param {number} r @param {number} c @param {number} r1 @param {number} c1 @param {(r: number, c: number) => boolean} ok
+ * Walks the Bresenham line from (r, c) to (r1, c1): every step from a tile to the next `ok`.
+ * @param {number} r @param {number} c @param {number} r1 @param {number} c1 @param {(r: number, c: number, nr: number, nc: number) => boolean} ok
  */
 function bresenham(r, c, r1, c1, ok) {
   const dr = Math.abs(r1 - r), dc = Math.abs(c1 - c), sr = r1 > r ? 1 : -1, sc = c1 > c ? 1 : -1;
   let err = dc - dr;
-  if (!ok(r, c)) return false;
   while (r !== r1 || c !== c1) {
     const e2 = 2 * err;
     let nr = r, nc = c;
     if (e2 > -dr) { err -= dr; nc += sc; }
     if (e2 < dc) { err += dc; nr += sr; }
-    if (nr !== r && nc !== c && !(ok(nr, c) && ok(r, nc))) return false;
+    if (!ok(r, c, nr, nc)) return false;
     r = nr; c = nc;
-    if (!ok(r, c)) return false;
   }
   return true;
 }

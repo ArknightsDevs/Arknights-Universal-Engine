@@ -4,7 +4,7 @@
 import { FPS, secondsToFrames, hypot } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
-import { flowField, chain, keyAt, passable } from './paths.js';
+import { flowField, chain, keyAt, passable, crossable } from './paths.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').Route} Route @typedef {import('./types.js').Cell} Cell @typedef {import('./types.js').Checkpoint} Checkpoint */
@@ -76,7 +76,8 @@ export function speedOf(c, u) {
 
 /**
  * The tiles a straight segment passes through, in order (路线-2): tile (r, c) spans [c − ½, c + ½] × [r − ½, r + ½]; a
- * segment through a corner point steps diagonally and crosses neither tile beside it. Whether all are passable.
+ * segment through a corner point steps diagonally and crosses neither tile beside it. Whether all are passable and no
+ * step crosses a closed edge (地图-2).
  * @param {Level} m @param {{ x: number, y: number }} p @param {{ x: number, y: number }} q @param {boolean} fly
  */
 export function segmentClear(m, p, q, fly) {
@@ -88,10 +89,11 @@ export function segmentClear(m, p, q, fly) {
   const cell = (/** @type {number} */ rr, /** @type {number} */ cc) => rr >= 0 && rr < m.height && cc >= 0 && cc < m.width && passable(m.tiles[rr][cc], fly);
   if (!cell(r, c)) return false;
   for (let n = Math.abs(cEnd - c) + Math.abs(rEnd - r); n > 0 && (r !== rEnd || c !== cEnd); n--) {
+    const from = r * m.width + c;
     if (tx < ty) { c += sc; tx += ddx; }
     else if (ty < tx) { r += sr; ty += ddy; }
     else { c += sc; r += sr; tx += ddx; ty += ddy; }
-    if (!cell(r, c)) return false;
+    if (!cell(r, c) || !crossable(m, from, r * m.width + c, fly)) return false;
   }
   return true;
 }

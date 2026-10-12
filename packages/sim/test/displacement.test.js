@@ -82,11 +82,16 @@ test('[位移-2] direction: along it, but radial with 受力等级 −2 when mor
   assert.ok(Math.abs(4 + BALLISTIC[2] - pull.e.x) <= 0.003, 'towards the pusher');
 });
 
-test('[位移-3] a wall stops the slide; 失衡 holds its walking, attacking and blocking; afterwards it walks its way again', () => {
+test('[位移-3] [地图-2] a wall or a closed edge stops the slide; 失衡 holds its walking, attacking and blocking; afterwards it walks its way again', () => {
   const walled = field(['.......', '...#...', '.......']);
   push(walled.w, walled.c, walled.e, 5, { from: { x: 0, y: 1 } });
   rest(walled.c, walled.e);
   assert.ok(walled.e.x < 2.5 && walled.e.x > 1, `stopped before the wall: ${walled.e.x}`);
+  const edged = field(['.......', '.......', '.......']);
+  edged.c.level.blockEdges = [{ row: 1, col: 2, dir: 'RIGHT', mask: 'WALK_ONLY' }];
+  push(edged.w, edged.c, edged.e, 5, { from: { x: 0, y: 1 } });
+  rest(edged.c, edged.e);
+  assert.ok(edged.e.x < 2.5 && edged.e.x > 2, `a closed edge stops it as a wall does (地图-2): ${edged.e.x}`);
   const { w, c, e } = field(['.......', '.......', '.......']);
   step(w, c, [[0, { type: 'deploy', op: 'op', row: 1, col: 1, dir: 0 }]]);
   assert.ok(e.blockedBy >= 0, 'blocked');

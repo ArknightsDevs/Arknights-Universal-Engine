@@ -5,7 +5,8 @@ import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import { loadOracle } from '@aue/testkit';
-import { flowField, chain, lineOfSight, keyAt, passable, routeTiles } from '../src/paths.js';
+import { flowField, chain, lineOfSight, keyAt, passable, routeTiles, crossable } from '../src/paths.js';
+import { segmentClear } from '../src/routes.js';
 
 const SEED = 20261011, ROWS = 19, COLS = 21;
 /** @type {any} */
@@ -81,6 +82,33 @@ test('[寻路-2] smoothing: on an open map every tile points straight at the des
   for (const k of [0, 5 * COLS + 2, 18 * COLS + 20]) assert.deepEqual(chain(f, k), [9 * COLS + 10]);
   const g = flowField(level, 9, 10);
   assert.equal(g, f, 'cached beside the level');
+});
+
+test('[地图-2] [寻路-1] a closed edge parts its two tiles both ways for the units its mask stops; the others cross it', () => {
+  const rows = Array.from({ length: ROWS }, () => '.'.repeat(COLS)), k = (/** @type {number} */ r, /** @type {number} */ c) => r * COLS + c;
+  const level = { ...maps(rows).level, blockEdges: [{ row: 5, col: 5, dir: 'UP', mask: 'WALK_ONLY' }, { row: 7, col: 3, dir: 'LEFT', mask: 'FLY_ONLY' }] };
+  assert.ok(!crossable(level, k(5, 5), k(6, 5), false) && !crossable(level, k(6, 5), k(5, 5), false), 'listed from one side, closed from both');
+  assert.ok(crossable(level, k(5, 5), k(6, 5), true), 'flyers cross a WALK_ONLY edge');
+  assert.ok(!crossable(level, k(7, 3), k(7, 2), true) && crossable(level, k(7, 2), k(7, 3), false), 'a FLY_ONLY edge stops flyers only');
+  const f = flowField(level, 6, 5, { diagonal: false });
+  assert.equal(f.dist[k(5, 5)], 3, 'around the edge: (5,5) → (5,4) → (6,4) → (6,5)');
+  assert.equal(flowField(level, 6, 5, { fly: true, diagonal: false }).dist[k(5, 5)], 1);
+  const all = { ...level, blockEdges: [{ row: 0, col: 2, dir: 'UP', mask: 'ALL' }] };
+  assert.ok(!crossable(all, k(0, 2), k(1, 2), false) && !crossable(all, k(1, 2), k(0, 2), true), 'an ALL edge stops both');
+});
+
+test('[地图-2] [寻路-2] [路线-2] no line of sight across a closed edge; a diagonal step needs all four edges at its corner open', () => {
+  const rows = Array.from({ length: ROWS }, () => '.'.repeat(COLS)), k = (/** @type {number} */ r, /** @type {number} */ c) => r * COLS + c;
+  const level = { ...maps(rows).level, blockEdges: [{ row: 0, col: 4, dir: 'RIGHT', mask: 'WALK_ONLY' }, { row: 3, col: 1, dir: 'UP', mask: 'WALK_ONLY' }] };
+  assert.ok(!lineOfSight(level, k(0, 0), k(0, 9), false, true), 'the row crosses the edge between (0,4) and (0,5)');
+  assert.ok(lineOfSight(level, k(0, 0), k(0, 9), true, true), 'not for flyers');
+  assert.ok(!crossable(level, k(3, 1), k(4, 2), false) && !crossable(level, k(4, 0), k(3, 1), false), 'the edge (3,1)|(4,1) meets the corners on both its ends');
+  assert.ok(!lineOfSight(level, k(3, 1), k(4, 2), false, true));
+  assert.ok(crossable(level, k(3, 2), k(4, 3), false), 'a corner the edge does not touch');
+  assert.ok(!segmentClear(level, { x: 4, y: 0.2 }, { x: 6, y: 0 }, false) && segmentClear(level, { x: 0, y: 0 }, { x: 4, y: 0 }, false));
+  const way = routeTiles(level, k(0, 0), k(0, 9)) ?? [];
+  assert.deepEqual(way, [k(0, 0), k(0, 1), k(0, 2), k(0, 3), k(1, 4), k(1, 5), k(1, 6), k(1, 7), k(1, 8), k(0, 9)], 'the way goes over the edge through row 1');
+  assert.equal(flowField(level, 0, 9).dist[k(0, 0)], 11);
 });
 
 test('[寻路-3] a position\'s tile rounds half to even; off the map there is none', () => {
