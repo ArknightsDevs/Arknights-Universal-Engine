@@ -10,6 +10,7 @@
     "./data/skeleton.json": "./data/skeleton.json"
   },
   "dependencies": {
+    "@aue/math": "workspace:*",
     "@aue/sim": "workspace:*"
   },
   "devDependencies": {

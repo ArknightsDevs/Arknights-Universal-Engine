@@ -68,7 +68,7 @@ function atLevel(frames, level) {
  * The attributes at a training (干员-1, 干员-7): elite and level, then trust, then potential, then the module level's.
  * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @returns {Stats}
  */
-function statsAt(t, b, mod) {
+export function statsAt(t, b, mod) {
   const phase = t.phases[b.elite], out = atLevel(phase.frames, clamp(b.level, 1, phase.maxLevel));
   if (t.favor) {
     const share = clamp(b.trust, 0, 100) / 100;
@@ -83,7 +83,7 @@ function statsAt(t, b, mod) {
  * Throws for a module the operator does not have or has not unlocked (its elite phase and level).
  * @param {Training} t @param {Build} b @returns {ModuleLevel | null}
  */
-function moduleAt(t, b) {
+export function moduleAt(t, b) {
   const i = b.module ?? -1, m = t.modules[i];
   if (i < 0) return null;
   if (!m || !unlockedAt({ ...m, potential: 0 }, b)) throw new RangeError(`${t.name}: module ${i} is not unlocked at elite ${b.elite} level ${b.level}`);
