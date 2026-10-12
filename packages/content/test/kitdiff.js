@@ -40,12 +40,14 @@ const OUR_TRAIT = new Set(['trait', 'idle', 'charge']);
 
 /**
  * The branch trait's buffs — our engine's own (OUR_TRAIT), Stronghold's `trait:…` — as one `trait`: their modifiers
- * summed (Stronghold keeps a trait's flags in the unit's profile instead). @param {any[]} list
+ * summed (Stronghold keeps a trait's flags in the unit's profile instead); Stronghold's 阻挡数 −99, its way of writing
+ * the 解放者's 「阻挡数×0」, as the engine's ×0. @param {any[]} list
  */
 function traitOf(list) {
   /** @type {Record<string, number>} */
   const mods = {};
   for (const b of list) if (OUR_TRAIT.has(b.key) || String(b.key).startsWith('trait:')) for (const [k, v] of Object.entries(b.mods ?? {})) mods[k] = (mods[k] ?? 0) + Number(v);
+  if (mods.blockCnt <= -99) { delete mods.blockCnt; mods.blockCntMul = 0; }
   return { key: 'trait', mods };
 }
 

@@ -45,6 +45,12 @@ function arena(tweak) {
 /** @param {Unit} u @param {string} key */
 const buffOf = (u, key) => u.buffs.find((b) => b.key === key);
 
+test('[职业-12] a charge that starts at its init bonus: its steps at deployment', () => {
+  const { put } = arena((c) => { c.operators.guard = { ...c.operators.guard, skill: skill(2), trait: { attackInSkill: true, charge: { atk: 2, steps: 40, init: 1 } } }; });
+  const guard = put('guard', 1, 1);
+  assert.deepEqual([buffOf(guard, 'charge')?.value, statsOf(guard).atk], [20, 50 * 2]);
+});
+
 test('[职业-12] attacks only in the skill; 阻挡数 × 0 out of it; the charge builds a step a second and is back at 0 after the skill', () => {
   const { foe, put, run } = arena((c) => {
     c.operators.guard = { ...c.operators.guard, skill: skill(2), trait: { attackInSkill: true, idleMods: { blockCntMul: 0 }, charge: { atk: 2, steps: 40 } } };

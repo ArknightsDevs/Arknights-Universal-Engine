@@ -7,8 +7,9 @@ import rangeTable from '../data/ranges.json' with { type: 'json' };
 /** @typedef {import('@aue/sim').TraitDef} TraitDef @typedef {import('@aue/sim').OperatorDef} OperatorDef */
 
 /**
- * A covered branch: its normal attack's damage type, and its trait as data, made from the trait's blackboard.
- * @typedef {{ dmgType?: 'phys' | 'arts', trait?: (bb: Readonly<Record<string, number>>) => Partial<TraitDef> }} Branch
+ * A covered branch: its normal attack's damage type, and its trait as data, made from the trait's blackboard and its
+ * module's hidden talents' (干员-7).
+ * @typedef {{ dmgType?: 'phys' | 'arts', trait?: (bb: Readonly<Record<string, number>>, hidden?: Readonly<Record<string, number>>) => Partial<TraitDef> }} Branch
  */
 
 const ARTS = /** @type {const} */ ('arts');
@@ -45,7 +46,7 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // the 应变 that spends cost is its skills' (职业-7)
   mercenary: {},
   // attacks only while its skill runs; 阻挡数 × 0 while it does not, and an attack bonus building up to atk over max_stack_cnt s (职业-12)
-  librator: { trait: (bb) => ({ attackInSkill: true, idleMods: { blockCntMul: 0 }, charge: { atk: bb.atk ?? 2, steps: bb.max_stack_cnt ?? 40 } }) },
+  librator: { trait: (bb, hidden) => ({ attackInSkill: true, idleMods: { blockCntMul: 0 }, charge: { atk: bb.atk ?? 2, steps: bb.max_stack_cnt ?? 40, init: hidden?.init_atk ?? 0 } }) },
   // 重装
   protector: {},
   guardian: {},
@@ -120,12 +121,12 @@ export const coveredBranch = (branch) => Object.hasOwn(BRANCHES, branch);
 
 /**
  * An operator record with its branch's trait (职业-7): the damage type and the trait data from the branch table and the
- * trait's blackboard (`traitBb`); an uncovered branch adds nothing.
- * @param {OperatorDef & { traitBb?: Record<string, number> }} op @returns {OperatorDef}
+ * trait's blackboard (`traitBb`) and its module's hidden talents' (`hiddenBb`, 干员-7); an uncovered branch adds nothing.
+ * @param {OperatorDef & { traitBb?: Record<string, number>, hiddenBb?: Record<string, number> }} op @returns {OperatorDef}
  */
 export function withTrait(op) {
-  const { traitBb = {}, ...rest } = op;
+  const { traitBb = {}, hiddenBb = {}, ...rest } = op;
   const b = op.branch && coveredBranch(op.branch) ? BRANCHES[op.branch] : null;
   if (!b) return rest;
-  return { ...rest, ...(b.dmgType ? { dmgType: b.dmgType } : {}), trait: { ...b.trait?.(traitBb), bb: { ...traitBb } } };
+  return { ...rest, ...(b.dmgType ? { dmgType: b.dmgType } : {}), trait: { ...b.trait?.(traitBb, hiddenBb), bb: { ...traitBb } } };
 }

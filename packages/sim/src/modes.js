@@ -50,7 +50,7 @@ export function healsNow(c, op) {
 export function modeDeploy(op, t) {
   if (t.bullets) addBuff(op, makeBuff({ key: 'bullets', src: op.id, value: t.bullets.max }));
   if (t.store > 0) addBuff(op, makeBuff({ key: 'energy', src: op.id }));
-  if (t.charge) addBuff(op, makeBuff({ key: 'charge', src: op.id, every: secondsToFrames(1), fixed: true }));
+  if (t.charge) addBuff(op, chargeAt(t.charge, op));
   if (t.funnel) addBuff(op, makeBuff({ key: 'funnel', src: op.id, value: -1 }));
   skillIdle(op, t);
 }
@@ -166,6 +166,15 @@ export function healOrder(c, op, cands) {
   const lowest = (/** @type {Unit} */ u) => { const el = currentElement(u); return el ? epOf(u, el) : Infinity; };
   const rows = cands.filter((u) => u.hp < u.maxHp || (ep && epDamaged(u))).map((u) => ({ u, k: precisionKey(u.hp / u.maxHp, 0.001), e: ep ? lowest(u) : 0 }));
   return insertionSort(rows, (a, b) => a.k - b.k || a.e - b.e).map((r) => r.u);
+}
+
+/**
+ * The charge at deployment (职业-12): the steps of its `init` attack bonus, at most all of them.
+ * @param {{ atk: number, steps: number, init?: number }} ch @param {Unit} op
+ */
+function chargeAt(ch, op) {
+  const n = ch.atk > 0 ? Math.min(ch.steps, Math.max(0, Math.round(((ch.init ?? 0) * ch.steps) / ch.atk))) : 0;
+  return makeBuff({ key: 'charge', src: op.id, every: secondsToFrames(1), fixed: true, value: n, mods: n > 0 ? { atkPct: (ch.atk * n) / ch.steps } : {} });
 }
 
 /**

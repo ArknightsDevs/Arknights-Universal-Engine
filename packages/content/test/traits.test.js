@@ -119,7 +119,9 @@ test('[职业-7] [职业-11] zones and chains from the real data: 散射手, 疗
 test('[职业-7] [职业-12] attack modes from the real data: 解放者, 阵法术师, 护佑者, 猎手, 秘术师, 行医, 佣兵', async () => {
   const [lib, phalanx, bless, hunter, mystic, wander, merc] = await Promise.all(['char_1043_leizi2', 'char_4080_lin', 'char_1022_flwr2', 'char_4104_coldst', 'char_297_hamoni', 'char_1016_agoat2', 'char_1049_catap2']
     .map(async (id) => /** @type {any} */ (traits.traitOfDef(await real(id)))));
-  assert.deepEqual([lib.attackInSkill, lib.idleMods, lib.charge], [true, { blockCntMul: 0 }, { atk: 2, steps: 40 }]);
+  assert.deepEqual([lib.attackInSkill, lib.idleMods, lib.charge], [true, { blockCntMul: 0 }, { atk: 2, steps: 40, init: 0 }]);
+  const t = await loadTraining('char_1043_leizi2'), libX = /** @type {any} */ (traits.traitOfDef(operatorAt(t, { elite: 2, level: 60, potential: 1, trust: 0, skill: 0, skillLevel: 7, module: t.modules.length - 1, moduleLevel: 1 })));
+  assert.equal(libX.charge.init, 1, 'LIB-X 部署后获得+100%加成: from its hidden talent (init_atk)');
   assert.deepEqual([phalanx.attackInSkill, phalanx.idleMods, phalanx.targets, phalanx.antiAir], [true, { defPct: 2, resFlat: 20 }, 'all', true], '林: every enemy in range, only in her skill');
   assert.deepEqual([bless.skillHeal, hunter.bullets, mystic.store, wander.heal, wander.epHeal], [0.75, { max: 4, scale: 1.2 }, 3, true, 0.5], '冰酿 at elite 0: 4 bullets');
   assert.deepEqual([merc.blockedFirst, merc.antiAir], [true, false], '佣兵: the melee defaults');

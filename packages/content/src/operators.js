@@ -159,6 +159,22 @@ function talentFields(t, b, mod) {
 export const operatorAt = (t, b) => recordAt(t, b, moduleAt(t, b));
 
 /**
+ * The blackboard of a module level's hidden talents (干员-7): the unlocked candidates of its talent parts that upgrade no
+ * talent of the operator (index −1; not a token's, valid in every mode and map), in order — what the module adds to its
+ * trait without a blackboard of the trait's own (解放者 LIB-X 「部署后获得+100%加成」: init_atk).
+ * @param {Build} b @param {ModuleLevel | null} mod @returns {Stats}
+ */
+function hiddenAt(b, mod) {
+  /** @type {Stats} */
+  let bb = {};
+  for (const p of mod?.parts ?? []) {
+    if (!p.target.startsWith('TALENT') || p.token || p.gameTag || p.mapTag) continue;
+    for (const c of p.talents) if (c.index < 0 && unlockedAt(c, b)) bb = { ...bb, ...c.bb };
+  }
+  return bb;
+}
+
+/**
  * A training's record (operatorAt) with the module level given: the operator's own, or what its owner's module gives a
  * summon (召唤-2).
  * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @returns {OperatorDef}
@@ -171,7 +187,7 @@ export function recordAt(t, b, mod) {
   const s = statsAt(t, b, mod), level = slot ? slot.levels[clamp(b.skillLevel, 1, slot.levels.length) - 1] : null;
   const { cost, respawn, fields } = talentFields(t, b, mod);
   return withTrait({
-    name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: phase.range, traitBb: traitAt(t, b),
+    name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: phase.range, traitBb: traitAt(t, b), hiddenBb: hiddenAt(b, mod),
     maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: Math.max(0, s.cost + cost), blockCnt: s.blockCnt, baseAttackTime: s.baseAttackTime,
     respawnTime: Math.max(0, s.respawnTime + respawn), aspd: s.aspd, tauntLevel: s.tauntLevel, massLevel: s.massLevel,
     ...fields, ...(slot && level ? { skill: skillDefOf(slot.id, level) } : {}),

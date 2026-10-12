@@ -131,8 +131,9 @@
  * @property {number} healOnHit a hit of its attack that deals damage heals the most wounded operator in its range by this share of it (职业-11)
  * @property {boolean} attackInSkill it makes normal attacks only while its skill runs (职业-12)
  * @property {Record<string, number>} idleMods modifiers while its skill does not run (职业-12)
- * @property {{ atk: number, steps: number } | null} charge while its skill does not run, a step a second up to `steps`, each
- *   `atk` ÷ `steps` attack (直接乘算); back to 0 after the skill ran (职业-12)
+ * @property {{ atk: number, steps: number, init?: number } | null} charge while its skill does not run, a step a second up to
+ *   `steps`, each `atk` ÷ `steps` attack (直接乘算), from the steps of `init` attack at deployment; back to 0 after the
+ *   skill ran (职业-12)
  * @property {number} skillHeal while its skill runs, its normal attacks heal at this 倍率 (职业-12)
  * @property {{ max: number, scale: number } | null} bullets each attack spends a bullet at this 倍率; it reloads one at a time (职业-12)
  * @property {number} store the most attack energy it stores when it has no target (0: none; 职业-12)
