@@ -117,6 +117,11 @@ test('[召唤-8] what the owner\'s skill gives and when, read from its descripti
   assert.deepEqual(grantAt(angel, build({ skill: 2 }), 'token_10056_angel2_target', target.name), { n: 1, at: 'deploy' });
   const s = tokenAt(target, 'token_10056_angel2_target', angel, build({ skill: 2 }));
   assert.deepEqual([s.summon?.supply, s.summon?.grant], [1, undefined], 'given at the deployment: part of the supply');
+  const robin = await loadTraining('char_451_robin'), ela = await loadTraining('char_4123_ela');
+  assert.deepEqual(grantAt(robin, build({ elite: 2, level: 80 }), 'token_10013_robin_mine', '“夹子”'), { n: 1, at: 'start' }, 'a skill of the talent\'s only summon');
+  assert.deepEqual(grantAt(ela, build({ skill: 2 }), 'token_10033_ela_grzmot', '雷鸣地雷'), { n: 2, at: 'end' });
+  assert.equal(grantAt(await loadTraining('char_211_adnach'), build({ elite: 1, level: 1 }), 'token_10003_cgbird_bird', '幻影'), null);
+  assert.equal(grantAt(await loadTraining('char_179_cgbird'), build({ skill: 1 }), 'token_10003_cgbird_bird', '幻影'), null, '获得一个持续…的屏障 is no summon');
   const drone = tokenAt(await loadToken('token_10000_silent_healrb'), 'token_10000_silent_healrb', silent, build({ elite: 2, level: 80, skill: 1 }));
   assert.deepEqual([drone.summon?.supply, drone.summon?.grant], [0, { n: 1, at: 'start' }]);
 });

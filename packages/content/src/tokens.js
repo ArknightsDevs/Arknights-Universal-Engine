@@ -121,8 +121,8 @@ function withEffects(rec, page) {
   };
 }
 
-/** A count of copies a skill gives (召唤-8): after 获得 or 可以使用, a number of 个 or 枚. */
-const GIVES = /(?:获得|可以使用)(一|两|二|三|四|五|\d+|\{cnt(?::[^}]*)?\})(?:个|枚)/;
+/** A count of copies a skill gives (召唤-8): after 获得 or 可以使用, a number of 个 or 枚, not of something 持续…. */
+const GIVES = /(?:获得|可以使用)(一|两|二|三|四|五|\d+|\{cnt(?::[^}]*)?\})(?:个|枚)(?!持续)/;
 /** @type {Readonly<Record<string, number>>} */
 const WORD = Object.freeze({ 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5 });
 
@@ -138,15 +138,26 @@ function givenWhen(text, at) {
 }
 
 /**
- * The copies of a summon its owner's skill gives (召唤-8): when the skill the owner brings summons it, its description
- * at the skill's level — a count of 个 or 枚 after 获得 or 可以使用 (the blackboard's cnt for {cnt}), or 获得 and the
- * summon's name for one — and when; null for none.
+ * Whether the skill an owner brings is about a summon (召唤-8): the skill summons it, or the skill summons none and the
+ * owner's talents name it and no other.
+ * @param {Training} owner @param {NonNullable<Training['skills'][number]>} slot @param {string} id
+ */
+function skillOf(owner, slot, id) {
+  if (slot.token) return slot.token === id;
+  const named = new Set(owner.talents.flat().map((c) => c.token).filter((t) => t !== null && Object.hasOwn(TOKENS, t)));
+  return named.size === 1 && named.has(id);
+}
+
+/**
+ * The copies of a summon its owner's skill gives (召唤-8): when the skill the owner brings is about it (skillOf), its
+ * description at the skill's level — a count of 个 or 枚 after 获得 or 可以使用 (the blackboard's cnt for {cnt}), not of
+ * something 持续…, or 获得 and the summon's name for one — and when; null for none.
  * @param {Training} owner @param {Build} b @param {string} id @param {string} name
  * @returns {{ n: number, at: 'start' | 'end' | 'deploy' } | null}
  */
 export function grantAt(owner, b, id, name) {
   const slot = b.skill >= 0 ? owner.skills[b.skill] : null;
-  if (!slot || slot.token !== id) return null;
+  if (!slot || !skillOf(owner, slot, id)) return null;
   const lv = slot.levels[Math.min(Math.max(1, b.skillLevel), slot.levels.length) - 1];
   const text = (lv.description ?? '').replace(/<[^>]*>/g, ''), m = GIVES.exec(text);
   if (m) {
