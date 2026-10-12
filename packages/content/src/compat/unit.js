@@ -6,6 +6,7 @@
 import { KIND, attrs, body, traits, buffs, status, damage, dir, elements, reachKeys, setRange, setAtkCd } from '@aue/sim';
 import { ShSkill } from './skill.js';
 import { STATUS_NAME, buffKeyOf, buffNameOf, shFlagsOf } from './mods.js';
+import { STAND_INS } from './standins.js';
 
 /** @typedef {import('@aue/sim').Unit} Unit @typedef {import('@aue/sim').Buff} Buff @typedef {import('./battle.js').ShBattle} ShBattle */
 
@@ -29,7 +30,7 @@ export class ShBuff {
   /** Its key as Stronghold names it (a burst's is `<element>Burst`). */
   get key() { return buffNameOf(this.buff.key); }
   /** The status it is, or null. @returns {string | null} */
-  get status() { const k = this.buff.key; return Object.hasOwn(status.STATUS, k) ? STATUS_NAME[k] ?? k : null; }
+  get status() { const k = this.buff.key; return Object.hasOwn(status.STATUS, k) ? STATUS_NAME[k] ?? k : Object.hasOwn(STAND_INS, k) ? k : null; }
   get flags() { return this.buff.flags; }
   get shield() { return this.buff.shield; }
   set shield(v) { damage.setShield(this.holder, this.buff, v); }

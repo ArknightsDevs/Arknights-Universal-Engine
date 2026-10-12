@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
-import { createWorld, step, bus, buffs } from '@aue/sim';
+import { createWorld, step, bus, buffs, attrs } from '@aue/sim';
 import { kitsBehaviors } from '../src/compat/kits.js';
 import { periodicDamage } from '../src/compat/sh/damage.js';
 
@@ -37,6 +37,8 @@ function match(spec, bb = {}, skill = {}) {
 
 /** @param {any} w @param {any} c @param {number} n */
 const run = (w, c, n) => { for (let i = 0; i < n; i++) step(w, c); };
+/** A unit's DEF now. @param {any} u */
+const attrsDef = (u) => attrs.statsOf(u).def;
 
 test('[兼容-4] the battle\'s seconds and end; a unit\'s deployment time, ground, leader, attack cooldown, attack profile', () => {
   const { w, c, box, guard } = match({ kind: 'duration', duration: 2, attack: { atkScale: 2 }, targeting: { maxTargets: 3 } });
@@ -143,4 +145,17 @@ test('[兼容-4] a piece has one id for the whole battle, reserved before anythi
   const { box, guard } = match({ kind: 'duration', duration: 30 });
   const b = /** @type {ShBattle} */ (box.b), u = b.unitOf(guard);
   assert.deepEqual([u.id, guard.id > u.id, b.unitById(u.id) === u, b.unitById(guard.id) === u], [1, true, true, true]);
+});
+
+test('[兼容-4] a stand-in status: defDown as a strongest-value buff of its key after beforeStatus, which may change it', () => {
+  const { w, c, box, guard } = match({ kind: 'duration', duration: 30 });
+  const b = /** @type {ShBattle} */ (box.b), u = b.unitOf(guard), seen = /** @type {any[]} */ ([]);
+  b.on('beforeStatus', (/** @type {any} */ k) => { seen.push([k.status, k.duration, k.value]); if (k.value > 0.5) k.cancel = true; });
+  const def = guard.base.def;
+  assert.deepEqual([b.applyStatus(u, 'defDown', { duration: 2, value: 0.2 }), b.applyStatus(u, 'defDown', { duration: 1 }), b.applyStatus(u, 'defDown', { value: 0.9 })], [true, true, false]);
+  assert.deepEqual(seen, [['defDown', 2, 0.2], ['defDown', 1, 0.3], ['defDown', Infinity, 0.9]]);
+  const held = /** @type {any} */ (u.findBuff('defDown'));
+  assert.deepEqual([held.status, held.data, Math.round(attrsDef(guard) * 1e6) / 1e6], ['defDown', { value: 0.3 }, Math.round(def * 0.7 * 1e6) / 1e6], 'the strongest in effect');
+  run(w, c, 31);
+  assert.deepEqual([u.findBuff('defDown')?.data, Math.round(attrsDef(guard) * 1e6) / 1e6], [{ value: 0.2 }, Math.round(def * 0.8 * 1e6) / 1e6], 'the weaker resumes');
 });

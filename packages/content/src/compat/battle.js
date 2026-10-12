@@ -9,6 +9,7 @@ import { withGrid } from './grid.js';
 import { ShUnit } from './unit.js';
 import { STATUS_NAME, statusKeyOf, modsOf, flagsOf, buffKeyOf } from './mods.js';
 import { KIT_BUFF, hooksOf, runHook } from './buffhooks.js';
+import { STAND_INS, giveStandIn } from './standins.js';
 import * as field from './field.js';
 import * as summoning from './summons.js';
 import { ShGrid } from './tiles.js';
@@ -305,12 +306,14 @@ export class ShBattle {
   }
 
   /**
-   * A status (状态-5): the engine's catalogue, seconds as frames; whether it took hold.
+   * A status (状态-5): the engine's catalogue, seconds as frames — or a stand-in for one it has no counterpart for
+   * (standins.js); whether it took hold.
    * @param {ShUnit} target @param {string} key @param {{ duration?: number, source?: ShUnit | null, value?: number }} [o]
    */
   applyStatus(target, key, o = {}) {
     if (!target.alive) return false;
     const k = statusKeyOf(key), frames = o.duration === undefined ? undefined : secondsToFrames(Math.max(0, o.duration));
+    if (Object.hasOwn(STAND_INS, k)) return giveStandIn(this, target, k, o);
     if (!Object.hasOwn(status.STATUS, k)) throw new CompatGap(`status.${key}`);
     return status.inflict(this.w, /** @type {Unit} */ (target.u), /** @type {any} */ (k), { frames, src: o.source?.u ?? null, value: o.value }) !== null;
   }

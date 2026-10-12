@@ -112,8 +112,17 @@ function changedTalent(old, c) {
     rangeGrid: gridOf(c.rangeId) ?? o.rangeGrid, tokenKey: o.tokenKey, hidden: !!(o.hidden && c.hidden), fromModule: true };
 }
 
-/** The trait part of a training (兼容-3): its blackboard with its module's values (干员-7). @param {Training} t @param {Build} b @param {ReturnType<typeof moduleAt>} mod */
-const traitRecord = (t, b, mod) => ({ desc: '', bb: { ...traitAt(t, b, mod) } });
+/**
+ * The trait part of a training (兼容-3): its blackboard with its module's values (干员-7), and — as Stronghold's records
+ * have them — the values of the module's display-only trait parts too (an added line's, e.g. 黑's 「攻击正前方的敌人时攻击力
+ * 提升至105%」, whose effect the game gives a hidden talent).
+ * @param {Training} t @param {Build} b @param {ReturnType<typeof moduleAt>} mod
+ */
+function traitRecord(t, b, mod) {
+  let bb = { ...traitAt(t, b, mod) };
+  for (const c of partsOf(mod, 'DISPLAY').flatMap((p) => p.trait ?? [])) if (unlockedAt(c, b)) bb = { ...bb, ...c.bb };
+  return { desc: '', bb };
+}
 
 /** Attributes as a record's `stats`. @param {ReturnType<typeof statsAt>} s */
 const statsRecord = (s) => ({ maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: s.cost, blockCnt: s.blockCnt, bat: s.baseAttackTime, aspd: s.aspd,
