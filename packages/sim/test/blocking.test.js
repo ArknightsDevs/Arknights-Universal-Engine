@@ -238,6 +238,22 @@ test('[敌人攻击-1] [索敌-5] on the tiny level: the slime hits the guard bl
   assert.equal(slime.atkCd, cd, 'the cooldown waits while it cannot act');
 });
 
+/** The frames of the slime's (id 2) hits on the guard (id 1) over `n` frames. @param {any} w @param {any} c @param {number} n */
+const slimeHits = (w, c, n) => Array.from({ length: n }, (_, f) => (step(w, c).some((ev) => ev.type === 'hit' && ev.target === 1 && Number(ev.id) === 2) ? f : -1)).filter((f) => f >= 0);
+
+test('[状态-5] [敌人攻击-1] 战栗: a blocked enemy starts no attack while its cooldown runs out; once it ends, it attacks', () => {
+  const c = tinyContent();
+  Object.assign(c.enemies.slime, { atk: 300, baseAttackTime: 2, maxHp: 1e6 });
+  const w = createWorld(c, { seed: 1, players: 1 });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 3, dir: 2 }]]);
+  while (!w.units.some((u) => u.id === 2 && u.blockedBy === 1)) step(w, c);
+  const slime = /** @type {Unit} */ (w.units.find((u) => u.id === 2));
+  applyStatus(slime, 'disarmedCombat', { frames: 300 });
+  assert.deepEqual([slimeHits(w, c, 240), slime.atkCd, slime.swing], [[], 0, null], 'blocked: no swing starts, the cooldown is out');
+  slime.buffs = slime.buffs.filter((x) => x.key !== 'disarmedCombat');
+  assert.equal(slimeHits(w, c, 60).length, 1, 'its next attack at once');
+});
+
 test('[敌人攻击-1] [阻挡-3] the guard falls: it leaves, may be deployed again, and the slimes walk on', () => {
   const c = tinyContent();
   Object.assign(c.enemies.slime, { atk: 2000, baseAttackTime: 1, maxHp: 1e6 });

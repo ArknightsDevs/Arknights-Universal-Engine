@@ -434,8 +434,8 @@ export function enemyTargets(w, e) {
 /**
  * An enemy's attack this frame (敌人攻击-1, 攻击-2): like an operator's — a swing under way goes on; the cooldown counts
  * down while it can act; when it is out and there is a target, the first in the official order (索敌-5) is locked and a
- * swing starts. One that cannot act, has no attack or has disappeared loses its swing. Returns whether it is attacking
- * this frame (it does not walk).
+ * swing starts — not while it is blocked under 战栗 (状态-5; a swing under way goes on). One that cannot act, has no
+ * attack or has disappeared loses its swing. Returns whether it is attacking this frame (it does not walk).
  * @param {World} w @param {Content} c @param {Unit} e
  */
 export function enemyAttack(w, c, e) {
@@ -445,6 +445,7 @@ export function enemyAttack(w, c, e) {
   if (e.swing) advanceSwing(w, c, e);
   if (e.atkCd > 0) { e.atkCd--; return swinging; }
   if (e.swing) return true;
+  if (s.flags.disarmedCombat && e.blockedBy >= 0) return false;
   const t = sortAllies(e, foeTargets(w, c, e, enemyTargets(w, e)), FPS)[0];
   if (!t) return swinging;
   startSwing(w, c, e, [t], foeAttack(w, c, e, { scale: 1, times: 1, targets: 1, skill: false }));

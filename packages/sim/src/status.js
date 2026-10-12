@@ -50,6 +50,7 @@ export const STATUS = Object.freeze({
   levitate: status({ flags: { levitate: true }, heavy: true, refuse: (s) => s.flying }),
   groundbind: status({ flags: { groundbind: true }, heavy: true, refuse: (s) => !s.flying }),
   fear: status({ flags: { fear: true }, resist: true, refuse: (_s, u) => u.kind !== KIND.ENEMY }),
+  disarmedCombat: status({ flags: { disarmedCombat: true } }),
   palsy: status({ rule: 'stack', maxStacks: 3, resist: true, flags: { palsy: true }, every: 1 }),
   palsyShake: status({ flags: { palsyShake: true } }),
   invincible: status({ flags: { invincible: true } }),

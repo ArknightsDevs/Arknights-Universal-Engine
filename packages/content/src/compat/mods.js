@@ -3,13 +3,13 @@
 // the engine does not know stays on the buff and changes nothing.
 
 /** Stronghold's flags → the engine's. @type {Readonly<Record<string, string>>} */
-const FLAG = Object.freeze({ invulnerable: 'invincible', bind: 'root', noHeal: 'noAllyHeal' });
+const FLAG = Object.freeze({ invulnerable: 'invincible', bind: 'root', noHeal: 'noAllyHeal', tremble: 'disarmedCombat' });
 
 /** Stronghold's status names → the engine's. @type {Readonly<Record<string, string>>} */
-const STATUS_KEY = Object.freeze({ bind: 'root', resist: 'buffres' });
+const STATUS_KEY = Object.freeze({ bind: 'root', resist: 'buffres', tremble: 'disarmedCombat' });
 
 /** The engine's status keys → Stronghold's names. @type {Readonly<Record<string, string>>} */
-export const STATUS_NAME = Object.freeze(/** @type {Record<string, string>} */ ({ root: 'bind', buffres: 'resist', enemyCold: 'cold', enemyFreeze: 'freeze' }));
+export const STATUS_NAME = Object.freeze(/** @type {Record<string, string>} */ ({ root: 'bind', buffres: 'resist', enemyCold: 'cold', enemyFreeze: 'freeze', disarmedCombat: 'tremble' }));
 
 /** A status as the engine names it. @param {string} key */
 export const statusKeyOf = (key) => STATUS_KEY[key] ?? key;
