@@ -19,7 +19,12 @@
  */
 /** A fragment (波次-1, 波次-2). @typedef {{ preDelay: number, actions: WaveAction[] }} Fragment */
 /** A wave (波次-1…波次-3); `maxWait` is maxTimeWaitingForNextWave, −1 for none. @typedef {{ preDelay: number, postDelay: number, maxWait: number, fragments: Fragment[] }} Wave */
-/** A predefined unit (波次-6). @typedef {{ alias: string, key: string, hidden: boolean }} Predefine */
+/** A predefined unit (波次-6): its tile and facing when the data gives them. @typedef {{ alias: string, key: string, hidden: boolean, row?: number, col?: number, dir?: string }} Predefine */
+/**
+ * A device's record (关卡-6, 装置-1): its name, attributes and its talents' blackboard.
+ * @typedef {{ name: string, maxHp: number, atk: number, def: number, res: number, blockCnt: number, baseAttackTime: number, aspd: number, tauntLevel: number,
+ *   massLevel: number, talentBb: Record<string, number> }} DeviceDef
+ */
 /**
  * A co-op stage (合作-6, 合作-7): the alias of its controller, its objective, the minimum and advanced targets (for 突击 as
  * fractions of `hpMax`; for 生存 in seconds), its time limit and the rest before it in seconds, the enemy 渗透 counts; its
@@ -217,7 +222,8 @@
 /**
  * The content of a battle: the level, enemies, operators, behaviours, and each seat's deck of operator keys when the
  * match gives them (同步-9; none: every operator for every seat), and the kits it uses (兼容-6).
- * @typedef {{ level: Level, enemies: Record<string, EnemyDef>, operators: Record<string, OperatorDef>, behaviors?: Behaviors, decks?: string[][], kits?: { sha: string, used: string[] } }} Content
+ * @typedef {{ level: Level, enemies: Record<string, EnemyDef>, operators: Record<string, OperatorDef>, devices?: Record<string, DeviceDef>, behaviors?: Behaviors, decks?: string[][],
+ *   kits?: { sha: string, used: string[] } }} Content
  */
 
 /**
@@ -308,6 +314,7 @@
  * @property {SkillState | null} skill its skill, null when it has none (技能-1)
  * @property {Record<string, number>} ep element values below their maximum, by element (元素-1); none recorded is at its maximum
  * @property {number} paid the cost its deployment took, 0 for enemies (撤退-1)
+ * @property {string} [alias] a device's predefined unit (装置-1)
  * @property {Cell[]} [range] an operator's own attack range when content changed it, over its record's (攻击-1)
  * @property {number[]} [reachExtra] extra tile keys content gave an operator's attack (攻击-1)
  * @property {Swing | null} swing the attack it is in the wind-up of, null for none (攻击-2)

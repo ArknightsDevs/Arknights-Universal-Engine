@@ -453,7 +453,7 @@ export function enemyTargets(w, e) {
   const blocker = e.blockedBy >= 0 ? w.units.find((u) => u.id === e.blockedBy) ?? null : null;
   if (e.base.applyWay === 'MELEE' || !(e.base.rangeRadius > 0)) return blocker ? [blocker] : [];
   const reach = e.base.rangeRadius + ALLY_COLLIDER_RADIUS, r2 = reach * reach;
-  const side = (/** @type {Unit} */ u) => u.kind === KIND.OPERATOR || (u.kind === KIND.ENEMY && u.base.neutral === true && u !== e);
+  const side = (/** @type {Unit} */ u) => u.kind === KIND.OPERATOR || u.kind === KIND.DEVICE || (u.kind === KIND.ENEMY && u.base.neutral === true && u !== e);
   const out = w.units.filter((u) => side(u) && u.hp > 0 && (u === blocker || selectable(u)) && !evadesGround(e, u)
     && (u.x - e.x) * (u.x - e.x) + (u.y - e.y) * (u.y - e.y) <= r2);
   if (blocker && !out.includes(blocker)) out.push(blocker);

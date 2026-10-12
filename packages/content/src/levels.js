@@ -43,7 +43,7 @@ function multiplied(key, e, muls) {
  * behaviour yet.
  * @param {string} id @param {Difficulty} difficulty @param {(key: string) => object} [attack]
  * @param {Readonly<Record<string, any>>} [levels] the extracted levels to take it from (LEVELS)
- * @returns {{ level: import('@aue/sim').Content['level'], enemies: Record<string, EnemyDef>, blockAdd: number }}
+ * @returns {{ level: import('@aue/sim').Content['level'], enemies: Record<string, EnemyDef>, blockAdd: number, devices: Record<string, import('@aue/sim').DeviceDef> }}
  */
 export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
   const raw = Object.hasOwn(levels, id) ? levels[id] : undefined;
@@ -62,5 +62,6 @@ export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
     level: { ...raw.level, waves, hiddenGroups: d.hiddenGroups, options: { ...raw.level.options, ...(d.lifePoint !== undefined ? { maxLifePoint: d.lifePoint } : {}), ...(d.maxCost !== undefined ? { maxCost: d.maxCost } : {}) } },
     enemies: Object.fromEntries(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([k, e]) => [k, { ...multiplied(k, /** @type {EnemyDef} */ (e), d.enemyMul), ...attack(k) }])),
     blockAdd: d.blockAdd ?? 0,
+    devices: raw.devices ?? {},
   };
 }

@@ -1,15 +1,15 @@
-// The render state, version 4 (ADR 0053; version 2 adds each unit's skill, version 3 its statuses, version 4 its element): one Float64Array per simulated frame,
+// The render state, version 5 (ADR 0053; version 2 adds each unit's skill, version 3 its statuses, version 4 its element, version 5 the unit kind DEVICE): one Float64Array per simulated frame,
 // transferred from the worker to the main thread without a copy. Layout: the header, then each player's fields, then
 // each unit's fields.
 // Positions are in tile coordinates of the level: x = column, y = row (row 0 the nearest), z = the height level of the
 // tile under the unit (0 ground, 1 high ground); the renderer turns them into world coordinates. `owner` is the player
-// index of an operator, −1 for enemies. `sp` is the unit's SP (−1 without a skill), `spCost` what one use takes, `skill`
+// index of an operator, −1 for enemies and devices. `sp` is the unit's SP (−1 without a skill), `spCost` what one use takes, `skill`
 // the skill's state (SKILL_STATE), `skillLeft` the frames left of a running skill's duration (−1 for none), `status`
 // the statuses it has (STATUS_BIT, or-ed); `element` its 当前损伤元素 (ELEMENT; NONE when every element value is full),
 // `ep` that element's value as a share of the maximum — while a burst locks it, the share of the burst gone by —, and
 // `burst` 1 during a burst.
 
-export const VIEW_VERSION = 4;
+export const VIEW_VERSION = 5;
 
 /** The header fields, in order. */
 export const VIEW_HEADER = Object.freeze(['version', 'frame', 'units', 'players']);
@@ -18,8 +18,8 @@ export const VIEW_PLAYER = Object.freeze(['life', 'cost']);
 /** Each unit's fields, in order. */
 export const VIEW_UNIT = Object.freeze(['id', 'kind', 'owner', 'x', 'y', 'z', 'dir', 'hp', 'maxHp', 'anim', 'sp', 'spCost', 'skill', 'skillLeft', 'status', 'element', 'ep', 'burst']);
 
-/** Unit kinds. */
-export const KIND = Object.freeze({ OPERATOR: 0, ENEMY: 1 });
+/** Unit kinds: a device is a level's predefined unit on our side (装置-1). */
+export const KIND = Object.freeze({ OPERATOR: 0, ENEMY: 1, DEVICE: 2 });
 /** What a unit is doing, for the renderer's animation choice. */
 export const ANIM = Object.freeze({ IDLE: 0, MOVE: 1, ATTACK: 2, DIE: 3 });
 /** A unit's skill: none, gathering SP, ready to start, running (a next-attack skill waiting for its attack counts as running). */

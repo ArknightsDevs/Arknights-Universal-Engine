@@ -26,6 +26,7 @@ export * as deck from './deck.js';
 export * as summons from './summons.js';
 export * as displacement from './displacement.js';
 export { moveOperator, canMoveTo } from './move.js';
+export * as devices from './devices.js';
 export * as swing from './swing.js';
 export * as coop from './coop.js';
 export * as waves from './waves.js';
@@ -41,6 +42,7 @@ export { teamFits } from './aura.js';
 export { reserveIds } from './units.js';
 
 /** @typedef {import('./types.js').Content} Content */
+/** @typedef {import('./types.js').DeviceDef} DeviceDef */
 /** @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Buff} Buff */

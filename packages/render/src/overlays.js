@@ -21,7 +21,7 @@ export const BAR = Object.freeze({
  * @returns {Bar[]}
  */
 export function barsOf(u, leader, runFrames) {
-  const c = BAR.colors, hpColor = u.kind === KIND.OPERATOR ? c.ours : leader ? c.leader : c.enemy;
+  const c = BAR.colors, hpColor = u.kind !== KIND.ENEMY ? c.ours : leader ? c.leader : c.enemy;
   /** @type {Bar[]} */
   const bars = [{ ratio: u.maxHp > 0 ? Math.max(0, Math.min(1, u.hp / u.maxHp)) : 0, color: hpColor, height: BAR.hp }];
   if (u.kind !== KIND.OPERATOR || u.sp < 0 || u.skill === SKILL_STATE.NONE) return bars;

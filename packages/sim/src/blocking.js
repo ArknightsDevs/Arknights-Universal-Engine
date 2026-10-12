@@ -106,7 +106,7 @@ export function tryBlock(w, c, e) {
   /** @type {Unit | null} */
   let best = null, bd = Infinity;
   for (const op of w.units) {
-    if (op.kind !== KIND.OPERATOR) continue;
+    if (op.kind !== KIND.OPERATOR && op.kind !== KIND.DEVICE) continue;
     const dx = e.x - op.x, dy = e.y - op.y, d2 = dx * dx + dy * dy;
     if (d2 < r2 && d2 < bd && takes(w, c, op, es)) { best = op; bd = d2; }
   }

@@ -50,7 +50,7 @@ export const skeletonContent = /** @type {any} */ ({
  */
 export function levelContent(id, difficulty) {
   const lv = levelAt(id, difficulty);
-  return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), operators: skeletonContent.operators, behaviors: BEHAVIORS });
+  return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), devices: lv.devices, operators: skeletonContent.operators, behaviors: BEHAVIORS });
 }
 
 /** The talent fields of an operator record (干员-6…干员-14): a kit applies its talents itself (兼容-6). @param {import('@aue/sim').OperatorDef} op */
@@ -91,7 +91,7 @@ export async function matchContent(match, levels = LEVELS, kits = {}) {
   const used = [...new Set(Object.keys(entries).map((k) => k.split('#')[0]))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const kb = used.length ? kitsBehaviors(entries) : null;
   const behaviors = kb ? { ...BEHAVIORS, world: kb.world, skills: { ...BEHAVIORS.skills, ...kb.skills }, buffs: kb.buffs, traits: kb.traits } : BEHAVIORS;
-  return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), operators, decks, behaviors, ...(used.length ? { kits: { sha: KIT_SOURCE.sha, used } } : {}) });
+  return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), devices: lv.devices, operators, decks, behaviors, ...(used.length ? { kits: { sha: KIT_SOURCE.sha, used } } : {}) });
 }
 
 /**

@@ -11,7 +11,7 @@ import { createShadows } from './shadows.js';
 const CARD = 0.8;
 
 /** The texture key of a unit. @param {number} kind @param {string} key */
-export const unitTextureKey = (kind, key) => (kind === KIND.OPERATOR ? `avatar:${key}` : `enemy:${key}`);
+export const unitTextureKey = (kind, key) => (kind === KIND.OPERATOR ? `avatar:${key}` : kind === KIND.DEVICE ? `device:${key}` : `enemy:${key}`);
 
 /** @typedef {Map<string, { front?: import('./spine.js').SpineModel, back?: import('./spine.js').SpineModel }>} Models */
 /** @typedef {import('./figure.js').Figure} Figure */

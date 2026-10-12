@@ -1,5 +1,5 @@
 {
-  "$comment": "Render state version 4, written by hand from the layout in ADR 0053 (version 2 adds each unit's SP, SP cost, skill state and skill frames left; version 3 its statuses, STATUS_BIT or-ed; version 4 its element, element value share and burst flag). A layout change must bump VIEW_VERSION and replace this file.",
+  "$comment": "Render state version 5, written by hand from the layout in ADR 0053 (version 2 adds each unit's SP, SP cost, skill state and skill frames left; version 3 its statuses, STATUS_BIT or-ed; version 4 its element, element value share and burst flag; version 5 the unit kind DEVICE, here the third unit). A layout change must bump VIEW_VERSION and replace this file.",
   "view": {
     "frame": 42,
     "players": [
@@ -55,7 +55,7 @@
       },
       {
         "id": 2,
-        "kind": 1,
+        "kind": 2,
         "owner": -1,
         "x": 0.25,
         "y": 3.125,
@@ -76,7 +76,7 @@
     ]
   },
   "numbers": [
-    4,
+    5,
     42,
     3,
     2,
@@ -121,7 +121,7 @@
     0.375,
     0,
     2,
-    1,
+    2,
     -1,
     0.25,
     3.125,

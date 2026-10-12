@@ -10,6 +10,7 @@ import { weightedPick } from './rng.js';
 import { stageOf, startStage, resting } from './stage.js';
 import { foeSpawn } from './foes.js';
 import { emit } from './bus.js';
+import { placeDevice, withdrawDevice } from './devices.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Wave} Wave @typedef {import('./types.js').WaveAction} WaveAction @typedef {import('./types.js').Schedule} Schedule */
@@ -87,10 +88,12 @@ function act(w, c, a, fragAt, wave) {
   } else if (a.type === 'ACTIVATE' && !w.predefined.includes(a.key)) {
     w.predefined.push(a.key);
     w.events.push({ type: 'predefine', key: a.key, on: 1 });
+    placeDevice(w, c, a.key);
     if (stageOf(c, a.key) >= 0) startStage(w, c, stageOf(c, a.key));
   } else if (a.type === 'WITHDRAW' && w.predefined.includes(a.key)) {
     w.predefined = w.predefined.filter((k) => k !== a.key);
     w.events.push({ type: 'predefine', key: a.key, on: 0 });
+    withdrawDevice(w, a.key);
   }
 }
 

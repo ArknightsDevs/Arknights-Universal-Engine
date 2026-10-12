@@ -79,7 +79,7 @@ function limitProblem(w, c, seat, d) {
 function placeProblem(w, c, seat, cmd, cost) {
   if (w.players[seat].cost < cost) return 'not enough cost';
   if (!fits(c, c.operators[cmd.op], cmd.row, cmd.col)) return 'tile not buildable for this operator';
-  if (w.units.some((u) => u.kind === KIND.OPERATOR && u.x === cmd.col && u.y === cmd.row)) return 'tile occupied';
+  if (w.units.some((u) => (u.kind === KIND.OPERATOR || u.kind === KIND.DEVICE) && u.x === cmd.col && u.y === cmd.row)) return 'tile occupied';
   return null;
 }
 

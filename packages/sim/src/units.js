@@ -91,6 +91,18 @@ export function makeOperator(w, c, o) {
 }
 
 /**
+ * A device (装置-1): a predefined unit's record at its tile, facing its way, on no player's deck (owner −1).
+ * @param {World} w @param {Content} c @param {import('./types.js').Predefine} p @returns {Unit}
+ */
+export function makeDevice(w, c, p) {
+  const d = /** @type {Record<string, import('./types.js').DeviceDef>} */ (c.devices)[p.key], row = p.row ?? 0, col = p.col ?? 0;
+  return {
+    id: w.nextId++, kind: KIND.DEVICE, key: p.key, owner: -1, x: col, y: row, z: heightLevel(tileAt(c.level, row, col)), dir: /** @type {import('./dir.js').Dir} */ (p.dir ?? DEFAULT_DIR),
+    ...fresh(w, baseOf(/** @type {any} */ (d))), route: -1, leg: 0, frag: 0, wave: -1, ab: {}, anim: ANIM.IDLE, paid: 0, alias: p.alias,
+  };
+}
+
+/**
  * An enemy at the start of its route (spec 出怪-1): the centre of the start tile, moved by the route's spawn offset.
  * `frag` is the frame its fragment began (路线-1), `wave` the wave that waits for it (波次-3; −1 for none), `unharmful`
  * whether it costs no life at the goal (目标-1).

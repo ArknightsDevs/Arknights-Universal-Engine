@@ -18,7 +18,7 @@ import { fitsTile, placedReach, reachKeys, healsNow, summons } from '@aue/sim';
  */
 export function deployableKeys(w, c, op, seat = 0) {
   const { width, height } = c.level;
-  const taken = new Set(w.units.filter((u) => u.kind === KIND.OPERATOR).map((u) => u.y * width + u.x));
+  const taken = new Set(w.units.filter((u) => u.kind === KIND.OPERATOR || u.kind === KIND.DEVICE).map((u) => u.y * width + u.x));
   const keys = [];
   for (let row = 0; row < height; row++) {
     for (let col = 0; col < width; col++) {
