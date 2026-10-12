@@ -69,6 +69,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // 术师
   corecaster: { dmgType: ARTS },
   blastcaster: { dmgType: ARTS, trait: () => ({ filter: 'ALL', targets: 'all' }) },
+  // attacks only while its skill runs, every enemy in range, air ones too; DEF × (1 + def) and RES + magic_resistance while it does not (职业-12)
+  phalanx: { dmgType: ARTS, trait: (bb) => ({ antiAir: true, filter: 'ALL', targets: 'all', attackInSkill: true, idleMods: { defPct: bb.def ?? 2, resFlat: bb.magic_resistance ?? 20 } }) },
   splashcaster: { dmgType: ARTS, trait: () => ({ splash: { radius: 1.1, scale: 1, ground: false } }) },
   primcaster: { dmgType: ARTS },
   // stores up to times attacks of energy when it has no target, and sends them with its next attack (职业-12)

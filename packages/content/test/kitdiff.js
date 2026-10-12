@@ -33,14 +33,26 @@ const r1 = (x) => Math.round(x * 10) / 10;
 /** @param {[string, unknown]} a @param {[string, unknown]} b */
 const byKey = (a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
 
+/** Our engine's own buffs of a branch trait (职业-6, 职业-12): the trait's, its idle modifiers', its attack bonus'. */
+const OUR_TRAIT = new Set(['trait', 'idle', 'charge']);
+
 /**
- * Buffs as key → sorted mods, without the ones that change nothing and the skill's. The branch trait's buff — our
- * engine's `trait` (职业-6), Stronghold's `trait:<branch>` — counts as `trait` by its modifiers alone: Stronghold keeps a
- * trait's flags in the unit's profile instead. Unit ids in keys read as roles (roleKey).
- * @param {any[]} list @param {string} branch @param {Map<number, string>} roles
+ * The branch trait's buffs — our engine's own (OUR_TRAIT), Stronghold's `trait:…` — as one `trait`: their modifiers
+ * summed (Stronghold keeps a trait's flags in the unit's profile instead). @param {any[]} list
  */
-const buffMap = (list, branch, roles) => Object.fromEntries(list
-  .map((b) => (b.key === 'trait' || b.key === `trait:${branch}` ? { key: 'trait', mods: b.mods } : { ...b, key: roleKey(roles, String(b.key)) }))
+function traitOf(list) {
+  /** @type {Record<string, number>} */
+  const mods = {};
+  for (const b of list) if (OUR_TRAIT.has(b.key) || String(b.key).startsWith('trait:')) for (const [k, v] of Object.entries(b.mods ?? {})) mods[k] = (mods[k] ?? 0) + Number(v);
+  return { key: 'trait', mods };
+}
+
+/**
+ * Buffs as key → sorted mods, without the ones that change nothing and the skill's; the branch trait's as one
+ * (traitOf); unit ids in keys read as roles (roleKey).
+ * @param {any[]} list @param {Map<number, string>} roles
+ */
+const buffMap = (list, roles) => Object.fromEntries([traitOf(list), ...list.filter((b) => !OUR_TRAIT.has(b.key) && !String(b.key).startsWith('trait:')).map((b) => ({ ...b, key: roleKey(roles, String(b.key)) }))]
   .filter((b) => !String(b.key).startsWith('skill') && (Object.keys(b.mods ?? {}).length > 0 || Object.values(b.flags ?? {}).some(Boolean)))
   .map((b) => /** @type {[string, unknown]} */ ([b.key, Object.fromEntries(Object.entries(b.mods ?? {}).sort(byKey).map(([k, v]) => [k, Math.round(Number(v) * 1e6) / 1e6]))]))
   .sort(byKey));
@@ -57,9 +69,6 @@ const shRoles = (h, u) => new Map(/** @type {[number, string][]} */ ([...h.allie
 
 /** Our units as roles: the piece's id and its unit's are the operator. @param {any[]} units @param {any} u @param {any} piece @returns {Map<number, string>} */
 const ourRoles = (units, u, piece) => new Map(/** @type {[number, string][]} */ ([[piece.id, 'op'], ...units.map((x) => [x.id, x === u ? 'op' : x.kind === 0 ? 'token' : 'dummy'])]));
-
-/** A Stronghold unit's branch (its profile's `sub`), '' for none. @param {any} u @returns {string} */
-const branchOf = (u) => u.profile?.sub ?? '';
 
 /** @type {{ harness: any, kitRoot: string } | null} */
 let ready = null;
@@ -86,7 +95,7 @@ function strongholdRun(H, charId, skillIndex, uniEquipId) {
   h.step(1);
   const u = h.allies()[0];
   h.run(1);
-  const buffs = buffMap(u.buffs, branchOf(u), shRoles(h, u));
+  const buffs = buffMap(u.buffs, shRoles(h, u));
   h.run(SECONDS - 1);
   const mine = (/** @type {any} */ x) => x.source === u || x.source?.id === u.id;
   const damaged = h.hooksOf('damaged');
@@ -150,7 +159,7 @@ async function ourRun(charId, factory, skill, module) {
   record(w, op, log);
   step(w, c, [[0, { type: 'deploy', op: 'op', row: 1, col: 2, dir: 0 }]]);
   for (let i = 0; i < 30; i++) step(w, c);
-  const u = op(), buffs = u ? buffMap(u.buffs, c.operators.op.branch ?? '', ourRoles(w.units, u, box.b.unitOf(u))) : null, manual = c.operators.op.skill?.type === 'MANUAL';
+  const u = op(), buffs = u ? buffMap(u.buffs, ourRoles(w.units, u, box.b.unitOf(u))) : null, manual = c.operators.op.skill?.type === 'MANUAL';
   for (let i = 30; i < SECONDS * 30; i++) step(w, c, manual ? startWhenReady(op()) : []);
   return { atk: c.operators.op.atk, buffs, ...log, statuses: [...log.statuses].sort(), errors: [...new Set(box.b.errors.map((/** @type {any} */ e) => `${e.label}: ${e.message}`))] };
 }

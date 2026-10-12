@@ -11,10 +11,10 @@ import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, oper
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
 
-test('[职业-7] the covered branches are 58 of the 72 official ones', () => {
+test('[职业-7] the covered branches are 59 of the 72 official ones', () => {
   assert.equal(Object.keys(ALL).length, 72);
   for (const b of Object.keys(BRANCHES)) assert.ok(Object.hasOwn(ALL, b), b);
-  assert.equal(Object.keys(BRANCHES).length, 58);
+  assert.equal(Object.keys(BRANCHES).length, 59);
   assert.ok(coveredBranch('fastshot') && !coveredBranch('funnel') && !coveredBranch('toString'));
 });
 
@@ -114,10 +114,11 @@ test('[职业-7] [职业-11] zones and chains from the real data: 散射手, 疗
   assert.equal(incant.healOnHit, 0.5);
 });
 
-test('[职业-7] [职业-12] attack modes from the real data: 解放者, 护佑者, 猎手, 秘术师, 行医, 佣兵', async () => {
-  const [lib, bless, hunter, mystic, wander, merc] = await Promise.all(['char_1043_leizi2', 'char_1022_flwr2', 'char_4104_coldst', 'char_297_hamoni', 'char_1016_agoat2', 'char_1049_catap2']
+test('[职业-7] [职业-12] attack modes from the real data: 解放者, 阵法术师, 护佑者, 猎手, 秘术师, 行医, 佣兵', async () => {
+  const [lib, phalanx, bless, hunter, mystic, wander, merc] = await Promise.all(['char_1043_leizi2', 'char_4080_lin', 'char_1022_flwr2', 'char_4104_coldst', 'char_297_hamoni', 'char_1016_agoat2', 'char_1049_catap2']
     .map(async (id) => /** @type {any} */ (traits.traitOfDef(await real(id)))));
   assert.deepEqual([lib.attackInSkill, lib.idleMods, lib.charge], [true, { blockCntMul: 0 }, { atk: 2, steps: 40 }]);
+  assert.deepEqual([phalanx.attackInSkill, phalanx.idleMods, phalanx.targets, phalanx.antiAir], [true, { defPct: 2, resFlat: 20 }, 'all', true], '林: every enemy in range, only in her skill');
   assert.deepEqual([bless.skillHeal, hunter.bullets, mystic.store, wander.heal, wander.epHeal], [0.75, { max: 4, scale: 1.2 }, 3, true, 0.5], '冰酿 at elite 0: 4 bullets');
   assert.deepEqual([merc.blockedFirst, merc.antiAir], [true, false], '佣兵: the melee defaults');
 });

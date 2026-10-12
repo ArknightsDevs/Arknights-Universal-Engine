@@ -63,7 +63,7 @@ kit 为技能写的说明（Stronghold 的 SkillSpec）接到引擎的技能运�
 - **接法**：kit 说明过的每个技能，按技能 id 登记一个引擎的技能行为（技能-6，ADR 0055）。同一技能 id 的干员，有 kit 说明的按说明运行，没有的仍按引擎从数据生成的通用效果（技能-5）。登记了行为的技能不再有通用效果，所以 kit 的效果不会与之重复。
 - **何时发动**：照引擎的规则（技能-3）——手动技能由玩家发动，自动技能按它自己的时机。kit 另加的触发范围、改动的触发规则都接受、不使用。
 - **运行中**：说明的修饰器与标记在技能运行时作为一个增益加在干员身上（修饰键与标记名见 兼容-4）；开始、每帧、结束时调用说明的 `onStart`、`onTick`、`onEnd`——结束时先调用 `onEnd`（此时修饰器仍在），再去掉增益。技能的发动次数（`activations`）在调用 `onStart` 之前加 1，同 Stronghold。
-- **类型与时长**：说明的类型为 `duration`、`toggle`（可关闭的持续技能）、`ammo`、`passive` 时，引擎按它计时（技能-6 的 `timing`），说明写了 `duration` 时持续这么多秒；`instant` 沿用技能记录的类型（带攻击的是下次攻击技能）。
+- **类型与时长**：说明的类型为 `duration`、`toggle`（可关闭的持续技能）、`ammo`、`passive` 时，引擎按它计时（技能-6 的 `timing`），说明写了 `duration` 时持续这么多秒；`instant` 与 `charges`（可充能的 instant）在说明带自己的攻击时是下次攻击技能，否则沿用技能记录的类型。
 - **攻击**：有说明的技能运行时，普通攻击从干员自己的攻击起算（倍率、段数、目标数都为 1，blackboard 的攻击键由说明自己读取），再加上说明的攻击覆盖（技能-5）：倍率、每次攻击的段数、目标数（`allInRange` 为范围内全部）、伤害类型或治疗、每段命中给的状态；`attack.noAttack` 时技能期间不进行普通攻击（职业-13 的标记）。
 - **命中与攻击之后**：引擎在一次攻击对每个目标的各段伤害结算后发 `attackHit`（引擎自己的事件，带合计伤害与类别：主目标、溅射、跳跃、余震）。技能运行时，或命中来自技能自己的攻击时（下次攻击技能的弹道在技能结束后才命中），每个受击者调用说明的 `attack.onEachHit`；主目标再调用 `attack.onHit` 与 `onHit`。一次攻击结算后（`attack` 事件）调用 `onAttack`，它把 `noAmmo` 设为是时这次攻击不耗弹药。
 - **技能运行时的读写**：kit 读技能的有无、类型、是否运行、技力与充能、剩余时间与弹药、发动次数（整局累计）；可以直接设定技力，免费或照常发动、结束技能（原因同 Stronghold）。
@@ -79,4 +79,4 @@ kit 为技能写的说明（Stronghold 的 SkillSpec）接到引擎的技能运�
 - **载入**：按对局里的干员，载入其中已启用的 kit，按角色 id 的顺序逐个载入（兼容-1 的载入网格）；载入不了的记下，那名干员按引擎自己的实现。Node 里从固定提交的目录载入（兼容-2 的加载钩子）；浏览器里从平台提供的、已按映射表改写导入的副本载入，浏览器端不改写。
 - **对局内容**：有 kit 的干员用 kit：它的记录去掉天赋部分（天赋由 kit 施加），它的队伍天赋不由引擎再给；kit 的每局挂接与技能行为（兼容-4、兼容-5）加进内容。内容记下固定提交与所用的 kit（按角色 id 排序），这一项计入内容哈希（同步-10）：两端载入的 kit 不同，就不开局。
 
-- 来源：设计决定，见 [ADR 0058](../adr/0058-stronghold-kits-in-matches.md)、[ADR 0010](../adr/0010-import-mapping-table.md)；固定提交里 72 个文件各自导出它那名干员的 kit；载入推进之王后，她的对局内容不含天赋字段，部署后由 kit 给出两项天赋（`packages/content/test/compat-match.test.js`）；2026-10-12 的全量对照中 43 个 kit 的所有技能与 Stronghold 一致，即启用名单（`packages/content/test/compat-diff.test.js`，`AUE_KITDIFF_REPORT` 出全量报告）
+- 来源：设计决定，见 [ADR 0058](../adr/0058-stronghold-kits-in-matches.md)、[ADR 0010](../adr/0010-import-mapping-table.md)；固定提交里 72 个文件各自导出它那名干员的 kit；载入推进之王后，她的对局内容不含天赋字段，部署后由 kit 给出两项天赋（`packages/content/test/compat-match.test.js`）；2026-10-12 的全量对照中 45 个 kit 的所有技能与 Stronghold 一致，即启用名单（`packages/content/test/compat-diff.test.js`，`AUE_KITDIFF_REPORT` 出全量报告）

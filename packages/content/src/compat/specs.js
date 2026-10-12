@@ -35,10 +35,18 @@ function call(b, p, fn, label, more) {
 
 /**
  * Stronghold's spec kinds that give a skill a time, and the engine's kind (技能-1): a toggle runs until it is closed or its
- * duration ends. Its `instant` stays the record's kind — a next-attack skill when it has an attack, else instant.
+ * duration ends. Its `instant` and `charges` (instant with charges) are a next-attack skill when the spec has an attack
+ * of its own; without one they keep the record's kind.
  * @type {Readonly<Record<string, import('@aue/sim').skills.SkillKind>>}
  */
 const TIMED = Object.freeze({ duration: 'duration', toggle: 'duration', ammo: 'ammo', passive: 'passive' });
+
+/** The engine's kind of a spec (技能-1), or undefined for the record's. @param {Record<string, any>} spec */
+function kindOf(spec) {
+  if (Object.hasOwn(TIMED, spec.kind)) return TIMED[spec.kind];
+  const instant = spec.kind === 'instant' || spec.kind === 'charges';
+  return instant && spec.attack && !spec.attack.noAttack ? /** @type {const} */ ('next') : undefined;
+}
 
 /**
  * A spec's attack override as the engine's attack mods (技能-5): 倍率, hits, targets (every one in range for
@@ -67,7 +75,7 @@ export const SPEC_BEHAVIOR = Object.freeze({
   /** The spec's kind and time over the record's (技能-6): a duration or a toggle runs its `duration`, else its kind. @param {any} ctx */
   timing(ctx) {
     const spec = specOf(ctx.self)?.spec;
-    const kind = spec ? TIMED[spec.kind] : undefined, seconds = Number(spec?.duration);
+    const kind = spec ? kindOf(spec) : undefined, seconds = Number(spec?.duration);
     return kind ? { kind, ...(Number.isFinite(seconds) && seconds > 0 ? { seconds } : {}) } : null;
   },
   /** @param {any} ctx */
