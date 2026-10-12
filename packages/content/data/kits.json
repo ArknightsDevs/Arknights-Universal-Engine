@@ -80,6 +80,27 @@
     "char_485_pallas": "server/sim/content/kits/ops/op-pallas.js"
   },
   "enabled": [
-    "char_112_siege"
+    "char_003_kalts",
+    "char_017_huang",
+    "char_1031_slent2",
+    "char_1034_jesca2",
+    "char_112_siege",
+    "char_147_shining",
+    "char_179_cgbird",
+    "char_180_amgoat",
+    "char_197_poca",
+    "char_2012_typhon",
+    "char_2013_cerber",
+    "char_2024_chyue",
+    "char_362_saga",
+    "char_4011_lessng",
+    "char_4027_heyak",
+    "char_4055_bgsnow",
+    "char_4072_ironmn",
+    "char_4179_monstr",
+    "char_4195_radian",
+    "char_4202_haruka",
+    "char_4212_nasti",
+    "char_4229_aphris"
   ]
 }

@@ -74,7 +74,8 @@ kit 为技能写的说明（Stronghold 的 SkillSpec）接到引擎的技能运�
 固定版本的 Stronghold kit 作为内置的脚本 mod 在对局中运行（ADR 0058）：
 
 - **清单**：`packages/content/data/kits.json` 记下固定提交（与差分对照同一个）、72 个干员 kit 各自的文件，以及启用名单——在小关卡冒烟运行中不报错、并通过逐个 kit 的差分对照的才启用。
+- **逐个 kit 的差分对照**：同一个 kit、同一练度（Stronghold 自选的精英形态：精英二 60 级、潜能 6、信赖 0、技能 7 级、最后一个模组 3 级），在 Stronghold 自己的战斗测试工具里和在我们的引擎里，各对着身前一个定身的假敌人（生命 1e7、防御与法抗 0）跑 40 秒；我们这边手动技能一就绪就发动（代替玩家）。比较：部署 1 秒后的增益（不含技能的、不改任何东西的）、每次命中扣掉的生命（不含元素损伤）和每次治疗的量（取各不相同的值，Stronghold 的属性取整，相差 0.5% 以内算相同）、技能发动次数（相差不超过 1）、施加的状态（种类与秒数）、我们这边记下的 kit 错误。启用名单里的 kit 都必须全部一致，CI 每次检查。
 - **载入**：按对局里的干员，载入其中已启用的 kit，按角色 id 的顺序逐个载入（兼容-1 的载入网格）；载入不了的记下，那名干员按引擎自己的实现。Node 里从固定提交的目录载入（兼容-2 的加载钩子）；浏览器里从平台提供的、已按映射表改写导入的副本载入，浏览器端不改写。
 - **对局内容**：有 kit 的干员用 kit：它的记录去掉天赋部分（天赋由 kit 施加），它的队伍天赋不由引擎再给；kit 的每局挂接与技能行为（兼容-4、兼容-5）加进内容。内容记下固定提交与所用的 kit（按角色 id 排序），这一项计入内容哈希（同步-10）：两端载入的 kit 不同，就不开局。
 
-- 来源：设计决定，见 [ADR 0058](../adr/0058-stronghold-kits-in-matches.md)、[ADR 0010](../adr/0010-import-mapping-table.md)；固定提交里 72 个文件各自导出它那名干员的 kit；载入推进之王后，她的对局内容不含天赋字段，部署后由 kit 给出两项天赋（`packages/content/test/compat-match.test.js`）
+- 来源：设计决定，见 [ADR 0058](../adr/0058-stronghold-kits-in-matches.md)、[ADR 0010](../adr/0010-import-mapping-table.md)；固定提交里 72 个文件各自导出它那名干员的 kit；载入推进之王后，她的对局内容不含天赋字段，部署后由 kit 给出两项天赋（`packages/content/test/compat-match.test.js`）；2026-10-12 的全量对照中 22 个 kit 的所有技能与 Stronghold 一致，即启用名单（`packages/content/test/compat-diff.test.js`，`AUE_KITDIFF_REPORT` 出全量报告）
