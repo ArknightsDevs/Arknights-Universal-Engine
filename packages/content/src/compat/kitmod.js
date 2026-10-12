@@ -1,0 +1,38 @@
+// The pinned Stronghold kits in matches (docs/spec/compat.md 兼容-6, ADR 0058): the commit, each operator kit's file, the
+// kits that run (those that passed the checks), and loading them from where the environment serves that commit — under
+// Node a file URL with the compat hook registered (hook.js), in a browser the platform's rewritten copy. The content of
+// a match then uses them for its operators (index.js matchContent).
+import kitData from '../../data/kits.json' with { type: 'json' };
+import { loadUnderGrid } from './grid.js';
+
+/** @typedef {(bb: Record<string, any>, chess: Record<string, any>, def: Record<string, any>) => any} KitFactory */
+
+/** The pinned commit the kits come from (the oracle's, ADR 0058). */
+export const KIT_SOURCE = Object.freeze({ ...kitData.source });
+/** Each operator kit's file in that commit, by character id. @type {Readonly<Record<string, string>>} */
+export const KIT_FILES = Object.freeze({ ...kitData.files });
+/** The kits that run in matches. @type {readonly string[]} */
+export const KITS_ENABLED = Object.freeze([...kitData.enabled]);
+
+/**
+ * Loads the enabled kits of the given operators from the pinned commit at `base` (a URL ending in "/"), one at a time,
+ * in character-id order: the factories that loaded, and the ids that did not (they fight on the engine's own).
+ * @param {string} base @param {Iterable<string>} charIds @param {(url: string) => Promise<any>} [load] how to import a URL
+ * @returns {Promise<{ kits: Record<string, KitFactory>, failed: string[] }>}
+ */
+export async function loadKits(base, charIds, load = (url) => import(url)) {
+  /** @type {Record<string, KitFactory>} */
+  const kits = {};
+  const failed = [];
+  for (const id of [...new Set(charIds)].filter((x) => KITS_ENABLED.includes(x) && Object.hasOwn(KIT_FILES, x)).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
+    try {
+      const mod = await loadUnderGrid(() => load(base + KIT_FILES[id]));
+      const f = mod?.default?.[id];
+      if (typeof f === 'function') kits[id] = f;
+      else failed.push(id);
+    } catch {
+      failed.push(id);
+    }
+  }
+  return { kits, failed };
+}

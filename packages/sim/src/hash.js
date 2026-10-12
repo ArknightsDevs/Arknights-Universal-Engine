@@ -35,11 +35,12 @@ export function canonicalJson(v) {
 
 /**
  * The hash of a battle's content (同步-10): FNV-1a (32 bit) over the UTF-16 code units (low byte first) of the
- * canonical JSON of its level, enemies, operators and decks. Behaviours are code and not hashed.
- * @param {{ level: unknown, enemies: unknown, operators: unknown, decks?: unknown }} c @returns {number} uint32
+ * canonical JSON of its level, enemies, operators and decks, and the kits it uses when it uses some (兼容-6). Behaviours
+ * are code and not hashed.
+ * @param {{ level: unknown, enemies: unknown, operators: unknown, decks?: unknown, kits?: unknown }} c @returns {number} uint32
  */
 export function contentHash(c) {
-  const text = canonicalJson({ level: c.level, enemies: c.enemies, operators: c.operators, decks: c.decks ?? null });
+  const text = canonicalJson({ level: c.level, enemies: c.enemies, operators: c.operators, decks: c.decks ?? null, ...(c.kits ? { kits: c.kits } : {}) });
   let h = FNV_OFFSET;
   for (let i = 0; i < text.length; i++) {
     const u = text.charCodeAt(i);

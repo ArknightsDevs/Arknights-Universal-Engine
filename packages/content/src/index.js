@@ -9,6 +9,9 @@ import { foeBehaviors, withFoeExtras } from './foes.js';
 import { loadTraining, operatorAt, teamTalentsAt } from './operators.js';
 import { teamFits } from '@aue/sim';
 import { skillBehaviors } from './skills.js';
+import { kitsBehaviors } from './compat/kits.js';
+import { defOf } from './compat/records.js';
+import { KIT_SOURCE } from './compat/kitmod.js';
 
 /** The official behaviours: skills (技能-6) and enemy abilities (敌能-2). */
 const BEHAVIORS = Object.freeze({ skills: skillBehaviors, foes: foeBehaviors });
@@ -49,21 +52,30 @@ export function levelContent(id, difficulty) {
   return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), operators: skeletonContent.operators, behaviors: BEHAVIORS });
 }
 
+/** The talent fields of an operator record (干员-6…干员-14): a kit applies its talents itself (兼容-6). @param {import('@aue/sim').OperatorDef} op */
+const withoutTalents = ({ talentBb, fieldTalents, rangeTalents, critTalents, timedTalents, deployTalents, ...rest }) => /** @type {import('@aue/sim').OperatorDef} */ (rest);
+
 /**
  * The content of a match (同步-9): its level at its difficulty, and every seat's deck at its trainings — an operator's key
- * is "id#seat", it remembers its id (`char`) — with the official behaviours.
+ * is "id#seat", it remembers its id (`char`) — with the official behaviours. An operator with a loaded kit (兼容-6,
+ * kitmod.js) fights by its kit: its record without its talents, its team talents not given by the engine, its kit's
+ * world setup and skill behaviours; the content names the commit and the kits it uses.
  * @param {{ level: string, difficulty: 'NORMAL' | 'FOUR_STAR', seed: number, decks: { id: string, build: import('./operators.js').Build }[][] }} match
  * @param {Readonly<Record<string, any>>} [levels] the extracted levels (LEVELS)
+ * @param {Readonly<Record<string, import('./compat/kitmod.js').KitFactory>>} [kits] loaded kit factories by character id
  * @returns {Promise<import('@aue/sim').Content>}
  */
-export async function matchContent(match, levels = LEVELS) {
+export async function matchContent(match, levels = LEVELS, kits = {}) {
   const lv = levelAt(match.level, match.difficulty, undefined, levels);
   /** @type {Record<string, import('@aue/sim').OperatorDef>} */
   const operators = {};
+  /** @type {Record<string, import('./compat/kits.js').KitEntry>} */
+  const entries = {};
   const decks = await Promise.all(match.decks.map(async (deck, seat) => {
     const built = await Promise.all(deck.map(async ({ id, build }) => {
-      const t = await loadTraining(id);
-      return { id, key: `${id}#${seat}`, op: operatorAt(t, build), team: teamTalentsAt(t, build).deck };
+      const t = await loadTraining(id), factory = Object.hasOwn(kits, id) ? kits[id] : null;
+      if (factory) entries[`${id}#${seat}`] = { factory, def: defOf(id, t, build) };
+      return { id, key: `${id}#${seat}`, op: factory ? withoutTalents(operatorAt(t, build)) : operatorAt(t, build), team: factory ? [] : teamTalentsAt(t, build).deck };
     }));
     const team = built.flatMap((x) => x.team);
     for (const { id, key, op } of built) {
@@ -72,7 +84,10 @@ export async function matchContent(match, levels = LEVELS) {
     }
     return built.map((x) => x.key);
   }));
-  return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), operators, decks, behaviors: BEHAVIORS });
+  const used = [...new Set(Object.keys(entries).map((k) => k.split('#')[0]))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const kb = used.length ? kitsBehaviors(entries) : null;
+  const behaviors = kb ? { ...BEHAVIORS, world: kb.world, skills: { ...BEHAVIORS.skills, ...kb.skills } } : BEHAVIORS;
+  return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), operators, decks, behaviors, ...(used.length ? { kits: { sha: KIT_SOURCE.sha, used } } : {}) });
 }
 
 /**
@@ -108,3 +123,5 @@ export { BRANCHES, coveredBranch, withTrait } from './traits.js';
 export { LEVELS, levelAt } from './levels.js';
 export { foeBehaviors, withFoeExtras, FOE_EXTRAS } from './foes.js';
 export { ROSTER, rosterSource, loadTraining, operatorAt } from './operators.js';
+export { KIT_SOURCE, KIT_FILES, KITS_ENABLED, loadKits } from './compat/kitmod.js';
+export { MAPPING, mappedUrl } from './compat/mapping.js';

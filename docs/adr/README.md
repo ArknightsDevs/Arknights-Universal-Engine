@@ -51,10 +51,10 @@
 | [0035](0035-saves-and-accounts.md) | 存档本地优先，账号可选且认证可插拔 | 已采纳 | 平台功能 |
 | [0036](0036-box-entry-and-import.md) | 干员 box：手动录入，可选导入两种格式，不接第三方账号 | 已采纳 | 平台功能 |
 | [0037](0037-data-mods-first.md) | mod：先做数据 mod，官方内容注册为内置 mod | 已采纳 | mod |
-| [0038](0038-script-mod-rewriting.md) | 脚本 mod：服务器在安装时改写导入路径 | 已采纳 | mod |
+| [0038](0038-script-mod-rewriting.md) | 脚本 mod：服务器在安装时改写导入路径 | 已取代（见 0058） | mod |
 | [0039](0039-mod-assets.md) | mod 素材：允许的格式、哈希清单、大小上限、严格解析 | 已采纳 | mod |
 | [0040](0040-spec-traceability.md) | 书面规范与条款追溯 | 已采纳 | 验证 |
-| [0041](0041-stronghold-differential-testing.md) | 以固定版本的 Stronghold 做差分对照：行为等价 | 已采纳 | 验证 |
+| [0041](0041-stronghold-differential-testing.md) | 以固定版本的 Stronghold 做差分对照：行为等价 | 已取代（见 0058） | 验证 |
 | [0042](0042-verification-suite.md) | 验证手段：穷举、随机、不变量、变换、覆盖率、整场随机 | 已采纳 | 验证 |
 | [0043](0043-ci-gates-and-registry.md) | 三道 CI 关卡与已知差异登记表 | 已采纳 | 验证 |
 | [0044](0044-maintainability-gates.md) | 可维护性规则作为 CI 硬门槛 | 已采纳 | 可维护性 |
@@ -71,3 +71,4 @@
 | [0055](0055-sdk-prepared-now-built-after-mvp.md) | SDK：现在只做准备，MVP 之后再做 | 已采纳 | 定位与仓库 |
 | [0056](0056-testkit-parses-sources-with-espree.md) | testkit 用 espree 解析源码 | 已采纳 | 验证 |
 | [0057](0057-hook-bus-and-timers.md) | 内核的钩子总线与定时器 | 已采纳 | 模拟内核 |
+| [0058](0058-stronghold-kits-in-matches.md) | Stronghold 的 kit 作为固定版本的脚本 mod 进入对局 | 已采纳 | 模拟内核 |

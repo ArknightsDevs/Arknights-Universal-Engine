@@ -1,12 +1,12 @@
-// Stronghold Protocol as the development-only oracle (ADR 0041): a pinned commit fetched into the engine's
-// .cache/oracle/ (or the directory in AUE_STRONGHOLD_DIR), never committed and never shipped. Differential tests load
+// Stronghold Protocol as the oracle (ADR 0058, which also runs its operator kits in matches): a pinned commit fetched
+// into the engine's .cache/oracle/ (or the directory in AUE_STRONGHOLD_DIR), never committed. Differential tests load
 // its modules with loadOracle('server/sim/dir.js') and compare results bit for bit (ADR 0032).
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-/** The pinned oracle: Stronghold Protocol v0.2.4. Moving it is a decision (ADR 0041), not a bot update. */
+/** The pinned oracle: Stronghold Protocol v0.2.4. Moving it is a decision (ADR 0058), not a bot update. */
 export const STRONGHOLD = Object.freeze({
   repo: 'https://github.com/sganggs/Stronghold-Protocol.git',
   tag: 'v0.2.4',
