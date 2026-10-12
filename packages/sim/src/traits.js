@@ -152,7 +152,7 @@ export function traitKill(w, c, op, target) {
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target @param {import('./damage.js').Damage} dmg
  */
 export function creditedDamage(w, c, op, target, dmg) {
-  const alive = target.hp > 0, taken = dealDamage(w, op, target, dmg);
+  const alive = target.hp > 0, taken = dealDamage(w, op, target, dmg, c);
   if (alive && target.hp <= 0) traitKill(w, c, op, target);
   return taken;
 }

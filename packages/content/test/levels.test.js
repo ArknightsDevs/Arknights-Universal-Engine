@@ -122,12 +122,14 @@ test('[地图-2] the 工事 levels: every edge between a 工事 and a walkable t
   }
 });
 
-test('[装置-3] [装置-4] the official devices: 城防路障 immune to its statuses, 山海密语仪 the enemies\' with its blackboard\'s modifiers; a device without a profile refused', () => {
-  const { devices, missing } = profiledDevices(/** @type {any} */ (hard02).devices);
-  assert.deepEqual(missing, ['trap_103_ymdgct']);
+test('[装置-3] [装置-4] [地图-3] the official devices: 城防路障 immune to its statuses, 山海密语仪 the enemies\' with its blackboard\'s modifiers, 地形增伤控制 the 工事 rule; a device without a profile refused', () => {
+  const { devices, missing, works } = profiledDevices(/** @type {any} */ (hard02).devices);
+  assert.deepEqual([missing, works, Object.keys(devices)], [[], { dealt: 1.3, taken: 0.7 }, ['trap_097_hstone', 'trap_096_gflag']], '地形增伤控制 is the 工事 rule of the level, no unit');
   assert.deepEqual(devices.trap_097_hstone.immune, ['stun', 'freeze', 'cold', 'silence', 'sleep']);
   const flag = devices.trap_096_gflag;
   assert.deepEqual([flag.side, flag.enemyMods, flag.tauntLevel, flag.maxHp], ['ENEMY', { aspd: 25, moveMul: 1.15 }, -1, 6000]);
-  const only = { ...hard02, devices: { trap_103_ymdgct: /** @type {any} */ (hard02).devices.trap_103_ymdgct }, enemies: {}, level: { ...hard02.level, waves: [] } };
-  assert.throws(() => levelAt('x', 'NORMAL', undefined, { x: only }), /devices not supported yet: trap_103_ymdgct/);
+  const only = { ...hard02, devices: { trap_103_ymdgct: /** @type {any} */ (hard02).devices.trap_103_ymdgct, trap_x: {} }, enemies: {}, level: { ...hard02.level, waves: [] } };
+  assert.throws(() => levelAt('x', 'NORMAL', undefined, { x: only }), /devices not supported yet: trap_x/);
+  const ok = levelAt('x', 'NORMAL', undefined, { x: { ...only, devices: { trap_103_ymdgct: only.devices.trap_103_ymdgct } } });
+  assert.deepEqual([ok.level.works, ok.devices], [{ dealt: 1.3, taken: 0.7 }, {}]);
 });

@@ -108,7 +108,7 @@ function hitTarget(w, c, src, t, load) {
  */
 function oneHit(w, c, src, t, load) {
   const el = /** @type {import('./elements.js').Element | ''} */ (load.element), op = src && src.kind === KIND.OPERATOR ? src : null;
-  const alive = t.hp > 0, dealt = dealDamage(w, src, t, damageOf(load));
+  const alive = t.hp > 0, dealt = dealDamage(w, src, t, damageOf(load), c);
   if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
   if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
   if (el && load.ep > 0) dealEp(w, t, el, load.ep, src);

@@ -62,7 +62,7 @@ export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
   const dev = profiledDevices(raw.devices ?? {});
   if (dev.missing.length > 0) throw new RangeError(`level ${id}: devices not supported yet: ${dev.missing.join(', ')}`);
   return {
-    level: { ...raw.level, waves, hiddenGroups: d.hiddenGroups, options: { ...raw.level.options, ...(d.lifePoint !== undefined ? { maxLifePoint: d.lifePoint } : {}), ...(d.maxCost !== undefined ? { maxCost: d.maxCost } : {}) } },
+    level: { ...raw.level, waves, hiddenGroups: d.hiddenGroups, ...(dev.works ? { works: dev.works } : {}), options: { ...raw.level.options, ...(d.lifePoint !== undefined ? { maxLifePoint: d.lifePoint } : {}), ...(d.maxCost !== undefined ? { maxCost: d.maxCost } : {}) } },
     enemies: Object.fromEntries(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([k, e]) => [k, { ...multiplied(k, /** @type {EnemyDef} */ (e), d.enemyMul), ...attack(k) }])),
     blockAdd: d.blockAdd ?? 0,
     devices: dev.devices,

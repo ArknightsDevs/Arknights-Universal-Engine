@@ -8,6 +8,7 @@ import { draw } from './rng.js';
 import { MIN_DAMAGE_RATIO } from './constants.js';
 import { hurtSp } from './sp.js';
 import { emit, hasHook } from './bus.js';
+import { worksMul } from './works.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').DamageType} DamageType */
@@ -210,12 +211,12 @@ export function regenAll(w) {
 /**
  * Deals a hit (伤害-7): nothing to a unit already at 0 HP; 生命流失 goes straight to the HP; nothing to an invincible
  * unit (无敌, 沉睡, disappeared: 路线-4); otherwise the `hit` event, then the hit counts for 受击回复 (技能-2), then the
- * target's defences, `mul`, the source's multiplier, the target's 伤判 effects, the `hpDamage` event, then the HP. A
- * `sourceless` hit takes neither its source's penetration nor its multiplier, and its events see no source (`credit`
- * names it). Returns the HP taken.
- * @param {World} w @param {Unit | null} src @param {Unit} target @param {Damage} dmg
+ * target's defences, `mul`, the source's multiplier, the 工事 multiplier (地图-3; given the content), the target's 伤判
+ * effects, the `hpDamage` event, then the HP. A `sourceless` hit takes neither its source's penetration nor its
+ * multipliers, and its events see no source (`credit` names it). Returns the HP taken.
+ * @param {World} w @param {Unit | null} src @param {Unit} target @param {Damage} dmg @param {import('./types.js').Content} [c]
  */
-export function dealDamage(w, src, target, dmg) {
+export function dealDamage(w, src, target, dmg, c) {
   if (target.hp <= 0) return 0;
   settle(dmg);
   if (dmg.hpLoss) return loseHp(w, src, target, dmg.amount, dmg);
@@ -223,7 +224,7 @@ export function dealDamage(w, src, target, dmg) {
   hurtSp(target);
   const seen = seenOf(src, dmg), ss = seen ? statsOf(seen) : null;
   let amount = mitigate(dmg.amount, dmg.type, statsOf(target), penetration(ss, dmg)) * /** @type {number} */ (dmg.mul);
-  if (ss) amount *= dealtMul(ss, dmg.type);
+  if (ss) amount *= dealtMul(ss, dmg.type) * (c && seen ? worksMul(c, seen, target) : 1);
   amount = hpDamage(w, src, target, takeDamage(w, target, amount, dmg, seen), dmg);
   return amount > 0 ? loseHp(w, src, target, amount, dmg) : 0;
 }

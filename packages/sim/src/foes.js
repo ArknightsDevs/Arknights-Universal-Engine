@@ -111,7 +111,7 @@ function contextOf(w, c, e, of) {
     addBuff: (t, init) => { addBuff(t, makeBuff({ src: e.id, ...init })); },
     removeBuff: (t, key) => { removeBuff(t, key); },
     applyStatus: (t, key, o) => { inflict(w, t, /** @type {any} */ (key), { ...o, src: e }); },
-    dealDamage: (t, dmg) => dealDamage(w, e, t, dmg),
+    dealDamage: (t, dmg) => dealDamage(w, e, t, dmg, c),
     dealEp: (t, el, amount) => dealEp(w, t, /** @type {any} */ (el), amount, e),
     heal: (t, amount) => heal(w, e, t, amount),
     gainCost: () => {},
@@ -239,10 +239,10 @@ export function foeHit(w, c, e, t, how) {
 
 /**
  * A unit takes a bolt's or an explosion's payload (敌能-3, 敌能-4).
- * @param {World} w @param {Unit | null} src @param {Unit} t @param {{ type: DamageType, amount: number, status: { key: string, seconds: number } | null }} p
+ * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {{ type: DamageType, amount: number, status: { key: string, seconds: number } | null }} p
  */
-function take(w, src, t, p) {
-  dealDamage(w, src, t, { type: p.type, amount: p.amount });
+function take(w, c, src, t, p) {
+  dealDamage(w, src, t, { type: p.type, amount: p.amount }, c);
   if (p.status && t.hp > 0) inflict(w, t, /** @type {any} */ (p.status.key), { seconds: p.status.seconds, src });
 }
 
@@ -275,7 +275,7 @@ function flyBolts(w, c) {
     const hit = firstHit(w, b, step);
     if (hit) {
       if (b.blast > 0) w.blasts.push({ x: hit.x, y: hit.y, radius: b.blast, left: 0, air: true, src: b.src, type: b.type, amount: b.amount, status: b.status });
-      else take(w, src, hit, b);
+      else take(w, c, src, hit, b);
       continue;
     }
     if (nx < -0.5 || ny < -0.5 || nx > width - 0.5 || ny > height - 0.5) continue;
@@ -287,9 +287,9 @@ function flyBolts(w, c) {
 /**
  * One frame of the delayed explosions (敌能-3): each counts down; at 0 every unit an enemy may attack within its radius
  * — flying ones only if it reaches the air — takes it, camouflage or not.
- * @param {World} w
+ * @param {World} w @param {Content} c
  */
-function blow(w) {
+function blow(w, c) {
   /** @type {Blast[]} */
   const keep = [];
   for (const b of w.blasts) {
@@ -299,7 +299,7 @@ function blow(w) {
     for (const u of [...w.units]) {
       if (u.hp <= 0 || u.hidden || !friendly(u)) continue;
       if (statsOf(u).flying && !b.air) continue;
-      if (dist2(u, b) <= b.radius * b.radius) take(w, src, u, b);
+      if (dist2(u, b) <= b.radius * b.radius) take(w, c, src, u, b);
     }
   }
   w.blasts = keep;
@@ -308,5 +308,5 @@ function blow(w) {
 /** The bolts, then the explosions due this frame (帧-1 step 8, 敌能-3, 敌能-4). @param {World} w @param {Content} c */
 export function foeEffects(w, c) {
   flyBolts(w, c);
-  blow(w);
+  blow(w, c);
 }
