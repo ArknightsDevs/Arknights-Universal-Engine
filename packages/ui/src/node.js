@@ -56,6 +56,7 @@ export class UiNode {
     /** @type {UiNode | null} */ this.stW = null;
     /** @type {UiNode | null} */ this.stOuter = null;
     this.stHide = false; this.stKey = ''; this.paintKey = '';
+    /** its hidden subtree is marked not shown @type {boolean} */ this.sealed = false;
     /** @type {string} */ this.txt = '';
     /** @type {number} */ this.wrapW = 0;
     /** the root of the prefab instance the node belongs to, and that root's path in its prefab @type {UiNode} */

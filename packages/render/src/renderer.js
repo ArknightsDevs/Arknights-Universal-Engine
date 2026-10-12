@@ -51,6 +51,8 @@ function battleClock() {
 export function createBattleRenderer(o) {
   const renderer = new THREE.WebGLRenderer({ canvas: o.canvas, antialias: true });
   renderer.autoClear = false;
+  // the counts cover a whole frame (the scene and the overlays), reset at its start
+  renderer.info.autoReset = false;
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera();
   scene.background = new THREE.Color(0x404040);
   const highlight = createHighlight(o.level), patch = highlight.patch;
@@ -91,6 +93,7 @@ export function createBattleRenderer(o) {
       units.pose(camera);
       overlays.pose(camera);
       effects?.step(clock.delta(performance.now()), camera);
+      renderer.info.reset();
       renderer.clear();
       renderer.render(scene, camera);
       renderer.clearDepth();
@@ -109,8 +112,38 @@ export function createBattleRenderer(o) {
       const hit = ray.intersectObjects(terrain.object.children, false).find((/** @type {THREE.Intersection} */ h) => h.object.userData.col !== undefined);
       return hit ? { col: hit.object.userData.col, row: hit.object.userData.row } : null;
     },
+    /** What the last frame drew and what the GPU holds (for measuring): draw calls, triangles, geometries, textures and their estimated bytes. */
+    stats: () => drawStats(renderer, [scene, overlays.scene]),
     dispose() { terrain.dispose(); range.dispose(); highlight.dispose(); units.dispose(); overlays.dispose(); effects?.dispose(); renderer.dispose(); },
   };
+}
+
+/** The textures a material uses: its maps and its uniforms' textures. @param {THREE.Material} m @returns {THREE.Texture[]} */
+function texturesOf(m) {
+  const out = Object.values(m).filter((v) => v instanceof THREE.Texture);
+  const u = /** @type {{ uniforms?: Record<string, { value: unknown }> }} */ (m).uniforms;
+  if (u) for (const x of Object.values(u)) if (x.value instanceof THREE.Texture) out.push(x.value);
+  return out;
+}
+
+/**
+ * The renderer's counts of the last frame and an estimate of the texture memory of the scenes: 4 bytes a texel, a
+ * third more with mipmaps.
+ * @param {THREE.WebGLRenderer} renderer @param {THREE.Object3D[]} scenes
+ */
+export function drawStats(renderer, scenes) {
+  const tex = new Set();
+  for (const sc of scenes) sc.traverse((obj) => {
+    const mat = /** @type {{ material?: THREE.Material | THREE.Material[] }} */ (obj).material;
+    for (const m of Array.isArray(mat) ? mat : mat ? [mat] : []) for (const t of texturesOf(m)) tex.add(t);
+  });
+  let bytes = 0;
+  for (const t of tex) {
+    const im = /** @type {{ width?: number, height?: number } | null} */ (t.image);
+    if (im?.width && im.height) bytes += im.width * im.height * 4 * (t.generateMipmaps ? 4 / 3 : 1);
+  }
+  const { render, memory } = renderer.info;
+  return { calls: render.calls, triangles: render.triangles, geometries: memory.geometries, textures: memory.textures, sceneTextures: tex.size, textureBytes: Math.round(bytes) };
 }
 
 /**

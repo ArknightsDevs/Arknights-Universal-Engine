@@ -56,7 +56,9 @@ function boxOf(s, PW, PH, ppivot) {
 export function layout(s, PW, PH, ppivot, shownUp) {
   sty(s, s.el, 'display', s.active ? '' : 'none');
   s.shown = shownUp && s.active;
-  if (!s.active) { markHidden(s); return; }
+  // a hidden subtree is marked once, when it turns hidden
+  if (!s.active) { if (!s.sealed) { markHidden(s); s.sealed = true; } return; }
+  s.sealed = false;
   const { left, top, w, h } = boxOf(s, PW, PH, ppivot), rt = s.rt;
   sty(s, s.el, 'left', `${left.toFixed(2)}px`);
   sty(s, s.el, 'top', `${top.toFixed(2)}px`);

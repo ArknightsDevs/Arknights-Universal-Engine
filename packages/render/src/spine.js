@@ -90,6 +90,17 @@ export function figureArrays(batches, scale, flip) {
 }
 
 /**
+ * Puts an array into a geometry's attribute: into the one it has when the length is the same (the GPU buffer is
+ * updated in place), else a new one.
+ * @param {THREE.BufferGeometry} g @param {string} name @param {Float32Array} arr @param {number} size
+ */
+function refill(g, name, arr, size) {
+  const old = /** @type {THREE.BufferAttribute | undefined} */ (g.getAttribute(name));
+  if (old && old.array.length === arr.length) { /** @type {Float32Array} */ (old.array).set(arr); old.needsUpdate = true; return; }
+  g.setAttribute(name, new THREE.BufferAttribute(arr, size).setUsage(THREE.DynamicDrawUsage));
+}
+
+/**
  * A figure of a Spine model: show(animation, time, loop, flip) poses it and refills its geometry; drawn at `scale` tiles
  * a skeleton unit times the model's own scale. @param {SpineModel} model @param {number} [scale]
  */
@@ -121,11 +132,13 @@ export function createFigure(model, scale = SKELETON_SCALE) {
       if (anim) applyAnimation(p, s, anim, time, loop);
       updateWorld(p, s, order);
       const a = figureArrays(drawList(p, s, model.atlas, { active: order.active, pma: model.pma }), size, flip);
-      geometry.setAttribute('position', new THREE.BufferAttribute(a.position, 3));
-      geometry.setAttribute('uv', new THREE.BufferAttribute(a.uv, 2));
-      geometry.setAttribute('light', new THREE.BufferAttribute(a.light, 4));
-      geometry.setAttribute('dark', new THREE.BufferAttribute(a.dark, 4));
-      geometry.setIndex(new THREE.BufferAttribute(a.index, 1));
+      refill(geometry, 'position', a.position, 3);
+      refill(geometry, 'uv', a.uv, 2);
+      refill(geometry, 'light', a.light, 4);
+      refill(geometry, 'dark', a.dark, 4);
+      const idx = geometry.getIndex();
+      if (idx && idx.array.length === a.index.length) { /** @type {Uint32Array} */ (idx.array).set(a.index); idx.needsUpdate = true; }
+      else geometry.setIndex(new THREE.BufferAttribute(a.index, 1).setUsage(THREE.DynamicDrawUsage));
       geometry.clearGroups();
       const list = [];
       for (const g of a.groups) { geometry.addGroup(g.start, g.count, list.length); list.push(matOf(g.page, g.blend)); }
