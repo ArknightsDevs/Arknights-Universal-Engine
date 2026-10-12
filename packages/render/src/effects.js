@@ -1,0 +1,193 @@
+// The effects system (docs/spec/render.md 渲染-11): the units' attack effects, played from the frame's events. A start
+// effect that waits (its lead ≥ 0.15 s: it keeps time with the attack clip) plays as the attack starts; the others when
+// a melee hit lands or a shot leaves, once a frame for a unit. A shot carries its projectile's trail effect, flying from
+// the attacker's chest to the target's along the projectile's arc at its speed, and stops when it hits. The hit effect
+// plays at the target's chest. An effect is placed as its prefab says: as it is, mirrored with the unit's facing, or
+// turned toward the attack's direction. Effects keep battle time: they follow 2× and pause.
+import * as THREE from 'three';
+import { KIND, DIR } from '@aue/schema';
+import { toThree, tileWorld } from './camera.js';
+import { FxInstance, rootAt, rootAlong, rootToward, effectLead } from './fx/player.js';
+
+/**
+ * The effects' constants (渲染-11): the chest's height above the feet (tiles, along the models' up — the camera's), the
+ * lead from which a start effect plays with the attack, the most effects at once, a projectile's speed when its prefab
+ * gives none (tiles a second), and the longest a projectile flies past its time.
+ */
+export const FX = Object.freeze({ chest: 0.4, early: 0.15, max: 160, speed: 10, overtime: 1 });
+
+/** @typedef {import('./fx/player.js').FxPack} FxPack @typedef {{ feet: number[], facing: number, dir: number[], seen: number }} Place */
+/** How an effect is turned: the unit's facing (±1) and a direction on the ground. @typedef {{ facing: number, dir: number[] }} Way */
+
+/** A direction on the ground of each deploy direction (schema DIR), in three.js (north −z). */
+const DIR_VEC = /** @type {Record<number, number[]>} */ ({ [DIR.RIGHT]: [1, 0, 0], [DIR.UP]: [0, 0, -1], [DIR.LEFT]: [-1, 0, 0], [DIR.DOWN]: [0, 0, 1] });
+
+/**
+ * An effect's root as its prefab places it (渲染-11): turned toward the way (rotate type 2), mirrored with the facing
+ * (rotate type 1; the other way round when it faces left by default), else as it is.
+ * @param {any} e @param {number[]} o @param {Way} way
+ */
+function rootFor(e, o, way) {
+  if (e.rt === 2) return rootToward(o, way.dir);
+  return rootAt(o, e.rt === 1 ? (e.ld ? -way.facing : way.facing) : 1);
+}
+/** @typedef {{ inst: FxInstance, src: number, target: number, pos: number[], d0: number, h0: number, arc: number, speed: number, t: number, T: number }} Flight */
+
+/** The camera's axes in the world. @param {THREE.Camera} camera */
+export function cameraAxes(camera) {
+  const e = camera.matrixWorld.elements;
+  return { right: [e[0], e[1], e[2]], up: [e[4], e[5], e[6]], view: [-e[8], -e[9], -e[10]] };
+}
+
+
+class Effects {
+  /** @param {FxPack} pack @param {{ width: number, height: number, highland?: number }} level */
+  constructor(pack, level) {
+    this.pack = pack; this.level = level; this.object = new THREE.Group();
+    this.leads = new Map(Object.keys(pack.data.fx).map((k) => [k, effectLead(pack.data.fx[k])]));
+    /** @type {FxInstance[]} */ this.live = [];
+    /** @type {Flight[]} */ this.flights = [];
+    /** @type {Map<number, Place>} */ this.places = new Map();
+    /** @type {Map<number, string>} */ this.keys = new Map();
+    /** @type {Map<number, number>} the frame a unit's start effect last played */ this.started = new Map();
+    this.frame = 0;
+    /** the models' up (the camera's): the chest is above the feet along it */
+    this.up = [0, 0.5, -Math.sqrt(3) / 2];
+  }
+
+  /** @param {number[]} feet */
+  chest(feet) { return feet.map((v, i) => v + this.up[i] * FX.chest); }
+
+  /** @param {string | undefined} name @param {number[]} o @param {Way} way @param {string} kind */
+  play(name, o, way, kind) {
+    const fx = this.pack.data.fx;
+    if (!name || !fx[name] || this.live.length >= FX.max) return null;
+    const e = fx[name], i = new FxInstance(e, kind === 'trail' ? rootAlong(o, way.dir) : rootFor(e, o, way), { kind, tex: this.pack.textures });
+    this.live.push(i); this.object.add(i.group);
+    return i;
+  }
+
+  /** A unit's effects by its content key. @param {number} id */
+  by(id) { return this.pack.data.by[this.keys.get(id) ?? '']; }
+
+  /** Whether a unit's start effect keeps time with its attack clip. @param {any} E */
+  early(E) { return !!(E && E.s && (this.leads.get(E.s) ?? 0) >= FX.early); }
+
+  /** The way from a unit to its target: its facing, and the direction to the target (else its own). @param {number} id @param {number} target */
+  way(id, target) {
+    const a = this.places.get(id), b = this.places.get(target);
+    if (!a) return { facing: 1, dir: [1, 0, 0] };
+    if (!b) return { facing: a.facing, dir: a.dir };
+    const d = [b.feet[0] - a.feet[0], 0, b.feet[2] - a.feet[2]];
+    return { facing: Math.sign(d[0]) || a.facing, dir: Math.hypot(d[0], d[2]) > 1e-6 ? d : a.dir };
+  }
+
+  /**
+   * A unit's start effects, once a frame: the ones that wait as the attack starts, the others as it strikes; turned by
+   * the unit's facing and direction (operators) or toward the target. @param {number} id @param {number} target @param {boolean} waits
+   */
+  start(id, target, waits) {
+    const E = this.by(id), at = this.places.get(id);
+    if (!E || !E.s || this.early(E) !== waits || !at || this.started.get(id) === this.frame) return;
+    this.started.set(id, this.frame);
+    const way = this.keys.get(id)?.startsWith('char_') ? { facing: at.facing, dir: at.dir } : this.way(id, target);
+    for (const n of E.ss ?? [E.s]) this.play(n, at.feet, way, 'start');
+  }
+
+  /** A shot leaving: the start effect, and its projectile's trail flying to the target. @param {number} id @param {number} target */
+  shot(id, target) {
+    this.start(id, target, false);
+    const E = this.by(id), a = this.places.get(id), b = this.places.get(target);
+    if (!E || !E.t || !a || !b) return;
+    const from = this.chest(a.feet), to = this.chest(b.feet), d = [to[0] - from[0], 0, to[2] - from[2]], d0 = Math.max(0.3, Math.hypot(d[0], d[2])), v = E.v || FX.speed;
+    const inst = this.play(E.t, from, { facing: 1, dir: d }, 'trail');
+    if (inst) this.flights.push({ inst, src: id, target, pos: from, d0, h0: from[1], arc: E.arc || 0, speed: v, t: 0, T: d0 / v + FX.overtime });
+  }
+
+  /** A hit (or heal) landing: its projectile stops; a melee start effect; the hit effect at the target. @param {number} id @param {number} target */
+  hit(id, target) {
+    const f = this.flights.find((x) => x.src === id && x.target === target);
+    if (f) { f.inst.stop(); this.flights = this.flights.filter((x) => x !== f); }
+    const E = this.by(id), b = this.places.get(target);
+    if (!E || !b) return;
+    if (!E.t) this.start(id, target, false);
+    const way = this.way(id, target);
+    for (const n of E.hs ?? (E.h ? [E.h] : [])) this.play(n, this.chest(b.feet), way, 'hit');
+  }
+
+  /** Each flight moves toward its target's chest along its arc. @param {number} dt */
+  fly(dt) {
+    this.flights = this.flights.filter((f) => {
+      const b = this.places.get(f.target);
+      f.t += dt;
+      if (!b || f.t > f.T) { f.inst.stop(); return false; }
+      const to = this.chest(b.feet), d = [to[0] - f.pos[0], 0, to[2] - f.pos[2]], dist = Math.hypot(d[0], d[2]), k = Math.min(1, (f.speed * dt) / (dist || 1));
+      f.pos = [f.pos[0] + d[0] * k, 0, f.pos[2] + d[2] * k];
+      const p = Math.min(1, Math.max(0, 1 - Math.max(0, dist - f.speed * dt) / f.d0));
+      const h = f.h0 + (to[1] - f.h0) * p + f.arc * 4 * p * (1 - p);
+      f.inst.R = rootAlong([f.pos[0], h, f.pos[2]], dist > 1e-3 ? d : f.inst.R.ex);
+      return true;
+    });
+  }
+
+  /** The units' places: operators face by their direction, enemies by how they moved. @param {import('@aue/schema').View} view */
+  track(view) {
+    for (const u of view.units) {
+      const old = this.places.get(u.id), feet = toThree(tileWorld(this.level, u.x, u.y, u.z)), op = u.kind === KIND.OPERATOR;
+      const facing = op ? (u.dir === DIR.LEFT ? -1 : 1) : old ? Math.sign(feet[0] - old.feet[0]) || old.facing : 1;
+      this.places.set(u.id, { feet, facing, dir: op ? DIR_VEC[u.dir] ?? [1, 0, 0] : [facing, 0, 0], seen: view.frame });
+    }
+    for (const [id, p] of this.places) if (view.frame - p.seen > 30) this.places.delete(id);
+  }
+
+  /**
+   * A frame: the units' places and keys, then its events. @param {import('@aue/schema').View} view
+   * @param {Record<string, string>} newKeys @param {Record<string, string | number>[]} events
+   */
+  update(view, newKeys, events) {
+    this.frame = view.frame;
+    for (const [id, k] of Object.entries(newKeys)) this.keys.set(Number(id), k);
+    this.track(view);
+    for (const e of events) {
+      const id = Number(e.id), target = Number(e.target);
+      if (e.type === 'attack') this.start(id, target, true);
+      else if (e.type === 'shot') this.shot(id, target);
+      else if (e.type === 'hit' || e.type === 'heal') this.hit(id, target);
+    }
+  }
+
+  /** Advances the effects by dt seconds of battle time and draws them for the camera. @param {number} dt @param {THREE.Camera} camera */
+  step(dt, camera) {
+    const cam = cameraAxes(camera);
+    this.up = cam.up;
+    this.fly(dt);
+    this.live = this.live.filter((i) => {
+      i.step(dt);
+      if (i.done) { this.object.remove(i.group); i.dispose(); return false; }
+      i.draw(cam);
+      return true;
+    });
+  }
+
+  count() { return this.live.length; }
+
+  dispose() { for (const i of this.live) i.dispose(); this.live = []; this.flights = []; this.object.clear(); }
+}
+
+/** The effects system for a level. @param {FxPack} pack @param {{ width: number, height: number, highland?: number }} level */
+export const createEffects = (pack, level) => new Effects(pack, level);
+
+/**
+ * Loads an effect pack (渲染-10): its data and its textures (data URIs; repeating unless the pack clamps them; used as
+ * they are, no colour-space conversion). @param {any} data @returns {Promise<FxPack>}
+ */
+export async function loadEffectPack(data) {
+  const loader = new THREE.TextureLoader(), textures = new Map(), clamp = new Set(data.clamp || []);
+  await Promise.all(Object.entries(data.tex).map(async ([k, uri]) => {
+    const t = await loader.loadAsync(/** @type {string} */ (uri)).catch(() => null);
+    if (!t) return;
+    if (!clamp.has(k)) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    textures.set(k, t);
+  }));
+  return { data, textures };
+}

@@ -1,0 +1,141 @@
+// The effect player without a GPU (docs/spec/render.md 渲染-10, 渲染-11): curves, a particle system's emission and
+// motion, the triangles it makes, an instance's timing, the roots, and the effects played from battle events.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { KIND, DIR } from '@aue/schema';
+import { mm, evalKeys, grad, startColor, trackAt, trackValue, scroll, uvThrough, euler, rot } from '../src/fx/curves.js';
+import { FxSystem, shapePoint } from '../src/fx/system.js';
+import { FxBatch, fxMaterial, quad, strip, particleAxes } from '../src/fx/geometry.js';
+import { FxInstance, rootAt, rootToward, rootAlong, effectLead } from '../src/fx/player.js';
+import { createEffects, FX } from '../src/effects.js';
+
+const near = (/** @type {number} */ a, /** @type {number} */ b, e = 1e-6) => Math.abs(a - b) < e;
+const seeded = (s = 7) => () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+const C = (/** @type {number} */ v) => ({ st: 0, sc: v, mn: v, cx: [], cn: [] });
+/** A plain system: no shape, everything constant, one burst of `n` at 0. @param {Record<string, any>} [o] */
+const sys = (o = {}) => ({ dur: 1, loop: false, delay: C(0), space: 0, scaling: 0, life: C(1), speed: C(0), size: C(0.5), rot: C(0), color: { st: 0, cmax: [1, 1, 1, 1] },
+  gravity: C(0), max: 1000, rate: C(0), rateD: C(0), bursts: [{ t: 0, n: C(3), cycles: 1, iv: 0.01 }], shape: { on: false, rot: [0, 0, 0] }, render: { mode: 0, align: 0 }, blend: 'add', tex: 'a', ...o });
+const host = (/** @type {Record<string, any>} */ o = {}) => ({ t: 0, R: rootAt([0, 0, 0], 1), v: [0, 0, 0], rand: seeded(), stopped: false, kind: 'hit', sysAt: /** @type {any[]} */ ([]), ...o });
+
+test('[渲染-10] curves: constants, Hermite keys held at the ends, two constants, gradients, start colours, tracks', () => {
+  assert.equal(mm(C(2), 0.5, 0.9), 2);
+  const keys = /** @type {any} */ ([[0, 0, 0, 0], [1, 1, 0, 0]]);
+  assert.ok(near(/** @type {number} */ (evalKeys(keys, 0.5)), 0.5) && evalKeys(keys, -1) === 0 && evalKeys(keys, 2) === 1);
+  assert.equal(evalKeys(/** @type {any} */ ([[0, 3, 0, 1e30], [1, 9, 0, 0]]), 0.5), 3, 'an infinite slope holds');
+  assert.equal(mm({ st: 3, sc: 4, mn: 2 }, 0, 0.5), 3);
+  assert.equal(mm({ st: 1, sc: 2, cx: keys }, 0.5, 0), 1);
+  assert.deepEqual(grad({ c: [[1, 0, 0, 0], [0, 0, 1, 1]], a: [[1, 0], [0, 1]] }, 0.5), [0.5, 0, 0.5, 0.5]);
+  assert.deepEqual(startColor({ st: 2, cmin: [0, 0, 0, 0], cmax: [1, 1, 1, 1] }, 0, 0.25), [0.25, 0.25, 0.25, 0.25]);
+  const an = { n: 3, L: 1, loop: 0 };
+  assert.deepEqual(trackAt(an, 0.25), [0, 1, 0.5]);
+  assert.deepEqual(trackValue([0, 10, 20], 1, trackAt(an, 0.75)), [15]);
+  assert.deepEqual(trackAt({ ...an, loop: 1 }, 1.25), [0, 1, 0.5], 'a looping track wraps');
+});
+
+test('[渲染-10] texture coordinates: tiling, offset, rotation about the centre, scroll; Euler angles z, x, y', () => {
+  const out = [0, 0];
+  uvThrough([1, 0], { st: [2, 1, 0.5, 0], off: [0, 0], R: null, sc: [0.25, 0] }, out, 0);
+  assert.deepEqual(out, [2.75, 0]);
+  uvThrough([1, 0.5], { st: [1, 1, 0, 0], off: [0, 0], R: [0, 1, -1, 0], sc: [0, 0] }, out, 0);
+  assert.ok(near(out[0], 0.5) && near(out[1], 1), 'a quarter turn about the centre');
+  assert.deepEqual(scroll({ uvspd: [0.5, 0, 0, 0] }, 3).slice(0, 2), [0.5, 0], 'scrolls wrap');
+  const v = rot(euler([0, 0, 90]), [1, 0, 0]);
+  assert.ok(near(v[0], 0) && near(v[1], 1));
+});
+
+test('[渲染-10] a system: a burst at its time, emission over time, gravity, lifetime, the max', () => {
+  const h = host(), s = new FxSystem(sys({ life: C(0.5), gravity: C(1) }), h);
+  h.sysAt = [s];
+  s.step(1 / 30);
+  assert.equal(s.ps.length, 3);
+  const vy = s.ps[0].vy;
+  s.step(0.1);
+  assert.ok(s.ps[0].vy < vy, 'gravity pulls along −y (south)');
+  s.step(0.5);
+  assert.equal(s.ps.length, 0, 'gone at the end of their life');
+  const r = new FxSystem(sys({ bursts: [], rate: C(100), loop: true }), host());
+  for (let i = 0; i < 10; i++) r.step(0.1);
+  assert.equal(r.ps.length, 100, 'a rate of 100 a second for a second (looping start effects emit for a second)');
+  const big = new FxSystem(sys({ bursts: [{ t: 0, n: C(500), cycles: 1, iv: 0.01 }] }), host());
+  big.step(0.01);
+  assert.equal(big.ps.length, 120, 'at most 120 particles a system');
+});
+
+test('[渲染-10] shapes: a cone emits within its angle; sub-emitters and collision planes', () => {
+  const r = seeded(3);
+  for (let i = 0; i < 50; i++) { const { d } = shapePoint({ type: 4, radius: 0, angle: 30, arc: 360, thick: 1 }, r); assert.ok(d[2] >= Math.cos(Math.PI / 6) - 1e-9); }
+  const h = host(), parent = sys({ speed: C(1), shape: { on: true, type: 4, radius: 0, angle: 0, arc: 360, thick: 1, pos: [0, 0, 0], rot: [0, 0, 0] }, bursts: [{ t: 0, n: C(1), cycles: 1, iv: 0.01 }],
+    sub: [{ i: 1, type: 0, inh: 0, p: 1 }], coll: { pl: [[0, 0, 0.5, 0, 0, -1]], b: C(1), d: C(0) } });
+  const child = sys({ subOf: 0, bursts: [{ t: 0, n: C(2), cycles: 1, iv: 0.01 }] });
+  const P = new FxSystem(parent, h), K = new FxSystem(child, h);
+  h.sysAt = [P, K];
+  for (let i = 0; i < 10; i++) { P.step(0.05); K.step(0.05); }
+  assert.equal(K.ps.length, 2, 'the sub-emitter burst from the parent particle');
+  assert.ok(P.ps[0].z <= 0.5 && P.ps[0].vz < 0, 'the parent bounced off the plane z = 0.5');
+});
+
+test('[渲染-10] triangles: a quad takes its sheet cell; a strip faces the camera; billboards turn with the camera', () => {
+  const b = new FxBatch(new THREE.MeshBasicMaterial()), uv = (/** @type {number} */ u, /** @type {number} */ v) => [u, v, 0, 0, 0, 0, 0, 0];
+  b.begin();
+  quad(b, { c: [0, 0, 0], a: [1, 0, 0], b: [0, 1, 0] }, { f: 1, tx: 2, ty: 2 }, uv, { C: [1, 1, 1, 1], S: [0, 0.1, 0, 0] });
+  strip(b, { P: [[0, 0, 0], [1, 0, 0], [2, 0, 0]], U: [0, 0.5, 1], W: [0.2, 0.2, 0.2], C: [[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]] }, uv, [0, 0.1, 0, 0], [0, 0, -1]);
+  b.end();
+  assert.deepEqual([b.n, b.ni], [4 + 6, 6 + 12]);
+  const U = b.a.uvMain;
+  assert.deepEqual([U[0], U[1], U[6], U[7]], [0.5, 0.5, 1, 1], 'frame 1 of a 2 × 2 sheet: the top right cell');
+  assert.ok(near(Math.abs(b.a.position[4 * 3 + 1]), 0.1), 'the strip is 0.2 wide across the view');
+  const cam = { right: [1, 0, 0], up: [0, 1, 0], view: [0, 0, -1] }, q = { x: 0, y: 0, z: 0, rot: 0, svx: 0, svy: 0, svz: 0 };
+  const ax = particleAxes({ render: { mode: 0, align: 0 } }, q, { R: rootAt([0, 0, 0], 1), M: [1, 0, 0, 0, 1, 0, 0, 0, 1], size: 2, sizeY: 2 }, cam);
+  assert.deepEqual([ax.a, ax.b], [[1, 0, 0], [0, 1, 0]]);
+  const lying = particleAxes({ render: { mode: 0, align: 2 } }, q, { R: rootAt([0, 0, 0], 1), M: [1, 0, 0, 0, 1, 0, 0, 0, 1], size: 2, sizeY: 2 }, cam);
+  assert.deepEqual(lying.b, [0, 0, -1], 'a local-aligned particle lies in its system plane: its y is north');
+  assert.equal(fxMaterial({ tex: 'x', blend: 'add' }, new Map()).blendDst, THREE.OneFactor);
+  b.dispose();
+});
+
+test('[渲染-10] an instance: it waits, plays, stops at its cap, fades, and is done', () => {
+  const tex = new Map([['a', new THREE.Texture()]]), e = { d: 0.5, w: 0.2, ps: [sys({ life: C(0.3) })], tr: [{ kind: 'trail', tex: 'a', time: 0.3, grad: { c: [[1, 1, 1, 0]], a: [[1, 0]] }, texMode: 0, width: 0.1, blend: 'add' }] };
+  const i = new FxInstance(e, rootAt([0, 0, 0], 1), { kind: 'hit', tex, rand: seeded() });
+  i.step(0.1);
+  assert.deepEqual([i.t, i.done], [0, false], 'still waiting');
+  for (let k = 0; k < 10; k++) i.step(0.1);
+  assert.ok(i.stopped, 'stopped at its cap');
+  for (let k = 0; k < 20; k++) i.step(0.1);
+  assert.ok(i.done && i.fade === 0);
+  assert.equal(effectLead({ w: 0.1, ps: [sys({ delay: C(0.2) })], tr: [] }), 0.30000000000000004);
+  i.dispose();
+});
+
+test('[渲染-10] roots: the battle axes (x east, y north −z, z down −y), mirrored, turned toward a way, along a flight', () => {
+  assert.deepEqual(rootAt([1, 2, 3], -1), { o: [1, 2, 3], ex: [-1, 0, 0], ey: [0, 0, -1], ez: [0, -1, 0] });
+  const t = rootToward([0, 0, 0], [1, 0, 0]);
+  assert.deepEqual([t.ey, t.ex.map((v) => Math.round(v) + 0)], [[1, 0, 0], [0, 0, 1]], 'its y east, its x south');
+  const f = rootAlong([0, 0, 0], [-2, 0, 0]);
+  assert.deepEqual([f.ex, f.ey.map((v) => v + 0)], [[-1, 0, 0], [0, 0, 1]], 'flying west: x west, y south (turned, not mirrored)');
+});
+
+test(`[渲染-11] events: waiting starts with the attack, a shot's trail flies and stops at the hit, hits turned as placed`, () => {
+  const tex = new Map([['a', new THREE.Texture()]]), e = (/** @type {Record<string, any>} */ o = {}) => ({ d: 0.5, ps: [sys()], tr: [], ...o });
+  const data = { by: { op: { s: 'st', ss: ['st', 'st2'], h: 'hitOp' }, foe: { t: 'trail', h: 'hitFoe', v: 5, arc: 0.5 } },
+    fx: { st: e({ w: 0.2 }), st2: e(), hitOp: e({ rt: 1 }), hitFoe: e({ rt: 2 }), trail: e({ ps: [sys({ loop: true, rate: C(10), bursts: [] })] }) } };
+  const fx = createEffects({ data, textures: tex }, { width: 4, height: 2 });
+  const unit = (/** @type {Record<string, any>} */ o) => ({ owner: 0, z: 0, dir: DIR.RIGHT, hp: 1, maxHp: 1, anim: 0, sp: -1, spCost: 0, skill: 0, skillLeft: -1, ...o });
+  const view = (/** @type {number} */ frame) => /** @type {any} */ ({ frame, players: [], units: [unit({ id: 1, kind: KIND.OPERATOR, x: 0, y: 0 }), unit({ id: 2, kind: KIND.ENEMY, owner: -1, x: 2, y: 0 })] });
+  const cam = new THREE.PerspectiveCamera();
+  cam.updateMatrixWorld();
+  fx.update(view(1), { 1: 'op', 2: 'foe' }, [{ type: 'attack', id: 1, target: 2, wind: 5 }, { type: 'shot', id: 2, target: 1 }]);
+  assert.equal(fx.count(), 3, 'both starts of the operator (its first waits 0.2 s) and the trail');
+  assert.equal(fx.flights.length, 1);
+  fx.step(0.1, cam);
+  const trail = fx.flights[0].inst;
+  assert.ok(trail.R.o[0] < 0.5, 'the trail flies west toward its target');
+  fx.update(view(2), {}, [{ type: 'hit', id: 2, target: 1 }, { type: 'hit', id: 1, target: 2 }]);
+  assert.ok(trail.stopped && fx.flights.length < 1, 'the hit stops it');
+  const hits = fx.live.slice(-2);
+  assert.deepEqual(hits[0].R.ey, [-1, 0, 0], 'type 2: its y turned toward the attack (west)');
+  assert.deepEqual(hits[1].R.ex, [1, 0, 0], 'type 1: not mirrored, the attack goes east');
+  assert.ok(Math.abs(hits[1].R.o[1] - FX.chest * cam.up.y) < 1e-9 || hits[1].R.o[1] > 0, 'at the chest, above the feet along the camera up');
+  fx.dispose();
+});
+

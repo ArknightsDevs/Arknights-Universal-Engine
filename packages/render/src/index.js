@@ -4,6 +4,8 @@ export { createBattleRenderer, loadTextures, loadSpineModels, loadTileKit } from
 export { kitKey, kitPattern, KIT_ALIAS, KIT_LIGHT } from './kit.js';
 export { HIGHLIGHT, highlightFactor } from './highlight.js';
 export { RANGE } from './range.js';
+export { FX, createEffects, loadEffectPack, cameraAxes } from './effects.js';
+export { effectLead, rootAt, rootAlong } from './fx/player.js';
 export { createFigure, figureArrays, blendFactors, spineModel, SKELETON_SCALE } from './spine.js';
 export { animationRoles, roleOf, operatorFacing, enemyFacing } from './roles.js';
 export { barsOf, BAR } from './overlays.js';

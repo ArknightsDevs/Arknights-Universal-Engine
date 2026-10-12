@@ -1,13 +1,15 @@
 // The battle renderer: a three.js scene of systems — terrain (a map theme's tile kit, or flat textures), the units'
-// shadows, units (Spine figures or cards) — under the official camera, then the overlays (HP and SP bars) over it with
-// the depth cleared (ADR 0027). The page owns the loop: it calls update() with each render state from the worker and
-// render() once per animation frame.
+// shadows, units (Spine figures or cards), the attack effects — under the official camera, then the overlays (HP and SP
+// bars) over it with the depth cleared (ADR 0027). The page owns the loop: it calls update() with each render state
+// from the worker and render() once per animation frame.
 import * as THREE from 'three';
 import { applyPose, DEFAULT_VIEW } from './camera.js';
 import { createTerrain } from './terrain.js';
 import { createKitTerrain } from './kit.js';
 import { createHighlight } from './highlight.js';
 import { createRange } from './range.js';
+import { createEffects } from './effects.js';
+import { FPS } from './figure.js';
 import { createUnits } from './units.js';
 import { createOverlays } from './overlays.js';
 import { spineModel } from './spine.js';
@@ -23,7 +25,23 @@ import { spineModel } from './spine.js';
  * @property {Set<string>} [leaders] content keys of leader enemies (red HP bars)
  * @property {import('./kit.js').LoadedKit | null} [kit] the map theme's tile kit (渲染-7); without one the tiles are flat
  *   textures
+ * @property {import('./fx/player.js').FxPack | null} [effects] the units' attack effects (渲染-10, 渲染-11); none without
  */
+
+/** Battle time from the frames the renderer is given: 30 a second, interpolated up to a frame past the last. */
+function battleClock() {
+  let frame = 0, at = 0, last = -1;
+  return {
+    /** @param {number} f @param {number} now ms */
+    seen(f, now) { frame = f; at = now; },
+    /** Battle seconds since the last call (0 to 0.1). @param {number} now ms */
+    delta(now) {
+      const f = frame + Math.min(1, Math.max(0, ((now - at) * FPS) / 1000)), d = last < 0 ? 0 : (f - last) / FPS;
+      last = f;
+      return Math.min(0.1, Math.max(0, d));
+    },
+  };
+}
 
 /** @param {RendererOptions} o */
 export function createBattleRenderer(o) {
@@ -34,8 +52,8 @@ export function createBattleRenderer(o) {
   const highlight = createHighlight(o.level), patch = highlight.patch;
   const terrain = o.kit ? createKitTerrain(o.level, o.kit, o.textures, patch) : createTerrain(o.level, o.textures, patch);
   const units = createUnits(o.textures, o.models), field = { ...o.level, highland: o.kit?.kit.highland };
-  const range = createRange(field, o.textures.get('ui:range'));
-  scene.add(terrain.object, range.object, units.shadows, units.object);
+  const range = createRange(field, o.textures.get('ui:range')), effects = o.effects ? createEffects(o.effects, field) : null, clock = battleClock();
+  scene.add(terrain.object, range.object, units.shadows, units.object, ...(effects ? [effects.object] : []));
   const overlays = createOverlays(o.textures, o.leaders);
   const ray = new THREE.Raycaster();
 
@@ -57,6 +75,8 @@ export function createBattleRenderer(o) {
     update(view, keys, events = []) {
       units.update(view, keys, field, performance.now(), events);
       overlays.update(view, keys, field, units.shows);
+      clock.seen(view.frame, performance.now());
+      effects?.update(view, keys, events);
     },
     /** Highlights the tiles (keys row × width + col) the selected operator can be deployed on (渲染-8); null for none. @param {Iterable<number> | null} keys */
     highlight: (keys) => highlight.set(keys),
@@ -66,6 +86,7 @@ export function createBattleRenderer(o) {
       range.tick(performance.now() / 1000);
       units.pose(camera);
       overlays.pose(camera);
+      effects?.step(clock.delta(performance.now()), camera);
       renderer.clear();
       renderer.render(scene, camera);
       renderer.clearDepth();
@@ -78,7 +99,7 @@ export function createBattleRenderer(o) {
       const hit = ray.intersectObjects(terrain.object.children, false).find((/** @type {THREE.Intersection} */ h) => h.object.userData.col !== undefined);
       return hit ? { col: hit.object.userData.col, row: hit.object.userData.row } : null;
     },
-    dispose() { terrain.dispose(); range.dispose(); highlight.dispose(); units.dispose(); overlays.dispose(); renderer.dispose(); },
+    dispose() { terrain.dispose(); range.dispose(); highlight.dispose(); units.dispose(); overlays.dispose(); effects?.dispose(); renderer.dispose(); },
   };
 }
 
