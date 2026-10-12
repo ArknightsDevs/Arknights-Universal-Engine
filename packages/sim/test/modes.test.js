@@ -160,3 +160,19 @@ test('[部署-5] an on-field team talent: every operator of its profession on th
   run(1, [{ type: 'retreat', unit: src.id }]);
   assert.deepEqual(guard.buffs, [], 'gone with its source');
 });
+
+test('[部署-6] an in-range talent: the enemies, or the operators, with a tile in its source attack range, while there', () => {
+  const { w, foe, put, run } = arena((cc) => {
+    cc.operators.sniper = { ...cc.operators.sniper, range: [{ row: 0, col: 1 }], rangeTalents: [{ side: 'enemy', ranged: false, mods: { resPct: -0.5 } }, { side: 'ally', ranged: true, mods: { defFlat: 10 } }] };
+  });
+  const near = foe(2, 3), far = foe(1, 4);
+  near.base = { ...near.base, res: 40 };
+  const src = put('sniper', 2, 2), guard = put('guard', 1, 2);
+  run(1);
+  assert.deepEqual([near.buffs.filter((b) => b.key.startsWith('range:')).map((b) => b.mods), statsOf(near).res, far.buffs.some((b) => b.key.startsWith('range:'))], [[{ resPct: -0.5 }], 20, false]);
+  assert.deepEqual([src.buffs.filter((b) => b.key.startsWith('range:')).length, guard.buffs.length], [0, 0], 'its own tile is not in this range; a melee operator is not ranged');
+  near.x = 5;
+  run(1);
+  assert.equal(near.buffs.some((b) => b.key.startsWith('range:')), false, 'out of range: gone');
+  assert.ok(w.units.includes(far));
+});

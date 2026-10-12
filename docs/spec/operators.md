@@ -103,3 +103,23 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 干员的势力 `powers`：主势力（`mainPower`，没有时取干员自身的字段）的国家、组织、队伍 id（`nationId`、`groupId`、`teamId`，为 null 的略去），再依次加上每个副势力（`subPower`）的，去掉重复。势力的名称按 id 记录在 `packages/content/data/powers.json`（handbook_team_table 的 `powerName`，按 id 排序）。天赋按名称引用势力（干员-9）。
 
 - 来源：数据：character_table 的 mainPower、subPower、nationId、groupId、teamId，handbook_team_table 的 powerId、powerName
+
+### 干员-11 范围天赋
+
+天赋（含模组的升级）的**范围部分**：描述按 干员-6 处理后，第一句以「攻击范围内的」加对象开头——敌军或敌人（敌人）、友方单位或友方干员（干员）、远程干员（远程位的干员）——然后是开头连续的范围分句，至少一个：属性（和/、属性）（各）带符号的数值，或「提升」「降低」加数值（%、/秒）。属性词与修饰器（属性-2）：
+
+| 属性词 | 键 | 不带 % | 带 % |
+|---|---|---|---|
+| 攻击力 | `atk` | `atkFlat` | `atkPct` |
+| 防御力 | `def` | `defFlat` | `defPct` |
+| 生命上限、最大生命值 | `max_hp` | `hpFlat` | `hpPct` |
+| 法术抗性 | `magic_resistance` | `resFlat` | `resPct` |
+| 攻击速度、攻速 | `attack_speed` | `aspd` | — |
+| 移动速度 | `move_speed` | — | `movePct` |
+| 技力自然回复速度 | `sp_recovery_per_sec` | `spRecoveryFlat`（/秒） | — |
+
+修饰器的值取 blackboard 里这个键的值（带 % 的就是比例）；写法是「—」的、键不在 blackboard 里的分句不算。第一句其余部分不能提到「效果」。范围部分就是对象和这些修饰器，作为干员数据的 `rangeTalents`，由模拟按 部署-6 生效。
+
+干员-6、干员-9 的分句也检查 %：`atk`、`def`、`max_hp` 必须带 %（按 技能-5 是直接乘算的比例），其余的键不能带 %，否则不算。
+
+- 来源：数据：character_table 的天赋文字与 blackboard，如伊芙利特「攻击范围内的敌军法术抗性-44%」（`magic_resistance` −0.44）、闪灵「攻击范围内的友方单位防御力+65」（`def` 65）、夜莺「攻击范围内的友方单位法术抗性+17」、莫斯提马「攻击范围内的敌人移动速度-18%」、蜜莓「攻击范围内的远程干员最大生命值+12%」；按有无 % 选修饰器为推断 INF-0095

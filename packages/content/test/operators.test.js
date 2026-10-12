@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadTraining, operatorAt, skeletonContent, ROSTER } from '../src/index.js';
 import { traitAt, teamTalentsAt } from '../src/operators.js';
-import { talentsAt, alwaysOn, teamPart } from '../src/talents.js';
+import { talentsAt, alwaysOn, teamPart, rangePart } from '../src/talents.js';
 import { matchContent } from '../src/index.js';
 
 /** @typedef {import('../src/operators.js').Build} Build */
@@ -125,4 +125,19 @@ test('[干员-9] [干员-10] a faction deck talent: 斯卡蒂 raises every 【�
   const plain = /** @type {any} */ (operatorAt(skadi, E2));
   assert.equal(ops['char_263_skadi#0'].talentBb.atk - (plain.talentBb ? plain.talentBb.atk ?? 0 : 0), teamTalentsAt(skadi, E2).deck[0].bb.atk);
   assert.equal(ops['char_202_demkni#0'].talentBb && ops['char_202_demkni#0'].talentBb.atk, undefined, 'not a 深海猎人');
+});
+
+test('[干员-11] in-range parts: whom, and the modifier by the % of the text; 伊芙利特 from the real data', async () => {
+  const c = (/** @type {string} */ description, /** @type {Record<string, number>} */ bb) => rangePart({ description, bb, hidden: false });
+  assert.deepEqual([
+    c('攻击范围内的敌军法术抗性-44%', { magic_resistance: -0.44 }), c('攻击范围内的友方单位防御力+65', { def: 65 }),
+    c('攻击范围内的远程干员最大生命值+12%（+2%）', { max_hp: 0.12 }), c('攻击范围内的敌人移动速度-25%，攻击范围外的敌人移动速度-10%', { move_speed: -0.25 }),
+  ], [
+    { side: 'enemy', ranged: false, mods: { resPct: -0.44 } }, { side: 'ally', ranged: false, mods: { defFlat: 65 } },
+    { side: 'ally', ranged: true, mods: { hpPct: 0.12 } }, { side: 'enemy', ranged: false, mods: { movePct: -0.25 } },
+  ]);
+  assert.deepEqual([c('攻击范围内的友方单位攻击速度+8%', { attack_speed: 8 }), c('攻击范围内存在生命值低于一半的敌人时，攻击力+12%', { atk: 0.12 }),
+    c('攻击范围内的敌人生命少于40%时，令其获得33%的脆弱效果', { hp_ratio: 0.4 })], [null, null, null]);
+  assert.deepEqual(operatorAt(await loadTraining('char_134_ifrit'), E2).rangeTalents, [{ side: 'enemy', ranged: false, mods: { resPct: -0.4 } }]);
+  assert.equal(alwaysOn({ description: '防御力+70', bb: { def: 70 }, hidden: false }), null, 'a share written without %: not read as one');
 });

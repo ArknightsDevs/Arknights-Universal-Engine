@@ -4,7 +4,7 @@
 import index from '../data/operators/index.json' with { type: 'json' };
 import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
-import { unlockedAt, talentsAt, alwaysOnBb, teamPart } from './talents.js';
+import { unlockedAt, talentsAt, alwaysOnBb, teamPart, rangePart } from './talents.js';
 
 /** @typedef {import('@aue/sim').OperatorDef} OperatorDef */
 /**
@@ -123,8 +123,8 @@ export function teamTalentsAt(t, b) {
 /**
  * An operator at a training (干员-1…干员-3, 干员-6, 干员-7, 干员-9) as @aue/sim reads it: its attributes, the elite
  * phase's range, its branch's trait (职业-7), the skill it brings at its level (技能-1), its always-on talents — 部署费用
- * and 再部署时间 folded in, the rest as `talentBb` — and its on-field team talents. Throws for an elite phase it does not
- * have, or a skill or module not unlocked yet.
+ * and 再部署时间 folded in, the rest as `talentBb` — its on-field team talents and its in-range talents (干员-11). Throws
+ * for an elite phase it does not have, or a skill or module not unlocked yet.
  * @param {Training} t @param {Build} b @returns {OperatorDef}
  */
 export function operatorAt(t, b) {
@@ -133,11 +133,13 @@ export function operatorAt(t, b) {
   const slot = b.skill >= 0 ? t.skills[b.skill] : undefined;
   if (b.skill >= 0 && (!slot || slot.phase > b.elite)) throw new RangeError(`${t.name}: skill ${b.skill} is not unlocked at elite ${b.elite}`);
   const mod = moduleAt(t, b), s = statsAt(t, b, mod), level = slot ? slot.levels[clamp(b.skillLevel, 1, slot.levels.length) - 1] : null;
-  const { cost = 0, respawn_time: respawn = 0, ...talentBb } = alwaysOnBb(upgradedTalents(t, b, mod)), { field } = teamTalentsAt(t, b);
+  const talents = upgradedTalents(t, b, mod), { cost = 0, respawn_time: respawn = 0, ...talentBb } = alwaysOnBb(talents), { field } = teamTalentsAt(t, b);
+  const inRange = talents.map(rangePart).filter((p) => p !== null);
   return withTrait({
     name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: phase.range, traitBb: traitAt(t, b),
     maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: Math.max(0, s.cost + cost), blockCnt: s.blockCnt, baseAttackTime: s.baseAttackTime,
     respawnTime: Math.max(0, s.respawnTime + respawn), aspd: s.aspd, tauntLevel: s.tauntLevel, massLevel: s.massLevel,
-    ...(Object.keys(talentBb).length ? { talentBb } : {}), ...(field.length ? { fieldTalents: field } : {}), ...(slot && level ? { skill: skillDefOf(slot.id, level) } : {}),
+    ...(Object.keys(talentBb).length ? { talentBb } : {}), ...(field.length ? { fieldTalents: field } : {}), ...(inRange.length ? { rangeTalents: inRange } : {}),
+    ...(slot && level ? { skill: skillDefOf(slot.id, level) } : {}),
   });
 }

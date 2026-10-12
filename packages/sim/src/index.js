@@ -38,7 +38,7 @@ export { teamFits } from './aura.js';
 /** @typedef {import('./types.js').SkillDef} SkillDef */
 /** @typedef {import('./skills.js').SkillBehavior} SkillBehavior */
 /** @typedef {import('./types.js').TraitDef} TraitDef */
-/** @typedef {import('./types.js').OperatorDef} OperatorDef @typedef {import('./types.js').TeamTalent} TeamTalent */
+/** @typedef {import('./types.js').OperatorDef} OperatorDef @typedef {import('./types.js').TeamTalent} TeamTalent @typedef {import('./types.js').RangeTalent} RangeTalent */
 /** @typedef {import('./types.js').EnemyDef} EnemyDef */
 /** @typedef {import('./foes.js').FoeBehavior} FoeBehavior @typedef {import('./foes.js').FoeContext} FoeContext */
 /** @typedef {import('./traits.js').TraitBehavior} TraitBehavior */
