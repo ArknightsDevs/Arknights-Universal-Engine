@@ -67,15 +67,16 @@ function talentBuffs(d) {
 
 /**
  * A deployed operator; `dir` is the protocol's direction code (schema DIR), `paid` what its deployment cost (部署-3),
- * `summoner` the id of the unit that summoned it (召唤-4, 召唤-6).
- * @param {World} w @param {Content} c @param {{ key: string, owner: number, row: number, col: number, dir: number, paid?: number, summoner?: number }} o @returns {Unit}
+ * `summoner` the id of the unit that summoned it (召唤-4, 召唤-6), `expires` the frame it leaves at (召唤-9).
+ * @param {World} w @param {Content} c @param {{ key: string, owner: number, row: number, col: number, dir: number, paid?: number, summoner?: number, expires?: number }} o
+ * @returns {Unit}
  */
 export function makeOperator(w, c, o) {
   return {
     id: w.nextId++, kind: KIND.OPERATOR, key: o.key, owner: o.owner, x: o.col, y: o.row, z: heightLevel(tileAt(c.level, o.row, o.col)),
     dir: dirOfCode(o.dir), ...fresh(w, baseOf(c.operators[o.key]), talentBuffs(c.operators[o.key])), route: -1, leg: 0, frag: 0, wave: -1, ab: {}, anim: ANIM.IDLE, paid: o.paid ?? c.operators[o.key].cost,
     skill: c.operators[o.key].skill ? makeSkillState(/** @type {import('./types.js').SkillDef} */ (c.operators[o.key].skill)) : null,
-    ...(o.summoner !== undefined ? { summoner: o.summoner } : {}),
+    ...(o.summoner !== undefined ? { summoner: o.summoner } : {}), ...(o.expires !== undefined ? { expires: o.expires } : {}),
   };
 }
 

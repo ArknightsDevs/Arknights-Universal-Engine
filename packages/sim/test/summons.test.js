@@ -185,3 +185,48 @@ test('[召唤-8] the owner\'s skill gives copies at its start or its end, up to 
   step(w, given, [[0, { type: 'skill', unit: guard.id }]]);
   assert.equal(card(w, 'drone').held, 1, 'not above the hold limit');
 });
+
+test('[召唤-9] a summon with a time retreats when it is up, deployed or summoned by content; one without stays', () => {
+  const timed = { ...c, operators: { ...c.operators, tentacle: summon('guard', {}, { life: 1 }), shadow: summon('guard', {}, { supply: 0, occupy: 0, life: 2 }) } };
+  const w = createWorld(timed, { seed: 1, players: 1 });
+  w.players[0].cost = 99;
+  step(w, timed, [[0, deploy({})]]);
+  const at = w.frame;
+  step(w, timed, [[0, deploy({ op: 'tentacle', col: 3 })]]);
+  const t = unitsOf(w, 'tentacle')[0], s = summons.spawnSummon(w, timed, unitsOf(w, 'guard')[0], 'shadow', { row: 1, col: 4 });
+  assert.deepEqual([t.expires, s?.expires], [at + 30, w.frame + 60]);
+  run(w, at + 30 - w.frame);
+  assert.equal(unitsOf(w, 'tentacle').length, 1, 'not before its frame');
+  step(w, timed);
+  assert.equal(unitsOf(w, 'tentacle').length, 0);
+  assert.ok(w.events.some((e) => e.type === 'retreat' && e.id === t.id));
+  assert.equal(card(w, 'tentacle').held, 1, '默认: its copy spent');
+  run(w, 30);
+  assert.equal(unitsOf(w, 'shadow').length, 1, 'summoned between frames: its time counts from the next');
+  step(w, timed);
+  assert.equal(unitsOf(w, 'shadow').length, 0);
+  assert.equal(unitsOf(w, 'guard')[0].expires, undefined);
+});
+
+test('[召唤-10] the end of the owner\'s skill: its summons retreat — recovered, or only those under half their HP', () => {
+  const skill = { id: 's', type: /** @type {const} */ ('MANUAL'), sp: /** @type {const} */ ('time'), cost: 1, init: 1, charges: 1, duration: 1, ammo: false, bb: {} };
+  const ended = {
+    ...c, operators: { ...c.operators, guard: { ...c.operators.guard, skill },
+      tentacle: summon('guard', {}, { occupy: 0, skillEnd: { recover: true } }),
+      shadow: summon('guard', {}, { supply: 0, occupy: 0, skillEnd: { recover: false, below: 0.5 } }) },
+  };
+  const w = createWorld(ended, { seed: 1, players: 1 });
+  w.players[0].cost = 99;
+  step(w, ended, [[0, deploy({})]]);
+  step(w, ended, [[0, deploy({ op: 'tentacle', col: 3 })]]);
+  const guard = unitsOf(w, 'guard')[0];
+  const hurt = /** @type {import('../src/types.js').Unit} */ (summons.spawnSummon(w, ended, guard, 'shadow', { row: 1, col: 4 }));
+  summons.spawnSummon(w, ended, guard, 'shadow', { row: 1, col: 1 });
+  hurt.hp = 40;
+  assert.equal(card(w, 'tentacle').held, 1);
+  step(w, ended, [[0, { type: 'skill', unit: guard.id }]]);
+  for (let i = 0; i < 31; i++) step(w, ended);
+  assert.equal(guard.skill?.active, false);
+  assert.deepEqual([unitsOf(w, 'tentacle').length, card(w, 'tentacle').held], [0, 2], 'recovered: its copy back');
+  assert.deepEqual(unitsOf(w, 'shadow').map((u) => u.y * 6 + u.x), [1 * 6 + 1], 'the one under half its HP');
+});

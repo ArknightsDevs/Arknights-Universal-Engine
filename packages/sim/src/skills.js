@@ -7,7 +7,7 @@ import { statsOf } from './attrs.js';
 import { timeSp, gainSp, spendSp } from './sp.js';
 import { actorContext } from './traits.js';
 import { emit } from './bus.js';
-import { grantSummons } from './summons.js';
+import { grantSummons, endSummons } from './summons.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').SkillDef} SkillDef @typedef {import('./types.js').SkillState} SkillState */
@@ -114,6 +114,7 @@ export function endSkill(w, c, op, reason = 'duration') {
   behaviorOf(c, st.id).end?.(contextOf(w, c, op));
   st.active = false; st.armed = false; st.dur = -1; st.ammo = 0;
   w.events.push({ type: 'skill', id: op.id, active: 0 });
+  endSummons(w, c, op);
   grantSummons(w, c, op, 'end');
   emit(w, 'skillEnd', { unit: op, reason });
 }

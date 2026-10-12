@@ -168,9 +168,10 @@
 /**
  * A summon's card rules (召唤-3, 召唤-4): its limits on the field and held, what its owner's deployment adds (0: no card),
  * whether it takes a place in the deploy limit (部署占用数), its 再部署策略, whether it stays when its owner leaves (召唤-5),
- * whether it may only stand in its owner's attack range, the copies its owner's skill gives at its start or end (召唤-8).
+ * whether it may only stand in its owner's attack range, the copies its owner's skill gives at its start or end (召唤-8),
+ * the seconds it stays (召唤-9), what its owner's skill's end does to it (召唤-10).
  * @typedef {{ deployLimit: number, holdLimit: number, supply: number, occupy: number, respawn: 'default' | 'unique' | 'queue', stays?: boolean,
- *   ownerRange?: boolean, grant?: { n: number, at: 'start' | 'end' } }} SummonDef
+ *   ownerRange?: boolean, grant?: { n: number, at: 'start' | 'end' }, life?: number, skillEnd?: { recover: boolean, below?: number } }} SummonDef
  */
 /**
  * A deployment talent (部署-8): SP between `sp[0]` and below `sp[1]`, a heal of every operator (`value` HP or `scale` × the
@@ -298,6 +299,7 @@
  * @property {Swing | null} swing the attack it is in the wind-up of, null for none (攻击-2)
  * @property {number} anim schema ANIM
  * @property {number} [summoner] the id of the unit that summoned it (召唤-4, 召唤-6); left out for others
+ * @property {number} [expires] the frame a summon with a time leaves at (召唤-9); left out for others
  */
 
 /**

@@ -6,6 +6,7 @@ import index from '../data/tokens/index.json' with { type: 'json' };
 import pages from '../data/summons.json' with { type: 'json' };
 import { moduleAt, recordAt, statsAt } from './operators.js';
 import { talentsAt, unlockedAt } from './talents.js';
+import { grantAt as grantText, lifeAt, skillEndAt } from './summontext.js';
 
 /** @typedef {import('./operators.js').Training} Training @typedef {import('./operators.js').Build} Build */
 /** @typedef {import('./operators.js').Module['levels'][number]} ModuleLevel @typedef {import('./operators.js').ModulePart} ModulePart */
@@ -14,7 +15,7 @@ import { talentsAt, unlockedAt } from './talents.js';
  * A summon's PRTS fields (召唤-4, 召唤-5): 部署占用数, 再部署策略, 实体类型 装置, 部署位置 when it differs, whether it
  * stays when its owner leaves, and the page revision.
  * @typedef {{ page: string, oldid: number, occupy: number, respawn: 'default' | 'unique' | 'queue', device: boolean, position?: string,
- *   stays?: boolean, occupyUnknown?: boolean, effects?: string[], immune?: string[], unattacked?: boolean, ownerRange?: boolean }} SummonPage
+ *   stays?: boolean, occupyUnknown?: boolean, effects?: string[], immune?: string[], unattacked?: boolean, ownerRange?: boolean, tactical?: boolean }} SummonPage
  */
 
 /** Every summon there is training data for, by id: name and position. */
@@ -121,66 +122,37 @@ function withEffects(rec, page) {
   };
 }
 
-/** A count of copies a skill gives (召唤-8): after 获得 or 可以使用, a number of 个 or 枚, not of something 持续…. */
-const GIVES = /(?:获得|可以使用)(一|两|二|三|四|五|\d+|\{cnt(?::[^}]*)?\})(?:个|枚)(?!持续)/;
-/** @type {Readonly<Record<string, number>>} */
-const WORD = Object.freeze({ 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5 });
-
 /**
- * When the clause a skill gives copies in says it happens (召唤-8): 技能结束时 at the skill's end, 部署后 at its owner's
- * deployment, else at its start.
- * @param {string} text @param {number} at
- * @returns {'start' | 'end' | 'deploy'}
- */
-function givenWhen(text, at) {
-  const clause = text.slice(0, at).split(/[\n；。]|\\n/).at(-1) ?? '';
-  return clause.includes('技能结束时') ? 'end' : clause.includes('部署后') ? 'deploy' : 'start';
-}
-
-/**
- * Whether the skill an owner brings is about a summon (召唤-8): the skill summons it, or the skill summons none and the
- * owner's talents name it and no other.
- * @param {Training} owner @param {NonNullable<Training['skills'][number]>} slot @param {string} id
- */
-function skillOf(owner, slot, id) {
-  if (slot.token) return slot.token === id;
-  const named = new Set(owner.talents.flat().map((c) => c.token).filter((t) => t !== null && Object.hasOwn(TOKENS, t)));
-  return named.size === 1 && named.has(id);
-}
-
-/**
- * The copies of a summon its owner's skill gives (召唤-8): when the skill the owner brings is about it (skillOf), its
- * description at the skill's level — a count of 个 or 枚 after 获得 or 可以使用 (the blackboard's cnt for {cnt}), not of
- * something 持续…, or 获得 and the summon's name for one — and when; null for none.
+ * The copies of a summon its owner's skill gives and when (召唤-8, summontext.js), or null.
  * @param {Training} owner @param {Build} b @param {string} id @param {string} name
- * @returns {{ n: number, at: 'start' | 'end' | 'deploy' } | null}
  */
-export function grantAt(owner, b, id, name) {
-  const slot = b.skill >= 0 ? owner.skills[b.skill] : null;
-  if (!slot || !skillOf(owner, slot, id)) return null;
-  const lv = slot.levels[Math.min(Math.max(1, b.skillLevel), slot.levels.length) - 1];
-  const text = (lv.description ?? '').replace(/<[^>]*>/g, ''), m = GIVES.exec(text);
-  if (m) {
-    const cnt = lv.blackboard.find((e) => e.key === 'cnt')?.value ?? 0;
-    return { n: m[1].startsWith('{') ? cnt : WORD[m[1]] ?? Number(m[1]), at: givenWhen(text, m.index) };
-  }
-  const i = text.indexOf(`获得${name}`);
-  return i >= 0 ? { n: 1, at: givenWhen(text, i) } : null;
-}
+export const grantAt = (owner, b, id, name) => grantText(owner, b, id, name, TOKENS);
 
 /**
- * A summon at its owner's training as @aue/sim reads it (召唤-2…召唤-4, 召唤-7, 召唤-8): its record, with its PRTS position
- * and effects, and `summon` — its limits, what the owner's deployment adds to its card, what its skill gives and when,
- * 部署占用数, 再部署策略, whether it stays when the owner leaves.
+ * A summon at its owner's training as @aue/sim reads it (召唤-2…召唤-4, 召唤-7…召唤-10): its record, with its PRTS
+ * position and effects, and `summon` — its limits, what the owner's deployment adds to its card, what its skill gives and
+ * when, how long it stays and what its owner's skill's end does to it, 部署占用数, 再部署策略, whether it stays when the
+ * owner leaves.
  * @param {Training} token @param {string} id @param {Training} owner @param {Build} b @returns {import('@aue/sim').OperatorDef}
  */
 export function tokenAt(token, id, owner, b) {
   const tb = tokenBuild(token, b), mod = tokenModule(owner, b, id), page = Object.hasOwn(SUMMON_PAGES, id) ? SUMMON_PAGES[id] : null;
   return {
     ...withEffects(recordAt(token, tb, mod), page), ...(page?.position ? { position: /** @type {'MELEE' | 'RANGED'} */ (page.position) } : {}),
-    summon: { ...limitsAt(token, tb, mod), ...cardOf(token, id, owner, b), occupy: page?.occupy ?? 0, respawn: page?.respawn ?? 'default',
-      ...(page?.stays ? { stays: true } : {}), ...(page?.ownerRange ? { ownerRange: true } : {}) },
+    summon: { ...limitsAt(token, tb, mod), ...cardOf(token, id, owner, b), ...leavingOf(token, id, owner, b), occupy: page?.occupy ?? 0,
+      respawn: page?.respawn ?? 'default', ...(page?.stays ? { stays: true } : {}), ...(page?.ownerRange ? { ownerRange: true } : {}) },
   };
+}
+
+/**
+ * When a summon leaves by itself (召唤-9, 召唤-10): the seconds it stays, and what the end of its owner's skill does to it.
+ * @param {Training} token @param {string} id @param {Training} owner @param {Build} b
+ * @returns {{ life?: number, skillEnd?: { recover: boolean, below?: number } }}
+ */
+function leavingOf(token, id, owner, b) {
+  const life = lifeAt(token, id, owner, b, { known: TOKENS, tactical: SUMMON_PAGES[id]?.tactical === true, tb: tokenBuild(token, b) });
+  const end = skillEndAt(owner, b, id, token.name, TOKENS);
+  return { ...(life > 0 ? { life } : {}), ...(end ? { skillEnd: end } : {}) };
 }
 
 /**

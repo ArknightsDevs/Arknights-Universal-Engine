@@ -13,7 +13,7 @@ import { operatorsAttack, shotsFly } from './combat.js';
 import { foeEffects, foeDeath, releasePassengers } from './foes.js';
 import { applyCommand } from './commands.js';
 import { leaveField } from './deck.js';
-import { coolSummons, dismissSummons } from './summons.js';
+import { coolSummons, dismissSummons, expireSummons } from './summons.js';
 import { tickRevival, tickRequests, neutralDown } from './coop.js';
 import { tickBuffs } from './buffs.js';
 import { STATUS_BEHAVIORS } from './status.js';
@@ -122,6 +122,7 @@ export function step(w, c, commands = []) {
   if (w.frame === 0) emit(w, 'battleStart', {});
   gainCost(w, c);
   coolSummons(w, c);
+  expireSummons(w, c);
   tickRevival(w, c);
   tickRequests(w);
   tickStage(w, c);

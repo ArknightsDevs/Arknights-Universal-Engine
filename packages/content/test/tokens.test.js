@@ -125,3 +125,39 @@ test('[召唤-8] what the owner\'s skill gives and when, read from its descripti
   const drone = tokenAt(await loadToken('token_10000_silent_healrb'), 'token_10000_silent_healrb', silent, build({ elite: 2, level: 80, skill: 1 }));
   assert.deepEqual([drone.summon?.supply, drone.summon?.grant], [0, { n: 1, at: 'start' }]);
 });
+
+/** A summon at an owner's elite-2 training with skill `skill` (0-based). @param {string} owner @param {string} id @param {number} skill */
+async function summonOf(owner, id, skill, more = {}) {
+  const o = await loadTraining(owner), t = await loadToken(id);
+  const top = o.phases.length - 1;
+  return /** @type {import('@aue/sim').SummonDef} */ (tokenAt(t, id, o, build({ elite: top, level: o.phases[top].maxLevel, skill, ...more })).summon);
+}
+
+test('[召唤-8] 技能结束后 gives at the skill\'s end too', async () => {
+  assert.deepEqual((await summonOf('char_433_windft', 'token_10023_windft_wrench', 1)).grant, { n: 1, at: 'end' });
+  assert.equal((await summonOf('char_4178_alanna', 'token_10045_alanna_crane', 1)).grant?.at, 'end');
+});
+
+test('[召唤-9] how long a summon stays: the 7 PRTS states, the owner\'s texts, its own talent; none for a tactical point', async () => {
+  const prts = [['char_2015_dusk', 'token_10015_dusk_drgn', 2, 25], ['char_113_cqbw', 'token_10008_cqbw_box', 1, 120], ['char_400_weedy', 'token_10009_weedy_cannon', 2, 20],
+    ['char_4046_ebnhlz', 'token_10024_ebnhlz_rcube', 1, 30], ['char_344_beewax', 'token_10011_beewax_oblisk', 1, 20], ['char_108_silent', 'token_10000_silent_healrb', 1, 10],
+    ['char_254_vodfox', 'token_10006_vodfox_doll', 1, 15]];
+  for (const [owner, id, skill, s] of prts) assert.equal((await summonOf(/** @type {string} */ (owner), /** @type {string} */ (id), /** @type {number} */ (skill))).life, s, /** @type {string} */ (id));
+  assert.equal((await summonOf('char_1012_skadi2', 'token_10017_skadi2_dedant', 0)).life, 25);
+  assert.equal((await summonOf('char_1012_skadi2', 'token_10017_skadi2_dedant', 0, { elite: 1, level: 1 })).life, 15, 'its talent at the owner\'s elite');
+  assert.equal((await summonOf('char_4229_aphris', 'token_10070_aphris_pc', 0)).life, 25, 'the owner\'s 持续时间25秒的“中继器”');
+  assert.equal((await summonOf('char_4215_buddy', 'token_10063_buddy_bddg', 0, { level: 30 })).life, undefined, 'a tactical point');
+  assert.equal((await summonOf('char_484_robrta', 'token_10018_robrta_mach', 0)).life, undefined, 'a named talent\'s 持续 is its effect\'s');
+  assert.equal((await summonOf('char_110_deepcl', 'token_10001_deepcl_tentac', 0, { level: 70 })).life, undefined);
+});
+
+test('[召唤-10] what the end of the owner\'s skill does: recovered, destroyed, those under half; not others\' end clauses', async () => {
+  assert.deepEqual((await summonOf('char_248_mgllan', 'token_10005_mgllan_drone1', 0)).skillEnd, { recover: true });
+  assert.deepEqual((await summonOf('char_2023_ling', 'token_10020_ling_soul2', 1)).skillEnd, { recover: true, below: 0.5 });
+  assert.deepEqual((await summonOf('char_4072_ironmn', 'token_10027_ironmn_pile1', 0)).skillEnd, { recover: false });
+  assert.deepEqual((await summonOf('char_1031_slent2', 'token_10029_slent2_protrb', 1)).skillEnd, { recover: false });
+  assert.deepEqual((await summonOf('char_4147_mitm', 'token_10037_mitm_trshrb', 1)).skillEnd, { recover: false });
+  assert.deepEqual((await summonOf('char_4229_aphris', 'token_10070_aphris_pc', 2)).skillEnd, { recover: false });
+  assert.equal((await summonOf('char_336_folivo', 'token_10010_folivo_car', 1)).skillEnd, undefined, '摄影车晕眩');
+  assert.equal((await summonOf('char_4072_ironmn', 'token_10027_ironmn_pile2', 1)).skillEnd, undefined);
+});

@@ -7,6 +7,7 @@ import { tileAt } from './level.js';
 import { makeOperator } from './units.js';
 import { releaseAll } from './blocking.js';
 import { reachKeys } from './reach.js';
+import { statsOf } from './attrs.js';
 import { onDeploy } from './skills.js';
 import { traitDeploy, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
@@ -75,7 +76,8 @@ export function inOwnerRange(w, c, seat, key, at) {
  * @param {World} w @param {Content} c @param {Unit} owner @param {{ key: string, row: number, col: number, dir: number, paid: number }} o
  */
 function enter(w, c, owner, o) {
-  const u = makeOperator(w, c, { ...o, owner: owner.owner, summoner: owner.id });
+  const life = c.operators[o.key].summon?.life ?? 0;
+  const u = makeOperator(w, c, { ...o, owner: owner.owner, summoner: owner.id, ...(life > 0 ? { expires: w.frame + secondsToFrames(life) } : {}) });
   w.units.push(u);
   w.events.push({ type: 'deploy', id: u.id, key: u.key, owner: owner.owner });
   traitDeploy(w, c, u);
@@ -171,15 +173,48 @@ export function coolSummons(w, c) {
  * @param {World} w @param {Content} c @param {number[]} owners the units that left
  */
 export function dismissSummons(w, c, owners) {
-  const gone = w.units.filter((u) => u.summoner !== undefined && owners.includes(u.summoner) && c.operators[u.key].summon?.stays !== true);
+  retreatSummons(w, c, w.units.filter((u) => u.summoner !== undefined && owners.includes(u.summoner) && c.operators[u.key].summon?.stays !== true));
+}
+
+/**
+ * Summons retreat (召唤-4, 召唤-5, 召唤-9, 召唤-10): each leaves at once, lets go of what it blocks, its card handles it
+ * (summonLeft) — a recovered one under 默认 gets its copy back, up to the hold limit —, the event `retreat` and the hooks
+ * tell it; then their own summons leave with them.
+ * @param {World} w @param {Content} c @param {Unit[]} gone @param {boolean} [recover]
+ */
+function retreatSummons(w, c, gone, recover = false) {
   if (gone.length === 0) return;
   w.units = w.units.filter((u) => !gone.includes(u));
   for (const u of gone) {
     releaseAll(w, u.id);
     summonLeft(w, c, u);
+    const s = c.operators[u.key].summon, p = w.players[u.owner], card = summonCardOf(p, u.key);
+    if (recover && s?.respawn === 'default') setCard(p, u.key, { ...card, held: Math.min(s.holdLimit, card.held + 1) });
     w.events.push({ type: 'retreat', id: u.id });
     if (u.skill?.active) emit(w, 'skillEnd', { unit: u, reason: 'death' });
     emit(w, 'death', { unit: u, reason: 'retreat', killer: null });
   }
   dismissSummons(w, c, gone.map((u) => u.id));
+}
+
+/**
+ * The summons whose time is up retreat (召唤-9): those whose frame to leave has come.
+ * @param {World} w @param {Content} c
+ */
+export function expireSummons(w, c) {
+  retreatSummons(w, c, w.units.filter((u) => u.expires !== undefined && w.frame >= u.expires && u.hp > 0));
+}
+
+/**
+ * The end of an owner's skill (召唤-10): its summons the skill's end takes off the field — those under the share of their
+ * HP when it says so — retreat, recovered or not.
+ * @param {World} w @param {Content} c @param {Unit} owner
+ */
+export function endSummons(w, c, owner) {
+  for (const [key, d] of Object.entries(c.operators)) {
+    const end = d.summon?.skillEnd;
+    if (d.summoner !== owner.key || !end) continue;
+    const below = end.below ?? Infinity;
+    retreatSummons(w, c, w.units.filter((u) => u.key === key && u.summoner === owner.id && u.hp > 0 && u.hp < below * statsOf(u).maxHp), end.recover);
+  }
 }

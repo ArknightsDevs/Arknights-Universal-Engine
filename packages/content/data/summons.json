@@ -1,5 +1,5 @@
 {
- "$comment": "The summons' PRTS 召唤物信息 fields (docs/spec/summons.md 召唤-4, 召唤-5, 召唤-7): 部署占用数 (occupy), 再部署策略 (respawn), 实体类型 装置 (device), 部署位置 where it differs from the data (position), stays — it does not leave with its owner (召唤-5), the 异常效果 its 备注 says it holds (effects) and is immune to (immune), unattacked — its 特性 says 不会受到攻击, and ownerRange — it says 只能部署在召唤者攻击范围内 (召唤-4); each with its page and revision.",
+ "$comment": "The summons' PRTS 召唤物信息 fields (docs/spec/summons.md 召唤-4, 召唤-5, 召唤-7): 部署占用数 (occupy), 再部署策略 (respawn), 实体类型 装置 (device), 部署位置 where it differs from the data (position), stays — it does not leave with its owner (召唤-5), the 异常效果 its 备注 says it holds (effects) and is immune to (immune), unattacked — its 特性 says 不会受到攻击, ownerRange — it says 只能部署在召唤者攻击范围内 (召唤-4), and tactical — its 实体类型 names a 战术点 (召唤-9); each with its page and revision.",
  "source": {
   "wiki": "https://prts.wiki",
   "fetched": "2026-10-12"
@@ -167,7 +167,8 @@
    "effects": [
     "禁疗"
    ],
-   "ownerRange": true
+   "ownerRange": true,
+   "tactical": true
   },
   "token_10015_dusk_drgn": {
    "page": "“小自在”",
@@ -260,7 +261,8 @@
    "effects": [
     "禁疗"
    ],
-   "ownerRange": true
+   "ownerRange": true,
+   "tactical": true
   },
   "token_10022_kazema_shadow": {
    "page": "纸偶",
@@ -344,7 +346,8 @@
    "effects": [
     "禁疗"
    ],
-   "ownerRange": true
+   "ownerRange": true,
+   "tactical": true
   },
   "token_10029_slent2_protrb": {
    "page": "夜灯",
@@ -363,7 +366,8 @@
    "effects": [
     "禁疗"
    ],
-   "ownerRange": true
+   "ownerRange": true,
+   "tactical": true
   },
   "token_10031_swire2_gdtrap": {
    "page": "香槟炸弹",
@@ -432,7 +436,8 @@
    "effects": [
     "禁疗"
    ],
-   "ownerRange": true
+   "ownerRange": true,
+   "tactical": true
   },
   "token_10039_ulpia_block": {
    "page": "从不混淆的方向",
@@ -664,7 +669,8 @@
    "effects": [
     "禁疗",
     "不死"
-   ]
+   ],
+   "tactical": true
   },
   "token_10064_wang_stone1": {
    "page": "棋子",
@@ -700,7 +706,8 @@
    "effects": [
     "禁疗"
    ],
-   "ownerRange": true
+   "ownerRange": true,
+   "tactical": true
   },
   "token_10067_toledo_tldptm": {
    "page": "征服者传说",
