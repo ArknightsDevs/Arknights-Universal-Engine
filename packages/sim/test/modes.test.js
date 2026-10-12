@@ -192,3 +192,16 @@ test('[部署-7] timed talents: a step every interval up to its most; once after
   run(90);
   assert.deepEqual([statsOf(g).atk, statsOf(g).def], [70, 105], 'no more');
 });
+
+test('[部署-8] [随机-1] deployment talents: SP (one draw when it is a range), a heal of every operator, shield layers', () => {
+  const { w, put } = arena((cc) => {
+    cc.operators.guard = { ...cc.operators.guard, skill: { ...skill(10), cost: 30, init: 0 }, deployTalents: [{ sp: [7, 16] }, { heal: { value: 100 } }, { shield: 3 }] };
+    cc.operators.g2 = { ...cc.operators.guard, skill: undefined, deployTalents: [{ sp: [5, 6] }] };
+  });
+  const mate = put('g2', 1, 2);
+  mate.hp = 500;
+  const rng = w.rng, g = put('guard', 1, 1), st = /** @type {any} */ (g.skill);
+  assert.notEqual(w.rng, rng);
+  assert.ok(Number.isInteger(st.sp) && st.sp >= 7 && st.sp <= 15, String(st.sp));
+  assert.deepEqual([mate.hp, g.buffs.find((b) => b.key === 'deployShield')?.shieldHits], [600, 3]);
+});

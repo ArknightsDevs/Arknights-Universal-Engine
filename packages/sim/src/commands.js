@@ -5,7 +5,7 @@ import { tileAt, buildableFor } from './level.js';
 import { makeOperator } from './units.js';
 import { onDeploy, commandSkill } from './skills.js';
 import { traitDeploy, traitOfDef, traitOf } from './traits.js';
-import { modeDeploy } from './modes.js';
+import { modeDeploy, deployTalents } from './modes.js';
 import { cardOf, deployCost, withdraw } from './deck.js';
 import { isDown, askCost, answerCost } from './coop.js';
 
@@ -55,6 +55,7 @@ function deploy(w, c, seat, cmd) {
   w.events.push({ type: 'deploy', id: u.id, key: u.key, owner: seat });
   traitDeploy(w, c, u);
   modeDeploy(u, traitOf(c, u));
+  deployTalents(w, c, u);
   onDeploy(w, c, u);
 }
 

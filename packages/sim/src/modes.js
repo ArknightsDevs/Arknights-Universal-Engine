@@ -9,6 +9,9 @@ import { ELEMENTS, epOf, currentElement } from './elements.js';
 import { precisionKey, insertionSort } from './targeting.js';
 import { traitOf } from './traits.js';
 import { launch } from './swing.js';
+import { gainSp } from './sp.js';
+import { draw } from './rng.js';
+import { heal } from './damage.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Buff} Buff @typedef {import('./skills.js').AttackMods} AttackMods */
@@ -45,6 +48,23 @@ export function modeDeploy(op, t) {
   if (t.store > 0) addBuff(op, makeBuff({ key: 'energy', src: op.id }));
   if (t.charge) addBuff(op, makeBuff({ key: 'charge', src: op.id, every: secondsToFrames(1), fixed: true }));
   skillIdle(op, t);
+}
+
+/**
+ * What an operator's deployment talents do as it is deployed (部署-8), each in order: SP — a whole number from the
+ * lower bound to below the upper, one draw (随机-1) when they differ — up to the skill's cap; a heal of every operator
+ * on the field (any player's); shield layers.
+ * @param {World} w @param {Content} c @param {Unit} op
+ */
+export function deployTalents(w, c, op) {
+  for (const t of c.operators[op.key].deployTalents ?? []) {
+    if (t.sp && op.skill) gainSp(op.skill, t.sp[1] - t.sp[0] > 1 ? t.sp[0] + Math.floor(draw(w) * (t.sp[1] - t.sp[0])) : t.sp[0]);
+    if (t.heal) {
+      const amount = 'value' in t.heal ? t.heal.value : t.heal.scale * statsOf(op).atk;
+      for (const u of w.units) if (u.kind === KIND.OPERATOR && u.hp > 0) w.events.push({ type: 'heal', id: op.id, target: u.id, amount: heal(op, u, amount) });
+    }
+    if (t.shield) addBuff(op, makeBuff({ key: 'deployShield', src: op.id, shieldHits: t.shield }));
+  }
 }
 
 /**

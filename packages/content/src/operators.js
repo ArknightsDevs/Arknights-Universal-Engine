@@ -4,7 +4,7 @@
 import index from '../data/operators/index.json' with { type: 'json' };
 import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
-import { unlockedAt, talentsAt, alwaysOnBb, teamPart, rangePart, critPart, timedPart } from './talents.js';
+import { unlockedAt, talentsAt, alwaysOnBb, teamPart, rangePart, critPart, timedPart, deployPart } from './talents.js';
 
 /** @typedef {import('@aue/sim').OperatorDef} OperatorDef */
 /**
@@ -121,8 +121,8 @@ export function teamTalentsAt(t, b) {
 }
 
 /**
- * The talent fields of an operator record (干员-6, 干员-9, 干员-11…干员-13): the always-on part's 部署费用 and 再部署时间
- * to fold in and the rest as `talentBb`, the on-field team talents, the in-range, chance and timed talents — each only
+ * The talent fields of an operator record (干员-6, 干员-9, 干员-11…干员-14): the always-on part's 部署费用 and 再部署时间
+ * to fold in and the rest as `talentBb`, the on-field team talents, the in-range, chance, timed and deployment talents — each only
  * when there is one.
  * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod
  */
@@ -130,7 +130,8 @@ function talentFields(t, b, mod) {
   const talents = upgradedTalents(t, b, mod), { cost = 0, respawn_time: respawn = 0, ...talentBb } = alwaysOnBb(talents);
   /** @type {[string, unknown[]][]} */
   const lists = [['fieldTalents', teamTalentsAt(t, b).field], ['rangeTalents', talents.map(rangePart).filter((p) => p !== null)],
-    ['critTalents', talents.map(critPart).filter((p) => p !== null)], ['timedTalents', talents.map(timedPart).filter((p) => p !== null)]];
+    ['critTalents', talents.map(critPart).filter((p) => p !== null)], ['timedTalents', talents.map(timedPart).filter((p) => p !== null)],
+    ['deployTalents', talents.map(deployPart).filter((p) => p !== null)]];
   return {
     cost, respawn,
     fields: { ...(Object.keys(talentBb).length ? { talentBb } : {}), ...Object.fromEntries(lists.filter(([, v]) => v.length > 0)) },

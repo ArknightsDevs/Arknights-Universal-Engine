@@ -265,3 +265,33 @@ export function timedPart(c) {
   return { kind: hit[1], seconds: c.bb[hit[2]], max, mods: Object.assign({}, ...parts) };
 }
 
+/** The head of a deployment talent (干员-14): 部署后立即 / 立刻. */
+const ON_DEPLOY = /^部署后(?:立即|立刻)/u;
+
+/**
+ * The effect of a deployment clause (干员-14), or null for another: SP (a fixed `sp`, or between `sp_min` and below
+ * `sp_max`), a heal of every operator (`value` HP, or `heal_scale` × its attack), shield layers (`times`, or one).
+ * @param {string} clause @param {Record<string, number>} bb
+ * @returns {{ sp?: [number, number], heal?: { value: number } | { scale: number }, shield?: number } | null}
+ */
+function deployEffect(clause, bb) {
+  if (/^获得\d+点技力$/u.test(clause) && Number.isFinite(bb.sp)) return { sp: [bb.sp, bb.sp + 1] };
+  if (/^随机获得\d+~\d+点技力$/u.test(clause) && Number.isFinite(bb.sp_min) && Number.isFinite(bb.sp_max)) return { sp: [bb.sp_min, bb.sp_max] };
+  if (/^恢复全场友方单位\d+点生命$/u.test(clause) && Number.isFinite(bb.value)) return { heal: { value: bb.value } };
+  if (/^恢复全体友方单位的生命值$/u.test(clause) && Number.isFinite(bb.heal_scale)) return { heal: { scale: bb.heal_scale } };
+  if (/^获得(?:\d+|一)层护盾$/u.test(clause)) return { shield: Number.isFinite(bb.times) ? bb.times : 1 };
+  return null;
+}
+
+/**
+ * The deployment part of a talent (干员-14): its first sentence begins 「部署后立即」 or 「部署后立刻」 and its first clause
+ * is one deployEffect reads. Null otherwise; hidden talents have none.
+ * @param {Talent} c @returns {{ sp?: [number, number], heal?: { value: number } | { scale: number }, shield?: number } | null}
+ */
+export function deployPart(c) {
+  if (c.hidden || !c.description) return null;
+  const first = c.description.replace(/<[^>]*>/g, '').replace(/（[^）]*）/g, '').split(/[。；]/)[0];
+  if (!ON_DEPLOY.test(first)) return null;
+  return deployEffect(first.replace(ON_DEPLOY, '').split('，')[0].trim(), c.bb);
+}
+
