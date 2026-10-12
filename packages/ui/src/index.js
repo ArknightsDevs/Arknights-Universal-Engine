@@ -27,3 +27,5 @@ export { OBJECTIVES, TIMER_WARN, clockText } from './battle/coop.js';
 /** @typedef {import('./battle/coopcost.js').CostAsk} CostAsk */
 /** @typedef {import('./battle/coopcost.js').CostAskInput} CostAskInput */
 /** @typedef {import('./battle/coop.js').Task} Task */
+export { createStates } from './battle/states.js';
+/** @typedef {import('./battle/states.js').BattleStates} BattleStates */
