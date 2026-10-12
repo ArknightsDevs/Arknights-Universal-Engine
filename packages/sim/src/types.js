@@ -138,6 +138,8 @@
  * @property {{ max: number, scale: number } | null} bullets each attack spends a bullet at this 倍率; it reloads one at a time (职业-12)
  * @property {number} store the most attack energy it stores when it has no target (0: none; 职业-12)
  * @property {number} epHeal its heals also restore each element value by this share of the heal (职业-12)
+ * @property {{ out: number, back: number } | null} boomerang its attack throws boomerangs that come back, at these speeds
+ *   (tiles per second); it attacks again only when it caught them all (职业-12)
  * @property {{ init: number, delta: number, max: number } | null} funnel its attack's 倍率: `init` on a new target, `delta` more
  *   for each attack on the one it attacked last, at most `max` (职业-12)
  * @property {boolean} noAttack it makes no normal attacks (职业-13)
@@ -328,9 +330,11 @@
 
 /**
  * A projectile in flight (攻击-3): its shooter's and its target's ids, where it is (tile coordinates), its speed in
- * tiles per second, and what it carries — the damage type and amount, hits, 元素损伤 ('' and 0 for none).
+ * tiles per second, and what it carries — the damage type and amount, hits, 元素损伤 ('' and 0 for none); a boomerang
+ * (职业-12) its way back's speed and, on its way back, `ret` 1.
  * @typedef {{ src: number, target: number, sx: number, sy: number, speed: number, type: DamageType, amount: number, times: number, element: string, ep: number,
- *   splash?: Splash | null, aftershock?: number, chain?: Chain | null, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null }} Shot
+ *   splash?: Splash | null, aftershock?: number, chain?: Chain | null, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null,
+ *   skill?: boolean, back?: number, ret?: number }} Shot
  */
 
 /**

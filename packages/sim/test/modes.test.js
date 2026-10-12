@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
-import { createWorld, step } from '../src/index.js';
+import { createWorld, step, bus } from '../src/index.js';
 import { makeEnemy } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
 import { statsOf, intervalFrames } from '../src/attrs.js';
@@ -255,4 +255,20 @@ test('[职业-6] [职业-12] a trait behaviour that owns its operator\'s deploym
   const mine = put('sniper', 2, 2);
   assert.deepEqual([buffOf(theirs, 'trait')?.mods, buffOf(theirs, 'bullets')?.value], [{ dodgePhys: 0.5 }, 2]);
   assert.deepEqual([buffOf(mine, 'trait'), buffOf(mine, 'bullets')?.value], [undefined, 2]);
+});
+
+test('[职业-12] [钩子-3] boomerangs: out to the target, back to the thrower, caught; no new attack until all are back', () => {
+  const caught = /** @type {number[]} */ ([]);
+  const { w, foe, put, run } = arena((c) => { c.operators.sniper = { ...c.operators.sniper, trait: { boomerang: { out: 15, back: 0.5 } } }; });
+  bus.on(w, 'boomerangCaught', () => { caught.push(w.frame); });
+  const op = put('sniper', 2, 2), e = foe(1, 2);
+  const first = run(60), hits = first.filter((x) => x.type === 'hit' && x.id === op.id);
+  assert.equal(hits.length, 1, 'one hit; the boomerang is on its way back for 2 s');
+  assert.deepEqual(w.shots.map((s) => [s.src, s.ret]), [[op.id, 1]]);
+  run(60);
+  assert.equal(caught.length, 1, 'caught');
+  assert.ok(run(60).some((x) => x.type === 'hit' && x.id === op.id), 'it attacks again');
+  w.units.splice(w.units.indexOf(e), 1);
+  const back = w.shots.filter((s) => s.src === op.id);
+  assert.ok(back.every((s) => s.ret === 1), 'a target that left: the boomerang comes back from where it is');
 });

@@ -86,18 +86,18 @@ test('client messages: generated well-formed deploys are accepted', () => {
 });
 
 test('snapshot envelope v13', () => {
-  assert.equal(snapshotProblem({ v: 13, frame: 0, data: {} }), null, 'version 13: operators carry their own attack range');
-  assert.equal(snapshotProblem({ v: 12, frame: 0, data: {} }), 'snapshot version 12, expected 13');
+  assert.equal(snapshotProblem({ v: 14, frame: 0, data: {} }), null, 'version 14: projectiles a boomerang\'s way back');
+  assert.equal(snapshotProblem({ v: 13, frame: 0, data: {} }), 'snapshot version 13, expected 14');
   assert.equal(snapshotProblem([]), 'snapshot is not an object');
-  assert.equal(snapshotProblem({ v: 14, frame: 0, data: {} }), 'snapshot version 14, expected 13');
-  assert.equal(snapshotProblem({ v: 13, frame: -1, data: {} }), 'snapshot.frame out of range');
-  assert.equal(snapshotProblem({ v: 13, frame: 0, data: [] }), 'snapshot.data is not an object');
-  assert.equal(snapshotProblem({ v: 13, frame: 0 }), 'missing field data');
+  assert.equal(snapshotProblem({ v: 15, frame: 0, data: {} }), 'snapshot version 15, expected 14');
+  assert.equal(snapshotProblem({ v: 14, frame: -1, data: {} }), 'snapshot.frame out of range');
+  assert.equal(snapshotProblem({ v: 14, frame: 0, data: [] }), 'snapshot.data is not an object');
+  assert.equal(snapshotProblem({ v: 14, frame: 0 }), 'missing field data');
 });
 
 test('server messages: well-formed ones pass; broken ones are reported, never thrown', () => {
   const ok = [
-    { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: { v: 13, frame: 0, data: {} }, match: null, content: 7, replay: null },
+    { t: 'welcome', v: PROTOCOL_VERSION, seat: 0, seed: 9, frame: -1, snapshot: { v: 14, frame: 0, data: {} }, match: null, content: 7, replay: null },
     { t: 'frames', from: 3, to: 5, cmds: [[4, 1, DEPLOY], [5, 0, { type: 'retreat', unit: 2 }]] },
     { t: 'restamp', from: 3, to: 7 }, { t: 'resync', snapshot: {}, frame: 3, replay: null }, { t: 'error', code: 'x', message: 'y' },
     { t: 'control', fast: [1, 0], held: 0, asker: -1, resuming: 0 }, { t: 'frames', from: 1, to: 1, cmds: [[1, 1, { type: 'answer', accept: 1 }]] },

@@ -1,6 +1,6 @@
 // The attack swing and projectiles (docs/spec/combat.md 攻击-2, 攻击-3): an attack's wind-up from its clip's OnAttack
 // time — sped up with the clip when the attacks come quicker than it — and the projectiles a ranged attack launches at
-// that moment, which home on their target and hit when they reach it.
+// that moment, which home on their target and hit when they reach it; a 回环射手's come back to it (职业-12).
 import { FPS, secondsToFrames, hypot } from '@aue/math';
 import { KIND } from '@aue/schema';
 
@@ -39,30 +39,51 @@ export function shoots(c, u, heals) {
 }
 
 /**
- * Launches a projectile from a unit at a target (攻击-3), with what it carries; a `shot` event.
- * @param {World} w @param {Unit} a @param {Unit} t @param {Omit<Shot, 'src' | 'target' | 'sx' | 'sy' | 'speed'>} load
+ * Launches a projectile from a unit at a target (攻击-3), with what it carries — a boomerang (职业-12) at its way out's
+ * speed, with its way back's —; a `shot` event.
+ * @param {World} w @param {Unit} a @param {Unit} t @param {Omit<Shot, 'src' | 'target' | 'sx' | 'sy' | 'speed'> & { boomerang?: { out: number, back: number } | null }} load
  */
 export function launch(w, a, t, load) {
-  w.shots.push({ src: a.id, target: t.id, sx: a.x, sy: a.y, speed: a.kind === KIND.OPERATOR ? SHOT_SPEED.operator : SHOT_SPEED.enemy, ...load });
+  const { boomerang, ...rest } = load, speed = boomerang ? boomerang.out : a.kind === KIND.OPERATOR ? SHOT_SPEED.operator : SHOT_SPEED.enemy;
+  w.shots.push({ src: a.id, target: t.id, sx: a.x, sy: a.y, speed, ...rest, ...(boomerang ? { back: boomerang.back } : {}) });
   w.events.push({ type: 'shot', id: a.id, target: t.id });
 }
 
+/** Moves a projectile `speed ÷ 30` tiles toward a unit; whether it is within that and arrives — at the unit. @param {Shot} s @param {Unit} u */
+function toward(s, u) {
+  const dx = u.x - s.sx, dy = u.y - s.sy, d = hypot(dx, dy), step = s.speed / FPS;
+  if (d <= step) { s.sx = u.x; s.sy = u.y; return true; }
+  s.sx += (dx / d) * step;
+  s.sy += (dy / d) * step;
+  return false;
+}
+
+/** A boomerang turns back toward its thrower (职业-12). @param {Shot} s */
+const turn = (s) => { s.ret = 1; s.speed = /** @type {number} */ (s.back); };
+
 /**
- * One frame of every projectile, in launch order (攻击-3): it moves its speed ÷ 30 tiles toward where its target is
- * now; within that distance it arrives. A target that left the field, fell or disappeared makes it vanish.
- * @param {World} w @param {(s: Shot, target: Unit) => void} arrive
+ * One frame of every projectile, in launch order (攻击-3, 职业-12): it moves its speed ÷ 30 tiles toward where its target
+ * is now; within that distance it arrives. A target that left the field, fell or disappeared makes it vanish — a
+ * boomerang turns back from where it is instead, as it does once it arrived; one on its way back that reaches its
+ * thrower is caught, and vanishes when its thrower left.
+ * @param {World} w @param {(s: Shot, target: Unit) => void} arrive @param {(s: Shot, thrower: Unit) => void} caught
  */
-export function flyShots(w, arrive) {
+export function flyShots(w, arrive, caught) {
   /** @type {Shot[]} */
   const keep = [];
   for (const s of w.shots) {
-    const t = w.units.find((u) => u.id === s.target);
-    if (!t || t.hp <= 0 || t.hidden) continue;
-    const dx = t.x - s.sx, dy = t.y - s.sy, d = hypot(dx, dy), step = s.speed / FPS;
-    if (d <= step) { arrive(s, t); continue; }
-    s.sx += (dx / d) * step;
-    s.sy += (dy / d) * step;
-    keep.push(s);
+    const t = w.units.find((u) => u.id === (s.ret ? s.src : s.target));
+    if (!t || t.hp <= 0 || (t.hidden && !s.ret)) {
+      if (s.back && !s.ret && w.units.some((u) => u.id === s.src && u.hp > 0)) { turn(s); keep.push(s); }
+      continue;
+    }
+    if (!toward(s, t)) { keep.push(s); continue; }
+    if (s.ret) { caught(s, t); continue; }
+    arrive(s, t);
+    if (s.back) { turn(s); keep.push(s); }
   }
   w.shots = keep;
 }
+
+/** Whether a unit has a boomerang out (职业-12): it may not attack until it caught them all. @param {World} w @param {Unit} u */
+export const boomerangOut = (w, u) => w.shots.some((s) => s.src === u.id && !!s.back);

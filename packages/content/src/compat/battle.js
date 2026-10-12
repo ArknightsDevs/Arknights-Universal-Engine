@@ -67,6 +67,7 @@ const SHAPES = {
   skillEnd: (b, k) => ({ unit: sh(b, k.unit), skill: sh(b, k.unit)?.skill ?? null, reason: k.reason }),
   elementHit: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), dmg: elementDmg(k.dmg) }),
   elementBurst: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), element: ELEMENT_NAME[k.element] ?? k.element }),
+  boomerangCaught: (b, k) => ({ unit: sh(b, k.unit), attackId: 0, isSkill: !!k.isSkill, x: k.x, y: k.y }),
   merchantPay: (b, k) => ({ unit: sh(b, k.unit), get cost() { return k.cost; }, set cost(v) { k.cost = v; }, get cancel() { return k.cancel; }, set cancel(v) { k.cancel = v; } }),
   beforeStatus: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), status: STATUS_NAME[k.status] ?? k.status,
     get duration() { return k.frames < 0 ? Infinity : k.frames * TICK; }, set duration(v) { k.frames = v === Infinity ? -1 : secondsToFrames(Math.max(0, Number(v) || 0)); },

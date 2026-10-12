@@ -63,6 +63,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   siegesniper: { trait: () => ({ filter: 'MASS_DES' }) },
   aoesniper: { trait: () => ({ splash: { radius: 1, scale: 1, ground: false } }) },
   bombarder: { trait: (bb) => ({ antiAir: false, splash: { radius: 0.9, scale: 1, ground: true }, aftershock: bb['attack@append_atk_scale'] ?? 0.5 }) },
+  // its attacks throw boomerangs, out at 15 and back at 3.75 tiles a second; it attacks again once it caught them all (职业-12)
+  loopshooter: { trait: () => ({ boomerang: { out: 15, back: 3.75 } }) },
   // value bullets at atk_scale, reloaded one at a time (职业-12)
   hunter: { trait: (bb) => ({ bullets: { max: bb.value ?? 8, scale: bb.atk_scale ?? 1.2 } }) },
   // every enemy in range; 倍率 × atk_scale for those in its own and the three tiles before it (range 1-3, 职业-11)

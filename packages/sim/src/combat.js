@@ -23,7 +23,7 @@ import { draw } from './rng.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
 import { mayAttack, healsNow, healerNow, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale } from './modes.js';
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitAsk } from './traits.js';
-import { timingOf, windupFrames, shoots, launch, flyShots, PALSY_CUT_FRAMES } from './swing.js';
+import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_CUT_FRAMES } from './swing.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell @typedef {import('./attrs.js').Stats} Stats */
@@ -304,7 +304,7 @@ function deliver(w, c, a, t, how) {
   const load = loadFor(c, a, t, how.load);
   if (how.heals) heals(w, c, a, t, { load, jumps: load.chain ? chainOf(w, c, t, load.chain, { heals: true, antiAir: true }) : [] });
   else if (how.area) for (const u of areaOf(w, a, t, how.area)) hitTarget(w, c, a, u, u === t ? load : { ...load, hit: 'splash' });
-  else if (shoots(c, a, how.heals)) launch(w, a, t, load);
+  else if (shoots(c, a, how.heals)) launch(w, a, t, a.kind === KIND.OPERATOR ? { ...load, boomerang: traitOf(c, a).boomerang } : load);
   else impact(w, c, a, t, load);
 }
 
@@ -361,7 +361,7 @@ function advanceSwing(w, c, a) {
 function operatorAttack(w, c, op) {
   if (op.swing) advanceSwing(w, c, op);
   if (op.atkCd > 0) { op.atkCd--; return; }
-  if (op.swing) return;
+  if (op.swing || boomerangOut(w, op)) return;
   const found = mayAttack(c, op) && traitAsk(w, c, op, 'canAttack') !== false ? targetsOf(w, c, op) : [], hold = holdFrames(w, c, op, found.length > 0);
   if (hold > 0) { op.atkCd = hold - 1; op.anim = ANIM.IDLE; return; }
   if (found.length === 0) { op.anim = ANIM.IDLE; return; }
@@ -439,7 +439,8 @@ export function operatorsAttack(w, c) {
  * @param {World} w @param {Content} c
  */
 export function shotsFly(w, c) {
-  flyShots(w, (s, t) => { impact(w, c, w.units.find((u) => u.id === s.src && u.hp > 0) ?? null, t, { ...s, ranged: true }); });
+  flyShots(w, (s, t) => { impact(w, c, w.units.find((u) => u.id === s.src && u.hp > 0) ?? null, t, { ...s, ranged: true }); },
+    (s, thrower) => { emit(w, 'boomerangCaught', { unit: thrower, x: s.sx, y: s.sy, isSkill: !!s.skill }); });
 }
 
 /**

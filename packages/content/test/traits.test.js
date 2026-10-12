@@ -11,11 +11,11 @@ import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, oper
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
 
-test('[职业-7] the covered branches are 60 of the 72 official ones', () => {
+test('[职业-7] the covered branches are 61 of the 72 official ones', () => {
   assert.equal(Object.keys(ALL).length, 72);
   for (const b of Object.keys(BRANCHES)) assert.ok(Object.hasOwn(ALL, b), b);
-  assert.equal(Object.keys(BRANCHES).length, 60);
-  assert.ok(coveredBranch('fastshot') && coveredBranch('funnel') && !coveredBranch('loopshooter') && !coveredBranch('toString'));
+  assert.equal(Object.keys(BRANCHES).length, 61);
+  assert.ok(coveredBranch('fastshot') && coveredBranch('funnel') && coveredBranch('loopshooter') && !coveredBranch('traper') && !coveredBranch('toString'));
 });
 
 test('[职业-7] an operator record takes its branch\'s damage type and trait; the blackboard moves into the trait', () => {
@@ -28,7 +28,7 @@ test('[职业-7] an operator record takes its branch\'s damage type and trait; t
   assert.deepEqual(withTrait({ ...base, position: 'RANGED', branch: 'ringhealer' }).trait, { heal: true, targets: 3, bb: {} });
   const funnel = withTrait({ ...base, position: 'RANGED', branch: 'funnel', traitBb: { init_atk_scale: 0.35, delta_atk_scale: 0.15, max_atk_scale: 1.2 } });
   assert.deepEqual([funnel.dmgType, funnel.trait?.antiAir, funnel.trait?.funnel], ['arts', true, { init: 0.35, delta: 0.15, max: 1.2 }]);
-  const loop = withTrait({ ...base, position: 'RANGED', branch: 'loopshooter', traitBb: { max_stack_cnt: 6 } });
+  const loop = withTrait({ ...base, position: 'RANGED', branch: 'traper', traitBb: { max_stack_cnt: 6 } });
   assert.equal(loop.trait, undefined, 'not covered: the position\'s defaults');
   assert.deepEqual(traits.traitOfDef(loop).antiAir, true);
 });
