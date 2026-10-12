@@ -98,6 +98,8 @@ export class ShBattle {
     /** @type {Record<string, any> | null} the kit of the token spawnToken is placing (summons.js) */
     this.pendingKit = null;
     this.rng = makeRng(w);
+    /** Stronghold's data source as kits read it: raw summon records (summons.js rawToken). */
+    this.data = Object.freeze({ rawToken: (/** @type {string} */ id) => summoning.rawToken(this, id) });
   }
 
   /** Battle seconds: the frame's start (Stronghold's tickCount × dt, the same in every handler of a frame). */
@@ -246,6 +248,9 @@ export class ShBattle {
     setExtraRange(this.c, unit.u, keys);
     return true;
   }
+
+  /** The ground tiles the field's enemies walk on (field.js). */
+  groundPathTiles() { return field.groundPathTiles(this); }
 
   /** Stronghold's range cache (`(unit)`): the engine's range is computed when read. */
   refreshRange() {}

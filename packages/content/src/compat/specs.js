@@ -5,6 +5,7 @@
 // skill but no kit keeps the generic ones. When it starts stays the engine's rule (技能-3): a MANUAL skill by the player.
 import { skills, constants, traitScale } from '@aue/sim';
 import { modsOf, flagsOf, statusKeyOf } from './mods.js';
+import { kitHits } from './field.js';
 
 /** @typedef {import('./battle.js').ShBattle} ShBattle @typedef {import('./unit.js').ShUnit} ShUnit @typedef {import('@aue/sim').Unit} Unit */
 /** @typedef {import('@aue/sim').SkillBehavior} SkillBehavior */
@@ -133,19 +134,27 @@ export function onAttackHit(k) {
   call(b, p, spec.onHit, 'skill.onHit', { target, dealt: k.dealt, x: target.x, y: target.y });
 }
 
-/** Whether a hit is an attack's on its main target: no splash, chain or aftershock. @param {Record<string, any>} d */
-const mainHit = (d) => !!d.isAttack && !d.isSplash && !(d.tags ?? []).some((/** @type {string} */ t) => t === 'chain' || t === 'aftershock');
+/** Whether a hit is the engine's attack's on its main target: not a kit's own, no splash, chain or aftershock. @param {Record<string, any>} d */
+const mainHit = (d) => !!d.isAttack && !kitHits.has(d) && !d.isSplash && !(d.tags ?? []).some((/** @type {string} */ t) => t === 'chain' || t === 'aftershock');
 
 /**
- * A spec's per-target `attack.dmgMul(battle, unit, target)` on its attack's main target (the engine's `hit`, before the
- * defences and before any other handler): it takes the place of the trait's 倍率 for that target (职业-8, 职业-11) — as
- * Stronghold's skill profile replaces its profession's — so the hit's amount × it ÷ the trait's.
+ * A spec attack's own say on its main target's hit (the engine's `hit`, before the defences and any other handler):
+ * `hitsFn` giving 0 — the attack deals nothing itself — cancels it and ends the dispatch (its hit callbacks still run,
+ * with nothing dealt, as Stronghold's); a per-target `dmgMul(battle, unit, target)` takes the place of the trait's 倍率
+ * for that target (职业-8, 职业-11) — as Stronghold's skill profile replaces its profession's — so the hit's amount × it ÷
+ * the trait's.
  * @param {Record<string, any>} k the engine's context
  */
 export function onSpecHit(k) {
-  const r = k.source ? specOf(k.source) : null, f = r?.spec.attack?.dmgMul;
-  if (!r || typeof f !== 'function' || !(r.p.skill?.active || k.dmg.isSkill) || !mainHit(k.dmg)) return;
-  const m = r.b.safe(() => f(r.b, r.p, r.b.unitOf(k.target)), 'skill.attack.dmgMul', r.p), own = traitScale(r.b.c, k.source, k.target);
+  const r = k.source ? specOf(k.source) : null, a = r?.spec.attack;
+  if (!r || !a || !(r.p.skill?.active || k.dmg.isSkill) || !mainHit(k.dmg)) return;
+  if (typeof a.hitsFn === 'function' && Number(r.b.safe(() => a.hitsFn(r.b, r.p, {}), 'skill.attack.hitsFn', r.p)) === 0) {
+    k.dmg.cancel = true;
+    k.stopPropagation = true;
+    return;
+  }
+  if (typeof a.dmgMul !== 'function') return;
+  const m = r.b.safe(() => a.dmgMul(r.b, r.p, r.b.unitOf(k.target)), 'skill.attack.dmgMul', r.p), own = traitScale(r.b.c, k.source, k.target);
   if (Number.isFinite(m)) k.dmg.amount *= /** @type {number} */ (m) / (own > 0 ? own : 1);
 }
 

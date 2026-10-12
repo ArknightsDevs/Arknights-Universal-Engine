@@ -56,3 +56,17 @@ export function spawnToken(b, owner, tokenId, tile, opts = {}) {
   if (seconds > 0) b.after(seconds, () => { if (t.alive) b.retreat(t); }, { owner: t });
   return t;
 }
+
+/**
+ * Stronghold's raw summon record (`battle.data.rawToken(id)`, 兼容-3): the summon's record at its owner's training — the
+ * first piece of the battle that owns it —, its field limit also at the top as Stronghold's tokens.json has it; null for
+ * none.
+ * @param {ShBattle} b @param {string} id @returns {Record<string, any> | null}
+ */
+export function rawToken(b, id) {
+  for (const p of b.pieces.values()) {
+    const raw = p.tokenDefs?.[id]?.raw;
+    if (raw) return { ...raw, deployLimit: raw.stats?.deployLimit ?? 1 };
+  }
+  return null;
+}

@@ -2,7 +2,7 @@
 // the enemies on tiles or within a radius that an ability may select (索敌-2), the unit on a tile, the enemies a unit
 // blocks; damage (伤害-7, 元素-2), healing (伤害-11), 生命流失 (伤害-10) and retreat (撤退-1). The battle's methods
 // (battle.js) call these; units are the kits' (unit.js).
-import { KIND, attrs, body, damage, traits, elements, deck, blocking, routes } from '@aue/sim';
+import { KIND, attrs, body, damage, traits, elements, deck, blocking, routes, paths } from '@aue/sim';
 import { canTargetEnemy } from './sh/targeting.js';
 import { ELEMENT } from './mods.js';
 
@@ -86,11 +86,19 @@ export function releaseBlocked(b, u) {
 /** The enemies a unit blocks that it may select with `profile`. @param {ShUnit} u @param {Record<string, any>} [profile] */
 export const blockedTargets = (u, profile) => (u?.blocking ?? []).filter((e) => canTargetEnemy(u, e, profile));
 
+/** The hits kits deal themselves (not the engine's attacks'), for the attack overrides that act on an attack's own (specs.js). @type {WeakSet<object>} */
+export const kitHits = new WeakSet();
+
 /**
- * Stronghold's damage info as the engine's hit (the same names, ADR 0012): a copy, its amount a number.
+ * Stronghold's damage info as the engine's hit (the same names, ADR 0012): a copy, its amount a number; marked as a
+ * kit's own hit.
  * @param {Record<string, any>} d @returns {Damage}
  */
-const hitOf = (d) => /** @type {Damage} */ ({ ...d, type: d.type ?? 'phys', amount: Number.isFinite(+d.amount) ? +d.amount : 0, tags: [...(d.tags ?? [])] });
+function hitOf(d) {
+  const hit = /** @type {Damage} */ ({ ...d, type: d.type ?? 'phys', amount: Number.isFinite(+d.amount) ? +d.amount : 0, tags: [...(d.tags ?? [])] });
+  kitHits.add(hit);
+  return hit;
+}
 
 /**
  * Damage from a unit, or from none (伤害-7): an operator's is credited with a kill (职业-5); 元素损伤 (`type` 'element')
@@ -125,4 +133,24 @@ export function loseHp(b, target, amount, o = {}) {
 /** An operator leaves the field as a retreat (撤退-1). @param {ShBattle} b @param {ShUnit} unit */
 export function retreat(b, unit) {
   if (unit?.u && unit.alive && unit.u.kind === KIND.OPERATOR) deck.withdraw(b.w, b.c, unit.u);
+}
+
+/**
+ * The ground tiles the field's enemies walk on (Stronghold's groundPathTiles): of every route the level's waves spawn on
+ * that is not a flying one (every such route when none is named), the tiles its way crosses (寻路-2) from its start
+ * through its MOVE and APPEAR_AT_POS checkpoints to its end. Tile keys.
+ * @param {ShBattle} b @returns {Set<number>}
+ */
+export function groundPathTiles(b) {
+  const lv = b.c.level, out = new Set();
+  const used = new Set(lv.waves.flatMap((w) => w.fragments.flatMap((f) => f.actions)).filter((a) => a.type === 'SPAWN' && Number.isInteger(a.route)).map((a) => a.route));
+  const walks = (/** @type {any} */ r) => !!r && r.motion !== 'FLY';
+  const any = [...used].some((i) => walks(lv.routes[i]));
+  const keyOf = (/** @type {{ row: number, col: number }} */ p) => Math.max(0, Math.min(lv.height - 1, Math.round(p.row))) * lv.width + Math.max(0, Math.min(lv.width - 1, Math.round(p.col)));
+  lv.routes.forEach((r, i) => {
+    if (!walks(r) || (any && !used.has(i))) return;
+    const pts = [r.start, ...r.checkpoints.filter((cp) => cp.type === 'MOVE' || cp.type === 'APPEAR_AT_POS'), r.end].map(keyOf);
+    for (let j = 1; j < pts.length; j++) for (const k of paths.routeTiles(lv, pts[j - 1], pts[j], { diagonal: r.allowDiagonal ?? true }) ?? []) out.add(k);
+  });
+  return out;
 }

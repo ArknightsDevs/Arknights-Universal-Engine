@@ -159,3 +159,16 @@ test('[兼容-4] a stand-in status: defDown as a strongest-value buff of its key
   run(w, c, 31);
   assert.deepEqual([u.findBuff('defDown')?.data, Math.round(attrsDef(guard) * 1e6) / 1e6], [{ value: 0.2 }, Math.round(def * 0.8 * 1e6) / 1e6], 'the weaker resumes');
 });
+
+test('[兼容-5] a spec attack whose hitsFn gives 0 deals nothing itself; its hit callbacks still run, with nothing dealt', () => {
+  /** @type {number[]} */
+  const dealt = [];
+  const { w, c, hits } = match({ kind: 'duration', duration: 30, attack: { hitsFn: () => 0, onHit: (/** @type {any} */ x) => { dealt.push(x.dealt); } } });
+  run(w, c, 300);
+  assert.deepEqual([hits, dealt.length > 0, [...new Set(dealt)]], [[], true, [0]]);
+});
+
+test('[兼容-3] battle.data.rawToken: none for a summon no piece of the battle owns', () => {
+  const { box } = match({ kind: 'duration', duration: 30 });
+  assert.equal(/** @type {ShBattle} */ (box.b).data.rawToken('token_nope'), null);
+});

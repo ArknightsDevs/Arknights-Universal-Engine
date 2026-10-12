@@ -5,7 +5,7 @@ import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
 import { loadOracle } from '@aue/testkit';
-import { flowField, chain, lineOfSight, keyAt, passable } from '../src/paths.js';
+import { flowField, chain, lineOfSight, keyAt, passable, routeTiles } from '../src/paths.js';
 
 const SEED = 20261011, ROWS = 19, COLS = 21;
 /** @type {any} */
@@ -33,6 +33,14 @@ test('[寻路-1] [寻路-2] distances and smoothed pointers: the oracle\'s offic
     const { level, grid } = maps(rows), f = flowField(level, r, c, { diagonal }), g = grid.flowField(r, c, { allowDiagonal: diagonal });
     assert.deepEqual([...f.dist], [...g.dist]);
     assert.deepEqual([...f.next], [...g.official]);
+  }), { seed: SEED, numRuns: 150 });
+});
+
+test('[寻路-2] the tiles a way crosses: the oracle\'s findPath on random maps, any start and destination', () => {
+  fc.assert(fc.property(sparse, fc.nat(ROWS - 1), fc.nat(COLS - 1), fc.nat(ROWS - 1), fc.nat(COLS - 1), (rows, sr, sc, er, ec) => {
+    const { level, grid } = maps(rows), ours = routeTiles(level, sr * COLS + sc, er * COLS + ec);
+    const theirs = grid.findPath(sr, sc, er, ec);
+    assert.deepEqual(ours, theirs ? theirs.map((/** @type {number[]} */ [r, c]) => r * COLS + c) : null);
   }), { seed: SEED, numRuns: 150 });
 });
 

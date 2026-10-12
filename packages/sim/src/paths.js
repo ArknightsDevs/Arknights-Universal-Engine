@@ -114,6 +114,38 @@ export function flowField(m, row, col, o = {}) {
   return f;
 }
 
+/**
+ * The tiles of the Bresenham line from (r, c) to (r1, c1), both included, in order (寻路-2's line).
+ * @param {number} r @param {number} c @param {number} r1 @param {number} c1 @returns {[number, number][]}
+ */
+function lineTiles(r, c, r1, c1) {
+  const dr = Math.abs(r1 - r), dc = Math.abs(c1 - c), sr = r1 > r ? 1 : -1, sc = c1 > c ? 1 : -1, out = /** @type {[number, number][]} */ ([[r, c]]);
+  let err = dc - dr;
+  while (r !== r1 || c !== c1) {
+    const e2 = 2 * err;
+    if (e2 > -dr) { err -= dr; c += sc; }
+    if (e2 < dc) { err += dc; r += sr; }
+    out.push([r, c]);
+  }
+  return out;
+}
+
+/**
+ * The tiles an enemy's way from tile `a` to tile `b` crosses (寻路-2): the smoothed pointers of the field toward b, each
+ * step joined by its Bresenham line, a and b included; null when b cannot be reached from a.
+ * @param {LevelMap} m @param {number} a @param {number} b @param {{ fly?: boolean, diagonal?: boolean }} [o] @returns {number[] | null}
+ */
+export function routeTiles(m, a, b, o = {}) {
+  const f = flowField(m, Math.floor(b / m.width), b % m.width, o), out = [a];
+  if (f.dist[a] < 0) return null;
+  for (let k = a; k !== b;) {
+    const n = f.next[k];
+    for (const [r, c] of lineTiles(Math.floor(k / m.width), k % m.width, Math.floor(n / m.width), n % m.width).slice(1)) out.push(r * m.width + c);
+    k = n;
+  }
+  return out;
+}
+
 /** The tiles from `k` (excluded) along the field's pointers to its destination (included); empty if unreachable. @param {Field} f @param {number} k */
 export function chain(f, k) {
   /** @type {number[]} */
