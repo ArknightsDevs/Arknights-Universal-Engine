@@ -126,3 +126,16 @@
 天赋 `Bus`（“履平沙”）：它占用阻挡它的单位 `max_cnt` 个阻挡数（阻挡-3）。在它的回合，若它能行动、乘客少于 `max_cnt`，半径 0.5 内每个其他在场、在地面、不是领袖、不带 `machine` 标签的敌人登车：乘客消失（不行动、不能被选中、不前进），直到下车。它第一次站在云梯（`tile_stairs`）上时，全部乘客在它所在格的中心下车，此后不再载客。它离场（被击倒或到达终点）时，乘客也在它的位置下车。下车的乘客出现在那里，从它登车时所在的路线段继续；那一段若是停留，跳过它。
 
 - 来源：[PRTS「“履平沙”」oldid=435402](https://prts.wiki/index.php?title=%E2%80%9C%E5%B1%A5%E5%B9%B3%E6%B2%99%E2%80%9D&oldid=435402)「只能被阻挡数大于等于4的单位阻挡」「周围有领袖以外的非机械敌人时会将其装载为乘客（最多4个），首次到达云梯时释放装载的乘客」「占用4个阻挡数 载客：载客上限4，载客半径0.5，载客条件为“非领袖且非机械类的地面敌人类敌方单位”，卸客区域为自身所在格中心位置」；[PRTS「特殊机制」oldid=440955](https://prts.wiki/index.php?title=%E7%89%B9%E6%AE%8A%E6%9C%BA%E5%88%B6&oldid=440955)「载客 …… 成功被装载的乘客立刻进入消失状态 …… 当本单位退场时尝试卸载，将乘客立刻传送至卸客区域内的随机位置上，然后取消其消失状态 …… 若此时正停驻于路径点，跳过此次停驻」；占用的阻挡数取 `max_cnt`、下车在格子中心（不随机）、继续原路线为推断 INF-0099
+
+### 敌能-17 禁锢与解放
+
+天赋 `confinement` 与 `liberty`（老练囚犯、神射手囚犯、拳师囚犯、巨汉囚犯、传奇重犯）：
+
+- **禁锢**：敌人出现时处于禁锢（键为 `confinement` 的 Buff）：攻击速度 +`attack_speed`（−50），有 `def` 的防御力直接加算 +`def`。
+- **计数**：禁锢中每开始一次普通攻击计一次，处于麻痹时不计；计到 `times`（4）的那次攻击开始前切换到解放，所以前 3 次攻击在禁锢中，第 4 次已是解放的。
+- **解放**：去掉禁锢，获得键为 `liberty` 的 Buff：攻击力直接乘算 +`atk`；有 `def_penetrate` 的物理穿透（百分比）+`def_penetrate`，有 `magic_resistance` 的法术抗性 +`magic_resistance`，有 `hp_recovery_per_sec` 的生命回复速度 +`hp_recovery_per_sec`。解放后不再回到禁锢。
+- **神射手囚犯**：解放后普通攻击造成法术伤害。
+- **传奇重犯**：自己第一次解放时，场上所有囚犯（带 `liberty` 天赋的敌人）一起解放。
+
+- 来源：[PRTS「老练囚犯」oldid=436155](https://prts.wiki/index.php?title=%E8%80%81%E7%BB%83%E5%9B%9A%E7%8A%AF&oldid=436155)「禁锢状态：初始状态，攻击速度-50<br>进行第4次攻击前，切换至解放状态<br>解放状态：攻击力+50%」；[PRTS「神射手囚犯」oldid=436533](https://prts.wiki/index.php?title=%E7%A5%9E%E5%B0%84%E6%89%8B%E5%9B%9A%E7%8A%AF&oldid=436533)「第4次触发攻击前，切换至解放状态（在持有麻痹的情况下，攻击不计数）」「普通攻击改为造成法术伤害」；[PRTS「拳师囚犯」oldid=436358](https://prts.wiki/index.php?title=%E6%8B%B3%E5%B8%88%E5%9B%9A%E7%8A%AF&oldid=436358)「物理穿透（百分比）+0.8」；[PRTS「巨汉囚犯」oldid=436075](https://prts.wiki/index.php?title=%E5%B7%A8%E6%B1%89%E5%9B%9A%E7%8A%AF&oldid=436075)「法术抗性+60，每秒自然回复300生命值」；[PRTS「传奇重犯」oldid=435683](https://prts.wiki/index.php?title=%E4%BC%A0%E5%A5%87%E9%87%8D%E7%8A%AF&oldid=435683)「禁锢状态：初始状态，攻击速度-50，防御力+300」「自身首次切换至解放状态时，使场上所有【囚犯】敌人切换至解放状态」；数据：enemy_database 的 confinement（times、attack_speed、def）与 liberty（atk、def_penetrate、magic_resistance、hp_recovery_per_sec）。麻痹不计数对五种囚犯都适用、【囚犯】指带 `liberty` 天赋的敌人、解放不再回到禁锢为推断 INF-0153
+

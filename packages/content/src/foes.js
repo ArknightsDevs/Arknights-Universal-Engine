@@ -3,6 +3,7 @@
 // to the blackboards the behaviours read. They act only through the context (ADR 0055).
 
 import { moreFoeBehaviors } from './abilities.js';
+import { prisonerBehaviors } from './prisoners.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -28,6 +29,10 @@ export const FOE_EXTRAS = Object.freeze({
   // 重弩突袭者/重弩猎杀者: 蓄力1.4s后向目标方向发射1支弩箭 …… 法术伤害 …… 技能持续2.5s；隐匿（被阻挡，主动攻击期间均可解除）
   enemy_1404_msnip: { skills: { CrossAttack: { bolts: 1, arts: 1, charge: 1.4, hold: 2.5, hide: 1 } }, source: `${PRTS}%E9%87%8D%E5%BC%A9%E7%AA%81%E8%A2%AD%E8%80%85&oldid=437074` },
   enemy_1404_msnip_2: { skills: { CrossAttack: { bolts: 1, arts: 1, charge: 1.4, hold: 2.5, hide: 1 } }, source: `${PRTS}%E9%87%8D%E5%BC%A9%E7%8C%8E%E6%9D%80%E8%80%85&oldid=437073` },
+  // 神射手囚犯: 解放状态：攻击力+50%，普通攻击改为造成法术伤害
+  enemy_1117_liiprr_2: { talents: { liberty: { arts: 1 } }, source: `${PRTS}%E7%A5%9E%E5%B0%84%E6%89%8B%E5%9B%9A%E7%8A%AF&oldid=436533` },
+  // 传奇重犯: 自身首次切换至解放状态时，使场上所有【囚犯】敌人切换至解放状态
+  enemy_1121_lifbos_2: { talents: { liberty: { all: 1 } }, source: `${PRTS}%E4%BC%A0%E5%A5%87%E9%87%8D%E7%8A%AF&oldid=435683` },
 });
 
 /**
@@ -168,7 +173,7 @@ const PowerHit = Object.freeze({
 });
 
 /** Behaviours by talent or skill name. @type {Readonly<Record<string, FoeBehavior>>} */
-export const foeBehaviors = Object.freeze({ boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors });
+export const foeBehaviors = Object.freeze({ boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors });
 
 /**
  * Talents with no behaviour of their own that are still covered (关卡-2): `dead` is the data's 生命 loss of a neutral
