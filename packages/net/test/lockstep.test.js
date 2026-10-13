@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fc from 'fast-check';
-import { framesThisTick, INPUT_DELAY, MAX_PLAY_SPEED, MAX_AHEAD } from '../src/index.js';
+import { framesThisTick, INPUT_DELAY, MAX_PLAY_SPEED, MAX_AHEAD, HASH_EVERY } from '../src/index.js';
 import { LockstepHost } from '../src/index.js';
 import { tinyContent } from '@aue/testkit';
 import { PROTOCOL_VERSION } from '@aue/schema';
@@ -51,7 +51,7 @@ test('[同步-3] a command arriving after its frame was sealed moves to the next
 test('[同步-3] commands stamped too far ahead are refused with an error', () => {
   /** @type {any[]} */
   const out = [];
-  const host = new LockstepHost({ content: tinyContent(), seats: 2, seed: 1, send: (seat, msg) => out.push([seat, msg]) });
+  const host = new LockstepHost({ hashEvery: 1, content: tinyContent(), seats: 2, seed: 1, send: (seat, msg) => out.push([seat, msg]) });
   host.hello(0, 0);
   const last = host.sealed + MAX_AHEAD;
   host.command(0, last, GUARD);
@@ -83,6 +83,16 @@ test('[同步-5] a peer whose state drifted is detected by its hash and restored
   assert.equal(r.clients[0].stats.resyncs, 1);
   const last = Math.max(...r.sent[0].keys());
   assert.equal(r.sent[0].get(last), r.host.hashes.get(last));
+});
+
+test('[同步-5] the arbiter hashes only the frames the clients report, and still catches a peer that drifted', () => {
+  const r = play({ latency: [50, 50], ms: 8000, hashEvery: HASH_EVERY, script: [{ at: 300, seat: 0, cmd: GUARD }], tamper: [{ at: 3000, seat: 0, change: (w) => { w.players[0].cost += 3; } }] });
+  assert.ok(r.host.hashes.size > 0 && [...r.host.hashes.keys()].every((f) => f % HASH_EVERY === 0), 'only every HASH_EVERY frames');
+  assert.ok([...r.sent[1].keys()].every((f) => f % HASH_EVERY === 0), 'the clients report those frames');
+  assert.deepEqual([r.desyncs.length, r.desyncs[0].seat, r.clients[0].stats.resyncs], [1, 0, 1]);
+  const last = Math.max(...r.sent[0].keys());
+  assert.equal(r.sent[0].get(last), r.host.hashes.get(last));
+  for (const hashEvery of [0, 7, 1.5]) assert.throws(() => new LockstepHost({ content: tinyContent(), seats: 1, seed: 1, send: () => {}, hashEvery }), /hashEvery/, `${hashEvery}`);
 });
 
 test('[同步-6] with both seats gone the battle pauses, and resumes where it stopped', () => {
@@ -121,7 +131,7 @@ test('[同步-5] content with a world setup: a seat joins, or recovers, by repla
   content.behaviors = { world: (/** @type {any} */ w, /** @type {any} */ c) => { bus.every(w, 7, () => traits.gainCost(w, c, 0, 1)); } };
   /** @type {any[]} */
   const sent = [];
-  const host = new LockstepHost({ content, seats: 1, seed: 5, send: (_seat, m) => sent.push(m) });
+  const host = new LockstepHost({ hashEvery: 1, content, seats: 1, seed: 5, send: (_seat, m) => sent.push(m) });
   host.hello(0, 0);
   assert.deepEqual([sent[0].snapshot, sent[0].replay], [null, []], 'no snapshot: the commands so far (none)');
   host.command(0, 3, GUARD);

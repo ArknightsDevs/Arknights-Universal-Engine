@@ -4,7 +4,7 @@
 import { secondsToFrames } from '@aue/math';
 import { ANIM, KIND } from '@aue/schema';
 import { seedState } from './rng.js';
-import { hashNumbers, HASH_START } from './hash.js';
+import { hashValue, HASH_START } from './hash.js';
 import { enemiesAct } from './enemies.js';
 import { newSchedule, visiblePredefines, tickWaves, checkEnd } from './waves.js';
 import { placeDevice } from './devices.js';
@@ -177,9 +177,6 @@ function pushText(out, tag, s) {
  * @param {World} w @returns {number}
  */
 export function stateHash(w) {
-  /** @type {number[]} */
-  const nums = [];
-  pushValue(nums, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, stage: w.stage, players: w.players, units: w.units, shots: w.shots, blasts: w.blasts, bolts: w.bolts });
-  return hashNumbers(HASH_START, nums);
+  return hashValue(HASH_START, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, stage: w.stage, players: w.players, units: w.units, shots: w.shots, blasts: w.blasts, bolts: w.bolts });
 }
 

@@ -3,16 +3,18 @@
 // methods (already validated with clientMessageProblem) and go out through `send`.
 import { PROTOCOL_VERSION } from '@aue/schema';
 import { createWorld, step, stateHash, takeSnapshot, contentHash } from '@aue/sim';
-import { MAX_AHEAD, HASH_HISTORY, framesAt, PAUSE_ASK_MS, RESUME_MS } from './constants.js';
+import { MAX_AHEAD, HASH_HISTORY, HASH_EVERY, framesAt, PAUSE_ASK_MS, RESUME_MS } from './constants.js';
 
 /** @typedef {import('@aue/schema').Command} Command @typedef {import('@aue/schema').ServerMessage} ServerMessage */
 /** @typedef {import('@aue/schema').Match} Match */
 /** @typedef {{ seat: number, frame: number, ours: number, theirs: number }} Desync */
 /**
  * The host's options: the content and the match settings it was made from (同步-9; none when the clients know the
- * content otherwise), the seats, the seed, the transport, the desync report.
+ * content otherwise), the seats, the seed, the transport, the desync report; `hashEvery`, the frames between the
+ * arbiter's kept hashes, a divisor of HASH_EVERY — the clients report every HASH_EVERY frames (同步-5), so by default
+ * it hashes only those; 1 keeps every frame's (tests).
  * @typedef {{ content: import('@aue/sim').Content, seats: number, seed: number, send: (seat: number, msg: ServerMessage) => void,
- *   onDesync?: (d: Desync) => void, match?: Match | null }} HostOptions
+ *   onDesync?: (d: Desync) => void, match?: Match | null, hashEvery?: number }} HostOptions
  */
 
 export class LockstepHost {
@@ -35,8 +37,11 @@ export class LockstepHost {
     /** @type {Set<number>} */
     this.loaded = new Set();
     this.begun = o.seats <= 1;
-    /** @type {Map<number, number>} frames done → the arbiter's hash */
+    /** @type {Map<number, number>} frames done → the arbiter's hash, at the frames the clients report (同步-5) */
     this.hashes = new Map();
+    /** the frames between kept hashes: every frame a client reports must have one, or its hash goes unchecked */
+    this.hashEvery = o.hashEvery ?? HASH_EVERY;
+    if (!Number.isSafeInteger(this.hashEvery) || this.hashEvery < 1 || HASH_EVERY % this.hashEvery !== 0) throw new RangeError(`hashEvery must divide HASH_EVERY (${HASH_EVERY})`);
     /**
      * Content with a world setup (钩子-4: kits, 兼容-6) cannot be restored from a snapshot: a joining or desynced seat
      * replays every sealed command from frame 0 (同步-5), kept here.
@@ -196,7 +201,7 @@ export class LockstepHost {
       const list = this.frameCommands(f);
       for (const [seat, cmd] of list) { cmds.push([f, seat, cmd]); this.history?.push([f, seat, cmd]); }
       step(this.world, this.o.content, list);
-      this.hashes.set(this.world.frame, stateHash(this.world));
+      if (this.world.frame % this.hashEvery === 0) this.hashes.set(this.world.frame, stateHash(this.world));
       this.hashes.delete(this.world.frame - HASH_HISTORY);
     }
     this.sealed = due;

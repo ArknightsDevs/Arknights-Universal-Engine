@@ -32,7 +32,7 @@ function rig() {
   const c = tinyContent(), t = clock(), posts = /** @type {any[]} */ ([]), sent = /** @type {string[]} */ ([]);
   /** @type {any} */
   let sock = null;
-  const host = new LockstepHost({ content: c, seats: 1, seed: 5, send: (_seat, msg) => sock?.onmessage?.(JSON.stringify(msg)) });
+  const host = new LockstepHost({ hashEvery: 1, content: c, seats: 1, seed: 5, send: (_seat, msg) => sock?.onmessage?.(JSON.stringify(msg)) });
   const session = new BattleSession(c, {
     now: t.now, later: t.later, post: (m) => posts.push(m),
     connect: () => {
@@ -136,7 +136,7 @@ test('[同步-9] a welcome with match settings: the content is made first, messa
   const match = { level: 'tiny', difficulty: /** @type {const} */ ('NORMAL'), seed: 5, decks: [[{ id: 'guard', build: { elite: 0, level: 1, potential: 1, trust: 0, skill: -1, skillLevel: 1 } }]] };
   /** @type {any} */
   let sock = null, release = /** @type {() => void} */ (() => {});
-  const host = new LockstepHost({ content: made, seats: 1, seed: 5, match, send: (_seat, msg) => sock?.onmessage?.(JSON.stringify(msg)) });
+  const host = new LockstepHost({ hashEvery: 1, content: made, seats: 1, seed: 5, match, send: (_seat, msg) => sock?.onmessage?.(JSON.stringify(msg)) });
   const session = new BattleSession(c, {
     now: t.now, later: t.later, post: (m) => posts.push(m),
     content: (m) => new Promise((resolve) => { assert.deepEqual(m, match); release = () => resolve(made); }),
@@ -171,7 +171,7 @@ test('[同步-9] match content that cannot be made is reported', async () => {
   const match = { level: 'nope', difficulty: /** @type {const} */ ('NORMAL'), seed: 5, decks: [[]] };
   /** @type {any} */
   let sock = null;
-  const host = new LockstepHost({ content: c, seats: 1, seed: 5, match, send: (_seat, msg) => sock?.onmessage?.(JSON.stringify(msg)) });
+  const host = new LockstepHost({ hashEvery: 1, content: c, seats: 1, seed: 5, match, send: (_seat, msg) => sock?.onmessage?.(JSON.stringify(msg)) });
   const session = new BattleSession(c, {
     now: t.now, later: t.later, post: (m) => posts.push(m), content: () => Promise.reject(new Error('no level nope')),
     connect: () => {
