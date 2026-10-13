@@ -2,7 +2,7 @@
 // every frame each buff's time runs down by its decay rate and its triggers advance; at 0 it expires. A buff's
 // behaviour (what a trigger or the expiry does) comes from a table by its key — or by the behaviour key it names —, never
 // from the buff itself (ADR 0054).
-import { statsOf } from './attrs.js';
+import { statsOf, maxHpOf } from './attrs.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff @typedef {import('./types.js').World} World */
 
@@ -39,7 +39,7 @@ export function makeBuff(o) {
  * @param {Unit} u
  */
 export function refreshHp(u) {
-  const max = statsOf(u).maxHp;
+  const max = maxHpOf(u);
   if (max === u.maxHp) return;
   if (u.hp > 0) u.hp = u.hp * (max / u.maxHp);
   u.maxHp = max;
@@ -162,9 +162,9 @@ function advance(w, u, b, step, beh) {
  */
 export function tickUnitBuffs(w, u, behaviors) {
   if (u.buffs.length === 0) return;
-  const statusRes = statsOf(u).statusRes;
+  const list = [...u.buffs], statusRes = list.some((b) => b.resist) ? statsOf(u).statusRes : 1;
   let changed = false;
-  for (const b of [...u.buffs]) {
+  for (const b of list) {
     if (!u.buffs.includes(b)) continue;
     const rate = decayRate(b, statusRes), act = b.act || b.key, beh = Object.hasOwn(behaviors, act) ? behaviors[act] : undefined;
     if (b.every > 0) advance(w, u, b, b.fixed ? 1 : rate, beh);

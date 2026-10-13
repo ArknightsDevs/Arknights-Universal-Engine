@@ -34,10 +34,11 @@ const dist2 = (a, b) => (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
  */
 function nextFoe(w, at, ch, seen, antiAir) {
   let best = null, bestD = Infinity;
+  const sel = { canHitFly: antiAir };
   for (const u of w.units) {
-    if (!hostile(u) || u.hp <= 0 || seen.has(u.id) || !selectable(u, { canHitFly: antiAir })) continue;
+    if (!hostile(u) || u.hp <= 0 || seen.has(u.id)) continue;
     const d = dist2(at, u);
-    if (d <= ch.radius * ch.radius && d < bestD) { best = u; bestD = d; }
+    if (d <= ch.radius * ch.radius && d < bestD && selectable(u, sel)) { best = u; bestD = d; }
   }
   return best;
 }
@@ -50,7 +51,7 @@ function nextFoe(w, at, ch, seen, antiAir) {
  */
 function nextAlly(w, c, at, ch, seen) {
   const grid = gridOf(c), keys = rangeKeys(grid, { ...at, dir: DEFAULT_DIR }, ch.cells ?? []);
-  const cands = w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !seen.has(u.id) && !statsOf(u).flags.noAllyHeal && inKeys(u, keys, grid));
+  const cands = w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !seen.has(u.id) && inKeys(u, keys, grid) && !statsOf(u).flags.noAllyHeal);
   const key = (/** @type {Unit} */ u) => precisionKey(u.hp / u.maxHp, 0.001);
   return cands.reduce((/** @type {Unit | null} */ b, u) => (!b || key(u) < key(b) || (key(u) === key(b) && (u.born > b.born || (u.born === b.born && u.bornN > b.bornN))) ? u : b), null);
 }
@@ -81,5 +82,5 @@ export function chainOf(w, c, first, ch, how) {
  */
 export function woundedInRange(w, c, op) {
   const grid = gridOf(c), keys = reachKeys(c, op);
-  return sortHealTargets(w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal && inKeys(u, keys, grid)))[0] ?? null;
+  return sortHealTargets(w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && inKeys(u, keys, grid) && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal))[0] ?? null;
 }

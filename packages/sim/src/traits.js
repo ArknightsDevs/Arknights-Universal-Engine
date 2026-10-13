@@ -25,8 +25,44 @@ export const defaultTrait = (position) => ({
   attackInSkill: false, idleMods: {}, idleFlags: {}, idleAirOnly: false, skillSplash: null, liftoffBlock: 0, fortress: 0, charge: null, skillHeal: 0, bullets: null, store: 0, epHeal: 0, funnel: null, boomerang: null, noAttack: false, free: false, regenAura: 0, bb: {},
 });
 
-/** An operator record's trait: its own fields over the defaults of its position (职业-1). @param {OperatorDef} d @returns {TraitDef} */
-export const traitOfDef = (d) => ({ ...defaultTrait(d.position), ...d.trait });
+/**
+ * Each record's last trait and what it was made from — its position, its trait object and that object's own fields in
+ * order — given again while they are the same (the trait is asked for many times a frame). Not part of the state.
+ * @type {WeakMap<OperatorDef, { trait: TraitDef, position: string, src: unknown, fields: unknown[] }>}
+ */
+const traitMemo = new WeakMap();
+
+/** An object's own fields and values in order. @param {unknown} o @returns {unknown[]} */
+function fieldsOf(o) {
+  const out = [];
+  if (o !== null && typeof o === 'object') for (const k in o) if (Object.hasOwn(o, k)) out.push(k, /** @type {Record<string, unknown>} */ (o)[k]);
+  return out;
+}
+
+/** Whether an object's own fields and values are still those listed. @param {unknown} o @param {unknown[]} fields */
+function sameFields(o, fields) {
+  if (o === null || typeof o !== 'object') return fields.length === 0;
+  let i = 0;
+  for (const k in o) {
+    if (!Object.hasOwn(o, k)) continue;
+    if (i >= fields.length || fields[i] !== k || !Object.is(fields[i + 1], /** @type {Record<string, unknown>} */ (o)[k])) return false;
+    i += 2;
+  }
+  return i === fields.length;
+}
+
+/**
+ * An operator record's trait: its own fields over the defaults of its position (职业-1). The same object as the last
+ * time while the record's position and trait fields are the same; never change it.
+ * @param {OperatorDef} d @returns {TraitDef}
+ */
+export function traitOfDef(d) {
+  const m = traitMemo.get(d);
+  if (m !== undefined && m.position === d.position && m.src === d.trait && sameFields(d.trait, m.fields)) return m.trait;
+  const trait = { ...defaultTrait(d.position), ...d.trait };
+  traitMemo.set(d, { trait, position: d.position, src: d.trait, fields: fieldsOf(d.trait) });
+  return trait;
+}
 
 /** A deployed operator's trait. @param {Content} c @param {Unit} op @returns {TraitDef} */
 export const traitOf = (c, op) => traitOfDef(c.operators[op.key]);

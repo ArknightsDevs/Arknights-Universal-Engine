@@ -110,8 +110,17 @@ function announceDeath(w, u, leak) {
 /** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12); content cannot replace them. @param {Content} c */
 const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c) });
 
+/** Each content's buff behaviours, made once (they depend on the content alone), with the content's table they were made from. @type {WeakMap<Content, { from: unknown, table: Record<string, import('./buffs.js').Behavior> }>} */
+const buffTables = new WeakMap();
+
 /** The buff behaviours of a battle: the content's, then the engine's own. @param {Content} c */
-const buffBehaviors = (c) => ({ ...c.behaviors?.buffs, ...builtin(c) });
+function buffBehaviors(c) {
+  const from = c.behaviors?.buffs, known = buffTables.get(c);
+  if (known && known.from === from) return known.table;
+  const table = { ...from, ...builtin(c) };
+  buffTables.set(c, { from, table });
+  return table;
+}
 
 /**
  * Runs frame `w.frame` with the commands executed in it ([seat, command] in the order the server sealed them) and

@@ -20,6 +20,19 @@ export function onWorks(c, u) {
   return WORKS.includes(m.tiles[Math.floor(k / m.width)][k % m.width].key);
 }
 
+/** Whether a unit's tile is a 工事, flying or not (false off the map). @param {Content} c @param {Unit} u */
+function onWorksTile(c, u) {
+  const m = c.level, k = keyAt(m, u.x, u.y);
+  return k >= 0 && WORKS.includes(m.tiles[Math.floor(k / m.width)][k % m.width].key);
+}
+
+/**
+ * Whether the 工事 rule can tell two units apart (地图-3): only when one of them stands on a 工事 — otherwise each is off
+ * the map, flying, or on an ordinary tile, and the rule treats them alike.
+ * @param {Content} c @param {Unit} a @param {Unit} b
+ */
+const worksBetween = (c, a, b) => onWorksTile(c, a) || onWorksTile(c, b);
+
 /**
  * The 工事 damage multiplier of a hit (地图-3, 伤害-7): with the rule in effect and both units on the ground, the level's
  * `dealt` when the source is on a 工事 and the target is not, its `taken` the other way round, else 1.
@@ -27,7 +40,7 @@ export function onWorks(c, u) {
  */
 export function worksMul(c, src, target) {
   const rule = c.level.works;
-  if (!rule) return 1;
+  if (!rule || !worksBetween(c, src, target)) return 1;
   const a = onWorks(c, src), b = onWorks(c, target);
   return a === null || b === null || a === b ? 1 : a ? rule.dealt : rule.taken;
 }
@@ -38,7 +51,7 @@ export function worksMul(c, src, target) {
  * @param {Content} c @param {Unit} blocker @param {Unit} e
  */
 export function sameGround(c, blocker, e) {
-  if (!c.level.works) return true;
+  if (!c.level.works || !worksBetween(c, blocker, e)) return true;
   const a = onWorks(c, blocker), b = onWorks(c, e);
   return a === null || b === null || a === b;
 }

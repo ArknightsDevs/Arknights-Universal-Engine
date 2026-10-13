@@ -14,10 +14,30 @@ export const FPS = 30;
  * @returns {number} frames
  */
 export function secondsToFrames(seconds) {
+  const known = FRAMES.get(seconds);
+  if (known !== undefined) return known;
   const { mantissa, exponent } = decimalOf(seconds);
   const scaled = mantissa * BigInt(FPS);
-  if (exponent >= 0) return Number(scaled * pow10(exponent));
-  return nearest(scaled, pow10(-exponent));
+  const frames = exponent >= 0 ? Number(scaled * pow10(exponent)) : nearest(scaled, pow10(-exponent));
+  remember(FRAMES, seconds, frames);
+  return frames;
+}
+
+/**
+ * The answers so far, by seconds (and by speed, then seconds): the conversions are exact but slow (a decimal string, big
+ * integers), and the same few durations come back every frame. A pure function's answers: kept or dropped, the result
+ * is the same. Each holds at most CACHED entries and starts again when full.
+ */
+const CACHED = 4096;
+/** @type {Map<number, number>} */
+const FRAMES = new Map();
+/** @type {Map<number, Map<number, number>>} */
+const AT_SPEED = new Map();
+
+/** @template K, V @param {Map<K, V>} m @param {K} k @param {V} v */
+function remember(m, k, v) {
+  if (m.size >= CACHED) m.clear();
+  m.set(k, v);
 }
 
 /**
@@ -29,10 +49,16 @@ export function secondsToFrames(seconds) {
  */
 export function secondsAtSpeedToFrames(seconds, speed) {
   if (!(speed > 0)) throw new RangeError(`secondsAtSpeedToFrames: expected a speed > 0, got ${speed}`);
+  let bySeconds = AT_SPEED.get(speed);
+  const known = bySeconds?.get(seconds);
+  if (known !== undefined) return known;
   const t = decimalOf(seconds), s = decimalOf(speed), e = t.exponent - s.exponent;
   // seconds × 100 × FPS / speed = (t.m × 10^t.e × 100 × FPS) / (s.m × 10^s.e)
   const num = t.mantissa * BigInt(100 * FPS) * (e > 0 ? pow10(e) : 1n), den = s.mantissa * (e < 0 ? pow10(-e) : 1n);
-  return nearest(num, den);
+  const frames = nearest(num, den);
+  if (!bySeconds) { bySeconds = new Map(); remember(AT_SPEED, speed, bySeconds); }
+  remember(bySeconds, seconds, frames);
+  return frames;
 }
 
 /** num / den to the nearest integer, halves up (num ≥ 0, den > 0). @param {bigint} num @param {bigint} den */

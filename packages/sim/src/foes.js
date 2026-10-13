@@ -101,13 +101,23 @@ export const isFoeOf = (u, e) => u !== e && friendly(u);
 /** @param {Content} c @param {Unit} e @returns {EnemyDef} */
 const defOf = (c, e) => c.enemies[e.key];
 
-/** The abilities of an enemy that have a behaviour: [name, blackboard, skill or null]. @param {Content} c @param {Unit} e */
+/** @typedef {[string, Record<string, number>, import('./types.js').FoeSkill | null][]} Abilities */
+/** Each content's enemies' abilities, worked out once per enemy key (the content does not change). @type {WeakMap<Content, { own: unknown, by: Map<string, Abilities> }>} */
+const abilityTables = new WeakMap();
+
+/** The abilities of an enemy that have a behaviour: [name, blackboard, skill or null]. @param {Content} c @param {Unit} e @returns {Abilities} */
 function abilities(c, e) {
-  const d = defOf(c, e), own = c.behaviors?.foes ?? {};
-  /** @type {[string, Record<string, number>, import('./types.js').FoeSkill | null][]} */
+  const own = c.behaviors?.foes ?? {};
+  let t = abilityTables.get(c);
+  if (!t || t.own !== c.behaviors?.foes) { t = { own: c.behaviors?.foes, by: new Map() }; abilityTables.set(c, t); }
+  const known = t.by.get(e.key);
+  if (known) return known;
+  const d = defOf(c, e);
+  /** @type {Abilities} */
   const out = [];
   for (const [k, bb] of Object.entries(d.talents ?? {})) if (Object.hasOwn(own, k)) out.push([k, bb, null]);
   for (const s of d.skills ?? []) if (Object.hasOwn(own, s.key)) out.push([s.key, s.bb, s]);
+  t.by.set(e.key, out);
   return out;
 }
 
@@ -182,10 +192,17 @@ function inLine(w, e) {
   }).toSorted((a, b) => Math.abs(a.x - e.x) + Math.abs(a.y - e.y) - (Math.abs(b.x - e.x) + Math.abs(b.y - e.y)) || a.id - b.id);
 }
 
-/** Runs a hook of every ability of an enemy that has one. @param {World} w @param {Content} c @param {Unit} e @param {(b: FoeBehavior, ctx: FoeContext) => void} run */
-function each(w, c, e, run) {
+/**
+ * Runs a hook of every ability of an enemy that has one; the context is made only for those (an ability without the
+ * hook does nothing with it).
+ * @param {World} w @param {Content} c @param {Unit} e @param {keyof FoeBehavior} hook @param {(b: FoeBehavior, ctx: FoeContext) => void} run
+ */
+function each(w, c, e, hook, run) {
   const own = c.behaviors?.foes ?? {};
-  for (const [name, bb, skill] of abilities(c, e)) run(own[name], contextOf(w, c, e, { name, bb, skill }));
+  for (const [name, bb, skill] of abilities(c, e)) {
+    const b = own[name];
+    if (b[hook] != null) run(b, contextOf(w, c, e, { name, bb, skill }));
+  }
 }
 
 /**
@@ -196,7 +213,7 @@ export function foeSpawn(w, c, e) {
   for (const s of defOf(c, e).skills ?? []) e.ab[`${s.key}.cd`] = secondsToFrames(s.initCooldown);
   e.ab['@hp'] = e.hp;
   e.ab['@blocked'] = e.blockedBy >= 0 ? 1 : 0;
-  each(w, c, e, (b, ctx) => b.spawn?.(ctx));
+  each(w, c, e, 'spawn', (b, ctx) => b.spawn?.(ctx));
 }
 
 /**
@@ -208,7 +225,7 @@ export function foeTick(w, c, e) {
   const ab = e.ab, blocked = e.blockedBy >= 0 ? 1 : 0;
   ab['@hurt'] = e.hp < (ab['@hp'] ?? e.hp) ? 1 : 0;
   ab['@unblocked'] = (ab['@blocked'] ?? 0) === 1 && blocked === 0 ? 1 : 0;
-  each(w, c, e, (b, ctx) => b.tick?.(ctx));
+  each(w, c, e, 'tick', (b, ctx) => b.tick?.(ctx));
   for (const s of defOf(c, e).skills ?? []) if ((ab[`${s.key}.cd`] ?? 0) > 0) ab[`${s.key}.cd`]--;
   ab['@hp'] = e.hp;
   ab['@blocked'] = e.blockedBy >= 0 ? 1 : 0;
@@ -220,21 +237,21 @@ export function foeTick(w, c, e) {
  */
 export function foeFatal(w, c, e) {
   let kept = false;
-  each(w, c, e, (b, ctx) => { if (!kept && b.fatal) kept = b.fatal(ctx) && e.hp > 0; });
+  each(w, c, e, 'fatal', (b, ctx) => { if (!kept && b.fatal) kept = b.fatal(ctx) && e.hp > 0; });
   return kept;
 }
 
 /** The candidates of an enemy's attack after its abilities (敌能-2). @param {World} w @param {Content} c @param {Unit} e @param {Unit[]} cands */
 export function foeTargets(w, c, e, cands) {
   let out = cands;
-  each(w, c, e, (b, ctx) => { if (b.targets) out = b.targets(ctx, out); });
+  each(w, c, e, 'targets', (b, ctx) => { if (b.targets) out = b.targets(ctx, out); });
   return out;
 }
 
 /** The mods of an enemy's attack after its abilities (敌能-2). @param {World} w @param {Content} c @param {Unit} e @param {AttackMods} mods */
 export function foeAttack(w, c, e, mods) {
   let out = mods;
-  each(w, c, e, (b, ctx) => { if (b.attack) out = b.attack(ctx, out); });
+  each(w, c, e, 'attack', (b, ctx) => { if (b.attack) out = b.attack(ctx, out); });
   return out;
 }
 
@@ -255,7 +272,7 @@ export function releasePassengers(w, c, e) {
 
 /** An enemy knocked down (敌能-2). @param {World} w @param {Content} c @param {Unit} e */
 export function foeDeath(w, c, e) {
-  each(w, c, e, (b, ctx) => b.death?.(ctx));
+  each(w, c, e, 'death', (b, ctx) => b.death?.(ctx));
 }
 
 /**
@@ -263,7 +280,7 @@ export function foeDeath(w, c, e) {
  * @param {World} w @param {Content} c @param {Unit} e @param {Unit} t @param {{ dealt: number, ranged: boolean }} how
  */
 export function foeHit(w, c, e, t, how) {
-  each(w, c, e, (b, ctx) => b.hit?.(ctx, t, how.dealt, how.ranged));
+  each(w, c, e, 'hit', (b, ctx) => b.hit?.(ctx, t, how.dealt, how.ranged));
 }
 
 /**
