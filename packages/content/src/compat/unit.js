@@ -140,8 +140,8 @@ export class ShUnit {
     const s = attrs.statsOf(u);
     return { ...s, flags: shFlagsOf(s.flags, elements.bursting(u)) };
   }
-  get maxHp() { return this.s?.maxHp ?? 0; }
-  get atk() { return this.s?.atk ?? 0; }
+  get maxHp() { return this.u ? attrs.statsOf(this.u).maxHp ?? 0 : 0; }
+  get atk() { return this.u ? attrs.statsOf(this.u).atk ?? 0 : 0; }
   get hpRatio() { const m = this.maxHp; return m > 0 ? this.hp / m : 0; }
   /** The enemies it blocks. */
   get blocking() {
@@ -149,15 +149,15 @@ export class ShUnit {
     return id < 0 ? [] : this.b.w.units.filter((e) => e.kind === KIND.ENEMY && e.blockedBy === id).map((e) => this.b.unitOf(e));
   }
   /** Its attribute flags now (stun, sleep, …). */
-  get flags() { return this.s?.flags ?? {}; }
+  get flags() { return this.u ? shFlagsOf(attrs.statsOf(this.u).flags, elements.bursting(this.u)) : {}; }
   /** @param {string} k */
   hasFlag(k) { return !!this.flags[k]; }
   /** An air unit (飞行, 浮空…, 属性-2). */
-  get isFlying() { return !!this.s?.flying; }
+  get isFlying() { return !!this.u && attrs.statsOf(this.u).flying; }
   /** On the field and not stunned, frozen, asleep or otherwise kept from acting. */
-  get canAct() { return this.alive && !this.hidden && !this.s?.disabled; }
+  get canAct() { return this.alive && !this.hidden && !attrs.statsOf(/** @type {Unit} */ (this.u)).disabled; }
   /** Its 重量等级. */
-  get weight() { return this.s?.massLevel ?? 0; }
+  get weight() { return this.u ? attrs.statsOf(this.u).massLevel ?? 0 : 0; }
   /** Its base attributes (属性-1). @returns {Record<string, any> | null} */
   get base() { return this.u?.base ?? null; }
   /** The unit that blocks it, or null. @returns {ShUnit | null} */
@@ -172,7 +172,7 @@ export class ShUnit {
     else if (u) blocking.release(u);
   }
   /** An operator's attack range now (索敌-1, 技能-8): its tile keys. */
-  get rangeKeySet() { return this.u && this.u.kind === KIND.OPERATOR ? reachKeys(this.b.c, this.u) : new Set(); }
+  get rangeKeySet() { return this.u && this.u.kind === KIND.OPERATOR ? new Set(reachKeys(this.b.c, this.u)) : new Set(); }
   get rangeKeys() { return [...this.rangeKeySet]; }
   /** Its own range grid: the one a kit gave it on the field, else its record's. A kit may set it (攻击-1); null takes it back. */
   get rangeGrid() { return this.u?.range ? this.u.range.map((x) => [x.row, x.col]) : this.def?.raw?.rangeGrid ?? this.def?.rangeGrid ?? null; }

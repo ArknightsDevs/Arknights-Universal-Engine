@@ -3,6 +3,7 @@
 import { KIND } from '@aue/schema';
 import { offsetTile } from './dir.js';
 import { bodyKeys } from './body.js';
+import { roundHalfEven } from '@aue/math';
 import { statsOf } from './attrs.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Cell} Cell @typedef {import('./body.js').Grid} Grid */
@@ -26,7 +27,11 @@ export function rangeKeys(grid, at, offsets, extend = 0) {
 }
 
 /** Whether any tile of a unit is among the keys (体积-1, 体积-2). @param {Unit} u @param {Set<number>} keys @param {Grid} grid */
-export const inKeys = (u, keys, grid) => bodyKeys(u, grid).some((k) => keys.has(k));
+export function inKeys(u, keys, grid) {
+  if (/** @type {any} */ (u).hitArea) return bodyKeys(u, grid).some((k) => keys.has(k));
+  const r = roundHalfEven(u.y), col = roundHalfEven(u.x);
+  return r >= 0 && r < grid.rows && col >= 0 && col < grid.cols && keys.has(r * grid.cols + col);
+}
 
 /**
  * @typedef {object} Selector what an attack can select

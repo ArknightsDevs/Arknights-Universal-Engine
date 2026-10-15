@@ -4,7 +4,7 @@ import { secondsToFrames } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { tileAt } from './level.js';
 import { dirOfCode, DEFAULT_DIR } from './dir.js';
-import { statsOf } from './attrs.js';
+import { computeStats } from './attrs.js';
 import { makeSkillState, statMods } from './skills.js';
 import { makeBuff } from './buffs.js';
 import { LEADER_MAX_EP } from './elements.js';
@@ -47,7 +47,7 @@ export function baseOf(d) {
  * @param {World} w @param {Base} base @param {import('./types.js').Buff[]} [buffs]
  */
 function fresh(w, base, buffs = []) {
-  const maxHp = statsOf({ base, buffs }).maxHp;
+  const maxHp = computeStats({ base, buffs }).maxHp;
   return { base, buffs, hp: maxHp, maxHp, atkCd: 0, blockedBy: -1, blockedAt: -1, born: w.frame, bornN: ++w.bornThisFrame, path: [], pt: 0, wait: -1, hidden: false, skill: null, ep: {}, swing: null };
 }
 

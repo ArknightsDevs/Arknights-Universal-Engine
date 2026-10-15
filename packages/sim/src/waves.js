@@ -21,8 +21,28 @@ export const newSchedule = () => ({ wave: -1, step: 'post', at: 0, frag: 0, frag
 /** The predefined units in effect from the start (波次-6): those not hidden. @param {Content} c @returns {string[]} */
 export const visiblePredefines = (c) => (c.level.predefines ?? []).filter((p) => !p.hidden).map((p) => p.alias);
 
-/** A wave's actions in order, fragment by fragment. @param {Wave} wave @returns {WaveAction[]} */
-const actionsOf = (wave) => wave.fragments.flatMap((f) => f.actions);
+/**
+ * What each wave of the content gives the scheduler, worked out once (the content does not change): its actions in
+ * order, where each fragment's start among them, and the last acting mask with what it was worked out from.
+ * @type {WeakMap<Wave, { actions: WaveAction[], starts: number[], mask: { groups: string[], chosen: number[], on: boolean[] } | null }>}
+ */
+const waveTables = new WeakMap();
+
+/** @param {Wave} wave */
+function tableOf(wave) {
+  let t = waveTables.get(wave);
+  if (!t) {
+    const starts = [];
+    let n = 0;
+    for (const f of wave.fragments) { starts.push(n); n += f.actions.length; }
+    t = { actions: wave.fragments.flatMap((f) => f.actions), starts, mask: null };
+    waveTables.set(wave, t);
+  }
+  return t;
+}
+
+/** A wave's actions in order, fragment by fragment; the same list each time — never change it. @param {Wave} wave @returns {WaveAction[]} */
+const actionsOf = (wave) => tableOf(wave).actions;
 
 /** Whether an action's hidden group lets it act (波次-4). @param {Content} c @param {WaveAction} a */
 const groupEnabled = (c, a) => !a.hidden || (c.level.hiddenGroups ?? []).includes(a.hidden);
@@ -47,6 +67,22 @@ function groupsOf(wave) {
  * @param {Content} c @param {Wave} wave @param {Schedule} s @returns {boolean[]} by index into the wave's actions
  */
 function acting(c, wave, s) {
+  const t = tableOf(wave), m = t.mask, groups = c.level.hiddenGroups ?? [];
+  if (m && sameList(m.groups, groups) && sameList(m.chosen, s.chosen)) return m.on;
+  const on = actingNow(c, wave, s);
+  t.mask = { groups: [...groups], chosen: [...s.chosen], on };
+  return on;
+}
+
+/** Whether two lists hold the same items in order. @param {readonly unknown[]} a @param {readonly unknown[]} b */
+function sameList(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/** acting, worked out. @param {Content} c @param {Wave} wave @param {Schedule} s @returns {boolean[]} */
+function actingNow(c, wave, s) {
   const all = actionsOf(wave);
   const packs = new Set(all.filter((x) => x.group && x.pack).map((x) => x.pack));
   const chosen = new Set(s.chosen.map((j) => all[j].pack));
@@ -111,7 +147,7 @@ function runFragment(w, c, wave) {
     s.fragAt = s.at + frames(frag.preDelay);
     s.fired = frag.actions.map(() => 0);
   }
-  const base = wave.fragments.slice(0, s.frag).reduce((n, f) => n + f.actions.length, 0), on = acting(c, wave, s);
+  const base = tableOf(wave).starts[s.frag], on = acting(c, wave, s);
   let end = s.fragAt, open = false;
   frag.actions.forEach((a, i) => {
     if (!on[base + i]) return;
