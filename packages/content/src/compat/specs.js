@@ -56,6 +56,16 @@ export const KIT_TRAIT_BEHAVIOR = Object.freeze({
     const v = r.b.safe(() => fn(r.b, r.p), 'profile.canAttack', r.p);
     return v === undefined ? undefined : !!v;
   },
+  /**
+   * An enemy the kit's attack profile never selects now (Stronghold's `skipEnemy`, targeting.js canTargetEnemy: 黑键 S3
+   * only elite or leader enemies, 嵯峨 not the 重伤): its skill's while the skill runs, else its kit trait's.
+   * @param {any} ctx @param {Unit} target
+   */
+  skip(ctx, target) {
+    const r = pieceOf(ctx.self), fn = r ? profileFn(r.p, 'skipEnemy', !!r.p.skill?.active) : null, e = r?.b.unitOf(target);
+    if (!r || !fn || !e) return undefined;
+    return !!r.b.safe(() => fn(e), 'profile.skipEnemy', r.p);
+  },
   /** A kit trait with an `install` of its own takes the place of the branch's (Stronghold's profession install). @param {any} ctx */
   own(ctx) {
     const r = pieceOf(ctx.self);
@@ -150,6 +160,15 @@ function attackOf(spec, mods) {
  * @type {Readonly<SkillBehavior>}
  */
 export const SPEC_BEHAVIOR = Object.freeze({
+  /**
+   * The running skill's range: the spec's `targeting.rangeGrid` (facing-right [row, col] offsets) as it is now — a kit
+   * may rebuild it in place at the start (司霆惊蛰 S2) —; none: the record's (技能-8).
+   * @param {Unit} u
+   */
+  range(u) {
+    const g = specOf(u)?.spec?.targeting?.rangeGrid;
+    return Array.isArray(g) && g.length ? g.map(([row, col]) => ({ row, col })) : null;
+  },
   /** The spec's kind and time over the record's (技能-6): a duration or a toggle runs its `duration`, else its kind. @param {any} ctx */
   timing(ctx) {
     const spec = specOf(ctx.self)?.spec;

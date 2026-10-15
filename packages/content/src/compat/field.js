@@ -107,7 +107,7 @@ export const kitHits = new WeakSet();
  * @param {Record<string, any>} d @returns {Damage}
  */
 function hitOf(d) {
-  const hit = /** @type {Damage} */ ({ ...d, type: d.type ?? 'phys', amount: Number.isFinite(+d.amount) ? +d.amount : 0, tags: [...(d.tags ?? [])] });
+  const hit = /** @type {Damage} */ ({ ...d, type: d.type ?? 'phys', amount: Number.isFinite(+d.amount) ? +d.amount : 0, tags: [...(d.tags ?? [])], ...(d.ignoreSleep ? { throughSleep: true } : {}) });
   kitHits.add(hit);
   return hit;
 }
@@ -128,9 +128,19 @@ export function dealDamage(b, source, target, dmg) {
   return s && s.kind === KIND.OPERATOR ? traits.creditedDamage(b.w, b.c, s, t, hit) : damage.dealDamage(b.w, s, t, hit);
 }
 
-/** A heal (伤害-11). @param {ShBattle} b @param {ShUnit | null} source @param {ShUnit} target @param {number} amount */
-export function heal(b, source, target, amount) {
-  return target?.u && target.alive ? damage.heal(b.w, source?.u ?? null, target.u, Number(amount) || 0) : 0;
+/**
+ * A heal (伤害-11); its `heal` event shows the kit's options (Stronghold's `opts`: `regen`, `self`, `tags`, …).
+ * @param {ShBattle} b @param {ShUnit | null} source @param {ShUnit} target @param {number} amount @param {Record<string, any>} [opts]
+ */
+export function heal(b, source, target, amount, opts) {
+  if (!target?.u || !target.alive) return 0;
+  const before = b.healOpts;
+  b.healOpts = opts && typeof opts === 'object' ? opts : {};
+  try {
+    return damage.heal(b.w, source?.u ?? null, target.u, Number(amount) || 0);
+  } finally {
+    b.healOpts = before;
+  }
 }
 
 /**

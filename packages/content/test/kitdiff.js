@@ -1,8 +1,13 @@
 // The per-kit differential (docs/spec/compat.md 兼容-6, ADR 0058): one kit, one skill, in the pinned Stronghold's own
 // battle harness and in our engine through the compat layer — the same training (its 自选 elite form: E2 60, 潜能 6,
 // trust 0, skill rank 7, its last module at stage 3), alone against a still dummy (1e7 HP, 0 DEF and RES) in front of
-// it for 40 s; a MANUAL skill starts once it is ready on our side (the player's), no sooner than 3 s after the
-// deployment and after it last started — Stronghold's automatic operations. Compared: the buffs one second after
+// it for 40 s, on the same field (our level is Stronghold's battle field of the run, tile for tile). A MANUAL skill
+// starts as Stronghold's automatic operations start it (autoCast): on our side it is an AUTO one for the run that starts
+// at the same point of the frame — as the operator is about to attack, or as soon as it is ready —, never sooner than
+// 3 s after it last started (the harness's `startOpCooldown` 0: at once at the battle start); a skill Stronghold never
+// starts here does not start on ours either. The kit's random numbers on our side are Stronghold's stream of the same seed (its rng.js): nothing else
+// draws from it in this setting, so a kit's draws fall as in Stronghold (in a match the kit draws from the battle's own
+// stream, 随机-1). Compared: the buffs one second after
 // deployment (those that change something, the skill's aside), the HP each of its hits took (元素损伤 aside) and each of
 // its heals gave (as sets — each value on either side has one on the other within 0.5 %, at least 1: Stronghold's
 // attributes are rounded), the skill starts (±1), the statuses it applied (key and seconds), and our side's recorded
@@ -24,6 +29,13 @@ import { loadTraining, operatorAt } from '../src/operators.js';
 import { TOKENS, loadToken, tokenAt } from '../src/tokens.js';
 
 const SECONDS = 40;
+/** The seed of Stronghold's battle, and of its random stream the kit draws from on our side. */
+const SH_SEED = 1;
+/** Stronghold's trigger rules its skills check every tick (its skills.js TICK_RULES). */
+const TICK_RULES = new Set(['SP_FULL', 'SEARCH', 'CUSTOM_RANGE', 'SKILL_RANGE', 'ACTIVE_RANGE', 'GDGLOW_SKILL_2']);
+/** Stronghold's AUTO_OP_COOLDOWN in frames: no automatic cast sooner after the last. */
+const OP_COOLDOWN = 90;
+/** When Stronghold's automatic operations start a MANUAL skill (autoCast); null for no MANUAL skill. @typedef {'never' | 'ready' | 'attack' | 'range' | null} Auto */
 /**
  * AUE_KITDIFF_TRACE=<char id>:<skill index> prints every damaged event of that run on both sides (a debugging aid).
  * @type {{ on: boolean }}
@@ -52,12 +64,12 @@ function traitOf(list) {
 }
 
 /**
- * Buffs as key → sorted mods, without the ones that change nothing and the skill's; the branch trait's as one
- * (traitOf); unit ids in keys read as roles (roleKey).
+ * Buffs as key → sorted mods, without the ones that change nothing, the skill's and this harness's own (`kitdiff:`); the
+ * branch trait's as one (traitOf); unit ids in keys read as roles (roleKey).
  * @param {any[]} list @param {Map<number, string>} roles
  */
 const buffMap = (list, roles) => Object.fromEntries([traitOf(list), ...list.filter((b) => !OUR_TRAIT.has(b.key) && !String(b.key).startsWith('trait:')).map((b) => ({ ...b, key: roleKey(roles, String(b.key)) }))]
-  .filter((b) => !String(b.key).startsWith('skill') && (Object.keys(b.mods ?? {}).length > 0 || Object.values(b.flags ?? {}).some(Boolean)))
+  .filter((b) => !String(b.key).startsWith('skill') && !String(b.key).startsWith('kitdiff:') && (Object.keys(b.mods ?? {}).length > 0 || Object.values(b.flags ?? {}).some(Boolean)))
   .map((b) => /** @type {[string, unknown]} */ ([b.key, Object.fromEntries(Object.entries(b.mods ?? {}).sort(byKey).map(([k, v]) => [k, Math.round(Number(v) * 1e6) / 1e6]))]))
   .sort(byKey));
 
@@ -74,10 +86,10 @@ const shRoles = (h, u) => new Map(/** @type {[number, string][]} */ ([...h.allie
 /** Our units as roles: the piece's id and its unit's are the operator. @param {any[]} units @param {any} u @param {any} piece @returns {Map<number, string>} */
 const ourRoles = (units, u, piece) => new Map(/** @type {[number, string][]} */ ([[piece.id, 'op'], ...units.map((x) => [x.id, x === u ? 'op' : x.kind === 0 ? 'token' : 'dummy'])]));
 
-/** @type {{ harness: any, kitRoot: string } | null} */
+/** @type {{ harness: any, kitRoot: string, createRng: (seed: number) => any } | null} */
 let ready = null;
 
-/** The kits' copy of the commit's content files and Stronghold's harness, made once. */
+/** The kits' copy of the commit's content files, Stronghold's harness and its random numbers, made once. */
 async function setUp() {
   if (ready) return ready;
   const oracle = oracleDir(), kitDir = join(oracle, '..', '..', 'kitroot', STRONGHOLD.sha.slice(0, 12));
@@ -85,27 +97,55 @@ async function setUp() {
   const kitRoot = pathToFileURL(`${kitDir}/`).href, compat = new URL('../src/compat/', import.meta.url).href;
   register(new URL('hook.js', compat), { data: { root: kitRoot, compat } });
   const harness = await import(pathToFileURL(join(oracle, 'test', 'helpers', 'battleHarness.js')).href);
-  ready = { harness, kitRoot };
+  const { createRng } = await import(pathToFileURL(join(oracle, 'server', 'sim', 'rng.js')).href);
+  ready = { harness, kitRoot, createRng };
   return ready;
+}
+
+/**
+ * When Stronghold's automatic operations start a unit's MANUAL skill (its skills.js tick and onAboutToAttack): never
+ * under TAKE_DAMAGE or NEVER (nothing hurts the unit here); as soon as it is ready under a rule it checks every tick and
+ * for a unit that does not attack (or only in its skill); with trigger ranges of content (`range`), as soon as it is
+ * ready while one holds an enemy, else as the unit is about to attack; else as the unit is about to attack. Null without a MANUAL skill. (A skill whose own condition the dummy never meets — 黑键 S3 starts only against
+ * an elite or a leader — Stronghold never starts: kitDiff takes its run's count of starts for that.)
+ * @param {any} u @returns {Auto}
+ */
+function autoCast(u) {
+  const sk = u.skill;
+  if (!sk || sk.noSkill || !sk.manual) return null;
+  if (sk.rule === 'TAKE_DAMAGE' || sk.rule === 'NEVER') return 'never';
+  if (everyTick(u)) return 'ready';
+  return sk.triggerRanges?.length && !sk.healSkill ? 'range' : 'attack';
+}
+
+/** Whether Stronghold checks a unit's skill every tick: a tick rule, or a unit that does not attack (or only in its skill). @param {any} u */
+const everyTick = (u) => TICK_RULES.has(u.skill.rule) || !!u.profile?.noAttack || !!u.profile?.noAttackUnlessSkill;
+
+/** Stronghold's run as AUE_KITDIFF_TRACE prints it: each damaged event, the operator's skill starts. @param {any} h @param {any} u */
+function traceStronghold(h, u) {
+  const name = (/** @type {any} */ x) => x?.defId ?? '-';
+  for (const x of h.hooksOf('damaged')) console.log(`stronghold ${Math.round(x.t * 30)} ${name(x.source)} → ${name(x.target)} ${r1(x.amount)} ${x.type} ${(x.dmg?.tags ?? []).join(',')}`);
+  for (const x of h.hooksOf('skillStart').filter((/** @type {any} */ x) => x.unit === u)) console.log(`stronghold skillStart ${Math.round(x.t * 30)}`);
 }
 
 /** Stronghold's run. @param {any} H the harness @param {string} charId @param {number} skillIndex @param {string | null} uniEquipId */
 function strongholdRun(H, charId, skillIndex, uniEquipId) {
   const h = H.makeBattle({
+    seed: SH_SEED,
     defs: { enemies: { enemy_dummy: H.enemyRec({ key: 'enemy_dummy', hp: 1e7, speed: 0 }) } },
     units: [{ diy: { slot: 6, charId, skillIndex, ...(uniEquipId ? { uniEquipId } : {}) }, elite: true, row: 10, col: 4 }],
     enemies: [{ key: 'enemy_dummy', pos: [10, 5] }], hooks: ['damaged', 'heal', 'skillStart', 'beforeStatus'], captureNoisy: true, flags: { startOpCooldown: 0 },
   });
   h.step(1);
-  const u = h.allies()[0];
+  const u = h.allies()[0], field = fieldOf(h, u);
   h.run(1);
   const buffs = buffMap(u.buffs, shRoles(h, u));
   h.run(SECONDS - 1);
   const mine = (/** @type {any} */ x) => x.source === u || x.source?.id === u.id;
   const damaged = h.hooksOf('damaged');
-  if (TRACE.on) for (const x of damaged) console.log(`stronghold ${x.source?.defId ?? '-'} → ${x.target?.defId ?? '-'} ${r1(x.amount)} ${x.type} ${(x.dmg?.tags ?? []).join(',')}`);
+  if (TRACE.on) traceStronghold(h, u);
   return {
-    atk: u.base.atk, buffs,
+    atk: u.base.atk, buffs, auto: autoCast(u), field,
     hits: damaged.filter((/** @type {any} */ x) => mine(x) && x.type !== 'element').map((/** @type {any} */ x) => r1(x.amount)),
     heals: h.hooksOf('heal').filter(mine).map((/** @type {any} */ x) => r1(x.amount)),
     starts: h.hooksOf('skillStart').filter((/** @type {any} */ x) => x.unit === u || x.unit?.id === u.id).length,
@@ -114,14 +154,31 @@ function strongholdRun(H, charId, skillIndex, uniEquipId) {
 }
 
 /**
- * Our level: 7 × 3 open tiles; the operator at (1, 2) facing right, the dummy appearing at (1, 3) at once — off its route, which
- * runs along row 0 past them, as Stronghold's dummy stands off the lane its route takes (row 9 of its field).
+ * Stronghold's battle field of a run (its grid's `rect`): each tile's key, height, what may be deployed and what passes,
+ * row by row from the bottom; where the operator and the dummy stand in it; its first start and goal tiles.
+ * @typedef {{ rows: number, cols: number, tiles: { key: string, height: string, build: string, pass: string, special: string | null }[][], op: number[], dummy: number[], start: number[], end: number[] }} Field
  */
-function level() {
-  const t = { key: 'tile_road', height: 'LOWLAND', buildable: 'ALL', passable: 'ALL', side: 'ALL' };
-  return { id: 'kitdiff', width: 7, height: 3, options: { maxLifePoint: 3, initialCost: 99, maxCost: 99, costIncreaseTime: 1, characterLimit: 8, moveMultiplier: 1 },
-    tiles: [0, 1, 2].map(() => Array.from({ length: 7 }, () => t)), routes: [{ start: { row: 0, col: 6 }, end: { row: 0, col: 0 }, motion: 'WALK', checkpoints: [], spawnOffset: { x: -3, y: 1 } }],
-    waves: [oneWave([spawnAt(0, 'dummy')])] };
+
+/** At the battle's start (before anything moves). @param {any} h the harness battle @param {any} u its operator @returns {Field} */
+function fieldOf(h, u) {
+  const g = h.b.grid, R = g.rect, e = h.enemies()[0];
+  const tiles = Array.from({ length: R.r1 - R.r0 + 1 }, (_, r) => Array.from({ length: R.c1 - R.c0 + 1 }, (_, c) => g.tile(R.r0 + r, R.c0 + c)));
+  const find = (/** @type {string} */ sp) => { for (let r = 0; r < tiles.length; r++) for (let c = 0; c < tiles[r].length; c++) if (tiles[r][c].special === sp) return [r, c]; return [0, 0]; };
+  return { rows: tiles.length, cols: tiles[0].length, tiles, op: [u.tileR - R.r0, u.tileC - R.c0], dummy: [e.tileR - R.r0, e.tileC - R.c0], start: find('start'), end: find('end') };
+}
+
+/** Stronghold's ways through a tile as the level's (地形-1). @type {Record<string, string>} */
+const PASS = { ALL: 'ALL', NONE: 'NONE', FLY: 'FLY_ONLY' };
+
+/**
+ * Our level: Stronghold's battle field, tile for tile; the dummy appears at once on its tile, off the route from the
+ * start tile to the goal (a route it would walk, as Stronghold's spawn has one). @param {Field} f
+ */
+function level(f) {
+  const tiles = f.tiles.map((row) => row.map((t) => ({ key: t.key, height: t.height === 'HIGH' ? 'HIGHLAND' : 'LOWLAND', buildable: t.build, passable: PASS[t.pass] ?? 'ALL', side: 'ALL' })));
+  const route = { start: { row: f.start[0], col: f.start[1] }, end: { row: f.end[0], col: f.end[1] }, motion: 'WALK', checkpoints: [], spawnOffset: { x: f.dummy[1] - f.start[1], y: f.dummy[0] - f.start[0] } };
+  return { id: 'kitdiff', width: f.cols, height: f.rows, options: { maxLifePoint: 3, initialCost: 99, maxCost: 99, costIncreaseTime: 1, characterLimit: 8, moveMultiplier: 1 },
+    tiles, routes: [route], waves: [oneWave([spawnAt(0, 'dummy')])] };
 }
 
 /** The engine's record without its talents: the kit applies them. @param {Record<string, any>} d */
@@ -137,30 +194,51 @@ function record(w, op, log) {
     if (k.source === op()) log.hits.push(r1(k.amount));
   }, { priority: -1e9 });
   bus.on(w, 'heal', (k) => { if (k.source === op()) log.heals.push(r1(k.amount)); }, { priority: -1e9 });
-  bus.on(w, 'skillStart', (k) => { if (k.unit === op()) log.starts++; });
+  bus.on(w, 'skillStart', (k) => {
+    if (k.unit !== op()) return;
+    log.starts++;
+    if (TRACE.on) console.log(`ours skillStart ${w.frame}`);
+  });
   bus.on(w, 'beforeStatus', (k) => { if (k.source === op()) log.statuses.add(`${STATUS_NAME[k.status] ?? k.status}:${k.frames < 0 ? Infinity : r1(k.frames / 30)}`); }, { priority: -1e9 });
 }
 
 /**
- * The player's part, as Stronghold's automatic operations: the skill command for a MANUAL skill that is ready, no sooner
- * than 3 s (its AUTO_OP_COOLDOWN) after the deployment and after the skill last started.
- * @param {any} w @param {() => any} op @returns {() => any[]}
+ * A MANUAL skill as Stronghold's automatic operations start it (autoCast): for the run an AUTO one of the engine that
+ * starts when they would — `attack` as the operator is about to attack, `ready` as soon as it is ready, both at that
+ * point of the frame; `range` the one while the kit's trigger ranges hold an enemy (the piece's triggerSatisfied), else
+ * the other —; another start waits 3 s (AUTO_OP_COOLDOWN), held by a 静默 when a charge is ready at once. A skill
+ * Stronghold never starts here stays MANUAL (an AUTO one becomes so — 黍 S1 waits for an ally below half HP), with no
+ * command.
+ * @param {any} c @param {Auto} auto @param {{ b: any }} box the compat battle, once the world is made
  */
-function player(w, op) {
-  let next = 90;
-  bus.on(w, 'skillStart', (k) => { if (k.unit === op()) next = w.frame + 90; });
-  return () => {
+function asStronghold(c, auto, box) {
+  const sk = c.operators.op.skill;
+  if (sk && auto === 'never' && sk.type === 'AUTO') c.operators.op = { ...c.operators.op, skill: { ...sk, type: 'MANUAL' } };
+  if (!sk || sk.type !== 'MANUAL' || auto === null || auto === 'never') return;
+  const trigger = auto === 'range' ? (/** @type {any} */ ctx) => (box.b?.unitOf(ctx.self)?.skill?.triggerSatisfied() ? 'ready' : 'attack') : auto;
+  c.operators.op = { ...c.operators.op, skill: { ...sk, type: 'AUTO' } };
+  c.behaviors.skills = { ...c.behaviors.skills, [sk.id]: { ...c.behaviors.skills?.[sk.id], trigger } };
+}
+
+/**
+ * Stronghold's wait between two automatic starts of a MANUAL skill (AUTO_OP_COOLDOWN; an AUTO one has none): a 静默 for
+ * it while a charge is ready at once. @param {any} w @param {() => any} op @param {Auto} auto
+ */
+function opCooldown(w, op, auto) {
+  if (auto === null || auto === 'never') return;
+  bus.on(w, 'skillStart', (k) => {
     const u = op();
-    return u?.skill && !u.skill.active && u.skill.sp >= u.skill.cost && w.frame >= next ? [[0, { type: 'skill', unit: u.id }]] : [];
-  };
+    if (k.unit === u && u.skill.cost > 0 && u.skill.sp >= u.skill.cost) buffKit.addBuff(u, buffKit.makeBuff({ key: 'kitdiff:opCooldown', left: OP_COOLDOWN, flags: { mute: true } }));
+  });
 }
 
 /**
  * Our run. @param {string} charId @param {Function} factory @param {number} skill @param {number} module
+ * @param {{ createRng: (seed: number) => any, auto: Auto, field: Field }} sh Stronghold's random numbers, the kit's here; when its automatic operations start the skill
  */
-async function ourRun(charId, factory, skill, module) {
+async function ourRun(charId, factory, skill, module, sh) {
   const t = await loadTraining(charId), b = { elite: 2, level: 60, potential: 6, trust: 0, skill, skillLevel: 7, ...(module >= 0 ? { module, moduleLevel: 3 } : {}) };
-  const entry = { factory: /** @type {any} */ (factory), def: defOf(charId, t, b) }, lv = level();
+  const entry = { factory: /** @type {any} */ (factory), def: defOf(charId, t, b) }, lv = level(sh.field);
   const c = /** @type {any} */ ({ level: lv, enemies: { dummy: { name: 'dummy', maxHp: 1e7, atk: 0, def: 0, res: 0, moveSpeed: 1, massLevel: 1 } }, operators: { op: withKitTrait(/** @type {any} */ (bare(operatorAt(t, b))), entry, lv) }, decks: [['op']] });
   /** @type {Record<string, any>} */
   const tokens = {};
@@ -171,16 +249,18 @@ async function ourRun(charId, factory, skill, module) {
   }
   const box = /** @type {{ b: any }} */ ({ b: null });
   c.behaviors = kitsBehaviors({ op: { ...entry, tokens } }, (x) => { box.b = x; });
+  asStronghold(c, sh.auto, box);
   const w = createWorld(c, { seed: 7, players: 1 }), log = { hits: /** @type {number[]} */ ([]), heals: /** @type {number[]} */ ([]), starts: 0, statuses: /** @type {Set<string>} */ (new Set()) };
+  box.b.rng = sh.createRng(SH_SEED);
   // held in place as Stronghold's speed-0 dummy: by a buff that is no status (束缚 is one a kit may look for)
   bus.on(w, 'enemySpawn', (k) => { buffKit.addBuff(k.enemy, buffKit.makeBuff({ key: 'kitdiff:still', flags: { root: true } })); }, { priority: 1e9 });
   const op = () => w.units.find((x) => x.key === 'op');
   record(w, op, log);
-  step(w, c, [[0, { type: 'deploy', op: 'op', row: 1, col: 2, dir: 0 }]]);
+  opCooldown(w, op, sh.auto);
+  step(w, c, [[0, { type: 'deploy', op: 'op', row: sh.field.op[0], col: sh.field.op[1], dir: 0 }]]);
   for (let i = 0; i < 30; i++) step(w, c);
-  const u = op(), buffs = u ? buffMap(u.buffs, ourRoles(w.units, u, box.b.unitOf(u))) : null, manual = c.operators.op.skill?.type === 'MANUAL';
-  const play = player(w, op);
-  for (let i = 30; i < SECONDS * 30; i++) step(w, c, manual ? play() : []);
+  const u = op(), buffs = u ? buffMap(u.buffs, ourRoles(w.units, u, box.b.unitOf(u))) : null;
+  for (let i = 30; i < SECONDS * 30; i++) step(w, c);
   return { atk: c.operators.op.atk, buffs, ...log, statuses: [...log.statuses].sort(), errors: [...new Set(box.b.errors.map((/** @type {any} */ e) => `${e.label}: ${e.message}`))] };
 }
 
@@ -200,12 +280,12 @@ const near = (a, b) => a.every((x) => b.some((y) => close(x, y))) && b.every((y)
  * @param {string} charId @returns {Promise<{ skill: number, diffs: string[] }[]>}
  */
 export async function kitDiff(charId) {
-  const { harness, kitRoot } = await setUp();
+  const { harness, kitRoot, createRng } = await setUp();
   const factory = (await loadUnderGrid(() => import(kitRoot + KIT_FILES[charId]))).default[charId], t = await loadTraining(charId);
   const m = t.modules.length - 1, uni = m >= 0 ? t.modules[m].id : null, out = [];
   for (let skill = 0; skill < t.skills.length; skill++) {
     TRACE.on = process.env['AUE_KITDIFF_TRACE'] === `${charId}:${skill}`;
-    const sh = strongholdRun(harness, charId, skill, uni), ours = await ourRun(charId, factory, skill, m), k = sh.atk / ours.atk, d = [];
+    const sh = strongholdRun(harness, charId, skill, uni), ours = await ourRun(charId, factory, skill, m, { createRng, auto: sh.starts === 0 ? 'never' : sh.auto, field: sh.field }), k = sh.atk / ours.atk, d = [];
     TRACE.on = false;
     if (JSON.stringify(sh.buffs) !== JSON.stringify(ours.buffs)) d.push(`buffs ${JSON.stringify(sh.buffs)} ≠ ${JSON.stringify(ours.buffs)}`);
     if (!near(distinct(ours.hits, k), distinct(sh.hits, 1))) d.push(`hits ${distinct(sh.hits, 1).slice(0, 8)} ≠ ${distinct(ours.hits, k).slice(0, 8)}`);

@@ -2,7 +2,9 @@
 // an operator's skill — whether it has one, runs, runs for a time, its charges, time and ammo left; its SP, gained by
 // Stronghold's rules (none while a timed skill runs or under 阻回, except SP that ignores 阻回: Stronghold's 'init' and the
 // exceptions a kit names, 技能-2) or set outright; starting it (free or not) and ending it with Stronghold's reasons. The
-// automatic start rules stay the engine's (技能-3): a kit's extra trigger ranges and rule changes are accepted and unused.
+// automatic start rules stay the engine's (技能-3): a kit's rule changes are accepted and unused; its extra trigger ranges
+// are kept, with whether one holds an enemy now (triggerSatisfied: for whoever starts the skill as Stronghold's automatic
+// operations — the kit differential —; the engine's rules do not read them).
 import { attrs, skills, sp } from '@aue/sim';
 
 /** @typedef {import('./unit.js').ShUnit} ShUnit @typedef {import('@aue/sim').Unit} Unit */
@@ -13,6 +15,19 @@ const TIMED = new Set(['duration', 'ammo', 'toggle']);
 /** Frames a second (时间-1). */
 const FPS = 30;
 
+/** Enemies a trigger range takes by default: any it can select, air units too (Stronghold's TRIGGER_PROFILE). */
+const TRIGGER_PROFILE = Object.freeze({ canHitFly: true });
+
+/**
+ * An entry of a trigger range as tile keys and the profile that selects in them: tile keys; an ally unit (its range);
+ * `{ keys, profile }`. Null for anything else. @param {any} x @returns {{ keys: number[], profile: Record<string, any> } | null}
+ */
+function triggerEntry(x) {
+  if (Array.isArray(x)) return { keys: x, profile: TRIGGER_PROFILE };
+  if (x?.side === 'ally' && x.alive && x.deployed && !x.hidden) return { keys: x.rangeKeys ?? [], profile: TRIGGER_PROFILE };
+  return Array.isArray(x?.keys) ? { keys: x.keys, profile: x.profile ?? TRIGGER_PROFILE } : null;
+}
+
 export class ShSkill {
   /** @param {ShUnit} unit @param {Record<string, any> | null} spec the kit's spec of the selected skill */
   constructor(unit, spec) {
@@ -21,6 +36,10 @@ export class ShSkill {
     this.activations = 0;
     /** the activation already counted by the spec's start (specs.js), before skillStart */
     this.counted = false;
+    /** @type {Function[]} the extra ranges a kit gave the automatic start (addTriggerRange) */
+    this.triggerRanges = [];
+    /** @type {Set<Function>} those of them for an attack only (Stronghold's `attackOnly`) */
+    this.attackTriggerRanges = new Set();
   }
 
   /** The engine's state of the skill, null without one or off the field. @returns {SkillState | null} */
@@ -76,8 +95,32 @@ export class ShSkill {
   }
   stop() { this.end('stopped'); }
 
-  /** An extra range for the automatic start (`(fn, o)`): accepted, unused (技能-3); returns its removal. */
-  addTriggerRange() { return () => {}; }
+  /**
+   * An extra range for the automatic start (`(fn, { attackOnly })`, Stronghold's): kept (triggerSatisfied); returns its
+   * removal. @param {Function} fn @param {{ attackOnly?: boolean }} [o]
+   */
+  addTriggerRange(fn, o = {}) {
+    if (typeof fn !== 'function') return () => {};
+    this.triggerRanges.push(fn);
+    if (o.attackOnly) this.attackTriggerRanges.add(fn);
+    return () => { this.attackTriggerRanges.delete(fn); const i = this.triggerRanges.indexOf(fn); if (i >= 0) this.triggerRanges.splice(i, 1); };
+  }
+
+  /**
+   * Whether an enemy is in one of the extra ranges now (Stronghold's _extraTriggerSatisfied(false): those for an attack
+   * only aside; an entry is tile keys, an ally unit — its range —, or `{ keys, profile }`). Our modes have no ally
+   * targets on the enemy side (兼容-4), so only enemies count.
+   */
+  triggerSatisfied() {
+    const b = this.unit.b, u = this.unit;
+    const holds = (/** @type {any} */ x) => { const e = triggerEntry(x); return !!e && e.keys.length > 0 && b.enemiesInKeys(e.keys, u, e.profile).length > 0; };
+    for (const fn of this.triggerRanges) {
+      if (this.attackTriggerRanges.has(fn)) continue;
+      const list = b.safe(() => fn(b, u), 'skill.triggerRange', u);
+      if (list && typeof list[Symbol.iterator] === 'function' && [...list].some(holds)) return true;
+    }
+    return false;
+  }
   /** A change of the automatic start's rule (`(rule, grid)`): accepted, unused (技能-3). */
   setTrigger() {}
 

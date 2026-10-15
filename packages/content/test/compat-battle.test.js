@@ -227,6 +227,21 @@ test('[兼容-4] attacks, skills and statuses as a kit sees them: targets it may
   assert.deepEqual(b.errors, []);
 });
 
+test('[兼容-4] a heal shows a kit its options: those the kit gave its heal; a 武者\'s trait heal Stronghold\'s own (self, ignoreHealFree)', () => {
+  const seen = /** @type {any[]} */ ([]);
+  const kit = () => ({ skills: {}, install(/** @type {ShBattle} */ b, /** @type {any} */ u) {
+    b.on('heal', (k) => { if (k.target === u) seen.push(k.opts); }, { owner: u });
+    b.after(0.1, () => b.heal(u, u, 5, { hot: true }), { owner: u });
+  } });
+  const { c, w, b } = match({ guard: { def: { name: 'guard', skill: null, raw: {} }, factory: kit } }, ['guard'], (cc) => {
+    cc.operators.guard = { ...cc.operators.guard, trait: { flags: { noAllyHeal: true }, selfHeal: 7, selfHealOn: 'damage' } };
+  });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 3, dir: 2 }]]);
+  for (let i = 0; i < 900 && seen.length < 2; i++) step(w, c);
+  assert.deepEqual(seen.slice(0, 2), [{ hot: true }, { self: true, ignoreHealFree: true }]);
+  assert.deepEqual(b.errors, []);
+});
+
 test('[兼容-4] a kit\'s writes to an attack\'s profile in beforeAttack: its atkScale and afterHit for that attack only', () => {
   const log = /** @type {string[]} */ ([]);
   const kit = () => ({ skills: {}, trait: { afterHit: () => log.push('trait') }, install(/** @type {ShBattle} */ b, /** @type {any} */ u) {

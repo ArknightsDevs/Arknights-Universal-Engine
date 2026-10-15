@@ -60,7 +60,7 @@ const SHAPES = {
     get amount() { return k.amount; }, set amount(v) { k.amount = v; } }),
   fatal: (b, k) => ({ unit: sh(b, k.unit), source: sh(b, k.source), credit: sh(b, k.credit), dmg: k.dmg, amount: k.amount,
     get prevented() { return k.prevented; }, set prevented(v) { k.prevented = v; } }),
-  heal: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), opts: {}, get amount() { return k.amount; }, set amount(v) { k.amount = v; } }),
+  heal: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), opts: healOpts(b, k), get amount() { return k.amount; }, set amount(v) { k.amount = v; } }),
   beforeAttack: (b, k) => {
     const p = sh(b, k.attacker), profile = p ? { ...effectiveProfile(p) } : undefined;
     return { attacker: p, targets: k.targets.map((/** @type {Unit} */ t) => b.unitOf(t)), isSkill: k.isSkill, profile, baseScale: Number(profile?.atkScale ?? 1), baseAfterHit: profile?.afterHit };
@@ -76,6 +76,13 @@ const SHAPES = {
     get duration() { return k.frames < 0 ? Infinity : k.frames * TICK; }, set duration(v) { k.frames = v === Infinity ? -1 : secondsToFrames(Math.max(0, Number(v) || 0)); },
     get value() { return k.strength; }, set value(v) { k.strength = v; }, get cancel() { return k.cancel; }, set cancel(v) { k.cancel = v; } }),
 };
+
+/**
+ * A heal's options as Stronghold's `heal` event gives them (兼容-4): those the kit passed to its heal; for the engine's
+ * own heals, a trait's self-heal (职业-9) as Stronghold's profession heals itself (`self`, `ignoreHealFree`), else none.
+ * @param {ShBattle} b @param {Record<string, any>} k
+ */
+const healOpts = (b, k) => b.healOpts ?? (k.trait ? { self: true, ignoreHealFree: true } : {});
 
 /**
  * What a handler changed in place, written back to the engine's context after each handler (兼容-4): the targets an
@@ -124,6 +131,8 @@ export class ShBattle {
     this.shapes = new WeakMap();
     /** @type {Record<string, any> | null} the kit of the token spawnToken is placing (summons.js) */
     this.pendingKit = null;
+    /** @type {Record<string, any> | null} the options of the kit's heal under way (field.js heal) */
+    this.healOpts = null;
     this.rng = makeRng(w);
     /** the kits' own shots (projectiles.js) */
     this.projectiles = new ShProjectiles(this);
@@ -280,8 +289,8 @@ export class ShBattle {
   blockedTargets(u, profile) { return field.blockedTargets(u, profile); }
   /** @param {ShUnit | null} source @param {ShUnit} target @param {Record<string, any>} dmg */
   dealDamage(source, target, dmg) { return field.dealDamage(this, source, target, dmg); }
-  /** @param {ShUnit | null} source @param {ShUnit} target @param {number} amount */
-  heal(source, target, amount) { return field.heal(this, source, target, amount); }
+  /** @param {ShUnit | null} source @param {ShUnit} target @param {number} amount @param {Record<string, any>} [opts] */
+  heal(source, target, amount, opts) { return field.heal(this, source, target, amount, opts); }
   /** @param {ShUnit} target @param {number} amount @param {{ source?: ShUnit | null, tags?: string[] }} [o] */
   loseHp(target, amount, o) { return field.loseHp(this, target, amount, o); }
   /** @param {ShUnit} unit */
