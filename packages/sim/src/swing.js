@@ -61,28 +61,56 @@ function toward(s, u) {
 /** A boomerang turns back toward its thrower (职业-12). @param {Shot} s */
 const turn = (s) => { s.ret = 1; s.speed = /** @type {number} */ (s.back); };
 
+/** Whether a projectile's thrower is on the field (职业-12): a boomerang held or without its target lives on. @param {World} w @param {Shot} s */
+const throwerOn = (w, s) => w.units.some((u) => u.id === s.src && u.hp > 0);
+
+/**
+ * A projectile that reached its target (攻击-3, 职业-12): it hits; a boomerang is held there while that is settled and then
+ * turns back — unless content took it over (`arrive` answered true) and has not sent it back yet. Whether it stays in flight.
+ * @param {Shot} s @param {Unit} t @param {(s: Shot, target: Unit) => boolean} arrive
+ */
+function arrived(s, t, arrive) {
+  if (!s.back) { arrive(s, t); return false; }
+  s.held = 1;
+  if (!arrive(s, t) && s.held) { s.held = 0; turn(s); }
+  return true;
+}
+
 /**
  * One frame of every projectile, in launch order (攻击-3, 职业-12): it moves its speed ÷ 30 tiles toward where its target
  * is now; within that distance it arrives. A target that left the field, fell or disappeared makes it vanish — a
- * boomerang turns back from where it is instead, as it does once it arrived; one on its way back that reaches its
- * thrower is caught, and vanishes when its thrower left.
- * @param {World} w @param {(s: Shot, target: Unit) => void} arrive @param {(s: Shot, thrower: Unit) => void} caught
+ * boomerang turns back from where it is instead, as it does once it arrived unless content took it over there (`arrive`
+ * answers true: it stays held until sent back); one on its way back that reaches its thrower is caught, and vanishes
+ * when its thrower left.
+ * @param {World} w @param {(s: Shot, target: Unit) => boolean} arrive @param {(s: Shot, thrower: Unit) => void} caught
  */
 export function flyShots(w, arrive, caught) {
   /** @type {Shot[]} */
   const keep = [];
   for (const s of w.shots) {
+    if (s.held) { if (throwerOn(w, s)) keep.push(s); continue; }
     const t = w.units.find((u) => u.id === (s.ret ? s.src : s.target));
     if (!t || t.hp <= 0 || (t.hidden && !s.ret)) {
-      if (s.back && !s.ret && w.units.some((u) => u.id === s.src && u.hp > 0)) { turn(s); keep.push(s); }
-      continue;
-    }
-    if (!toward(s, t)) { keep.push(s); continue; }
-    if (s.ret) { caught(s, t); continue; }
-    arrive(s, t);
-    if (s.back) { turn(s); keep.push(s); }
+      if (s.back && !s.ret && throwerOn(w, s)) { turn(s); keep.push(s); }
+    } else if (!toward(s, t)) keep.push(s);
+    else if (s.ret) caught(s, t);
+    else if (arrived(s, t, arrive)) keep.push(s);
   }
   w.shots = keep;
+}
+
+/**
+ * Content sends a boomerang it holds back to its thrower from a place (职业-12): it flies back from there at its way
+ * back's speed. Returns it, or null for one not held (sent back already, or gone).
+ * @param {World} w @param {Shot} s @param {number} x @param {number} y
+ */
+export function sendBack(w, s, x, y) {
+  if (!s.held || !w.shots.includes(s)) return null;
+  s.held = 0;
+  s.sx = x;
+  s.sy = y;
+  turn(s);
+  return s;
 }
 
 /** Whether a unit has a boomerang out (职业-12): it may not attack until it caught them all. @param {World} w @param {Unit} u */

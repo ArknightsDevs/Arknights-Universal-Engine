@@ -436,13 +436,25 @@ export function operatorsAttack(w, c) {
 }
 
 /**
- * Every projectile's frame (攻击-3): one that reaches its target hits it with what it carries, its shooter as the
- * source while that is still on the field.
+ * Every projectile's frame (攻击-3, 职业-12): one that reaches its target hits it with what it carries, its shooter as the
+ * source while that is still on the field; then for a boomerang the `boomerangHit` event, whose handler may hold it
+ * there (`hold`).
  * @param {World} w @param {Content} c
  */
 export function shotsFly(w, c) {
-  flyShots(w, (s, t) => { impact(w, c, w.units.find((u) => u.id === s.src && u.hp > 0) ?? null, t, { ...s, ranged: true }); },
-    (s, thrower) => { emit(w, 'boomerangCaught', { unit: thrower, x: s.sx, y: s.sy, isSkill: !!s.skill }); });
+  flyShots(w, (s, t) => {
+    const src = w.units.find((u) => u.id === s.src && u.hp > 0) ?? null;
+    impact(w, c, src, t, { ...s, ranged: true });
+    return !!(s.back && src && hasHook(w, 'boomerangHit') && emit(w, 'boomerangHit', { unit: src, target: t, x: s.sx, y: s.sy, isSkill: !!s.skill, shot: s, hold: false }).hold);
+  }, (s, thrower) => { emit(w, 'boomerangCaught', { unit: thrower, x: s.sx, y: s.sy, isSkill: !!s.skill }); });
+}
+
+/**
+ * Content hits another unit with what a boomerang it holds carries (职业-12), as on its arrival; its thrower the source.
+ * @param {World} w @param {Content} c @param {import('./types.js').Shot} s @param {Unit} t
+ */
+export function boomerangStrike(w, c, s, t) {
+  if (t.hp > 0 && w.units.includes(t)) impact(w, c, w.units.find((u) => u.id === s.src && u.hp > 0) ?? null, t, { ...s, ranged: true });
 }
 
 /**

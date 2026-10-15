@@ -7,7 +7,7 @@
 import { KIND, bus, reserveIds, traits } from '@aue/sim';
 import { ShBattle } from './battle.js';
 import { ShUnit } from './unit.js';
-import { battles, SPEC_BEHAVIOR, KIT_TRAIT_BEHAVIOR, onAttackHit, onAttackDone, onSpecHit } from './specs.js';
+import { battles, SPEC_BEHAVIOR, KIT_TRAIT_BEHAVIOR, onAttackHit, onAttackDone, onSpecHit, onBoomerangHit } from './specs.js';
 import { KIT_BUFF, KIT_BUFF_BEHAVIOR, worldBattles } from './buffhooks.js';
 import { withGrid } from './grid.js';
 
@@ -71,6 +71,7 @@ export function kitsWorld(kits, seen) {
     bus.on(w, 'attackHit', onAttackHit);
     bus.on(w, 'attack', onAttackDone, { priority: FIRST });
     bus.on(w, 'hit', onSpecHit, { priority: FIRST });
+    bus.on(w, 'boomerangHit', onBoomerangHit);
     bus.on(w, 'tick', (k) => b.projectiles.update(k.frames / 30), { priority: FIRST });
     const decks = c.decks ?? w.players.map(() => Object.keys(c.operators));
     decks.forEach((deck, seat) => {

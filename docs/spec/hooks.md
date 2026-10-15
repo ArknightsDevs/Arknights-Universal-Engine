@@ -43,6 +43,7 @@
 | `skillEnd` | 技能结束之后（技能-4、技能-7）；运行中的干员离场时，先于它的 `death` | `unit`、`reason`：`duration`、`instant`（立即生效或下次攻击的技能）、`ammo`、`stopped`（玩家关闭）、`death`（离场）、`move`（一般方式的移动，部署-9） |
 | `elementHit` | 一次元素损伤判定不受影响之后、计算受到的量之前（元素-2） | `source`、`target`、`dmg`：`type` 为 `element`、`element`、`amount` 与 `mul`（可改）、`cancel` |
 | `elementBurst` | 元素爆发开始、爆发 Buff 加上之前（元素-3） | `source`（使它爆发的单位）、`target`、`element` |
+| `boomerangHit` | 回旋投射物到达目标、结算之后（职业-12） | `unit`（投出它的干员）、`target`、`x`、`y`（到达处）、`isSkill`、`shot`、`hold`：设为是时投射物停在那里，由内容接管 |
 | `boomerangCaught` | 干员回收一个回旋投射物时（职业-12） | `unit`、`x`、`y`（回收处）、`isSkill`（技能的攻击投出的） |
 | `merchantPay` | 干员的费用消耗扣费之前（职业-10） | `unit`、`cost`（可改，负数按 0）、`cancel`：设为是时这次不扣费 |
 | `beforeStatus` | 战斗中施加一个状态之前（状态-5） | `source`、`target`、`status`、`frames`（−1 为无期限；改为 0 或更少则不施加）、`strength`（状态的数值）、`cancel` |

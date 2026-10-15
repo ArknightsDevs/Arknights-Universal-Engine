@@ -7,7 +7,7 @@
 // and the running skill's attack over both (its resolveProfile, effectiveProfile): whether it may attack now and what a
 // turn without a target does (the trait behaviour, 职业-6), its main target's hits and 倍率, after each victim, after
 // each target, after an attack.
-import { skills, constants, traitScale } from '@aue/sim';
+import { skills, constants, traitScale, swing, boomerangStrike } from '@aue/sim';
 import { modsOf, flagsOf, statusKeyOf } from './mods.js';
 import { kitHits } from './field.js';
 
@@ -211,6 +211,30 @@ export function onAttackHit(k) {
   if (!spec) return;
   call(b, p, spec.attack?.onHit, 'skill.attack.onHit', { target, dealt: k.dealt, x: target.x, y: target.y });
   call(b, p, spec.onHit, 'skill.onHit', { target, dealt: k.dealt, x: target.x, y: target.y });
+}
+
+/**
+ * A boomerang of a kitted piece at its target (the engine's `boomerangHit`, 职业-12): a profile with `boomerangOnward`
+ * (the skill attack's when a skill's attack threw it, else the kit trait's — the profile it was thrown with, as
+ * Stronghold's) takes its flight over — the engine holds it there and the
+ * callback gets { battle, unit, profile, target, x, y, attackId, isSkill, home(), hit(target), comeBack(x, y) }:
+ * `comeBack` sends it back from (x, y) once and returns its way back ({ x, y } where it is, { tx, ty } its thrower), `hit`
+ * strikes another enemy with this attack. A callback that throws sends it back from where it hit.
+ * @param {Record<string, any>} k the engine's context
+ */
+export function onBoomerangHit(k) {
+  const r = pieceOf(k.unit), fn = r ? profileFn(r.p, 'boomerangOnward', !!k.isSkill) : null;
+  if (!r || !fn) return;
+  const { b, p } = r, u = k.unit, shot = k.shot;
+  const home = () => u.hp > 0 && b.w.units.includes(u);
+  const comeBack = (/** @type {number} */ x, /** @type {number} */ y) => {
+    const s = home() ? swing.sendBack(b.w, shot, x, y) : null;
+    return s ? { get x() { return s.sx; }, get y() { return s.sy; }, get tx() { return u.x; }, get ty() { return u.y; } } : null;
+  };
+  const hit = (/** @type {any} */ t) => { if (t?.u) boomerangStrike(b.w, b.c, shot, t.u); };
+  k.hold = true;
+  const ctx = { battle: b, unit: p, profile: p.profile, target: b.unitOf(k.target), x: k.x, y: k.y, attackId: 0, isSkill: k.isSkill, home, hit, comeBack };
+  if (b.safe(() => { fn(ctx); return true; }, 'boomerang.onward', p) !== true) comeBack(k.x, k.y);
 }
 
 /** Whether a hit is the engine's attack's on its main target: not a kit's own, no splash, chain or aftershock. @param {Record<string, any>} d */

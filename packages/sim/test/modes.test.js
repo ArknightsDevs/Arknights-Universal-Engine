@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
-import { createWorld, step, bus } from '../src/index.js';
+import { createWorld, step, bus, swing, boomerangStrike } from '../src/index.js';
 import { makeEnemy } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
 import { statsOf, intervalFrames } from '../src/attrs.js';
@@ -271,6 +271,31 @@ test('[职业-12] [钩子-3] boomerangs: out to the target, back to the thrower,
   w.units.splice(w.units.indexOf(e), 1);
   const back = w.shots.filter((s) => s.src === op.id);
   assert.ok(back.every((s) => s.ret === 1), 'a target that left: the boomerang comes back from where it is');
+});
+
+test('[职业-12] [钩子-3] boomerangHit: a handler holds the boomerang where it hit, strikes another with it, sends it back from elsewhere', () => {
+  const { w, c, foe, put, run } = arena((cc) => { cc.operators.sniper = { ...cc.operators.sniper, trait: { boomerang: { out: 15, back: 15 } } }; });
+  /** @type {any[]} */
+  const held = [];
+  bus.on(w, 'boomerangHit', (k) => { k.hold = true; held.push(k); });
+  const op = put('sniper', 2, 2), e = foe(1, 2), other = foe(1, 3);
+  const hits = run(60).filter((x) => x.type === 'hit' && x.id === op.id);
+  assert.deepEqual([hits.length, held.length, held[0]?.target, held[0]?.x, held[0]?.y], [1, 1, e, 2, 1], 'held where it hit');
+  assert.deepEqual(w.shots.map((s) => [s.held, s.sx, s.sy]), [[1, 2, 1]], 'it stays there; no new attack meanwhile');
+  boomerangStrike(w, c, w.shots[0], other);
+  assert.ok(other.hp < other.maxHp, 'its attack strikes another enemy');
+  assert.equal(swing.sendBack(w, w.shots[0], 3, 1)?.ret, 1);
+  assert.equal(swing.sendBack(w, w.shots[0], 3, 1), null, 'once');
+  run(3);
+  assert.equal(w.shots.length, 0, 'flown back from (3, 1), √2 tiles at 15 a second, and caught');
+  w.units.splice(w.units.indexOf(e), 1);
+  w.units.splice(w.units.indexOf(other), 1);
+  const f = foe(1, 2);
+  run(60);
+  assert.deepEqual([w.shots.filter((s) => s.held).length, f.hp < f.maxHp], [1, true]);
+  w.units.splice(w.units.indexOf(op), 1);
+  run(1);
+  assert.equal(w.shots.length, 0, 'its thrower left: gone');
 });
 
 test('[职业-12] up in the air while the skill does not run: flags, flying enemies only; the skill\'s attacks splash', () => {
