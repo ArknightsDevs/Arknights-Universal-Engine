@@ -244,6 +244,33 @@ test('[骨骼-12] two bones bend to reach the target, on the side of the bend di
   assert.ok(near(tip(q, stretched, 2)[0], 30));
 });
 
+/** A number `k` steps of its last bit away. @param {number} v @param {number} k */
+const ulps = (v, k) => {
+  const f = new Float64Array([v]), bits = new BigInt64Array(f.buffer);
+  bits[0] += BigInt(k);
+  return f[0];
+};
+
+/** Root, a parent of y scale `sy`, a child at `l1` on it `l2` long, a target bone at x, y. @param {number} sy @param {number[]} l @param {number} x @param {number} y */
+function flatArm(sy, l, x, y) {
+  const bones = [bone('root', -1), bone('a', 0, { length: l[0], scaleY: sy }), bone('b', 1, { x: l[0], length: l[1] }), bone('t', 0, { x, y })];
+  return skeleton({ bones, constraints: { ik: [ik([1, 2], 3)], transform: [], path: [] } });
+}
+
+test('[骨骼-12] unequal scales: the tip reaches a target on the ellipse, else the arm points straight at it — also for a parent squashed nearly flat', () => {
+  const s = flatArm(0.5, [10, 10], 12, 6), p = posed(s);
+  assert.ok(near(tip(p, s, 2)[0], 12) && near(tip(p, s, 2)[1], 6));
+  // char_222_bpipe's back, Skill_2_Begin at 1/30 s: a parent at 3.7e-8 of its height, so whether the target is on the
+  // ellipse and how high it is there must not come from √(dd − r²), whose terms agree to their last bits.
+  const l = [38.48779296875, 32.45602035522461];
+  for (const [x, y, reach] of [[36, 48, 60], [-55.8732577299379, 46.475256626088154, l[0] + l[1]]]) {
+    for (let k = -16; k <= 16; k++) {
+      const flat = flatArm(3.725290298461914e-8, l, ulps(x, k), y), q = posed(flat), [tx, ty] = tip(q, flat, 2), d = Math.hypot(ulps(x, k), y);
+      assert.ok(near(tx, (ulps(x, k) * reach) / d) && near(ty, (y * reach) / d), `${x} ${k}`);
+    }
+  }
+});
+
 test('[骨骼-13] a transform constraint moves bones towards the target in the world, absolutely or relatively', () => {
   const make = (/** @type {Record<string, unknown>} */ v) => skeleton({
     bones: [bone('root', -1), bone('a', 0, { rotation: 10 }), bone('t', 0, { x: 6, y: 4, rotation: 90 })],
