@@ -24,6 +24,8 @@ import { spineModel } from './spine.js';
  * @property {readonly number[]} [view] the level's camera view vector
  * @property {import('./units.js').Models} [models] Spine models by content key (operators by character id)
  * @property {Set<string>} [leaders] content keys of leader enemies (red HP bars)
+ * @property {Set<string>} [foeDevices] content keys of the devices on the enemies' side (装置-3): their blocks and bars in the
+ *   enemies' colour (渲染-5, 渲染-16)
  * @property {boolean} [bars] whether the renderer draws the units' bars (渲染-5; default true): false when the page draws
  *   the battle UI's own (界面-19)
  * @property {import('./kit.js').LoadedKit | null} [kit] the map theme's tile kit (渲染-7); without one the tiles are flat
@@ -71,11 +73,11 @@ export function createBattleRenderer(o) {
   scene.background = new THREE.Color(0x404040);
   const highlight = createHighlight(o.level), patch = highlight.patch;
   const terrain = o.kit ? createKitTerrain(o.level, o.kit, terrainTextures(o), patch) : createTerrain(o.level, o.textures, patch);
-  const units = createUnits(o.textures, o.models), field = { ...o.level, highland: o.kit?.kit.highland };
+  const units = createUnits(o.textures, o.models, o.foeDevices), field = { ...o.level, highland: o.kit?.kit.highland };
   const range = createRange(field, o.textures.get('ui:range')), effects = o.effects ? createEffects(o.effects, field, { skills: o.skills }) : null, clock = battleClock();
   const placing = createPlacing(o.textures, o.models ?? new Map(), field);
   scene.add(terrain.object, range.object, units.shadows, placing.object, units.object, ...(effects ? [effects.object] : []));
-  const overlays = createOverlays(o.bars === false ? new Map() : o.textures, o.leaders);
+  const overlays = createOverlays(o.bars === false ? new Map() : o.textures, o.leaders, o.foeDevices);
   const ray = new THREE.Raycaster();
 
   let scale = o.pixelScale ?? 1, attackFx = o.attackEffects !== false;

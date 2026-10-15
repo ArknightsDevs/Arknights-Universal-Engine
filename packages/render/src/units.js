@@ -1,14 +1,30 @@
 // The units system: each unit is a Spine figure when its model is loaded (docs/spec/render.md 渲染-1 … 渲染-4), else a
-// card with the operator's avatar or the enemy's icon standing at its feet; a unit with neither is not drawn. Figures
-// and cards are depth-tested against the terrain without writing depth (ADR 0027). A figure whose unit died stays to
-// play its die clip. Every figure and card has a shadow (渲染-6) for as long as it is drawn.
+// card with the operator's avatar or the enemy's icon standing at its feet; a device with neither is a block in its
+// side's colour (渲染-16); any other unit with neither is not drawn. Figures, cards and blocks are depth-tested against
+// the terrain without writing depth (ADR 0027). A figure whose unit died stays to play its die clip. Every figure, card
+// and block has a shadow (渲染-6) for as long as it is drawn.
 import * as THREE from 'three';
 import { KIND } from '@aue/schema';
 import { toThree, tileWorld } from './camera.js';
 import { FPS, newFigure, follow, attacked, dies, deathOver, poseFigure } from './figure.js';
 import { createShadows } from './shadows.js';
+import { BAR } from './overlays.js';
 
 const CARD = 0.8;
+/** A device block (渲染-16): its footprint and height in tiles; its sides are this much of its top's colour. */
+export const BLOCK = Object.freeze({ size: 0.7, height: 0.35, shade: 0.7 });
+
+/** A block's geometry standing on its base, its top in the colour and its sides darker (渲染-16). @param {number} hex */
+function blockGeometry(hex) {
+  const g = new THREE.BoxGeometry(BLOCK.size, BLOCK.height, BLOCK.size).translate(0, BLOCK.height / 2, 0);
+  const top = new THREE.Color(hex), side = top.clone().multiplyScalar(BLOCK.shade), n = g.attributes.normal, colors = /** @type {number[]} */ ([]);
+  for (let i = 0; i < n.count; i++) (n.getY(i) > 0.5 ? top : side).toArray(colors, i * 3);
+  return g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+}
+const BLOCKS = Object.freeze({ foe: blockGeometry(BAR.colors.enemy), ours: blockGeometry(BAR.colors.ours) });
+
+/** A device's block: the enemies' bar colour for a device on their side, ours otherwise. @param {boolean} foe */
+const newBlock = (foe) => new THREE.Mesh(foe ? BLOCKS.foe : BLOCKS.ours, new THREE.MeshBasicMaterial({ vertexColors: true, depthWrite: false }));
 
 /** The texture key of a unit. @param {number} kind @param {string} key */
 export const unitTextureKey = (kind, key) => (kind === KIND.OPERATOR ? `avatar:${key}` : kind === KIND.DEVICE ? `device:${key}` : `enemy:${key}`);
@@ -31,10 +47,11 @@ const disposeFigure = (f) => { for (const x of Object.values(f.sides)) x.dispose
 /**
  * The units system; its shadows are a separate object (drawn before every unit).
  * @param {Map<string, THREE.Texture>} textures @param {Models} [models] by content key (operators by character id)
+ * @param {Set<string>} [foeDevices] content keys of the devices on the enemies' side (装置-3)
  */
-export function createUnits(textures, models = new Map()) {
+export function createUnits(textures, models = new Map(), foeDevices = new Set()) {
   const group = new THREE.Group(), shadows = createShadows(textures.get('ui:shadow'));
-  /** @type {Map<number, THREE.Sprite>} */
+  /** @type {Map<number, THREE.Sprite | THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>>} cards and blocks */
   const cards = new Map();
   /** @type {Map<number, Figure>} */
   const figures = new Map();
@@ -44,8 +61,8 @@ export function createUnits(textures, models = new Map()) {
 
   /** @param {import('@aue/schema').ViewUnit} u */
   const card = (u) => {
-    const map = textures.get(unitTextureKey(u.kind, keys.get(u.id) ?? ''));
-    const s = map ? newCard(map) : null;
+    const key = keys.get(u.id) ?? '', map = textures.get(unitTextureKey(u.kind, key));
+    const s = map ? newCard(map) : u.kind === KIND.DEVICE ? newBlock(foeDevices.has(key)) : null;
     if (s) { group.add(s); cards.set(u.id, s); }
     return s;
   };

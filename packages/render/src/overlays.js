@@ -18,10 +18,11 @@ export const BAR = Object.freeze({
  * The bars of a unit (渲染-5): its HP; an operator with a skill also its SP — filling while it gathers, full when
  * ready, the time left while it runs (of the longest seen this run).
  * @param {import('@aue/schema').ViewUnit} u @param {boolean} leader @param {number} runFrames the skill run's length so far seen
+ * @param {boolean} [foe] a device on the enemies' side (装置-3): the enemies' colour
  * @returns {Bar[]}
  */
-export function barsOf(u, leader, runFrames) {
-  const c = BAR.colors, hpColor = u.kind !== KIND.ENEMY ? c.ours : leader ? c.leader : c.enemy;
+export function barsOf(u, leader, runFrames, foe = false) {
+  const c = BAR.colors, hpColor = u.kind !== KIND.ENEMY && !foe ? c.ours : leader ? c.leader : c.enemy;
   /** @type {Bar[]} */
   const bars = [{ ratio: u.maxHp > 0 ? Math.max(0, Math.min(1, u.hp / u.maxHp)) : 0, color: hpColor, height: BAR.hp }];
   if (u.kind !== KIND.OPERATOR || u.sp < 0 || u.skill === SKILL_STATE.NONE) return bars;
@@ -40,8 +41,9 @@ function barSprite(map, color, opacity) {
 
 /**
  * @param {Map<string, THREE.Texture>} textures the bar is 'ui:bar' @param {Set<string>} [leaders] content keys of leader enemies
+ * @param {Set<string>} [foeDevices] content keys of the devices on the enemies' side (装置-3)
  */
-export function createOverlays(textures, leaders = new Set()) {
+export function createOverlays(textures, leaders = new Set(), foeDevices = new Set()) {
   const scene = new THREE.Scene(), map = textures.get('ui:bar');
   /** @type {Map<number, { at: THREE.Vector3, bars: Bar[], sprites: THREE.Sprite[], run: number }>} */
   const units = new Map();
@@ -76,7 +78,8 @@ export function createOverlays(textures, leaders = new Set()) {
         units.set(u.id, x);
         x.run = u.skill === SKILL_STATE.RUNNING ? Math.max(x.run, u.skillLeft) : 0;
         x.at.set(...toThree(tileWorld(level, u.x, u.y, u.z)));
-        x.bars = barsOf(u, leaders.has(keys.get(u.id) ?? ''), x.run);
+        const key = keys.get(u.id) ?? '';
+        x.bars = barsOf(u, leaders.has(key), x.run, foeDevices.has(key));
         ensure(x, x.bars.length);
       }
       for (const [id, x] of units) if (!seen.has(id)) { for (const s of x.sprites) { scene.remove(s); s.material.dispose(); } units.delete(id); }
