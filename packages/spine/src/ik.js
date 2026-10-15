@@ -64,8 +64,9 @@ export function pointBone(p, s, i, target, o) {
  * The two angles (radians) of a parent with unequal scales: the child's reach is an ellipse; the exact solution when
  * the target is on it, else the nearest or farthest point of it. At the solution's x, r, the child reaches e = r − l1
  * along the parent: the target is on the ellipse when |e| ≤ a, at the height (b / a)·√(a² − e²) — in exact arithmetic
- * the same as the runtime's r² ≤ dd and √(dd − r²), which cancel to rounding noise when the parent is squashed nearly
- * flat (骨骼-12).
+ * the same as the runtimes' r² ≤ dd and √(dd − r²). Those cancel to rounding noise when the parent is squashed nearly
+ * flat, so there the runtimes' result jumps with the last bits of the target; we take the exact solution on purpose
+ * and may differ from them (骨骼-12).
  * @param {{ l1: number, l2: number, psx: number, psy: number, tx: number, ty: number, dd: number, bend: number }} k @returns {number[]}
  */
 function ellipseAngles(k) {

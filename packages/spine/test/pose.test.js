@@ -10,7 +10,7 @@ import { readAtlas, regionOf } from '../src/atlas.js';
 import { pageUV, regionUVs, regionCorners, worldVertices, findAttachment, deformKey } from '../src/vertices.js';
 import { updateOrder } from '../src/order.js';
 import { updateWorld } from '../src/world.js';
-import { bone, slot, skeleton, ik, transform, defaultSkin, near } from './skel.js';
+import { bone, slot, skeleton, ik, transform, defaultSkin, near, nearPi } from './skel.js';
 
 /** A pose of a skeleton with its world transforms updated in update order. @param {import('../src/skeleton.js').Skeleton} s */
 function posed(s) {
@@ -29,7 +29,7 @@ test('[骨骼-7] world transforms: parents first, the root by the skeleton posit
   updateBones(p, s);
   assert.ok(near(p.bones[0].worldX, 5) && near(p.bones[0].worldY, 0));
   assert.ok(near(p.bones[1].worldX, 5) && near(p.bones[1].worldY, 20));
-  assert.ok(near(angle(p.bones[1]), 90));
+  assert.ok(nearPi(angle(p.bones[1]), 90));
 });
 
 test('[骨骼-7] transform modes: only translation, no rotation or reflection, no scale', () => {
@@ -38,7 +38,7 @@ test('[骨骼-7] transform modes: only translation, no rotation or reflection, n
   const p = posed(s), [t, r, sc] = [p.bones[2], p.bones[3], p.bones[4]];
   assert.ok(near(t.a, 1) && near(t.b, 0) && near(t.c, 0) && near(t.d, 1));
   assert.ok(near(r.a, 2) && near(r.b, 0) && near(r.c, 0) && near(r.d, 2));
-  assert.ok(near(Math.hypot(sc.a, sc.c), 1) && near(angle(sc), 90));
+  assert.ok(near(Math.hypot(sc.a, sc.c), 1) && nearPi(angle(sc), 90));
 });
 
 test('[骨骼-7] applied values are recovered from a world transform a constraint changed', () => {
@@ -46,7 +46,7 @@ test('[骨骼-7] applied values are recovered from a world transform a constrain
   const p = posed(s), b = p.bones[1];
   b.valid = false;
   recoverApplied(p, s, 1);
-  for (const [k, v] of Object.entries({ x: 5, y: 1, rotation: 30, scaleX: 2, scaleY: 0.5, shearX: 0, shearY: 0 })) assert.ok(near(b.applied[/** @type {'x'} */ (k)], v), k);
+  for (const [k, v] of Object.entries({ x: 5, y: 1, rotation: 30, scaleX: 2, scaleY: 0.5, shearX: 0, shearY: 0 })) assert.ok((k === 'rotation' || k === 'shearY' ? nearPi : near)(b.applied[/** @type {'x'} */ (k)], v), k);
 });
 
 test('[骨骼-7] [骨骼-13] the runtimes\' π, 3.1415927: a target turned half a turn is a hair past π, so half a rotate mix turns clockwise', () => {
@@ -54,7 +54,7 @@ test('[骨骼-7] [骨骼-13] the runtimes\' π, 3.1415927: a target turned half 
     bones: [bone('root', -1), bone('a', 0), bone('t', 0, { rotation: 180 })],
     constraints: { ik: [], transform: [transform([1], 2, { rotateMix: 0.5, translateMix: 0, scaleMix: 0, shearMix: 0 })], path: [] },
   });
-  assert.ok(near(angle(posed(s).bones[1]), -90));
+  assert.ok(nearPi(angle(posed(s).bones[1]), -90));
 });
 
 test('[骨骼-8] curves: linear, stepped, Bézier through 10 sampled points; the frame a time falls in', () => {
@@ -226,8 +226,8 @@ test('[骨骼-12] one bone turns to its target by the mix and stretches when ask
     const s = skeleton({ bones: [bone('root', -1), bone('a', 0, { length: 10 }), bone('t', 0, { x, y })], constraints: { ik: [ik([1], 2, v)], transform: [], path: [] } });
     return posed(s).bones[1];
   };
-  assert.ok(near(angle(one({}, 0, 10)), 90));
-  assert.ok(near(angle(one({ mix: 0.5 }, 0, 10)), 45));
+  assert.ok(nearPi(angle(one({}, 0, 10)), 90));
+  assert.ok(nearPi(angle(one({ mix: 0.5 }, 0, 10)), 45));
   assert.ok(near(one({ stretch: true }, 20, 0).a, 2));
   assert.ok(near(one({}, 20, 0).a, 1));
 });
@@ -260,13 +260,13 @@ function flatArm(sy, l, x, y) {
 test('[骨骼-12] unequal scales: the tip reaches a target on the ellipse, else the arm points straight at it — also for a parent squashed nearly flat', () => {
   const s = flatArm(0.5, [10, 10], 12, 6), p = posed(s);
   assert.ok(near(tip(p, s, 2)[0], 12) && near(tip(p, s, 2)[1], 6));
-  // char_222_bpipe's back, Skill_2_Begin at 1/30 s: a parent at 3.7e-8 of its height, so whether the target is on the
-  // ellipse and how high it is there must not come from √(dd − r²), whose terms agree to their last bits.
+  // A parent at 3.7e-8 of its height (as char_222_bpipe's back in Skill_2_Begin at 1/30 s): √(dd − r²) would be rounding
+  // noise here, and the runtimes' tip jumps with the target's last bit; ours is the exact solution, on purpose (骨骼-12).
   const l = [38.48779296875, 32.45602035522461];
   for (const [x, y, reach] of [[36, 48, 60], [-55.8732577299379, 46.475256626088154, l[0] + l[1]]]) {
     for (let k = -16; k <= 16; k++) {
       const flat = flatArm(3.725290298461914e-8, l, ulps(x, k), y), q = posed(flat), [tx, ty] = tip(q, flat, 2), d = Math.hypot(ulps(x, k), y);
-      assert.ok(near(tx, (ulps(x, k) * reach) / d) && near(ty, (y * reach) / d), `${x} ${k}`);
+      assert.ok(nearPi(tx, (ulps(x, k) * reach) / d) && nearPi(ty, (y * reach) / d), `${x} ${k}`);
     }
   }
 });
@@ -277,9 +277,9 @@ test('[骨骼-13] a transform constraint moves bones towards the target in the w
     constraints: { ik: [], transform: [transform([1], 2, { scaleMix: 0, shearMix: 0, ...v })], path: [] },
   });
   const abs = posed(make({ translateMix: 0.5 })).bones[1];
-  assert.ok(near(angle(abs), 90) && near(abs.worldX, 3) && near(abs.worldY, 2));
+  assert.ok(nearPi(angle(abs), 90) && near(abs.worldX, 3) && near(abs.worldY, 2));
   const rel = posed(make({ relative: true, translateMix: 0 })).bones[1];
-  assert.ok(near(angle(rel), 100));
+  assert.ok(nearPi(angle(rel), 100));
 });
 
 test('[骨骼-14] a region\'s corners, plain and weighted vertices with a deform, a linked mesh\'s parent', () => {
