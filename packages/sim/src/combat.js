@@ -22,7 +22,7 @@ import { palsyInterrupts, inflict } from './status.js';
 import { draw } from './rng.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
 import { mayAttack, healsNow, healerNow, inSkill, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale, fortressTargets, fortressSplash } from './modes.js';
-import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitAsk } from './traits.js';
+import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitAsk, summonHeld } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_CUT_FRAMES } from './swing.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
@@ -39,11 +39,11 @@ export function rangeCell(op, off) {
 }
 
 /**
- * What an operator's normal attack can target, in the official order (索敌-1…索敌-3, 职业-1, 职业-2, 职业-12). One
- * that heals now: the operators in range that are not at full HP (or, restoring element values, have element damage)
- * and not under 禁疗, by 生命比例升序. Otherwise the selectable enemies with a tile in range (flying ones only with
- * 可对空) and, when the trait prefers them, the enemies it blocks wherever they stand, flying or not (阻挡-4) —
- * ordered by the trait's filters.
+ * What an operator's normal attack can target, in the official order (索敌-1…索敌-3, 职业-1, 职业-2, 职业-12, 职业-14).
+ * One that heals now: the operators in range that are not at full HP (or, restoring element values, have element
+ * damage) and not under 禁疗, by 生命比例升序. Otherwise the selectable enemies with a tile in range (flying ones only
+ * with 可对空) and, when the trait prefers them, the enemies it blocks wherever they stand, flying or not (阻挡-4), and,
+ * when the trait reaches them, those its own summons block — ordered by the trait's filters.
  * @param {World} w @param {Content} c @param {Unit} op @returns {Unit[]}
  */
 export function targetsOf(w, c, op) {
@@ -51,8 +51,9 @@ export function targetsOf(w, c, op) {
   const keys = reachKeys(c, op);
   if (healsNow(c, op)) return healOrder(c, op, w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && inKeys(u, keys, grid) && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal));
   const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id, air = t.idleAirOnly && !inSkill(op), any = { canHitFly: true }, sel = { canHitFly: t.antiAir };
+  const bySummon = t.summonBlocked ? summonHeld(w, op) : () => false;
   const cands = w.units.filter((u) => hostile(u)
-    && ((held(u) && selectable(u, any)) || (inKeys(u, keys, grid) && selectable(u, sel) && (!air || statsOf(u).flying))));
+    && ((held(u) && selectable(u, any)) || ((bySummon(u) || (inKeys(u, keys, grid) && (!air || statsOf(u).flying))) && selectable(u, sel))));
   return fortressTargets(w, c, op, sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary }));
 }
 
@@ -163,25 +164,26 @@ function areaOf(w, a, t, area) {
 }
 
 /**
- * An operator's attack against one target (职业-8, 职业-11, 职业-12): its amount × the trait's 倍率 for enemies it does
- * not block, its zone's 倍率 and its funnel's, and the trait's splash, aftershock and chain; an enemy's as it is.
- * @param {Content} c @param {Unit} a @param {Unit} t @param {Load} load @returns {Load}
+ * An operator's attack against one target (职业-8, 职业-11, 职业-12, 职业-14): its amount × the trait's 倍率 for enemies
+ * it does not block or its summons block, its zone's 倍率 and its funnel's, and the trait's splash, aftershock and chain;
+ * an enemy's as it is.
+ * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t @param {Load} load @returns {Load}
  */
-function loadFor(c, a, t, load) {
+function loadFor(w, c, a, t, load) {
   if (a.kind !== KIND.OPERATOR) return load;
   const tr = traitOf(c, a);
-  return { ...load, amount: load.amount * traitScale(c, a, t) * funnelScale(c, a, t), splash: tr.skillSplash && inSkill(a) ? tr.skillSplash : tr.splash, aftershock: tr.aftershock, chain: tr.chain };
+  return { ...load, amount: load.amount * traitScale(w, c, a, t) * funnelScale(c, a, t), splash: tr.skillSplash && inSkill(a) ? tr.skillSplash : tr.splash, aftershock: tr.aftershock, chain: tr.chain };
 }
 
 /**
- * An attacker's attack 倍率 against one target by its trait (职业-8, 职业-11): an operator's trait 倍率 for an enemy it
- * does not block × its zone's 倍率; 1 for any other attacker.
- * @param {Content} c @param {Unit} a @param {Unit} t
+ * An attacker's attack 倍率 against one target by its trait (职业-8, 职业-11, 职业-14): an operator's trait 倍率 for an
+ * enemy it does not block × its 倍率 for one its own summons block × its zone's 倍率; 1 for any other attacker.
+ * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t
  */
-export function traitScale(c, a, t) {
+export function traitScale(w, c, a, t) {
   if (a.kind !== KIND.OPERATOR) return 1;
-  const tr = traitOf(c, a);
-  return (t.blockedBy !== a.id ? tr.unblockedScale : 1) * zoneScale(c, a, t, tr);
+  const tr = traitOf(c, a), bySummon = tr.summonBlockedScale !== 1 && summonHeld(w, a)(t);
+  return (t.blockedBy !== a.id ? tr.unblockedScale : 1) * (bySummon ? tr.summonBlockedScale : 1) * zoneScale(c, a, t, tr);
 }
 
 /**
@@ -301,7 +303,7 @@ function selfHeal(w, c, a, reached) {
  * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t @param {{ load: Load, heals: boolean, area: 'cross' | 'square' | null }} how
  */
 function deliver(w, c, a, t, how) {
-  const far = how.heals ? null : fortressSplash(c, a, t), load = far ? { ...loadFor(c, a, t, how.load), splash: far } : loadFor(c, a, t, how.load);
+  const far = how.heals ? null : fortressSplash(c, a, t), load = far ? { ...loadFor(w, c, a, t, how.load), splash: far } : loadFor(w, c, a, t, how.load);
   if (how.heals) heals(w, c, a, t, { load, jumps: load.chain ? chainOf(w, c, t, load.chain, { heals: true, antiAir: true }) : [] });
   else if (how.area) for (const u of areaOf(w, a, t, how.area)) hitTarget(w, c, a, u, u === t ? load : { ...load, hit: 'splash' });
   else if (far || shoots(c, a, how.heals)) launch(w, a, t, a.kind === KIND.OPERATOR ? { ...load, boomerang: traitOf(c, a).boomerang } : load);

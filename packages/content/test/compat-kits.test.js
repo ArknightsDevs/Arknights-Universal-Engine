@@ -15,6 +15,7 @@ import { CompatGap } from '../src/compat/sh/gap.js';
 import * as targeting from '../src/compat/sh/targeting.js';
 import { rotateOffset, toLocal, dirFromDelta, offsetTile, frontOf, normDir } from '../src/compat/sh/dir.js';
 import { loadTraining, statsAt, moduleAt } from '../src/operators.js';
+import { withKitTrait } from '../src/compat/kits.js';
 
 const OPS = join(oracleDir(), 'server', 'sim', 'content', 'kits', 'ops');
 /** @type {[string, string, Function][]} file, character id, factory */
@@ -101,4 +102,16 @@ test('[兼容-3] every kit’s factory builds its kit from our records: each ski
     }
   }
   assert.equal(built, 360);
+});
+
+test('[兼容-5] a kitted operator follows its kit’s trait: no aftershock beside its afterHit, its splash radius, a 塑灵术师’s summon 倍率 left to its kit', () => {
+  const op = /** @type {any} */ ({ name: 'x', position: 'RANGED', cost: 9, blockCnt: 1, baseAttackTime: 1, maxHp: 1, atk: 1, def: 0, res: 0, range: [] });
+  const entry = (/** @type {any} */ trait) => ({ factory: () => ({ skills: [], trait }), def: { raw: {} } });
+  const lv = { width: 6, height: 3 };
+  const bomb = withKitTrait({ ...op, branch: 'bombarder', trait: { aftershock: 0.5, splash: { radius: 0.9, scale: 1, ground: true } } }, entry({ afterHit: () => {}, splashRadius: 1.2 }), lv);
+  assert.deepEqual([bomb.trait?.aftershock, bomb.trait?.splash], [0, { radius: 1.2, scale: 1, ground: true }]);
+  const soul = withKitTrait({ ...op, branch: 'soulcaster', trait: { summonBlocked: true, summonBlockedScale: 1.15 } }, entry(undefined), lv);
+  assert.deepEqual([soul.trait?.summonBlocked, soul.trait?.summonBlockedScale], [true, 1], 'its kit multiplies its hits itself');
+  const plain = { ...op, branch: 'sword', trait: { hits: 2 } };
+  assert.equal(withKitTrait(plain, entry({}), lv), plain, 'nothing to follow: the record as it is');
 });

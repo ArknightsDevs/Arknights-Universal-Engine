@@ -8,6 +8,7 @@ import { makeOperator } from './units.js';
 import { releaseAll } from './blocking.js';
 import { reachKeys } from './reach.js';
 import { statsOf } from './attrs.js';
+import { tileOf } from './body.js';
 import { onDeploy } from './skills.js';
 import { traitDeploy, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
@@ -68,6 +69,21 @@ export function inOwnerRange(w, c, seat, key, at) {
   if (c.operators[key]?.summon?.ownerRange !== true) return true;
   const owner = summonerOf(w, c, seat, key);
   return !!owner && reachKeys(c, owner).has(at.row * c.level.width + at.col);
+}
+
+/**
+ * Whether a summon may not go on a tile for an enemy standing there (职业-14): its owner's trait keeps its summons off a
+ * tile where a ground enemy-class unit stands now — of any side, neutral ones too; not a flying one, not a disappeared one.
+ * @param {World} w @param {Content} c @param {number} seat @param {string} key @param {{ row: number, col: number }} at
+ */
+export function trapRefused(w, c, seat, key, at) {
+  const owner = summonerOf(w, c, seat, key);
+  if (!owner || !traitOf(c, owner).trapTiles) return false;
+  return w.units.some((u) => {
+    if (u.kind !== KIND.ENEMY || u.hp <= 0 || u.hidden || statsOf(u).flying) return false;
+    const [row, col] = tileOf(u);
+    return row === at.row && col === at.col;
+  });
 }
 
 /**

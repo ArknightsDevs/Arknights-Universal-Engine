@@ -47,6 +47,28 @@ test('[装置-2] a device blocks ground enemies, which attack it; no operator is
   assert.equal(w.units.includes(wall), false, 'attacked down to 0 HP, it left');
 });
 
+test('[装置-2] a device is no 类障碍物: with a free lane beside it, the enemy keeps its way, walks into it and is blocked', () => {
+  /** The slime's places until the barricade blocks it, on the tiny level with its top row opened to a road. @param {boolean} wall */
+  const walk = (wall) => {
+    const { c } = field();
+    c.level.tiles[0] = c.level.tiles[1].map(() => c.level.tiles[1][0]);
+    if (!wall) c.level.predefines = c.level.predefines.filter((/** @type {any} */ p) => p.key !== 'wall');
+    const w = createWorld(c, { seed: 1, players: 1 }), seen = [];
+    for (let f = 0; f < 600; f++) {
+      step(w, c);
+      const e = w.units.find((u) => u.kind === KIND.ENEMY);
+      if (!e) continue;
+      if (e.blockedBy !== undefined && e.blockedBy !== null && e.blockedBy >= 0) return { seen, blocked: true };
+      seen.push(`${e.x.toFixed(3)},${e.y.toFixed(3)}`);
+    }
+    return { seen, blocked: false };
+  };
+  const withWall = walk(true), without = walk(false);
+  assert.ok(withWall.blocked, 'blocked by the barricade, not around it');
+  assert.ok(withWall.seen.length > 10);
+  assert.deepEqual(withWall.seen, without.seen.slice(0, withWall.seen.length), 'the same way as with no device');
+});
+
 test('[装置-3] an enemy-side device: operators attack it, after the enemies (嘲讽等级 −1, 路径距离 0); it blocks no one and enemies leave it alone', () => {
   const c = /** @type {any} */ (tinyContent());
   c.level.predefines = [{ alias: 'flag#1', key: 'flag', hidden: false, row: 1, col: 4, dir: 'UP' }];

@@ -9,11 +9,13 @@ import { barsOf, BAR, createOverlays } from '../src/overlays.js';
 /** A view unit. @param {Record<string, number>} v */
 const unit = (v) => ({ id: 1, kind: 0, owner: 0, x: 1, y: 1, z: 0, dir: 0, hp: 50, maxHp: 100, anim: 0, sp: -1, spCost: 0, skill: SKILL_STATE.NONE, skillLeft: -1, status: 0, element: 0, ep: 1, burst: 0, ...v });
 
-test('[渲染-5] bars: blue HP for operators, orange for enemies, red for leaders; SP gathering, ready, running', () => {
+test('[渲染-5] bars: blue HP for operators and our devices, orange for enemies and theirs, red for leaders; SP gathering, ready, running', () => {
   const c = BAR.colors;
   assert.deepEqual(barsOf(unit({}), false, 0), [{ ratio: 0.5, color: c.ours, height: BAR.hp }]);
   assert.equal(barsOf(unit({ kind: 1 }), false, 0)[0].color, c.enemy);
   assert.equal(barsOf(unit({ kind: 1 }), true, 0)[0].color, c.leader);
+  assert.equal(barsOf(unit({ kind: 2 }), false, 0)[0].color, c.ours, 'a device on our side');
+  assert.equal(barsOf(unit({ kind: 2 }), false, 0, true)[0].color, c.enemy, 'a device on the enemies\' side');
   assert.deepEqual(barsOf(unit({ sp: 5, spCost: 20, skill: SKILL_STATE.CHARGING }), false, 0)[1], { ratio: 0.25, color: c.sp, height: BAR.sp });
   assert.deepEqual(barsOf(unit({ sp: 20, spCost: 20, skill: SKILL_STATE.READY }), false, 0)[1], { ratio: 1, color: c.ready, height: BAR.sp });
   assert.deepEqual(barsOf(unit({ sp: 0, spCost: 20, skill: SKILL_STATE.RUNNING, skillLeft: 30 }), false, 120)[1], { ratio: 0.25, color: c.running, height: BAR.sp });

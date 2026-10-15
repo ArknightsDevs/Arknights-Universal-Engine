@@ -11,11 +11,11 @@ import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, oper
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
 
-test('[职业-7] the covered branches are 64 of the 72 official ones', () => {
+test('[职业-7] the covered branches are 70 of the 72 official ones', () => {
   assert.equal(Object.keys(ALL).length, 72);
   for (const b of Object.keys(BRANCHES)) assert.ok(Object.hasOwn(ALL, b), b);
-  assert.equal(Object.keys(BRANCHES).length, 64);
-  assert.ok(coveredBranch('fastshot') && coveredBranch('funnel') && coveredBranch('loopshooter') && !coveredBranch('traper') && !coveredBranch('toString'));
+  assert.equal(Object.keys(BRANCHES).length, 70);
+  assert.ok(coveredBranch('fastshot') && coveredBranch('funnel') && coveredBranch('traper') && !coveredBranch('tactician') && !coveredBranch('toString'));
 });
 
 test('[职业-7] an operator record takes its branch\'s damage type and trait; the blackboard moves into the trait', () => {
@@ -28,7 +28,7 @@ test('[职业-7] an operator record takes its branch\'s damage type and trait; t
   assert.deepEqual(withTrait({ ...base, position: 'RANGED', branch: 'ringhealer' }).trait, { heal: true, targets: 3, bb: {} });
   const funnel = withTrait({ ...base, position: 'RANGED', branch: 'funnel', traitBb: { init_atk_scale: 0.35, delta_atk_scale: 0.15, max_atk_scale: 1.2 } });
   assert.deepEqual([funnel.dmgType, funnel.trait?.antiAir, funnel.trait?.funnel], ['arts', true, { init: 0.35, delta: 0.15, max: 1.2 }]);
-  const loop = withTrait({ ...base, position: 'RANGED', branch: 'traper', traitBb: { max_stack_cnt: 6 } });
+  const loop = withTrait({ ...base, position: 'RANGED', branch: 'unknownbranch', traitBb: { max_stack_cnt: 6 } });
   assert.equal(loop.trait, undefined, 'not covered: the position\'s defaults');
   assert.deepEqual(traits.traitOfDef(loop).antiAir, true);
 });
@@ -130,4 +130,16 @@ test('[职业-7] [职业-12] attack modes from the real data: 解放者, 阵法�
 test('[职业-7] [职业-13] 吟游者 from the real data: no attacks, outside the deploy limit, a regen aura of 10 % of its attack', async () => {
   const [sora, heidi] = await Promise.all(['char_101_sora', 'char_4045_heidi'].map(async (id) => /** @type {any} */ (traits.traitOfDef(await real(id)))));
   assert.deepEqual([sora.noAttack, sora.free, sora.regenAura, heidi.regenAura], [true, true, 0.1, 0.1]);
+});
+
+test('[职业-7] [职业-14] 塑灵术师 and 陷阱师 from the real data; 策士, 工匠, 游击手 and 炼金师 take the defaults', async () => {
+  const necras = await real('char_450_necras'), t = /** @type {any} */ (traits.traitOfDef(necras));
+  assert.deepEqual([necras.dmgType, t.summonBlocked, t.summonBlockedScale, t.antiAir], ['arts', true, 1, true]);
+  const n = await loadTraining('char_450_necras'), x = /** @type {any} */ (traits.traitOfDef(operatorAt(n, { elite: 2, level: 60, potential: 1, trust: 0, skill: 0, skillLevel: 7, module: 0, moduleLevel: 1 })));
+  assert.equal(x.summonBlockedScale, 1.15, 'SOC-X 攻击力提升至115%');
+  assert.equal(/** @type {any} */ (traits.traitOfDef(await real('char_451_robin'))).trapTiles, true);
+  for (const id of ['char_4199_makiri', 'char_484_robrta', 'char_4234_pedro', 'char_4151_tinman']) {
+    const op = await real(id);
+    assert.deepEqual(traits.traitOfDef(op), { ...traits.defaultTrait(op.position), bb: {} }, id);
+  }
 });

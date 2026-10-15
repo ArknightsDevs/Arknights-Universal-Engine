@@ -22,7 +22,8 @@ export const defaultTrait = (position) => ({
   antiAir: position !== 'MELEE', blockedFirst: position === 'MELEE', filter: 'HATRED_DES', secondary: '', targets: 1,
   heal: false, hits: 1, mods: {}, flags: {}, killCost: 0, refund: 0.5, hitStatus: null, splash: null, aftershock: 0, unblockedScale: 1, selfHeal: 0, selfHealMax: Infinity,
   rangedTiles: false, skillArts: false, immuneBlocking: [], hpDrain: 0, costDrain: null, zone: null, chain: null, healOnHit: 0,
-  attackInSkill: false, idleMods: {}, idleFlags: {}, idleAirOnly: false, skillSplash: null, liftoffBlock: 0, fortress: 0, charge: null, skillHeal: 0, bullets: null, store: 0, epHeal: 0, funnel: null, boomerang: null, noAttack: false, free: false, regenAura: 0, bb: {},
+  attackInSkill: false, idleMods: {}, idleFlags: {}, idleAirOnly: false, skillSplash: null, liftoffBlock: 0, fortress: 0, charge: null, skillHeal: 0, bullets: null, store: 0, epHeal: 0, funnel: null, boomerang: null, noAttack: false, free: false, regenAura: 0,
+  summonBlocked: false, summonBlockedScale: 1, trapTiles: false, bb: {},
 });
 
 /**
@@ -66,6 +67,15 @@ export function traitOfDef(d) {
 
 /** A deployed operator's trait. @param {Content} c @param {Unit} op @returns {TraitDef} */
 export const traitOf = (c, op) => traitOfDef(c.operators[op.key]);
+
+/**
+ * Whether an enemy is blocked by one of an operator's own summons (职业-14), as a test made for the units of now.
+ * @param {World} w @param {Unit} op @returns {(e: Unit) => boolean}
+ */
+export function summonHeld(w, op) {
+  const own = new Set(w.units.filter((u) => u.summoner === op.id).map((u) => u.id));
+  return (e) => e.blockedBy >= 0 && own.has(e.blockedBy);
+}
 
 /**
  * A normal attack's maximum number of targets (职业-3): a number, the operator's 阻挡数 (at least 1), or every candidate.

@@ -29,19 +29,27 @@ function kitTraitOf(entry, level) {
 }
 
 /**
+ * The trait data of a branch that Stronghold has no profession rule for, so that its kits carry it themselves (兼容-5):
+ * a kitted operator of the branch leaves it to its kit — the 塑灵术师's 倍率 against the enemies its summons block (its
+ * kit multiplies its hits on them).
+ * @type {Readonly<Record<string, Partial<import('@aue/sim').TraitDef>>>}
+ */
+const KIT_OWNED = Object.freeze({ soulcaster: { summonBlockedScale: 1 } });
+
+/**
  * An operator's record under its kit's trait (兼容-5): where the kit's `trait` takes the place of a part of the
  * profession's profile that the engine keeps as trait data, that data follows it — its `afterHit` replaces the
- * 投掷手's aftershock (Stronghold's one profession afterHit), its `splashRadius` the splash's radius. The kit is built
- * for this (under the level's grid); one that cannot be leaves the record as it is.
+ * 投掷手's aftershock (Stronghold's one profession afterHit), its `splashRadius` the splash's radius —, and the trait data
+ * its branch leaves to kits is its kit's (KIT_OWNED). The kit is built for this (under the level's grid); one that
+ * cannot be has no trait of its own.
  * @param {import('@aue/sim').OperatorDef} op @param {KitEntry} entry @param {{ width: number, height: number }} level
  * @returns {import('@aue/sim').OperatorDef}
  */
 export function withKitTrait(op, entry, level) {
-  const kt = kitTraitOf(entry, level);
-  if (!kt) return op;
-  const t = traits.traitOfDef(op), over = /** @type {Partial<import('@aue/sim').TraitDef>} */ ({});
-  if (typeof kt.afterHit === 'function' && t.aftershock > 0) over.aftershock = 0;
-  if (Number(kt.splashRadius) > 0) over.splash = { scale: 1, ground: false, ...t.splash, radius: Number(kt.splashRadius) };
+  const kt = kitTraitOf(entry, level), t = traits.traitOfDef(op);
+  const over = /** @type {Partial<import('@aue/sim').TraitDef>} */ ({ ...(op.branch && Object.hasOwn(KIT_OWNED, op.branch) ? KIT_OWNED[op.branch] : {}) });
+  if (typeof kt?.afterHit === 'function' && t.aftershock > 0) over.aftershock = 0;
+  if (Number(kt?.splashRadius) > 0) over.splash = { scale: 1, ground: false, ...t.splash, radius: Number(kt.splashRadius) };
   return Object.keys(over).length ? { ...op, trait: { ...op.trait, ...over } } : op;
 }
 
