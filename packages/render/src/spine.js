@@ -129,7 +129,7 @@ export function createFigure(model, scale = SKELETON_SCALE) {
     show(name, time, loop, flip) {
       setupPose(s, p);
       const anim = byName.get(name);
-      if (anim) applyAnimation(p, s, anim, time, loop);
+      if (anim) applyAnimation(p, s, anim, time, { loop, order });
       updateWorld(p, s, order);
       const a = figureArrays(drawList(p, s, model.atlas, { active: order.active, pma: model.pma }), size, flip);
       refill(geometry, 'position', a.position, 3);

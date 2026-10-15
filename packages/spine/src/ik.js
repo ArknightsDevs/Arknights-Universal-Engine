@@ -7,7 +7,7 @@ import { TRANSFORM, placeBone, recoverApplied, updateBone } from './pose.js';
 /** @typedef {{ compress: boolean, stretch: boolean, uniform: boolean, alpha: number }} OneOptions */
 /** @typedef {{ bend: number, stretch: boolean, softness: number, alpha: number }} TwoOptions */
 
-const DEG = Math.PI / 180;
+import { PI, RAD_DEG } from './math.js';
 
 /** An angle in degrees brought into [−180, 180] by one turn. @param {number} r */
 const wrap = (r) => (r > 180 ? r - 360 : r < -180 ? r + 360 : r);
@@ -31,7 +31,7 @@ function towards(p, s, i, target) {
     const k = Math.abs(pa * pd - pb * pc) / (pa * pa + pc * pc), sa = pa / p.scaleX, sc = pc / p.scaleY;
     pb = -sc * k * p.scaleX;
     pd = sa * k * p.scaleY;
-    turn = Math.atan2(sc, sa) / DEG;
+    turn = Math.atan2(sc, sa) * RAD_DEG;
   }
   const x = target[0] - q.worldX, y = target[1] - q.worldY, d = pa * pd - pb * pc;
   return { tx: (x * pd - y * pb) / d - v.x, ty: (y * pa - x * pc) / d - v.y, turn };
@@ -44,7 +44,7 @@ function towards(p, s, i, target) {
  */
 export function pointBone(p, s, i, target, o) {
   const v = applied(p, s, i), bone = p.bones[i], mode = s.bones[i].transform, to = towards(p, s, i, target);
-  let tx = to.tx, ty = to.ty, rotation = -v.shearX - v.rotation + to.turn + Math.atan2(ty, tx) / DEG;
+  let tx = to.tx, ty = to.ty, rotation = -v.shearX - v.rotation + to.turn + Math.atan2(ty, tx) * RAD_DEG;
   if (v.scaleX < 0) rotation += 180;
   rotation = wrap(rotation);
   let sx = v.scaleX, sy = v.scaleY;
@@ -80,7 +80,7 @@ function ellipseAngles(k) {
       return [ta - Math.atan2(y, r), Math.atan2(y / psy, (r - l1) / psx)];
     }
   }
-  const near = { angle: Math.PI, x: l1 - a, y: 0, dist: (l1 - a) * (l1 - a) }, far = { angle: 0, x: l1 + a, y: 0, dist: (l1 + a) * (l1 + a) };
+  const near = { angle: PI, x: l1 - a, y: 0, dist: (l1 - a) * (l1 - a) }, far = { angle: 0, x: l1 + a, y: 0, dist: (l1 + a) * (l1 + a) };
   c = -a * l1 / (aa - bb);
   if (c >= -1 && c <= 1) {
     c = Math.acos(c);
@@ -149,7 +149,7 @@ export function bendBones(p, s, bones, target, o) {
     a1 = Math.atan2(ty * a - tx * b, tx * a + ty * b);
   } else [a1, a2] = ellipseAngles({ l1, l2, psx, psy: f.psy, tx, ty, dd, bend: o.bend });
   const os = Math.atan2(f.cy, f.cx) * f.s2, pr = P.rotation, cr = C.rotation;
-  const t1 = wrap((a1 - os) / DEG + f.os1 - pr), t2 = wrap(((a2 + os) / DEG - C.shearX) * f.s2 + f.os2 - cr);
+  const t1 = wrap((a1 - os) * RAD_DEG + f.os1 - pr), t2 = wrap(((a2 + os) * RAD_DEG - C.shearX) * f.s2 + f.os2 - cr);
   placeBone(p, s, pi, { x: P.x, y: P.y, rotation: pr + t1 * o.alpha, scaleX: sx, scaleY: P.scaleY, shearX: 0, shearY: 0 });
   placeBone(p, s, ci, { x: f.cx, y: f.cy, rotation: cr + t2 * o.alpha, scaleX: C.scaleX, scaleY: C.scaleY, shearX: C.shearX, shearY: C.shearY });
 }

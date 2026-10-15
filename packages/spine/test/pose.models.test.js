@@ -86,7 +86,7 @@ function theirsAt(ref, sk, anim, t) {
 function oursAt(m, anim, t) {
   const { s, p } = m;
   sp.setupPose(s, p);
-  sp.applyAnimation(p, s, anim, t, false);
+  sp.applyAnimation(p, s, anim, t, { loop: false, order: m.order });
   sp.updateWorld(p, s, m.order);
   const slots = p.slots.map((sl, i) => {
     const f = sl.attachment === null ? null : sp.findAttachment(s, null, i, sl.attachment);

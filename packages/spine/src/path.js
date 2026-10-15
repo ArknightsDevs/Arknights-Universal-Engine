@@ -1,6 +1,7 @@
 // Path constraints (docs/spec/spine.md 骨骼-15): bones placed along a path attachment's Bézier curves — at a position,
 // spaced by length, a fixed distance or a share of the path — and turned along it (tangent, chain, or chain and
 // scaled). Our own implementation of the Spine 3.8 semantics; no Spine runtime code.
+import { DEG_RAD, wrapRad } from './math.js';
 import { findAttachment, worldVertices } from './vertices.js';
 
 /** @typedef {import('./skeleton.js').Skeleton} Skeleton @typedef {import('./pose.js').Pose} Pose */
@@ -205,7 +206,7 @@ export function applyPath(p, s, index, skin) {
 function placeAlong(p, s, c, k) {
   const { m, positions, spaces, lengths } = k, tangents = c.rotate === PATH.TANGENT, scale = c.rotate === PATH.CHAIN_SCALE;
   const tb = p.bones[s.slots[c.target].bone], tip = c.offsetRotation === 0 && c.rotate === PATH.CHAIN;
-  const offset = c.offsetRotation === 0 ? 0 : c.offsetRotation * (tb.a * tb.d - tb.b * tb.c > 0 ? Math.PI / 180 : -Math.PI / 180);
+  const offset = c.offsetRotation === 0 ? 0 : c.offsetRotation * (tb.a * tb.d - tb.b * tb.c > 0 ? DEG_RAD : -DEG_RAD);
   let bx = positions[0], by = positions[1];
   for (let i = 0, q = 3; i < c.bones.length; i++, q += 3) {
     const b = p.bones[c.bones[i]];
@@ -225,7 +226,7 @@ function placeAlong(p, s, c, k) {
         bx += (length * (cos * a - sin * cc) - dx) * m.rotateMix;
         by += (length * (sin * a + cos * cc) - dy) * m.rotateMix;
       } else r += offset;
-      r = (r > Math.PI ? r - 2 * Math.PI : r < -Math.PI ? r + 2 * Math.PI : r) * m.rotateMix;
+      r = wrapRad(r) * m.rotateMix;
       const cos = Math.cos(r), sin = Math.sin(r);
       b.a = cos * a - sin * cc; b.b = cos * bb - sin * d;
       b.c = sin * a + cos * cc; b.d = sin * bb + cos * d;

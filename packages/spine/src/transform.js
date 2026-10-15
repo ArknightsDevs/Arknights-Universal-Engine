@@ -2,14 +2,11 @@
 // shear by four mixes, with offsets; in world space or in local space, absolute or relative. Our own implementation of
 // the Spine 3.8 semantics; no Spine runtime code.
 import { placeBone, recoverApplied, toWorld } from './pose.js';
+import { PI, DEG_RAD, wrapRad } from './math.js';
 
 /** @typedef {import('./skeleton.js').Skeleton} Skeleton @typedef {import('./pose.js').Pose} Pose @typedef {import('./pose.js').PoseBone} PoseBone */
 /** @typedef {Skeleton['constraints']['transform'][number]} TransformData @typedef {import('./pose.js').PoseTransform} Mix */
 
-const DEG = Math.PI / 180;
-
-/** An angle in radians brought into [−π, π] by one turn. @param {number} r */
-const wrapRad = (r) => (r > Math.PI ? r - 2 * Math.PI : r < -Math.PI ? r + 2 * Math.PI : r);
 /** An angle in degrees brought into [−180, 180] (any number of turns). @param {number} r */
 const wrapDeg = (r) => r - 360 * Math.round(r / 360);
 
@@ -27,7 +24,7 @@ function turn(b, r) {
  */
 function world(p, c, m) {
   const t = p.bones[c.target], { a: ta, b: tb, c: tc, d: td } = t, rel = c.relative;
-  const reflect = ta * td - tb * tc > 0 ? DEG : -DEG, offRot = c.offsetRotation * reflect, offShear = c.offsetShearY * reflect;
+  const reflect = ta * td - tb * tc > 0 ? DEG_RAD : -DEG_RAD, offRot = c.offsetRotation * reflect, offShear = c.offsetShearY * reflect;
   for (const i of c.bones) {
     const b = p.bones[i];
     if (m.rotateMix !== 0) turn(b, wrapRad(Math.atan2(tc, ta) - (rel ? 0 : Math.atan2(b.c, b.a)) + offRot) * m.rotateMix);
@@ -60,7 +57,7 @@ function scaleBy(s, ts, offset, mix, rel) {
 function shear(b, t, offset, mix, rel) {
   const by = Math.atan2(b.d, b.b), s = Math.sqrt(b.b * b.b + b.d * b.d);
   const target = Math.atan2(t.d, t.b) - Math.atan2(t.c, t.a);
-  const r = rel ? by + (wrapRad(target) - Math.PI / 2 + offset) * mix : by + (wrapRad(target - (by - Math.atan2(b.c, b.a))) + offset) * mix;
+  const r = rel ? by + (wrapRad(target) - PI / 2 + offset) * mix : by + (wrapRad(target - (by - Math.atan2(b.c, b.a))) + offset) * mix;
   b.b = Math.cos(r) * s;
   b.d = Math.sin(r) * s;
 }
