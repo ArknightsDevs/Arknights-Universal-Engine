@@ -25,6 +25,7 @@ import { auras } from './aura.js';
 import { regenAll } from './damage.js';
 import { emit, hasHook, runTimers } from './bus.js';
 import { fallIntoHoles } from './holes.js';
+import { tacticalFatal, tacticalBehaviors } from './tactical.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -60,13 +61,13 @@ function gainCost(w, c) {
 /**
  * Removes units with no HP left (伤害-9): enemies killed by attacks die — unless an ability keeps them (敌能-2) —, enemies
  * at the goal leave quietly; an operator that falls releases what it blocks (阻挡-3) and leaves the field without a
- * refund (部署-3), its summons with it (召唤-5).
+ * refund (部署-3), its summons with it (召唤-5) — but a tactical summon in its summon form turns into its point (召唤-11).
  * @param {World} w @param {Content} c
  */
 function removeDead(w, c) {
   const reachedGoal = new Set(w.events.filter((e) => e.type === 'goal').map((e) => e.id));
   for (const u of w.units) {
-    if (u.hp > 0 || (u.kind === KIND.ENEMY && !reachedGoal.has(u.id) && foeFatal(w, c, u))) continue;
+    if (stays(w, c, u, reachedGoal.has(u.id))) continue;
     announceDeath(w, u, reachedGoal.has(u.id));
     u.anim = ANIM.DIE;
     if (!reachedGoal.has(u.id)) w.events.push({ type: 'death', id: u.id });
@@ -81,6 +82,13 @@ function removeDead(w, c) {
   w.units = w.units.filter((u) => u.hp > 0);
   if (fell.length) dismissSummons(w, c, fell);
 }
+
+/**
+ * Whether a unit stays on the field at the frame's end (伤害-9): it has HP, or at 0 an ability keeps the enemy (敌能-2) —
+ * not one at the goal — or the tactical summon turns into its point (召唤-11).
+ * @param {World} w @param {Content} c @param {Unit} u @param {boolean} atGoal
+ */
+const stays = (w, c, u, atGoal) => u.hp > 0 || (u.kind === KIND.ENEMY && !atGoal && foeFatal(w, c, u)) || tacticalFatal(w, c, u);
 
 /**
  * The unit whose hit this frame brought `u` to 0 HP — the last hit on it this frame —, while it is on the field; null
@@ -107,8 +115,8 @@ function announceDeath(w, u, leak) {
   emit(w, 'death', { unit: u, reason: leak ? 'leak' : 'killed', killer });
 }
 
-/** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12); content cannot replace them. @param {Content} c */
-const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c) });
+/** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12, 召唤-11); content cannot replace them. @param {Content} c */
+const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c) });
 
 /** The buff behaviours of a battle: the content's, then the engine's own. @param {Content} c */
 const buffBehaviors = (c) => ({ ...c.behaviors?.buffs, ...builtin(c) });

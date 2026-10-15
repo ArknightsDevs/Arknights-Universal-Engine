@@ -13,6 +13,7 @@ import { onDeploy } from './skills.js';
 import { traitDeploy, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
 import { emit } from './bus.js';
+import { summonForm } from './tactical.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Player} Player @typedef {import('./types.js').SummonCard} SummonCard @typedef {import('./types.js').OperatorDef} OperatorDef */
@@ -106,7 +107,8 @@ function enter(w, c, owner, o) {
 }
 
 /**
- * Deploys a summon from its card (召唤-4): its cost is paid, a copy is taken; under 默认 the card cools down from now.
+ * Deploys a summon from its card (召唤-4): its cost is paid, a copy is taken; under 默认 the card cools down from now. A
+ * tactical point takes its summon form (召唤-11).
  * @param {World} w @param {Content} c @param {number} seat @param {import('@aue/schema').DeployCommand} cmd
  */
 export function deploySummon(w, c, seat, cmd) {
@@ -114,7 +116,8 @@ export function deploySummon(w, c, seat, cmd) {
   p.cost -= d.cost;
   const ready = d.summon?.respawn === 'default' ? w.frame + secondsToFrames(d.respawnTime ?? 0) : card.ready;
   setCard(p, cmd.op, { ...card, held: card.held - 1, ready });
-  enter(w, c, owner, { key: cmd.op, row: cmd.row, col: cmd.col, dir: cmd.dir, paid: d.cost });
+  const u = enter(w, c, owner, { key: cmd.op, row: cmd.row, col: cmd.col, dir: cmd.dir, paid: d.cost });
+  if (d.summon?.tactical) summonForm(c, u);
 }
 
 /**

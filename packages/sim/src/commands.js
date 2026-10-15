@@ -10,6 +10,8 @@ import { cardOf, deployCost, withdraw } from './deck.js';
 import { occupying, summonProblem, deploySummon, supplySummons, inOwnerRange, trapRefused } from './summons.js';
 import { isDown, askCost, answerCost } from './coop.js';
 import { emit } from './bus.js';
+import { statsOf } from './attrs.js';
+import { pointForm } from './tactical.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -124,12 +126,13 @@ export function arrive(w, c, u, move = false) {
 }
 
 /**
- * Retreat: a player's own operator leaves the field (spec 撤退-1) with its refund, a penalty layer and its 再部署时间.
+ * Retreat: a player's own operator leaves the field (spec 撤退-1) with its refund, a penalty layer and its 再部署时间 —
+ * not one that cannot retreat (`noRetreat`); a tactical summon in its summon form turns into its point instead (召唤-11).
  * @param {World} w @param {Content} c @param {number} seat @param {number} unit
  */
 function retreat(w, c, seat, unit) {
   const u = w.units.find((x) => x.id === unit && x.kind === KIND.OPERATOR && x.owner === seat);
-  if (u) withdraw(w, c, u);
+  if (u && !statsOf(u).flags.noRetreat && !pointForm(w, c, u)) withdraw(w, c, u);
 }
 
 /** Applies one command of a seat. @param {World} w @param {Content} c @param {number} seat @param {Command} cmd */

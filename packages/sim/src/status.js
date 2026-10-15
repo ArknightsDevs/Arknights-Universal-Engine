@@ -54,6 +54,7 @@ export const STATUS = Object.freeze({
   palsy: status({ rule: 'stack', maxStacks: 3, resist: true, flags: { palsy: true }, every: 1 }),
   palsyShake: status({ flags: { palsyShake: true } }),
   invincible: status({ flags: { invincible: true } }),
+  undying: status({ flags: { undying: true } }),
   healFree: status({ flags: { healFree: true } }),
   silence: status({ flags: { silence: true } }),
   mute: status({ flags: { mute: true } }),

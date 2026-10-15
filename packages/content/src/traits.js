@@ -27,6 +27,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   agent: { trait: () => ({ antiAir: true, blockedFirst: false }) },
   bearer: {},
   charger: { trait: (bb) => ({ killCost: bb.cost ?? 1, refund: 1 }) },
+  // its 战术点 is a summon (召唤-11); × atk_scale against the enemies its own summons block (职业-14)
+  tactician: { trait: (bb) => ({ summonBlockedScale: bb.atk_scale ?? 1.5 }) },
   // the support of the operators in the deck is its skills' and talents' (职业-7)
   counsellor: {},
   // 近卫

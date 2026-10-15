@@ -145,14 +145,16 @@ export function takeDamage(w, u, amount, dmg, src = null) {
 const seenOf = (src, dmg) => (dmg.sourceless ? null : src);
 
 /**
- * Takes HP (伤害-9): at 0 or below the unit is at 0 and leaves the field at the end of the frame (帧-1) — unless a
- * `fatal` handler prevents it (钩子-3): then it keeps 1 HP (its maximum when below 1). Then the `damaged` event. The
+ * Takes HP (伤害-9): never below 1 for an undying unit (不死; its maximum when below 1); at 0 or below the unit is at 0
+ * and leaves the field at the end of the frame (帧-1) — unless a `fatal` handler prevents it (钩子-3): then it keeps 1 HP
+ * (its maximum when below 1). Then the `damaged` event. The
  * hit counts as its source's (the kill's), also when the events see none.
  * @param {World} w @param {Unit | null} src @param {Unit} t @param {number} amount @param {Damage} dmg
  */
 function loseHp(w, src, t, amount, dmg) {
   const seen = seenOf(src, dmg);
   t.hp -= amount;
+  if (t.hp <= 0 && statsOf(t).flags.undying) t.hp = Math.min(1, statsOf(t).maxHp);
   if (t.hp <= 0) {
     t.hp = 0;
     const saved = hasHook(w, 'fatal') && emit(w, 'fatal', { unit: t, source: seen, credit: src, dmg, amount, prevented: false }).prevented;
@@ -230,12 +232,13 @@ export function dealDamage(w, src, target, dmg, c) {
 }
 
 /**
- * Content sets a unit's HP outright (伤害-9): between 0 and its maximum — neither damage nor a heal, no event; a unit set
- * to 0 leaves at the frame's end as any whose HP ran out.
+ * Content sets a unit's HP outright (伤害-9): between 0 (1 for an undying unit) and its maximum — neither damage nor a
+ * heal, no event; a unit set to 0 leaves at the frame's end as any whose HP ran out.
  * @param {Unit} u @param {number} hp
  */
 export function setHp(u, hp) {
-  u.hp = Math.min(statsOf(u).maxHp, Math.max(0, Number(hp) || 0));
+  const s = statsOf(u);
+  u.hp = Math.min(s.maxHp, Math.max(s.flags.undying ? Math.min(1, s.maxHp) : 0, Number(hp) || 0));
 }
 
 /**

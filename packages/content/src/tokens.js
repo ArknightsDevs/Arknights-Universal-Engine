@@ -96,7 +96,9 @@ export function supplyAt(owner, b, id) {
 }
 
 /** The engine's flags of the 异常效果 a summon holds (召唤-7). @type {Readonly<Record<string, string[]>>} */
-const HELD = Object.freeze({ 禁疗: ['healFree'], 无敌: ['invincible'], 孤立: ['isolated', 'noAllyHeal'], 不可阻挡: ['unblockable'], 静默: ['mute'] });
+const HELD = Object.freeze({
+  禁疗: ['healFree'], 无敌: ['invincible'], 孤立: ['isolated', 'noAllyHeal'], 不可阻挡: ['unblockable'], 静默: ['mute'], 不死: ['undying'], 无法撤退: ['noRetreat'],
+});
 /** The flags of the 异常效果 a summon may be immune to (召唤-7, 状态-7). @type {Readonly<Record<string, string>>} */
 const IMMUNE = Object.freeze({ 晕眩: 'stun', 冻结: 'freeze', 沉睡: 'sleep', 浮空: 'levitate', 沉默: 'silence', 恐惧: 'fear', 麻痹: 'palsy', 麻痹震颤: 'palsyShake' });
 
@@ -129,19 +131,32 @@ function withEffects(rec, page) {
 export const grantAt = (owner, b, id, name) => grantText(owner, b, id, name, TOKENS);
 
 /**
- * A summon at its owner's training as @aue/sim reads it (召唤-2…召唤-4, 召唤-7…召唤-10): its record, with its PRTS
+ * A summon at its owner's training as @aue/sim reads it (召唤-2…召唤-4, 召唤-7…召唤-11): its record, with its PRTS
  * position and effects, and `summon` — its limits, what the owner's deployment adds to its card, what its skill gives and
  * when, how long it stays and what its owner's skill's end does to it, 部署占用数, 再部署策略, whether it stays when the
- * owner leaves.
+ * owner leaves, a tactical point's forms.
  * @param {Training} token @param {string} id @param {Training} owner @param {Build} b @returns {import('@aue/sim').OperatorDef}
  */
 export function tokenAt(token, id, owner, b) {
-  const tb = tokenBuild(token, b), mod = tokenModule(owner, b, id), page = Object.hasOwn(SUMMON_PAGES, id) ? SUMMON_PAGES[id] : null;
+  const tb = tokenBuild(token, b), mod = tokenModule(owner, b, id), page = Object.hasOwn(SUMMON_PAGES, id) ? SUMMON_PAGES[id] : null, rec = recordAt(token, tb, mod);
   return {
-    ...withEffects(recordAt(token, tb, mod), page), ...(page?.position ? { position: /** @type {'MELEE' | 'RANGED'} */ (page.position) } : {}),
+    ...withEffects(rec, page), ...(page?.position ? { position: /** @type {'MELEE' | 'RANGED'} */ (page.position) } : {}),
     summon: { ...limitsAt(token, tb, mod), ...cardOf(token, id, owner, b), ...leavingOf(token, id, owner, b), occupy: page?.occupy ?? 0,
-      respawn: page?.respawn ?? 'default', ...(page?.stays ? { stays: true } : {}), ...(page?.ownerRange ? { ownerRange: true } : {}) },
+      respawn: page?.respawn ?? 'default', ...(page?.stays ? { stays: true } : {}), ...(page?.ownerRange ? { ownerRange: true } : {}),
+      ...(page?.tactical ? { tactical: tacticalAt(token, tb, rec.blockCnt) } : {}) },
   };
+}
+
+/**
+ * A tactical point's forms (召唤-11): the seconds of its point form — the `interval` of its talents — and the block bonus
+ * of its summon form — their `block_cnt`, else 1 when its own 阻挡数 is 0.
+ * @param {Training} token @param {Build} tb its build (召唤-2) @param {number} blockCnt its 阻挡数 at that build
+ * @returns {{ every: number, block: number }}
+ */
+export function tacticalAt(token, tb, blockCnt) {
+  const bbs = talentsAt(token, tb).flatMap((c) => (c ? [c.bb] : []));
+  const every = bbs.find((bb) => bb.interval !== undefined)?.interval ?? 0;
+  return { every, block: bbs.find((bb) => bb.block_cnt !== undefined)?.block_cnt ?? (blockCnt === 0 ? 1 : 0) };
 }
 
 /**

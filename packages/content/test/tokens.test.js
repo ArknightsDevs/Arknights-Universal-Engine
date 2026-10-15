@@ -161,3 +161,14 @@ test('[召唤-10] what the end of the owner\'s skill does: recovered, destroyed,
   assert.equal((await summonOf('char_336_folivo', 'token_10010_folivo_car', 1)).skillEnd, undefined, '摄影车晕眩');
   assert.equal((await summonOf('char_4072_ironmn', 'token_10027_ironmn_pile2', 1)).skillEnd, undefined);
 });
+
+test('[召唤-7] [召唤-11] the tacticians\' 援军: their point\'s seconds and summon form\'s block bonus from their talents; 牙猎犬 undying, 保护目标 not retreated', async () => {
+  const crab = await summonOf('char_452_bstalk', 'token_10014_bstalk_crab', 0), base = await summonOf('char_4228_closur', 'token_10066_closur_ourbase', 0);
+  assert.deepEqual([crab.tactical, base.tactical], [{ every: 15, block: 1 }, { every: 15, block: 0 }], '指挥中心 blocks 2 by its data, no +1');
+  assert.deepEqual((await summonOf('char_452_bstalk', 'token_10014_bstalk_crab', 0, { elite: 0, level: 1 })).tactical, { every: 20, block: 1 }, '20 s at elite 0');
+  const dog = await summonOf('char_4215_buddy', 'token_10063_buddy_bddg', 0, { level: 30 });
+  assert.deepEqual(dog.tactical, { every: 60, block: 1 }, 'no block_cnt, 阻挡数 0: +1');
+  assert.equal(effectsOf(SUMMON_PAGES.token_10063_buddy_bddg).flags.undying, true);
+  assert.equal(effectsOf(SUMMON_PAGES.token_10058_sbell2_icetgt).flags.noRetreat, true);
+  assert.equal((await summonOf('char_4048_doroth', 'token_10025_doroth_recttp', 0)).tactical, undefined, 'not a tactical point');
+});
