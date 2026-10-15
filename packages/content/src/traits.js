@@ -27,6 +27,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   agent: { trait: () => ({ antiAir: true, blockedFirst: false }) },
   bearer: {},
   charger: { trait: (bb) => ({ killCost: bb.cost ?? 1, refund: 1 }) },
+  // the support of the operators in the deck is its skills' and talents' (职业-7)
+  counsellor: {},
   // 近卫
   fearless: {},
   fighter: {},
@@ -82,6 +84,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // attacks only while its skill runs, every enemy in range, air ones too; DEF × (1 + def) and RES + magic_resistance while it does not (职业-12)
   phalanx: { dmgType: ARTS, trait: (bb) => ({ antiAir: true, filter: 'ALL', targets: 'all', attackInSkill: true, idleMods: { defPct: bb.def ?? 2, resFlat: bb.magic_resistance ?? 20 } }) },
   splashcaster: { dmgType: ARTS, trait: () => ({ splash: { radius: 1.1, scale: 1, ground: false } }) },
+  // arts; also the enemies its own summons block, × atk_scale against them (its module's; 职业-14)
+  soulcaster: { dmgType: ARTS, trait: (bb) => ({ summonBlocked: true, summonBlockedScale: bb.atk_scale ?? 1 }) },
   primcaster: { dmgType: ARTS },
   // arts, air too; init_atk_scale on a new target, delta_atk_scale more for each attack on the same, at most max_atk_scale (职业-12)
   funnel: { dmgType: ARTS, trait: (bb) => ({ antiAir: true, funnel: { init: bb.init_atk_scale ?? 0.2, delta: bb.delta_atk_scale ?? 0.15, max: bb.max_atk_scale ?? 1.1 } }) },
@@ -113,8 +117,15 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   summoner: { dmgType: ARTS },
   underminer: { dmgType: ARTS },
   ritualist: { dmgType: ARTS },
+  // its support devices are summons (召唤-4); 触发型效果 are its skills' (职业-7)
+  craftsman: {},
+  supportiveranger: {},
   // 特种
   executor: {},
+  // its 炼金单元 are its skills' (职业-7)
+  alchemist: {},
+  // its summons (traps) not on a tile a ground enemy stands on (职业-14)
+  traper: { trait: () => ({ trapTiles: true }) },
   // every enemy in range; half of the physical and arts hits dodged (blackboard prob)
   stalker: { trait: (bb) => ({ filter: 'ALL', targets: 'all', blockedFirst: false, mods: { dodgePhys: bb.prob ?? 0.5, dodgeArts: bb.prob ?? 0.5 } }) },
   // melee, but may stand on ranged tiles too (职业-10)

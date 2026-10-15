@@ -65,11 +65,12 @@
 
 ### 职业-7 官方分支
 
-`@aue/content` 用分支表把干员数据的分支和特性 blackboard 换成伤害类型和特性数据。表里有 64 个分支（共 72 个），特性能完全用 职业-1…职业-5、职业-8…职业-13 的数据表达：
+`@aue/content` 用分支表把干员数据的分支和特性 blackboard 换成伤害类型和特性数据。表里有 70 个分支（共 72 个），特性能完全用 职业-1…职业-5、职业-8…职业-14 的数据表达：
 
 | 分支 | 特性数据 |
 |---|---|
 | 尖兵、执旗手、无畏者、斗士、本源近卫、铁卫、守护者、本源铁卫、重射手、处决者 | 默认值（阻挡数、再部署时间来自干员数据；执旗手技能期间阻挡数变为 0 在技能数据里） |
+| 策士、工匠、游击手、炼金师 | 默认值：特性文字写的支援待部署区（策士）、支援装置（工匠）、触发型效果（游击手）、炼金单元（炼金师）是各干员天赋和技能的效果；工匠部署时按天赋补充支援装置、离场时支援装置随之离场见 召唤-4、召唤-5 |
 | 情报官 | 可对空，不优先攻击阻挡的单位（INF-0085） |
 | 冲锋手 | `killCost` = blackboard `cost`，`refund` 1 |
 | 术战者、中坚术师、本源术师、召唤师、削弱者、巫役 | 法术伤害 |
@@ -115,10 +116,12 @@
 | 行医 | 治疗，目标 1；治疗同时回复元素值，比例 blackboard `ep_heal_ratio`（职业-12） |
 | 吟游者 | 不攻击，不计入部署数量；攻击范围内的干员生命回复速度 + blackboard `attack@atk_to_hp_recovery_ratio`（或 `atk_to_hp_recovery_ratio`）× 攻击力（职业-13）；不受鼓舞影响一项随鼓舞实现 |
 | 伏击客 | 仇恨过滤器 全部，`targets` 全部，不优先攻击阻挡的单位（INF-0085），`mods` 物理闪避、法术闪避 = blackboard `prob`（嘲讽等级 -1 在干员数据里） |
+| 塑灵术师 | 法术伤害；`summonBlocked`，`summonBlockedScale` = blackboard `atk_scale`（模组的 1.15，没有时 1）（职业-14） |
+| 陷阱师 | `trapTiles`（职业-14）；模组追加的「有20%概率部署造成2倍伤害的陷阱」还没有实现 |
 
-其余 8 个分支（召唤物、装置、触发型效果等）还没有覆盖，取位置的默认值，随干员内容（M4）补齐。
+其余 2 个分支（战术家的战术点、傀儡师的替身）还没有覆盖，取位置的默认值。
 
-- 来源：[PRTS「分支特性信息/data」oldid=427899](https://prts.wiki/index.php?title=%E5%88%86%E6%94%AF%E7%89%B9%E6%80%A7%E4%BF%A1%E6%81%AF/data&oldid=427899)（可对空、优先攻击阻挡单位、最大目标数等于阻挡数、同时攻击范围内的所有敌人、治疗规则、停顿时间、击杀来源）；[PRTS「选择器」oldid=428553](https://prts.wiki/index.php?title=%E9%80%89%E6%8B%A9%E5%99%A8&oldid=428553)：二次过滤器「FLY_FIRST 飞行单位优先 速射手特性」；[PRTS「仇恨」oldid=429076](https://prts.wiki/index.php?title=%E4%BB%87%E6%81%A8&oldid=429076)：「防御升序 典型使用者：神射手」，「重量降序 典型使用者：攻城手」；[PRTS「部署费用」oldid=434779](https://prts.wiki/index.php?title=%E9%83%A8%E7%BD%B2%E8%B4%B9%E7%94%A8&oldid=434779)：返还倍率「先锋-冲锋手为100%」；数据：character_table 各分支特性文字（法术伤害、两次伤害、恢复三个友方单位）与 blackboard；[PRTS「谜图」oldid=435066](https://prts.wiki/index.php?title=%E8%B0%9C%E5%9B%BE&oldid=435066)、[PRTS「桃金娘」oldid=435164](https://prts.wiki/index.php?title=%E6%A1%83%E9%87%91%E5%A8%98&oldid=435164)、[PRTS「聆音」oldid=435037](https://prts.wiki/index.php?title=%E8%81%86%E9%9F%B3&oldid=435037)、[PRTS「余」oldid=435251](https://prts.wiki/index.php?title=%E4%BD%99&oldid=435251)、[PRTS「烛煌」oldid=435287](https://prts.wiki/index.php?title=%E7%83%9B%E7%85%8C&oldid=435287)、[PRTS「酒神」oldid=440179](https://prts.wiki/index.php?title=%E9%85%92%E7%A5%9E&oldid=440179)、[PRTS「狮蝎」oldid=435138](https://prts.wiki/index.php?title=%E7%8B%AE%E8%9D%8E&oldid=435138) 的特性文字（情报官、执旗手、本源近卫、本源铁卫、本源术师、巫役、伏击客；本源术师、巫役「攻击造成法术伤害」，伏击客「对攻击范围内所有敌人造成伤害」「拥有50%的物理和法术闪避」）；「分支特性信息/data」同版：情报官「可对空」，伏击客「嘲讽等级为-1」，其余分支的特性行；没有「优先攻击阻挡的单位」一行的分支不设该项为推断 INF-0085
+- 来源：[PRTS「分支特性信息/data」oldid=427899](https://prts.wiki/index.php?title=%E5%88%86%E6%94%AF%E7%89%B9%E6%80%A7%E4%BF%A1%E6%81%AF/data&oldid=427899)（可对空、优先攻击阻挡单位、最大目标数等于阻挡数、同时攻击范围内的所有敌人、治疗规则、停顿时间、击杀来源）；[PRTS「选择器」oldid=428553](https://prts.wiki/index.php?title=%E9%80%89%E6%8B%A9%E5%99%A8&oldid=428553)：二次过滤器「FLY_FIRST 飞行单位优先 速射手特性」；[PRTS「仇恨」oldid=429076](https://prts.wiki/index.php?title=%E4%BB%87%E6%81%A8&oldid=429076)：「防御升序 典型使用者：神射手」，「重量降序 典型使用者：攻城手」；[PRTS「部署费用」oldid=434779](https://prts.wiki/index.php?title=%E9%83%A8%E7%BD%B2%E8%B4%B9%E7%94%A8&oldid=434779)：返还倍率「先锋-冲锋手为100%」；数据：character_table 各分支特性文字（法术伤害、两次伤害、恢复三个友方单位）与 blackboard；[PRTS「谜图」oldid=435066](https://prts.wiki/index.php?title=%E8%B0%9C%E5%9B%BE&oldid=435066)、[PRTS「桃金娘」oldid=435164](https://prts.wiki/index.php?title=%E6%A1%83%E9%87%91%E5%A8%98&oldid=435164)、[PRTS「聆音」oldid=435037](https://prts.wiki/index.php?title=%E8%81%86%E9%9F%B3&oldid=435037)、[PRTS「余」oldid=435251](https://prts.wiki/index.php?title=%E4%BD%99&oldid=435251)、[PRTS「烛煌」oldid=435287](https://prts.wiki/index.php?title=%E7%83%9B%E7%85%8C&oldid=435287)、[PRTS「酒神」oldid=440179](https://prts.wiki/index.php?title=%E9%85%92%E7%A5%9E&oldid=440179)、[PRTS「狮蝎」oldid=435138](https://prts.wiki/index.php?title=%E7%8B%AE%E8%9D%8E&oldid=435138) 的特性文字（情报官、执旗手、本源近卫、本源铁卫、本源术师、巫役、伏击客；本源术师、巫役「攻击造成法术伤害」，伏击客「对攻击范围内所有敌人造成伤害」「拥有50%的物理和法术闪避」）；「分支特性信息/data」同版：情报官「可对空」，伏击客「嘲讽等级为-1」，策士、工匠只有「可以且优先攻击自身阻挡的单位」一行，游击手「可对空」，炼金师「攻击可对空」「投掷的炼金单元为弹道效果；干员离场时已投掷的炼金单元会留在场上」，其余分支的特性行；数据：character_table 策士「能够阻挡两个敌人，可以支援待部署区的我方单位」、工匠「能够阻挡两个敌人，使用<支援装置>协助作战」、游击手「可以使用触发型效果协助作战」、炼金师「可以投掷炼金单元协助作战」，这四个分支的特性没有 blackboard，效果写在各干员的天赋与技能里（如松桐「使当前待部署区最右边的1名干员部署费用-4」、锡人「投掷一个炼金单元」、佩德洛「对目标施加触发型效果」）；没有「优先攻击阻挡的单位」一行的分支不设该项为推断 INF-0085
 
 ### 职业-8 溅射、余震与按阻挡的攻击倍率
 
@@ -181,3 +184,11 @@
 - **生命回复光环**（`regenAura`，比例）：每帧在干员的回合之前（帧-1 第 7 步），每个带光环的在场干员给攻击范围内（同 攻击-1，含自身所在格）的每个在场干员一个键为 `aura:<它的 id>` 的 Buff，生命回复速度直接加算 + 比例 × 它现在的攻击力（属性-6）；它的技能运行、技能 blackboard 有 `attack@atk_to_hp_recovery_ratio`（或去掉 `attack@` 的同名键）时，比例改用技能的。不在范围内的、光环来源已不在场的，去掉这个 Buff。不同来源的光环各自一个 Buff，一起生效。
 
 - 来源：[PRTS「分支特性信息/data」oldid=427899](https://prts.wiki/index.php?title=%E5%88%86%E6%94%AF%E7%89%B9%E6%80%A7%E4%BF%A1%E6%81%AF/data&oldid=427899)：吟游者「“范围”指的是干员的攻击范围」「特性为基于自身攻击力来增加受益者的“生命回复速度”属性」；数据：character_table 吟游者特性文字「不攻击，持续恢复范围内所有友军生命（每秒恢复相当于自身攻击力10%的生命），自身不受鼓舞影响，且不受部署数量限制，但再部署时间极长」，blackboard `attack@atk_to_hp_recovery_ratio`（或 `atk_to_hp_recovery_ratio`）0.1，技能 blackboard 的同名键；每帧更新、不同来源叠加、技能运行时换用技能的比例为推断 INF-0093
+
+### 职业-14 召唤物阻挡的敌人、陷阱的地块
+
+- **攻击召唤物阻挡的敌人**（`summonBlocked`）：普通攻击的候选还包括自身召唤物（召唤者是它的单位，召唤-4）阻挡着的敌人，不论站在哪里（飞行的只在可对空时，职业-1）；它们和其他候选一起按仇恨过滤器排序，不优先。
+- **召唤物阻挡时的倍率**（`summonBlockedScale`）：干员的攻击打到一个它自身召唤物阻挡着的敌人时，这次攻击的倍率乘它；与按阻挡的倍率（职业-8）、近处范围的倍率（职业-11）相乘。
+- **陷阱的地块**（`trapTiles`）：这名干员的召唤物不能部署在有地面敌人站着的格子上（召唤-4 的部署条件）。算作敌人的是所有敌人类单位，不分阵营（中立单位也算）；它站的格是它的位置所在的格；飞行单位（含浮空、近地悬浮）和消失的单位不算。
+
+- 来源：[PRTS「分支特性信息/data」oldid=427899](https://prts.wiki/index.php?title=%E5%88%86%E6%94%AF%E7%89%B9%E6%80%A7%E4%BF%A1%E6%81%AF/data&oldid=427899)：塑灵术师「可对空」，陷阱师「“敌人已在”中的“敌人”的判断标准为所有的地面行动敌人类单位，不考虑实际阵营，包括所有中立单位和未收录在敌方图鉴中的敌人实体等。适用飞行单位判定的敌人（如浮空、近地悬浮）不影响陷阱的部署」，战术家「隶属自身的任何召唤物所阻挡的敌人均可适用特性加成」；数据：character_table 塑灵术师特性「攻击造成法术伤害，可以通过击倒敌人生成召唤物，可攻击到自身召唤物阻挡的敌人」，死芒 SOC-X 模组的特性「……可攻击到自身召唤物阻挡的敌人且攻击力提升至115%」（blackboard `atk_scale` 1.15），陷阱师特性「可以使用陷阱来协助作战，但陷阱无法放置于敌人已在的格子中」；[PRTS「死芒」oldid=435148](https://prts.wiki/index.php?title=%E6%AD%BB%E8%8A%92&oldid=435148) 的特性同上；不优先、飞行的按可对空、「攻击力提升至」按攻击倍率计（同 职业-8 教官「攻击力提升效果为攻击力倍率提升」）、敌人所在格按位置、消失的不算为推断 INF-0159

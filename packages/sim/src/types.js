@@ -158,6 +158,11 @@
  * @property {boolean} noAttack it makes no normal attacks (职业-13)
  * @property {boolean} free it does not count towards the deploy limit (部署-2, 职业-13)
  * @property {number} regenAura the operators in its attack range gain 生命回复速度 of this share of its attack (职业-13)
+ * @property {boolean} summonBlocked its normal attack can also select the enemies its own summons block, wherever they
+ *   stand (职业-14)
+ * @property {number} summonBlockedScale its attack's 倍率 against an enemy one of its own summons blocks is multiplied by
+ *   this (职业-14)
+ * @property {boolean} trapTiles its summons cannot be deployed on a tile a ground enemy stands on (职业-14)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
  */
 /**

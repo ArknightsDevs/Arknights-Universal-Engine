@@ -237,7 +237,7 @@ export function onSpecHit(k) {
   const fn = profileFn(p, 'dmgMul', skillOn), n = p.kit?.trait?.dmgMul;
   const m = fn ? b.safe(() => fn(b, p, b.unitOf(k.target)), 'profile.dmgMul', p) : typeof n === 'number' ? n : undefined;
   if (!Number.isFinite(m)) return;
-  const own = traitScale(b.c, k.source, k.target);
+  const own = traitScale(b.w, b.c, k.source, k.target);
   k.dmg.amount *= /** @type {number} */ (m) / (own > 0 ? own : 1);
 }
 

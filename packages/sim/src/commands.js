@@ -7,7 +7,7 @@ import { onDeploy, commandSkill } from './skills.js';
 import { traitDeploy, traitOfDef, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
 import { cardOf, deployCost, withdraw } from './deck.js';
-import { occupying, summonProblem, deploySummon, supplySummons, inOwnerRange } from './summons.js';
+import { occupying, summonProblem, deploySummon, supplySummons, inOwnerRange, trapRefused } from './summons.js';
 import { isDown, askCost, answerCost } from './coop.js';
 import { emit } from './bus.js';
 
@@ -35,7 +35,7 @@ export const fitsTile = (c, key, row, col) => Object.hasOwn(c.operators, key) &&
 const free = (d) => traitOfDef(d).free === true;
 
 /**
- * Why a deploy is refused, or null (spec 部署-1…部署-3, 召唤-4): a summon's by its card, an operator's by its own.
+ * Why a deploy is refused, or null (spec 部署-1…部署-3, 召唤-4, 职业-14): a summon's by its card, an operator's by its own.
  * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd @returns {string | null}
  */
 export function deployProblem(w, c, seat, cmd) {
@@ -44,7 +44,7 @@ export function deployProblem(w, c, seat, cmd) {
   if (c.decks && !c.decks[seat]?.includes(d.summon ? d.summoner ?? '' : cmd.op)) return 'not in the deck';
   if (isDown(p)) return 'player down';
   return d.summon ? summonProblem(w, c, seat, cmd.op) ?? limitProblem(w, c, seat, d) ?? placeProblem(w, c, seat, cmd, d.cost) ?? rangeProblem(w, c, seat, cmd)
-    : operatorProblem(w, c, seat, cmd);
+    ?? trapProblem(w, c, seat, cmd) : operatorProblem(w, c, seat, cmd);
 }
 
 /**
@@ -52,6 +52,12 @@ export function deployProblem(w, c, seat, cmd) {
  * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd
  */
 const rangeProblem = (w, c, seat, cmd) => (inOwnerRange(w, c, seat, cmd.op, cmd) ? null : 'outside the summoner\'s range');
+
+/**
+ * A summon whose owner's trait keeps it off the tiles of ground enemies (职业-14), on such a tile.
+ * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd
+ */
+const trapProblem = (w, c, seat, cmd) => (trapRefused(w, c, seat, cmd.op, cmd) ? 'an enemy on the tile' : null);
 
 /**
  * An operator's own reasons (部署-2, 部署-3): on the field already, the deploy limit, redeploying, then the place's.
