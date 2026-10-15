@@ -152,5 +152,5 @@ export { LEVELS, levelAt } from './levels.js';
 export { foeBehaviors, withFoeExtras, FOE_EXTRAS } from './foes.js';
 export { ROSTER, rosterSource, loadTraining, operatorAt } from './operators.js';
 export { TOKENS, SUMMON_PAGES, loadToken, tokenAt } from './tokens.js';
-export { KIT_SOURCE, KIT_FILES, KITS_ENABLED, loadKits } from './compat/kitmod.js';
+export { KIT_SOURCE, KIT_FILES, KITS_ENABLED, KIT_DIFFERENCES, loadKits } from './compat/kitmod.js';
 export { MAPPING, mappedUrl } from './compat/mapping.js';

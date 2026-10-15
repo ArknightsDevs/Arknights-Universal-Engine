@@ -13,6 +13,11 @@ export const KIT_SOURCE = Object.freeze({ ...kitData.source });
 export const KIT_FILES = Object.freeze({ ...kitData.files });
 /** The kits that run in matches. @type {readonly string[]} */
 export const KITS_ENABLED = Object.freeze([...kitData.enabled]);
+/**
+ * For a kit that passes the differential but for registered differences (兼容-6): each skill's expected lines of the
+ * differential (`S1`…) and the registered differences behind them. @type {Readonly<Record<string, { because: string[], skills: Record<string, string[]> }>>}
+ */
+export const KIT_DIFFERENCES = Object.freeze({ ...kitData.differences });
 
 /**
  * Loads the enabled kits of the given operators from the pinned commit at `base` (a URL ending in "/"), one at a time,
