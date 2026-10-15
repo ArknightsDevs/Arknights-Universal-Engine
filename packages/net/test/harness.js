@@ -14,6 +14,7 @@ import { LockstepHost, LockstepClient, framesAt } from '../src/index.js';
  * @property {{ seat: number, from: number, to: number }[]} [drops] disconnected intervals
  * @property {{ at: number, seat: number, change: (w: import('@aue/sim').World) => void }[]} [tamper]
  * @property {{ at: number, seat: number, act: (c: LockstepClient) => void }[]} [controls] speed and pause by wall time
+ * @property {number} [hashEvery] the frames between the arbiter's kept hashes (default 1: every frame, so tests may compare any)
  */
 
 /** @param {Scenario} s */
@@ -27,7 +28,7 @@ export function play(s) {
   /** @type {Record<string, string | number>[][]} every event each client played, with its frame */
   const events = [[], []];
   const host = new LockstepHost({
-    content, seats: 2, seed: 9, onDesync: (d) => desyncs.push(d),
+    content, seats: 2, seed: 9, hashEvery: s.hashEvery ?? 1, onDesync: (d) => desyncs.push(d),
     send: (seat, msg) => later(s.latency[seat], () => { if (!down(seat)) clients[seat].receive(JSON.parse(JSON.stringify(msg))); }),
   });
   /** @param {number} seat @param {import('@aue/schema').ClientMessage} msg */
