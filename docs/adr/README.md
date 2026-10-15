@@ -73,4 +73,4 @@
 | [0057](0057-hook-bus-and-timers.md) | 内核的钩子总线与定时器 | 已采纳 | 模拟内核 |
 | [0058](0058-stronghold-kits-in-matches.md) | Stronghold 的 kit 作为固定版本的脚本 mod 进入对局 | 已采纳 | 模拟内核 |
 | [0059](0059-player-chosen-performance.md) | 画面开销由玩家选择，不设统一预算 | 已采纳 | 渲染 |
-| [0060](0060-frame-cost-memos.md) | 帧内反复求值的纯函数加备忘，按输入逐项核对 | 已提议 | 模拟内核 |
+| [0060](0060-frame-cost-memos.md) | 帧内反复求值的纯函数加备忘，按输入逐项核对 | 已采纳 | 模拟内核 |
