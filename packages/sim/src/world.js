@@ -26,6 +26,7 @@ import { regenAll } from './damage.js';
 import { emit, hasHook, runTimers } from './bus.js';
 import { fallIntoHoles } from './holes.js';
 import { tacticalFatal, tacticalBehaviors } from './tactical.js';
+import { dollFatal, dollBehaviors } from './doll.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -85,10 +86,10 @@ function removeDead(w, c) {
 
 /**
  * Whether a unit stays on the field at the frame's end (伤害-9): it has HP, or at 0 an ability keeps the enemy (敌能-2) —
- * not one at the goal — or the tactical summon turns into its point (召唤-11).
+ * not one at the goal —, the tactical summon turns into its point (召唤-11) or the 傀儡师 switches to its 替身 (职业-15).
  * @param {World} w @param {Content} c @param {Unit} u @param {boolean} atGoal
  */
-const stays = (w, c, u, atGoal) => u.hp > 0 || (u.kind === KIND.ENEMY && !atGoal && foeFatal(w, c, u)) || tacticalFatal(w, c, u);
+const stays = (w, c, u, atGoal) => u.hp > 0 || (u.kind === KIND.ENEMY && !atGoal && foeFatal(w, c, u)) || tacticalFatal(w, c, u) || dollFatal(w, c, u);
 
 /**
  * The unit whose hit this frame brought `u` to 0 HP — the last hit on it this frame —, while it is on the field; null
@@ -115,8 +116,8 @@ function announceDeath(w, u, leak) {
   emit(w, 'death', { unit: u, reason: leak ? 'leak' : 'killed', killer });
 }
 
-/** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12, 召唤-11); content cannot replace them. @param {Content} c */
-const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c) });
+/** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12, 职业-15, 召唤-11); content cannot replace them. @param {Content} c */
+const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c) });
 
 /** The buff behaviours of a battle: the content's, then the engine's own. @param {Content} c */
 const buffBehaviors = (c) => ({ ...c.behaviors?.buffs, ...builtin(c) });

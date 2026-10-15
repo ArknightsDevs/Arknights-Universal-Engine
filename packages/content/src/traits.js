@@ -17,6 +17,11 @@ const ARTS = /** @type {const} */ ('arts');
 const healer = (n) => ({ trait: () => ({ heal: true, targets: n }) });
 /** A range of range_table by id (干员-8). @param {string} id @returns {{ row: number, col: number }[]} */
 const cellsOf = (id) => /** @type {Record<string, { row: number, col: number }[]>} */ (rangeTable.ranges)[id];
+/**
+ * The seconds of a 傀儡师's switch between its own form and its 替身 (职业-15): every one of the switch clips of the 7
+ * 傀儡师's battle skeletons (Start_B, Start_2, Doll_SwitchIn, Doll_SwitchOut, SwitchOut …) lasts 1 s.
+ */
+const DOLL_SWITCH = 1;
 /** The normal attack's maximum targets is the 阻挡数. @type {Branch} */
 const blockTargets = { trait: () => ({ targets: 'blockCnt' }) };
 
@@ -126,6 +131,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   executor: {},
   // its 炼金单元 are its skills' (职业-7)
   alchemist: {},
+  // at 0 HP in its own form, a switch to its 替身 for duration seconds, attack and HP + atk, max_hp; switches take 1 s (职业-15)
+  dollkeeper: { trait: (bb) => ({ doll: { duration: bb.duration ?? 20, switch: DOLL_SWITCH, atk: bb.atk ?? 0, maxHp: bb.max_hp ?? 0 } }) },
   // its summons (traps) not on a tile a ground enemy stands on (职业-14)
   traper: { trait: () => ({ trapTiles: true }) },
   // every enemy in range; half of the physical and arts hits dodged (blackboard prob)

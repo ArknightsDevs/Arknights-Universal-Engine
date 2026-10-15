@@ -25,6 +25,7 @@ export * as traits from './traits.js';
 export * as deck from './deck.js';
 export * as summons from './summons.js';
 export * as tactical from './tactical.js';
+export * as doll from './doll.js';
 export * as displacement from './displacement.js';
 export { moveOperator, canMoveTo } from './move.js';
 export * as devices from './devices.js';

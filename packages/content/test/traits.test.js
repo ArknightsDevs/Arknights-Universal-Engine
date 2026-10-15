@@ -11,11 +11,11 @@ import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, oper
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
 
-test('[职业-7] the covered branches are 71 of the 72 official ones', () => {
+test('[职业-7] the branch table covers all 72 official branches', () => {
   assert.equal(Object.keys(ALL).length, 72);
   for (const b of Object.keys(BRANCHES)) assert.ok(Object.hasOwn(ALL, b), b);
-  assert.equal(Object.keys(BRANCHES).length, 71);
-  assert.ok(coveredBranch('fastshot') && coveredBranch('funnel') && coveredBranch('traper') && coveredBranch('tactician') && !coveredBranch('dollkeeper') && !coveredBranch('toString'));
+  assert.equal(Object.keys(BRANCHES).length, 72);
+  assert.ok(coveredBranch('fastshot') && coveredBranch('funnel') && coveredBranch('traper') && coveredBranch('tactician') && coveredBranch('dollkeeper') && !coveredBranch('toString'));
 });
 
 test('[职业-7] an operator record takes its branch\'s damage type and trait; the blackboard moves into the trait', () => {
@@ -143,4 +143,10 @@ test('[职业-7] [职业-14] 塑灵术师, 陷阱师 and 战术家 from the real
     const op = await real(id);
     assert.deepEqual(traits.traitOfDef(op), { ...traits.defaultTrait(op.position), bb: {} }, id);
   }
+});
+
+test('[职业-7] [职业-15] 傀儡师 from the real data: a 20 s 替身, 1 s switches; PUM-Y raises its HP', async () => {
+  assert.deepEqual(traits.traitOfDef(await real('char_369_bena')).doll, { duration: 20, switch: 1, atk: 0, maxHp: 0 });
+  const t = await loadTraining('char_369_bena'), y = traits.traitOfDef(operatorAt(t, { elite: 2, level: 60, potential: 1, trust: 0, skill: 0, skillLevel: 7, module: 0, moduleLevel: 1 }));
+  assert.deepEqual(y.doll, { duration: 20, switch: 1, atk: 0, maxHp: 0.2 });
 });
