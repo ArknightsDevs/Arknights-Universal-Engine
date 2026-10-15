@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
 import { KIND } from '@aue/schema';
 import { createWorld, step, deployProblem, stateHash, takeSnapshot, restoreSnapshot, bus } from '../src/index.js';
-import { defaultTrait, traitTargets, traitOfDef } from '../src/traits.js';
+import { defaultTrait, traitTargets, traitOfDef, creditedDamage } from '../src/traits.js';
 import { deployCost, cardOf, MAX_PENALTY } from '../src/deck.js';
 import { makeEnemy } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
@@ -228,7 +228,7 @@ test('[职业-6] [技能-6] the behaviour interface, version 3: a skill’s and 
   });
   run(w, c, 2, [deploy('guard', 1, 1)]);
   foe(1, 2);
-  assert.equal(BEHAVIOR_API_VERSION, 4);
+  assert.equal(BEHAVIOR_API_VERSION, 5);
   assert.deepEqual(got, [['trait', [...CONTEXT_MEMBERS]], ['skill', [...SKILL_CONTEXT_MEMBERS]], ['end', 'instant']]);
   assert.deepEqual(SKILL_CONTEXT_MEMBERS.filter((k) => !CONTEXT_MEMBERS.includes(k)), ['kind', 'extra']);
 });
@@ -351,6 +351,24 @@ test('[职业-9] no ally heals a noAllyHeal operator, not even a healer picks it
   assert.equal(guard.hp, 160);
   assert.equal(heal(w, guard, guard, 10), 10);
   assert.equal(heal(w, w.units[1] ?? null, guard, 10), 0, 'another unit\'s heal does nothing');
+});
+
+test('[职业-9] a 武者 heals itself for every hit it deals: each hit of an attack, content damage too; not 生命流失 nor a sourceless hit', () => {
+  const { w, c, foe } = arena((cc) => {
+    cc.operators.guard.trait = { flags: { noAllyHeal: true }, selfHeal: 30, selfHealOn: 'damage', hits: 2 };
+    cc.operators.guard.range = [{ row: 0, col: 0 }, { row: 0, col: 1 }];
+  });
+  run(w, c, 1, [deploy('guard', 1, 1)]);
+  const guard = /** @type {Unit} */ (w.units[0]);
+  guard.hp = 100;
+  const e = foe(1, 2, { maxHp: 1e6 });
+  const healsOf = (/** @type {any[]} */ ev) => ev.filter((x) => x.type === 'heal' && x.target === guard.id).map((x) => x.amount);
+  assert.deepEqual(healsOf(run(w, c, 1)), [30, 30], 'an attack of two hits: two heals');
+  const before = w.events.length;
+  creditedDamage(w, c, guard, e, { type: 'arts', amount: 100 });
+  creditedDamage(w, c, guard, e, { type: 'true', amount: 100, hpLoss: true });
+  creditedDamage(w, c, guard, e, { type: 'true', amount: 100, sourceless: true });
+  assert.deepEqual(healsOf(w.events.slice(before)), [30], 'a skill\'s or talent\'s damage heals too; 生命流失 and a sourceless hit do not');
 });
 
 test('[职业-10] [部署-1] a melee operator whose trait allows it may stand on a ranged tile', () => {

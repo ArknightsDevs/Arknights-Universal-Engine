@@ -126,6 +126,8 @@
  * @property {number} unblockedScale its attack's 倍率 against an enemy it does not block is multiplied by this (职业-8)
  * @property {number} selfHeal HP it restores itself for each enemy an attack of its reaches (职业-9)
  * @property {number | 'blockCnt'} selfHealMax at most this many such heals an attack (its 阻挡数, at least 1)
+ * @property {'attack' | 'damage'} selfHealOn when it heals itself: for the enemies an attack reaches, or for every hit it
+ * deals (职业-9)
  * @property {boolean} rangedTiles a melee operator may also be deployed on ranged tiles (部署-1, 职业-10)
  * @property {boolean} skillArts its attacks started while its skill runs deal arts damage (职业-10)
  * @property {string[]} immuneBlocking the flags it is immune to while it blocks an enemy (职业-10)

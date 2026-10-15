@@ -51,7 +51,7 @@ test('[职业-12] a charge that starts at its init bonus: its steps at deploymen
   assert.deepEqual([buffOf(guard, 'charge')?.value, statsOf(guard).atk], [20, 50 * 2]);
 });
 
-test('[职业-12] attacks only in the skill; 阻挡数 × 0 out of it; the charge builds a step a second and is back at 0 after the skill', () => {
+test('[职业-12] attacks only in the skill; 阻挡数 × 0 out of it; the charge builds a step a second and is back at 0 when the skill ends', () => {
   const { foe, put, run } = arena((c) => {
     c.operators.guard = { ...c.operators.guard, skill: skill(2), trait: { attackInSkill: true, idleMods: { blockCntMul: 0 }, charge: { atk: 2, steps: 40 } } };
   });
@@ -64,8 +64,19 @@ test('[职业-12] attacks only in the skill; 阻挡数 × 0 out of it; the charg
   const on = run(40, [{ type: 'skill', unit: guard.id }]);
   assert.ok(on.some((e) => e.type === 'hit' && e.id === guard.id), 'it attacks in the skill');
   assert.deepEqual([statsOf(guard).blockCnt, buffOf(guard, 'charge')?.value], [2, 2], 'its 阻挡数 back, the charge held');
-  run(60);
-  assert.deepEqual([statsOf(guard).blockCnt, buffOf(guard, 'charge')?.value], [0, 0], 'after the skill: 阻挡数 0, the charge back at 0');
+  while (guard.skill?.active) run(1);
+  assert.deepEqual([statsOf(guard).blockCnt, buffOf(guard, 'charge')?.value, statsOf(guard).atk], [0, 0, 50], 'at the skill\'s end: 阻挡数 0, the charge back at 0');
+  run(30);
+  assert.equal(buffOf(guard, 'charge')?.value, 1, 'and a step again within the next second');
+});
+
+test('[职业-12] a skill that begins and ends between two triggers of the charge still takes it back to 0', () => {
+  const { put, run } = arena((c) => { c.operators.guard = { ...c.operators.guard, skill: skill(0.3), trait: { attackInSkill: true, charge: { atk: 2, steps: 40, init: 1 } } }; });
+  const guard = put('guard', 1, 1);
+  run(34);
+  assert.equal(buffOf(guard, 'charge')?.value, 21, 'its start (20) and a step');
+  run(12, [{ type: 'skill', unit: guard.id }]);
+  assert.deepEqual([guard.skill?.active, buffOf(guard, 'charge')?.value], [false, 0], '0.3 s, between the triggers at 1 s and 2 s');
 });
 
 test('[职业-12] heals instead of attacks while the skill runs, at the skill healer\'s 倍率', () => {

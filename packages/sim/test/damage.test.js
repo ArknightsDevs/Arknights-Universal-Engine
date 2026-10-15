@@ -111,6 +111,16 @@ test('[伤害-7] nothing to a unit at 0 HP or invincible (无敌, 沉睡), and n
   assert.equal(w.events.length, 0);
 });
 
+test('[伤害-7] [状态-5] a hit that goes through 沉睡 hurts a sleeping unit; 无敌 still stops it', () => {
+  const w = world(), u = mk(3), v = mk(4);
+  applyStatus(u, 'sleep', { frames: 30 });
+  assert.equal(dealDamage(w, null, u, { type: 'true', amount: 50, throughSleep: true }), 50);
+  assert.equal(dealDamage(w, null, u, { type: 'true', amount: 50 }), 0, 'a plain hit does not');
+  applyStatus(v, 'sleep', { frames: 30 });
+  applyStatus(v, 'invincible', { frames: 30 });
+  assert.equal(dealDamage(w, null, v, { type: 'true', amount: 50, throughSleep: true }), 0);
+});
+
 test('[伤害-8] 伤判 in acquisition order: a barrier before 脆弱 absorbs first; after it, the raised damage (DIF-0007)', () => {
   const a = mk(1), b = mk(2);
   const barrier = () => makeBuff({ key: 'barrier', shield: 100 }), fragile = () => makeBuff({ key: 'fragile', rule: 'max', value: 0.5, mods: { dmgTakenMul: 1.5 } });

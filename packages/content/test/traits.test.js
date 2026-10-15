@@ -89,9 +89,9 @@ test('[职业-7] [职业-8] 炮手, 扩散术师, 撼地者, 投掷手, 教官 a
 test('[职业-7] [职业-9] 武者, 收割者 and 不屈者 from the real data: no ally heals them; the first two heal themselves', async () => {
   const t = async (/** @type {string} */ id) => traits.traitOfDef(await real(id));
   const helage = await t('char_188_helage');
-  assert.deepEqual([helage.flags, helage.selfHeal, helage.selfHealMax], [{ noAllyHeal: true }, 30, Infinity]);
+  assert.deepEqual([helage.flags, helage.selfHeal, helage.selfHealMax, helage.selfHealOn], [{ noAllyHeal: true }, 30, Infinity, 'damage'], '武者: for every hit');
   const excu2 = await t('char_1032_excu2');
-  assert.deepEqual([excu2.flags, excu2.selfHeal, excu2.selfHealMax, excu2.targets], [{ noAllyHeal: true }, 50, 'blockCnt', 'all']);
+  assert.deepEqual([excu2.flags, excu2.selfHeal, excu2.selfHealMax, excu2.targets, excu2.selfHealOn], [{ noAllyHeal: true }, 50, 'blockCnt', 'all', 'attack'], '收割者: for the enemies an attack reaches');
   assert.deepEqual((await t('char_163_hpsts')).flags, { noAllyHeal: true });
 });
 

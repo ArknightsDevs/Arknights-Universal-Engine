@@ -8,6 +8,7 @@ import { timeSp, gainSp, spendSp } from './sp.js';
 import { actorContext } from './traits.js';
 import { emit } from './bus.js';
 import { grantSummons, endSummons } from './summons.js';
+import { restartCharge } from './modes.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').SkillDef} SkillDef @typedef {import('./types.js').SkillState} SkillState */
@@ -37,12 +38,13 @@ import { grantSummons, endSummons } from './summons.js';
  * operator is about to attack. `attack` may change the mods of the attacks the skill makes. `timing` may give the
  * operator's skill another kind and time than its record's (技能-6).
  * @typedef {object} SkillBehavior
- * @property {'ready' | 'attack'} [trigger]
+ * @property {'ready' | 'attack' | ((ctx: SkillContext) => 'ready' | 'attack')} [trigger]
  * @property {(ctx: SkillContext) => { kind?: SkillKind, seconds?: number } | null} [timing]
  * @property {(ctx: SkillContext) => void} [start]
  * @property {(ctx: SkillContext) => void} [tick]
  * @property {(ctx: SkillContext, reason: string) => void} [end] told why the skill ends, as the `skillEnd` event (API 3)
  * @property {(ctx: SkillContext, mods: AttackMods) => AttackMods} [attack]
+ * @property {(op: Unit) => import('./types.js').Cell[] | null} [range] the running skill's range now, over its record's (技能-8; API 5)
  */
 
 /** Blackboard keys of the operator's own attributes and the mod each becomes during the skill (技能-5). */
@@ -115,14 +117,15 @@ function timingOf(w, c, op) {
 const contextOf = (w, c, op) => timingOf(w, c, op).ctx;
 
 /**
- * Ends a skill (技能-4): its behaviour's end, then the state at rest, then the `skillEnd` event (钩子-3) with why —
- * `duration`, `instant`, `ammo` or `stopped` (closed, 技能-7).
+ * Ends a skill (技能-4): its behaviour's end, then the state at rest (a 解放者's charge back at 0, 职业-12), then the
+ * `skillEnd` event (钩子-3) with why — `duration`, `instant`, `ammo` or `stopped` (closed, 技能-7).
  * @param {World} w @param {Content} c @param {Unit} op @param {string} [reason]
  */
 export function endSkill(w, c, op, reason = 'duration') {
   const st = /** @type {SkillState} */ (op.skill);
   behaviorOf(c, st.id).end?.(contextOf(w, c, op), reason);
   st.active = false; st.armed = false; st.dur = -1; st.ammo = 0;
+  restartCharge(op);
   w.events.push({ type: 'skill', id: op.id, active: 0 });
   endSummons(w, c, op);
   grantSummons(w, c, op, 'end');
@@ -194,7 +197,16 @@ export function canClose(c, op) {
 }
 
 /** When an AUTO skill starts (技能-3). @param {Content} c @param {Unit} op @returns {'ready' | 'attack'} */
-const triggerOf = (c, op) => behaviorOf(c, defOf(c, op).id).trigger ?? (kindOf(defOf(c, op)) === 'instant' ? 'ready' : 'attack');
+/**
+ * When an AUTO skill starts (技能-3): as its behaviour says — or as its behaviour works out now —, else an instant one as
+ * soon as it is ready and the others as the operator is about to attack.
+ * @param {World} w @param {Content} c @param {Unit} op @returns {'ready' | 'attack'}
+ */
+function triggerOf(w, c, op) {
+  const t = behaviorOf(c, defOf(c, op).id).trigger;
+  if (typeof t === 'function') return t(contextOf(w, c, op));
+  return t ?? (kindOf(defOf(c, op)) === 'instant' ? 'ready' : 'attack');
+}
 
 /**
  * One frame of an operator's skill, at the start of its turn (技能-2…技能-4): the duration runs down (not in the frame
@@ -207,7 +219,7 @@ export function tickSkill(w, c, op) {
   if (st.active && st.dur > 0 && st.at < w.frame && --st.dur === 0) endSkill(w, c, op);
   if (st.active) behaviorOf(c, st.id).tick?.(contextOf(w, c, op));
   if (!statsOf(op).flags.noSp) timeSp(st, statsOf(op).spRecovery);
-  if (triggerOf(c, op) === 'ready' && canStart(c, op, 'AUTO')) activate(w, c, op);
+  if (canStart(c, op, 'AUTO') && triggerOf(w, c, op) === 'ready') activate(w, c, op);
 }
 
 /**
@@ -218,7 +230,7 @@ export function tickSkill(w, c, op) {
 export function beforeAttack(w, c, op) {
   const st = op.skill;
   if (st && st.active && timingOf(w, c, op).kind === 'ammo' && st.ammo <= 0) endSkill(w, c, op, 'ammo');
-  if (st && triggerOf(c, op) === 'attack' && canStart(c, op, 'AUTO')) activate(w, c, op);
+  if (st && canStart(c, op, 'AUTO') && triggerOf(w, c, op) === 'attack') activate(w, c, op);
   return attackMods(w, c, op);
 }
 
