@@ -79,6 +79,19 @@ export class ShUnit {
     /** @type {any} the kit installed for it */
     this.kit = null;
     this.stats = { dmg: 0, kills: 0, heal: 0, taken: 0, attacks: 0 };
+    /** @type {Map<number, { afterHit: Function }>} what a kit gave single attacks of it, by the attack's mark (兼容-4) */
+    this.attackOverrides = new Map();
+    this.attackMarks = 0;
+  }
+
+  /**
+   * Keeps what a kit gave one attack of it under the attack's mark — the mark given, or a new one — and returns the mark.
+   * @param {{ afterHit: Function }} over @param {number} [mark]
+   */
+  markAttack(over, mark = 0) {
+    const t = mark > 0 ? mark : ++this.attackMarks;
+    this.attackOverrides.set(t, over);
+    return t;
   }
 
   get kind() { return this.#kind; }

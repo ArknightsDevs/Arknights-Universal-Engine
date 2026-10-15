@@ -158,6 +158,15 @@ test('[钩子-3] beforeAttack as an attack locks its targets: handlers may chang
   assert.equal(other.hp, 460, 'the target a handler added took the hit (50 − DEF 10), out of range');
 });
 
+test('[钩子-3] beforeAttack: a handler sets this attack\'s 倍率 and a mark; its attackHit carries the mark, the next attack neither', () => {
+  const a = arena({}), hits = /** @type {[number, number][]} */ ([]);
+  let n = 0;
+  on(a.w, 'beforeAttack', (k) => { if (n++ === 0) { k.scale = 0.5; k.mark = 7; } });
+  on(a.w, 'attackHit', (k) => hits.push([k.dealt, k.mark]));
+  for (let i = 0; i < 62; i++) step(a.w, a.c);
+  assert.deepEqual(hits.slice(0, 2), [[25, 7], [50, 0]], '50 × 0.5 for the marked one; then 50, unmarked');
+});
+
 test('[钩子-3] beforeStatus: a handler may cancel a status, change its frames or its strength', () => {
   const { w, guard, foe } = arena({}), seen = /** @type {string[]} */ ([]);
   on(w, 'beforeStatus', (k) => {

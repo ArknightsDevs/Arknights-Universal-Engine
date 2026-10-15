@@ -74,7 +74,7 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * aftershock (职业-8) and chain (职业-11); whether the skill makes it, and which of its hits this is (钩子-3).
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
  *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null,
- *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock' }} Load
+ *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number }} Load
  */
 
 /**
@@ -99,7 +99,7 @@ function damageOf(load) {
 function hitTarget(w, c, src, t, load) {
   let total = 0;
   for (let k = 0; k < load.times; k++) total += oneHit(w, c, src, t, load);
-  if (src) emit(w, 'attackHit', { attacker: src, target: t, dealt: total, kind: load.hit ?? 'main', isSkill: !!load.skill });
+  if (src) emit(w, 'attackHit', { attacker: src, target: t, dealt: total, kind: load.hit ?? 'main', isSkill: !!load.skill, mark: load.mark ?? 0 });
 }
 
 /**
@@ -146,7 +146,7 @@ const atkOf = (a, pct) => (pct ? statsOf({ ...a, buffs: [...a.buffs, makeBuff({ 
  */
 const loadOf = (a, mods) => ({
   type: mods.type ?? a.base.dmgType, amount: atkOf(a, mods.atkPct) * mods.scale * statsOf(a).atkScaleMul, times: mods.times, element: mods.element ?? '', ep: mods.ep ?? 0,
-  ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.skill ? { skill: true } : {}),
+  ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.skill ? { skill: true } : {}), ...(mods.mark ? { mark: mods.mark } : {}),
 });
 
 /**
@@ -311,14 +311,19 @@ function deliver(w, c, a, t, how) {
 }
 
 /**
- * The `beforeAttack` event as an attack locks its targets (钩子-3): handlers may change them; those still on the field
- * with HP are the attack's, none while the attacker has none.
- * @param {World} w @param {Unit} a @param {Unit[]} targets @param {AttackMods} mods @returns {Unit[]}
+ * The `beforeAttack` event as an attack locks its targets (钩子-3): handlers may change them — those still on the field
+ * with HP are the attack's, none while the attacker has none —, this attack's 倍率 (`scale`, × the mods') and its mark
+ * (`mark`, carried to its hits). The targets and the attack's mods with these.
+ * @param {World} w @param {Unit} a @param {Unit[]} targets @param {AttackMods} mods @returns {{ targets: Unit[], mods: AttackMods }}
  */
 function lockTargets(w, a, targets, mods) {
-  if (!hasHook(w, 'beforeAttack')) return targets;
-  const k = emit(w, 'beforeAttack', { attacker: a, targets: [...targets], isSkill: !!mods.skill });
-  return a.hp > 0 ? (Array.isArray(k.targets) ? k.targets : []).filter((t) => t && t.hp > 0 && w.units.includes(t)) : [];
+  if (!hasHook(w, 'beforeAttack')) return { targets, mods };
+  const k = emit(w, 'beforeAttack', { attacker: a, targets: [...targets], isSkill: !!mods.skill, scale: 1, mark: 0 });
+  const scale = Number.isFinite(k.scale) && k.scale >= 0 ? k.scale : 1, mark = Number.isInteger(k.mark) ? k.mark : 0;
+  return {
+    targets: a.hp > 0 ? (Array.isArray(k.targets) ? k.targets : []).filter((t) => t && t.hp > 0 && w.units.includes(t)) : [],
+    mods: scale === 1 && mark === 0 ? mods : { ...mods, scale: mods.scale * scale, ...(mark ? { mark } : {}) },
+  };
 }
 
 /**
@@ -331,13 +336,13 @@ function startSwing(w, c, a, found, mods) {
   const s = statsOf(a), ch = mods.channel, every = ch ? secondsToFrames(ch.duration / ch.hits) : 0;
   const interval = ch ? ch.hits * every + secondsToFrames(ch.after) : intervalFrames(s.bat, s.aspd);
   a.atkCd = interval - 1;
-  const targets = lockTargets(w, a, found, mods);
+  const { targets, mods: locked } = lockTargets(w, a, found, mods);
   if (targets.length === 0) { a.anim = ANIM.IDLE; return; }
   a.anim = ANIM.ATTACK;
   rampageAttack(a);
   const wind = ch ? every : windupFrames(timingOf(c, a), interval);
   for (const t of targets) w.events.push({ type: 'attack', id: a.id, target: t.id, wind });
-  a.swing = { wind, since: 0, targets: targets.map((t) => t.id), mods };
+  a.swing = { wind, since: 0, targets: targets.map((t) => t.id), mods: locked };
   if (a.swing.wind === 0) land(w, c, a);
 }
 
@@ -392,11 +397,11 @@ function armed(w, c, op, mods) {
 export function attackNow(w, c, op, given = null, o = {}) {
   if (op.kind !== KIND.OPERATOR || op.hp <= 0 || !w.units.includes(op)) return false;
   const a = armed(w, c, op, critMods(w, c, op, attackMods(w, c, op)));
-  const targets = lockTargets(w, op, given ? given.filter((u) => u.hp > 0 && w.units.includes(u)) : a.targets, a.mods);
+  const { targets, mods } = lockTargets(w, op, given ? given.filter((u) => u.hp > 0 && w.units.includes(u)) : a.targets, a.mods);
   if (targets.length === 0 || op.hp <= 0) return false;
   const prev = op.swing;
   for (const t of targets) w.events.push({ type: 'attack', id: op.id, target: t.id, wind: 0 });
-  op.swing = { wind: 0, since: 0, targets: targets.map((t) => t.id), mods: a.mods, now: true, free: !!o.noAmmo };
+  op.swing = { wind: 0, since: 0, targets: targets.map((t) => t.id), mods, now: true, free: !!o.noAmmo };
   land(w, c, op);
   op.swing = prev;
   return true;

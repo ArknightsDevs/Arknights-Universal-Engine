@@ -227,6 +227,24 @@ test('[兼容-4] attacks, skills and statuses as a kit sees them: targets it may
   assert.deepEqual(b.errors, []);
 });
 
+test('[兼容-4] a kit\'s writes to an attack\'s profile in beforeAttack: its atkScale and afterHit for that attack only', () => {
+  const log = /** @type {string[]} */ ([]);
+  const kit = () => ({ skills: {}, trait: { afterHit: () => log.push('trait') }, install(/** @type {ShBattle} */ b, /** @type {any} */ u) {
+    let n = 0;
+    b.on('beforeAttack', (k) => {
+      if (k.attacker !== u || n++ > 0) return;
+      k.profile.atkScale = 0.5;
+      k.profile.afterHit = () => log.push('once');
+    }, { owner: u });
+    b.on('damaged', (k) => { if (k.source === u) log.push(`hit:${k.amount}`); }, { owner: u });
+  } });
+  const { c, w, b } = match({ guard: { def: { name: 'guard', skill: null, raw: {} }, factory: kit } }, ['guard'], () => {});
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 3, dir: 2 }]]);
+  for (let i = 0; i < 900 && log.filter((x) => x.startsWith('hit')).length < 2; i++) step(w, c);
+  assert.deepEqual(log.slice(0, 4), ['hit:15', 'once', 'hit:40', 'trait'], 'the first attack at half its 倍率 with its own afterHit; the next as the kit\'s trait');
+  assert.deepEqual(b.errors, []);
+});
+
 test('[兼容-4] what a kit may change: its range, a buff’s time, shield and data, its skill’s time and charges; the field’s order', () => {
   const skill = { id: 'guardS', type: 'MANUAL', sp: 'time', cost: 2, init: 6, charges: 3, duration: 10, ammo: false, bb: {} };
   const { c, w, b } = match({}, ['guard', 'sniper'], (x) => { x.operators.guard.skill = skill; });

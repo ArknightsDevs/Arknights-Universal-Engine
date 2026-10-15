@@ -206,7 +206,7 @@ export function onAttackHit(k) {
   if (typeof each === 'function') b.safe(() => each(b, p, target, hc), 'profile.onEachHit', p);
   if (spec) call(b, p, spec.attack?.onEachHit, 'skill.attack.onEachHit', { target, ...hc });
   if (kind !== 'main') return;
-  const after = profileFn(p, 'afterHit', skillOn);
+  const after = afterHitOf(p, k.mark, skillOn);
   if (after) b.safe(() => after(b, p, target, { dealt: k.dealt, x: target.x, y: target.y, isSkill: k.isSkill }), 'profile.afterHit', p);
   if (!spec) return;
   call(b, p, spec.attack?.onHit, 'skill.attack.onHit', { target, dealt: k.dealt, x: target.x, y: target.y });
@@ -236,6 +236,12 @@ export function onBoomerangHit(k) {
   const ctx = { battle: b, unit: p, profile: p.profile, target: b.unitOf(k.target), x: k.x, y: k.y, attackId: 0, isSkill: k.isSkill, home, hit, comeBack };
   if (b.safe(() => { fn(ctx); return true; }, 'boomerang.onward', p) !== true) comeBack(k.x, k.y);
 }
+
+/**
+ * The `afterHit` of an attack's main hit: the one a kit gave that attack (its mark, 兼容-4), else its profile's.
+ * @param {ShUnit} p @param {number} mark @param {boolean} skillOn
+ */
+const afterHitOf = (p, mark, skillOn) => (mark ? p.attackOverrides.get(mark)?.afterHit : null) ?? profileFn(p, 'afterHit', skillOn);
 
 /** Whether a hit is the engine's attack's on its main target: not a kit's own, no splash, chain or aftershock. @param {Record<string, any>} d */
 const mainHit = (d) => !!d.isAttack && !kitHits.has(d) && !d.isSplash && !(d.tags ?? []).some((/** @type {string} */ t) => t === 'chain' || t === 'aftershock');

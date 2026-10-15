@@ -36,9 +36,9 @@
 | `fatal` | 扣生命使它归零时（含生命流失） | `unit`、`source`、`credit`、`dmg`、`amount`、`prevented`：设为是时它留下 1 点生命（生命上限不足 1 时为上限） |
 | `damaged` | 扣生命之后（含生命流失） | `source`、`credit`、`target`、`amount`、`type`、`dmg`。这四个伤害事件的 `credit` 是伤害记在谁名下：一般同 `source`；记在来源名下的无来源伤害（伤害-7）`source` 为空，`credit` 是来源 |
 | `heal` | 治疗算完倍率、回复生命之前（伤害-11） | `source`、`target`、`amount`（可改） |
-| `beforeAttack` | 一次攻击锁定目标时（攻击-2 第 1 步） | `attacker`、`targets`（可换，留下仍在场、有生命的；为空时这次不攻击）、`isSkill` |
+| `beforeAttack` | 一次攻击锁定目标时（攻击-2 第 1 步） | `attacker`、`targets`（可换，留下仍在场、有生命的；为空时这次不攻击）、`isSkill`、`scale`（这次攻击的倍率再乘它，默认 1）、`mark`（内容给这次攻击的标记，整数，默认 0；随攻击和它的投射物带到 `attackHit`） |
 | `attack` | 一次攻击命中、对锁定的目标结算之后（攻击-2 第 3 步），有目标时 | `attacker`、`targets`、`isSkill`、`noAmmo`：设为是时这次攻击不耗弹药技能的弹药 |
-| `attackHit` | 一次攻击对一个目标的各段伤害结算之后（引擎自己的事件） | `attacker`、`target`、`dealt`（各段合计）、`kind`：`main`、`splash`、`chain`、`aftershock`，`isSkill` |
+| `attackHit` | 一次攻击对一个目标的各段伤害结算之后（引擎自己的事件） | `attacker`、`target`、`dealt`（各段合计）、`kind`：`main`、`splash`、`chain`、`aftershock`，`isSkill`，`mark`（这次攻击的标记） |
 | `skillStart` | 技能发动、它的行为开始之后（技能-3、技能-4） | `unit`、`reason`：`manual`（玩家发动）、`auto`、`deploy`（被动技能） |
 | `skillEnd` | 技能结束之后（技能-4、技能-7）；运行中的干员离场时，先于它的 `death` | `unit`、`reason`：`duration`、`instant`（立即生效或下次攻击的技能）、`ammo`、`stopped`（玩家关闭）、`death`（离场）、`move`（一般方式的移动，部署-9） |
 | `elementHit` | 一次元素损伤判定不受影响之后、计算受到的量之前（元素-2） | `source`、`target`、`dmg`：`type` 为 `element`、`element`、`amount` 与 `mul`（可改）、`cancel` |

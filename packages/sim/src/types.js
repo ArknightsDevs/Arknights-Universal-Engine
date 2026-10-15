@@ -360,7 +360,7 @@
  * (职业-12) its way back's speed and, on its way back, `ret` 1; `held` 1 while content holds it where it arrived.
  * @typedef {{ src: number, target: number, sx: number, sy: number, speed: number, type: DamageType, amount: number, times: number, element: string, ep: number,
  *   splash?: Splash | null, aftershock?: number, chain?: Chain | null, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null,
- *   skill?: boolean, back?: number, ret?: number, held?: number }} Shot
+ *   skill?: boolean, back?: number, ret?: number, held?: number, mark?: number }} Shot
  */
 
 /**

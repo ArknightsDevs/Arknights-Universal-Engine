@@ -61,7 +61,10 @@ const SHAPES = {
   fatal: (b, k) => ({ unit: sh(b, k.unit), source: sh(b, k.source), credit: sh(b, k.credit), dmg: k.dmg, amount: k.amount,
     get prevented() { return k.prevented; }, set prevented(v) { k.prevented = v; } }),
   heal: (b, k) => ({ source: sh(b, k.source), target: sh(b, k.target), opts: {}, get amount() { return k.amount; }, set amount(v) { k.amount = v; } }),
-  beforeAttack: (b, k) => ({ attacker: sh(b, k.attacker), targets: k.targets.map((/** @type {Unit} */ t) => b.unitOf(t)), isSkill: k.isSkill, profile: sh(b, k.attacker)?.profile }),
+  beforeAttack: (b, k) => {
+    const p = sh(b, k.attacker), profile = p ? { ...effectiveProfile(p) } : undefined;
+    return { attacker: p, targets: k.targets.map((/** @type {Unit} */ t) => b.unitOf(t)), isSkill: k.isSkill, profile, baseScale: Number(profile?.atkScale ?? 1), baseAfterHit: profile?.afterHit };
+  },
   attack: (b, k) => ({ attacker: sh(b, k.attacker), targets: k.targets.map((/** @type {Unit} */ t) => b.unitOf(t)), isSkill: k.isSkill }),
   skillStart: (b, k) => ({ unit: sh(b, k.unit), skill: sh(b, k.unit)?.skill ?? null, reason: k.reason }),
   skillEnd: (b, k) => ({ unit: sh(b, k.unit), skill: sh(b, k.unit)?.skill ?? null, reason: k.reason }),
@@ -76,11 +79,19 @@ const SHAPES = {
 
 /**
  * What a handler changed in place, written back to the engine's context after each handler (兼容-4): the targets an
- * attack locks.
+ * attack locks; and what it wrote to the attack's own profile — a copy for this attack, as Stronghold's per-attack
+ * profile —: its `atkScale` as this attack's 倍率 (the engine's `scale`, against the profile's own), its `afterHit` kept
+ * with the piece under the attack's mark (`mark`) for its hits.
  * @type {Record<string, (ctx: Record<string, any>, k: Record<string, any>) => void>}
  */
 const BACK = {
-  beforeAttack: (ctx, k) => { k.targets = (Array.isArray(ctx.targets) ? ctx.targets : []).map((/** @type {any} */ t) => t?.u).filter(Boolean); },
+  beforeAttack: (ctx, k) => {
+    k.targets = (Array.isArray(ctx.targets) ? ctx.targets : []).map((/** @type {any} */ t) => t?.u).filter(Boolean);
+    const pr = ctx.profile, p = ctx.attacker, s = Number(pr?.atkScale ?? 1);
+    if (!pr || !p) return;
+    if (Number.isFinite(s) && s >= 0 && ctx.baseScale > 0 && s !== ctx.baseScale) k.scale = s / ctx.baseScale;
+    if (typeof pr.afterHit === 'function' && pr.afterHit !== ctx.baseAfterHit) k.mark = p.markAttack({ afterHit: pr.afterHit }, k.mark);
+  },
 };
 
 /**
