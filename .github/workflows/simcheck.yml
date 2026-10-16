@@ -37,9 +37,14 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Browsers
-        run: pnpm --filter @aue/simcheck exec playwright install --with-deps chromium firefox webkit
+      # the pinned Stronghold commit the decks' kits come from (ADR 0058)
+      - name: Oracle
+        run: pnpm run oracle
 
-      # the same matches in Node, Chromium, Firefox and WebKit: every state hash equal (docs/spec/lockstep.md 同步-12)
+      # Playwright's own builds; the system libraries they need only on Linux
+      - name: Browsers
+        run: pnpm --filter @aue/simcheck exec playwright install ${{ runner.os == 'Linux' && '--with-deps' || '' }} chromium firefox webkit
+
+      # the same matches in Node, Chromium, Firefox and WebKit: the same kits, every state hash equal (docs/spec/lockstep.md 同步-12)
       - name: Cross-engine check
         run: pnpm run simcheck

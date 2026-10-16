@@ -1,8 +1,9 @@
 // The matches of the cross-engine check (docs/spec/lockstep.md 同步-12): three levels, two seats of elite-2 six-stars
 // with a play style each, commands worked out from the battle itself by a script that uses no chance and no inexact
-// math, and the state hash (同步-1) every 30 frames. This module runs the same in Node and in a browser: it uses no Node
-// built-ins, only the engine's packages.
-import { matchContent } from '@aue/content';
+// math, and the state hash (同步-1) every 30 frames. The decks' operators that have an enabled kit fight with it, as in
+// a real match (兼容-6). This module runs the same in Node and in a browser: it uses no Node built-ins, only the
+// engine's packages; where the kits come from is the environment's.
+import { matchContent, loadKits } from '@aue/content';
 import { createWorld, step, stateHash, deployProblem, deck, KIND, DIR } from '@aue/sim';
 
 /** Every how many frames a hash is taken, and how many frames a match runs at most (同步-12). */
@@ -12,7 +13,8 @@ const DEPLOY_EVERY = 15, RETREAT_AT = 1800;
 
 /** @typedef {import('@aue/schema').Match} Match @typedef {import('@aue/sim').World} World @typedef {import('@aue/sim').Content} Content */
 /** @typedef {{ name: string, match: Match }} Scenario */
-/** @typedef {{ name: string, hashes: number[], frame: number, result: number }} Run */
+/** A match's run: its state hashes, the frame it ended at, its result, the kits it ran with. @typedef {{ name: string, hashes: number[], frame: number, result: number, kits: string[] }} Run */
+/** The kit factories by character id, as loadKits gives them. @typedef {Awaited<ReturnType<typeof loadKits>>['kits']} Kits */
 
 const BUILD = Object.freeze({ elite: 2, level: 90, potential: 1, trust: 100, skill: 2, skillLevel: 10 });
 /** @param {string[]} ids */
@@ -113,11 +115,12 @@ export function scriptOf(w, c, seat) {
 }
 
 /**
- * One match run to its end or FRAMES: the state hash at every HASH_EVERY-th frame from frame 0.
- * @param {Scenario} s @param {number} [frames] @returns {Promise<Run>}
+ * One match run to its end or FRAMES: the state hash at every HASH_EVERY-th frame from frame 0. With kits, the deck's
+ * operators that have one fight with it (兼容-6).
+ * @param {Scenario} s @param {number} [frames] @param {Kits} [kits] @returns {Promise<Run>}
  */
-export async function runScenario(s, frames = FRAMES) {
-  const c = await matchContent(/** @type {any} */ (s.match));
+export async function runScenario(s, frames = FRAMES, kits = {}) {
+  const c = await matchContent(/** @type {any} */ (s.match), undefined, kits);
   const seats = s.match.decks.length, w = createWorld(c, { seed: s.match.seed, players: seats });
   /** @type {number[]} */
   const hashes = [];
@@ -129,13 +132,28 @@ export async function runScenario(s, frames = FRAMES) {
     step(w, c, cmds);
   }
   hashes.push(stateHash(w));
-  return { name: s.name, hashes, frame: w.frame, result: w.result };
+  const used = /** @type {{ kits?: { used: string[] } }} */ (/** @type {unknown} */ (c)).kits?.used ?? [];
+  return { name: s.name, hashes, frame: w.frame, result: w.result, kits: [...used] };
 }
 
-/** Every match of the check, one after another. @param {number} [frames] @returns {Promise<Run[]>} */
-export async function runAll(frames = FRAMES) {
+/**
+ * The enabled kits of the decks' operators from the pinned commit at `base` (a URL ending in "/"); every one must
+ * load, or the check would compare the engine's own fighting with the kits'. @param {string} base @returns {Promise<Kits>}
+ */
+export async function kitsAt(base) {
+  const { kits, failed } = await loadKits(base, SCENARIOS.flatMap((s) => s.match.decks.flat().map((x) => x.id)));
+  if (failed.length > 0) throw new Error(`kits that did not load: ${failed.join(', ')}`);
+  return kits;
+}
+
+/**
+ * Every match of the check, one after another; with `kitBase`, the kits of that commit (kitsAt).
+ * @param {number} [frames] @param {string | null} [kitBase] @returns {Promise<Run[]>}
+ */
+export async function runAll(frames = FRAMES, kitBase = null) {
+  const kits = kitBase ? await kitsAt(kitBase) : {};
   /** @type {Run[]} */
   const out = [];
-  for (const s of SCENARIOS) out.push(await runScenario(s, frames));
+  for (const s of SCENARIOS) out.push(await runScenario(s, frames, kits));
   return out;
 }
