@@ -173,10 +173,16 @@ function clickSound(s, click) {
   if (bank) s.el.addEventListener('click', () => { if (s.shown && s.interDown) ctx.sound?.(bank); });
 }
 
+/**
+ * An image whose look is all its effect's (界面-9): an effect hint, no material the engine draws, and no sprite of its
+ * own — the effect's texture is not in the pack, so it is not drawn. @param {Record<string, any>} c
+ */
+const effectOnly = (c) => !!c.img && !c.img.ref && c.img.mat?.kind === 'none' && !!c.img.mat.fx;
+
 /** A graphic's div, its colour, sprite and fill. @param {UiNode} s @param {Record<string, any>} c @param {Document} doc */
 function buildGraphic(s, c, doc) {
   const g0 = c.img || c.grad;
-  if (!g0 || c.maskHide || c.nodraw || !drawable(g0.mat)) return;
+  if (!g0 || c.maskHide || c.nodraw || !drawable(g0.mat) || effectOnly(c)) return;
   s.g = doc.createElement('div'); s.g.className = 'aue-g'; s.el.appendChild(s.g);
   s.color = [...g0.color];
   if (c.img) s.sprite = c.img.ref ?? null;

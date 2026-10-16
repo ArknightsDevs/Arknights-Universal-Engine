@@ -44,7 +44,7 @@ const pack = () => ({
       N('dup', {}, [N('box')]), N('dup', {}, [N('box', {}, [N('deep')])]),
       N('fit', { bestFit: { min: 2 }, ...text('twenty characters!!!') }, [], R({ size: [100, 200] })),
       N('ring', text('x', { mat: { kind: 'outline', width: 5, color: [0, 0, 0, 1] } })),
-      N('fx', img({ mat: { kind: 'none', fx: 'dissolve', add: true } })), N('grey', img({ mat: { kind: 'grey' } })),
+      N('fx', img({ ref: 'logo', mat: { kind: 'none', fx: 'dissolve', add: true } })), N('fxBare', img({ mat: { kind: 'none', fx: 'dissolve' } })), N('grey', img({ mat: { kind: 'grey' } })),
       N('field', { input: { text: '@field/value', placeholder: '@field/hint', limit: 6, caret: [0, 0, 0, 1] }, nodraw: 'raycast' }, [N('value', text('')), N('hint', text('输入赛事ID'))]),
       N('tw', { group: { alpha: 1 }, tween: { kind: 'fade', from: 0, to: 1, startFrom: 1, time: 1, delay: 0, ease: 1, loop: -1, loopType: 1, auto: 1 } }),
       N('arc', { ...img({ fill: 1, fillMethod: 4 }), circle: { start: -90, span: 270 } }),
@@ -194,12 +194,13 @@ test('[界面-29] multiline best fit: the largest size not above the text\'s own
   assert.equal(ringCss({}).split(', ').length, 16);
 });
 
-test('[界面-9] an image whose material is not drawn but carries an effect hint is drawn by its blending; grey is grey', () => {
+test('[界面-9] an image whose material is not drawn but carries an effect hint is drawn by its blending, unless it has no sprite of its own; grey is grey', () => {
   const { s } = setup();
   assert.equal(drawable({ kind: 'none' }), false);
   assert.equal(drawable({ kind: 'none', fx: 'disturb' }), true);
   assert.equal(blendOf({ kind: 'none', fx: 'dissolve', add: true }), 'plus-lighter');
   assert.ok(/** @type {any} */ (s.one('fx')).g, 'drawn');
+  assert.equal(/** @type {any} */ (s.one('fxBare')).g, null, 'its look is all the effect\'s: not drawn');
   assert.equal(css(/** @type {any} */ (s.one('grey')).g).filter, 'grayscale(1)');
 });
 
