@@ -45,3 +45,11 @@ test('[界面-5] the properties a curve sets', () => {
   assert.equal(s.alpha, 0.25);
   assert.equal(spriteAt([], 1), null);
 });
+
+test('[界面-35] a 3D node\'s position curve keeps all three axes; a camera\'s field of view', () => {
+  const s = /** @type {any} */ ({ rt: { scale: [1, 1], rotz: 0 }, lp: null, alpha: 1, active: true, gEnabled: true });
+  applyCurve(s, { kind: 'position', path: '', keys: [[0, [1, 2, 3], [0, 0, 0], [0, 0, 0]]] }, 0);
+  assert.deepEqual([s.lp, s.p3], [[1, 2], [1, 2, 3]]);
+  applyCurve(s, /** @type {any} */ ({ kind: 'float', path: '', attr: 'field of view', keys: [[0, 24, 0, 0], [1, 30, 0, 0]] }), 1);
+  assert.equal(s.fov, 30);
+});

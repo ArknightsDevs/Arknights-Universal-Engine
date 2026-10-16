@@ -11,10 +11,10 @@
 /** A clip's event (界面-32): its time, its kind (start, end, sound, call), a sound's bank, a call's name. @typedef {{ t: number, kind: string, bank?: string, data?: string }} ClipEvent */
 /** @typedef {{ wrap: number, length: number, curves: Curve[], events?: ClipEvent[], rate?: number }} Clip */
 /**
- * The animated state of a node.
+ * The animated state of a node; a 3D node's (界面-35) local position in all three axes and a camera's field of view.
  * @typedef {{ rt: import('./rect.js').Rect, lp: (number | null)[] | null, alpha: number, color?: number[], active: boolean,
  *   gEnabled: boolean, fill?: number, sprite?: string | null, blocks?: boolean, ray?: boolean,
- *   circle?: { start: number, span: number } | null, prefOver?: (number | null)[] | null }} Animated
+ *   circle?: { start: number, span: number } | null, prefOver?: (number | null)[] | null, p3?: number[] | null, fov?: number }} Animated
  */
 
 const STEP = 1e29;
@@ -98,6 +98,7 @@ function lobbyProp(s, prop, axis, v) {
   else if (prop === 'm_RaycastTarget') s.ray = v > 0.5;
   else if (prop === 'circle') { if (s.circle && (axis === 'start' || axis === 'span')) s.circle[axis] = v; }
   else if (prop === 'm_PreferredWidth' || prop === 'm_PreferredHeight') (s.prefOver ??= [null, null])[prop === 'm_PreferredWidth' ? 0 : 1] = v;
+  else if (prop === 'field of view') s.fov = v;
 }
 
 /**
@@ -116,7 +117,7 @@ export function applyCurve(s, c, t) {
   }
   const p = evalKeys(c.keys, t);
   if (p == null) return;
-  if (c.kind === 'position') s.lp = [p[0], p[1]];
+  if (c.kind === 'position') { s.lp = [p[0], p[1]]; s.p3 = [p[0], p[1], p[2]]; }
   else if (c.kind === 'scale') s.rt.scale = [p[0], p[1]];
   else s.rt.rotz = p[2];
 }

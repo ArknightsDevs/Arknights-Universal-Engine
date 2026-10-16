@@ -293,3 +293,11 @@
 - 圆弧条只显示图片的一段圆弧：从起始角起、跨度若干度，角度从右边起逆时针算；片段可以动画起始角和跨度。
 
 - 来源：界面包的圆弧条字段与片段属性（维护者另行准备的素材，ADR 0018）；角度的方向为推断 INF-0185
+
+### 界面-35 3D 节点的片段
+
+- 片段的位置曲线给出节点本地位置的三个分量；带 3D 变换（`t3`）的节点用全部三个分量（渲染-17）。
+- 浮点属性 `field of view` 是相机的视场角（度）。
+- 界面只记下这些值，由 3D 场景（渲染-17）读取。
+
+- 来源：Unity 手册「Camera.fieldOfView」<https://docs.unity3d.com/ScriptReference/Camera-fieldOfView.html>、「Transform.localPosition」<https://docs.unity3d.com/ScriptReference/Transform-localPosition.html>；界面包的片段（维护者另行准备的素材，ADR 0018）
