@@ -34,7 +34,7 @@
 | [0018](0018-asset-repository-and-hosting.md) | 素材：独立素材仓库，开服时下载固定版本并自己提供 | 已取代（见 0062） | 素材 |
 | [0019](0019-operator-spine-source.md) | 干员战斗 Spine 来自 HX0922，固定提交 | 已采纳 | 素材 |
 | [0020](0020-texture-format-webp.md) | 贴图格式：MVP 先用 WebP，实测后再决定 KTX2 | 已采纳 | 素材 |
-| [0021](0021-battle-ui-restoration.md) | 界面：战斗界面按原版还原，战斗外界面自己设计 | 已采纳 | 素材 |
+| [0021](0021-battle-ui-restoration.md) | 界面：战斗界面按原版还原，战斗外界面自己设计 | 已取代（见 0063） | 素材 |
 | [0022](0022-map-generation.md) | 地图按关卡数据生成 | 已采纳 | 素材 |
 | [0023](0023-operator-effects-and-player.md) | 干员特效：MVP 做攻击、命中和常见状态，技能特效分批 | 已采纳 | 素材 |
 | [0024](0024-audio-sources.md) | 音频：原版音效照用，缺的先空着，BGM 可替换 | 已取代（见 0061） | 素材 |
@@ -76,3 +76,4 @@
 | [0060](0060-frame-cost-memos.md) | 帧内反复求值的纯函数加备忘，按输入逐项核对 | 已采纳 | 模拟内核 |
 | [0061](0061-voices-and-battle-music-source.md) | 战斗语音和缺的战斗曲来自 ArknightsAssets2，固定提交，进入 v0.1.0 | 已采纳 | 素材 |
 | [0062](0062-release-bundles-with-assets.md) | 发布包附带素材和 kit | 已采纳 | 素材 |
+| [0063](0063-coop-lobby-ui-restoration.md) | 促融共竞的战斗外界面也按原版还原 | 已采纳 | 素材 |
