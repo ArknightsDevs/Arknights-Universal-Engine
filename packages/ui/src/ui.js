@@ -1,9 +1,11 @@
-// The UI on a page (docs/spec/ui.md 界面-1): a host element over the game, the pack's sprites loaded, screens opened on
-// a canvas scaled to the page, a clock that advances the clips and lays every screen out each frame.
+// The UI on a page (docs/spec/ui.md 界面-1, 界面-28): a host element over the game, the pack's sprites loaded, screens
+// opened on a canvas scaled to the page (or inside a node of another screen), a clock that advances the clips, scroll
+// views and tweens and lays every screen out each frame.
 import { Animator } from './anim.js';
 import { canvasSize } from './rect.js';
 import { DEFAULT_FONTS } from './text.js';
 import { Screen } from './screen.js';
+import { marksRays } from './node.js';
 
 /** @typedef {import('./node.js').UiPack} UiPack */
 /** @typedef {import('./node.js').UiNode} UiNode */
@@ -38,8 +40,10 @@ function measureText(m, cache, s, size) {
 
 /**
  * Creates the UI over a host element.
- * @param {{ pack: UiPack, host: HTMLElement, base?: string, fonts?: Readonly<Record<string, [string, number]>>, doc?: Document }} o
- *   `base`: the URL the pack's sprite files are relative to; `fonts`: the page's faces for the prefabs' fonts
+ * @param {{ pack: UiPack, host: HTMLElement, base?: string, fonts?: Readonly<Record<string, [string, number]>>, doc?: Document,
+ *   sound?: (bank: string) => void }} o
+ *   `base`: the URL the pack's sprite files are relative to; `fonts`: the page's faces for the prefabs' fonts; `sound`:
+ *   plays a sound bank of the pack (clip events, click sounds; 界面-32)
  */
 export function createUi(o) {
   const doc = o.doc ?? o.host.ownerDocument, layer = doc.createElement('div'), measurer = doc.createElement('div');
@@ -52,8 +56,8 @@ export function createUi(o) {
   const mcache = new Map();
   /** @type {Ctx} */
   const ctx = { doc, pack: o.pack, base: o.base ?? '', fonts: o.fonts ?? DEFAULT_FONTS, imgs: new Map(), cache: new Map(),
-    measure: (s, size) => measureText(measurer, mcache, s, size), time: 0 };
-  const anim = new Animator(o.pack.clips);
+    measure: (s, size) => measureText(measurer, mcache, s, size), time: 0, rays: marksRays(o.pack), sound: o.sound, tickers: new Set(), k: 1 };
+  const anim = new Animator(o.pack.clips, { sound: o.sound });
   /** @type {Screen[]} */
   const screens = [];
   let size = canvasSize(1, 1, o.pack.ref);
@@ -69,27 +73,35 @@ export function createUi(o) {
         im.src = ctx.base + s.uri;
       })));
     },
-    /** Opens a prefab (or a subtree of one) as a screen. @param {string} name @param {import('./screen.js').OpenOptions} [opt] */
+    /**
+     * Opens a prefab (or a subtree of one) as a screen, on the canvas or inside a node of another screen (`into`,
+     * 界面-28). @param {string} name @param {import('./screen.js').OpenOptions} [opt]
+     */
     open(name, opt) {
       const s = new Screen(ctx, anim, name, opt);
-      layer.appendChild(s.wrap);
+      (opt?.into ? opt.into.el : layer).appendChild(s.wrap);
       screens.push(s);
       return s;
     },
     /** @param {Screen} s */
     close(s) { s.close(); screens.splice(screens.indexOf(s), 1); },
     /** The page's size in CSS pixels: the canvas follows it (界面-1). @param {number} width @param {number} height */
-    resize(width, height) { size = canvasSize(width, height, o.pack.ref); },
+    resize(width, height) { size = canvasSize(width, height, o.pack.ref); ctx.k = size.k; },
     /** The canvas: its scale (CSS pixels a reference pixel) and size in reference pixels. */
     get canvas() { return size; },
     /** Advances the clock by dt seconds and lays every screen out. @param {number} dt */
     tick(dt) {
       ctx.time += dt;
       anim.tick(dt);
+      const tickers = /** @type {Set<import('./node.js').Ticker>} */ (ctx.tickers);
+      for (const t of tickers) if (t.scr.dead || t.step(dt) === false) tickers.delete(t);
       for (const s of screens) {
+        if (s.into) continue;
         s.layout(size.w, size.h);
         if (!s.frame) s.wrap.style.transform = `scale(${size.k})`;
       }
+      // screens inside nodes of other screens, in their nodes' boxes
+      for (const s of screens) if (s.into && !s.dead && !s.into.gone) s.layout(s.into.w, s.into.h);
     },
   };
 }

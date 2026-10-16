@@ -79,3 +79,35 @@ export function bestFit(measured, at, rect, range) {
   const k = Math.min(W / measured[0], H / measured[1]);
   return Math.max(min, Math.min(max, Math.floor(at * k)));
 }
+
+/**
+ * An outline material around a text (界面-29): its width in pixels all round in its colour, as sixteen copies of the
+ * text on a circle.
+ * @param {{ width?: number, color?: number[] }} mat
+ */
+export function ringCss(mat) {
+  const w = mat.width ?? 1, c = mat.color ?? [0, 0, 0, 1];
+  const col = `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)},${c[3]})`;
+  /** @type {string[]} */
+  const out = [];
+  for (let i = 0; i < 16; i++) {
+    const a = (i * Math.PI) / 8;
+    out.push(`${(Math.cos(a) * w).toFixed(2)}px ${(Math.sin(a) * w).toFixed(2)}px 0 ${col}`);
+  }
+  return out.join(', ');
+}
+
+/**
+ * Multiline best fit (界面-29): the largest whole size from `max` down to `min` at which `fits(size)` holds, found by
+ * halving (a size below one that fits fits too); `min` when none does.
+ * @param {(size: number) => boolean} fits @param {number} min @param {number} max
+ */
+export function fitSize(fits, min, max) {
+  if (max <= min || fits(max)) return Math.max(min, max);
+  let lo = min, hi = max;
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (fits(mid)) lo = mid; else hi = mid;
+  }
+  return lo;
+}

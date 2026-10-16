@@ -59,11 +59,16 @@ export class FakeElement {
   }
   /** @param {string} t @param {(e: any) => void} f */
   addEventListener(t, f) { (this.listeners[t] ??= []).push(f); }
-  /** Fires a listener type. @param {string} t */
-  fire(t) { for (const f of this.listeners[t] ?? []) f({ type: t, stopPropagation() {} }); }
+  /** Fires a listener type, with the event's own fields. @param {string} t @param {Record<string, unknown>} [more] */
+  fire(t, more = {}) { for (const f of this.listeners[t] ?? []) f({ type: t, stopPropagation() {}, preventDefault() {}, ...more }); }
+  focus() { /** @type {any} */ (this.ownerDocument).focused = this; }
 }
 
 export class FakeDocument {
+  constructor() {
+    /** the element last focused @type {FakeElement | null} */
+    this.focused = null;
+  }
   /** @param {string} tag */
   createElement(tag) { return new FakeElement(tag, this); }
 }

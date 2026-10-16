@@ -8,11 +8,13 @@
  *   | { kind: 'float', path: string, attr: string, keys: Key1[] }
  *   | { kind: 'sprite', path: string, attr: string, keys: [number, string | null][] }} Curve
  */
-/** @typedef {{ wrap: number, length: number, curves: Curve[] }} Clip */
+/** A clip's event (界面-32): its time, its kind (start, end, sound, call), a sound's bank, a call's name. @typedef {{ t: number, kind: string, bank?: string, data?: string }} ClipEvent */
+/** @typedef {{ wrap: number, length: number, curves: Curve[], events?: ClipEvent[], rate?: number }} Clip */
 /**
  * The animated state of a node.
  * @typedef {{ rt: import('./rect.js').Rect, lp: (number | null)[] | null, alpha: number, color?: number[], active: boolean,
- *   gEnabled: boolean, fill?: number, sprite?: string | null }} Animated
+ *   gEnabled: boolean, fill?: number, sprite?: string | null, blocks?: boolean, ray?: boolean,
+ *   circle?: { start: number, span: number } | null, prefOver?: (number | null)[] | null }} Animated
  */
 
 const STEP = 1e29;
@@ -82,8 +84,20 @@ function otherProp(s, prop, axis, v) {
     case 'm_IsActive': s.active = v > 0.5; return;
     case 'm_Enabled': s.gEnabled = v > 0.5; return;
     case 'm_FillAmount': s.fill = v; return;
-    default:
+    default: lobbyProp(s, prop, axis, v);
   }
+}
+
+/**
+ * The properties the lobby's clips add (界面-24, 界面-34): whether a canvas group blocks taps, whether a graphic is a
+ * tap target, a circle bar's start and span, a layout element's preferred size.
+ * @param {Animated} s @param {string} prop @param {string} axis @param {number} v
+ */
+function lobbyProp(s, prop, axis, v) {
+  if (prop === 'm_BlocksRaycasts') s.blocks = v > 0.5;
+  else if (prop === 'm_RaycastTarget') s.ray = v > 0.5;
+  else if (prop === 'circle') { if (s.circle && (axis === 'start' || axis === 'span')) s.circle[axis] = v; }
+  else if (prop === 'm_PreferredWidth' || prop === 'm_PreferredHeight') (s.prefOver ??= [null, null])[prop === 'm_PreferredWidth' ? 0 : 1] = v;
 }
 
 /**

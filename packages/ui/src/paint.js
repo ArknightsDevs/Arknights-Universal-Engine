@@ -7,18 +7,29 @@ import { slicedUri, tintedUri } from './raster.js';
 /**
  * What a graphic's material does, as the pack names it: plain or additive blending, scrolling UVs (UV units a second,
  * additive when `add`), a stencil shape (a rounded rect [w, h, corner] or a circle [radius] in UV units of the rect),
- * or something the engine does not draw ('none').
- * @typedef {{ kind: 'blend' | 'add' | 'uv' | 'rect' | 'circle' | 'none', uv?: number[], add?: boolean, shape?: number[] }} Material
+ * an outline around a text (界面-29), grey, or something the engine does not draw ('none'; with an effect hint `fx`
+ * it is drawn plainly by its blending, 界面-9).
+ * @typedef {{ kind: 'blend' | 'add' | 'uv' | 'rect' | 'circle' | 'outline' | 'grey' | 'none', uv?: number[], add?: boolean, shape?: number[],
+ *   fx?: string, width?: number, color?: number[] }} Material
  */
 
 /** Whether a graphic with this material is drawn (界面-9; no material: the default). @param {Material | undefined} mat */
-export const drawable = (mat) => !mat || mat.kind !== 'none';
+export const drawable = (mat) => !mat || mat.kind !== 'none' || !!mat.fx;
 
 /** CSS rgba of a colour. @param {readonly number[]} c */
 export const rgba = (c) => `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)},${+c[3].toFixed(3)})`;
 
 /** The CSS blend of a material: additive for an additive one. @param {Material | undefined} mat */
 export const blendOf = (mat) => (mat && (mat.kind === 'add' || mat.add) ? 'plus-lighter' : '');
+
+/**
+ * A circle bar's arc (界面-34) as a CSS mask: degrees counter-clockwise from the right, from `start` over `span`.
+ * @param {{ start: number, span: number }} c @returns {string}
+ */
+export function arcMask(c) {
+  const span = Math.max(0, Math.min(360, c.span)), from = 90 - c.start - span;
+  return `conic-gradient(from ${+from.toFixed(2)}deg, #000 ${+span.toFixed(2)}deg, transparent 0)`;
+}
 
 /** The UV scroll of a scrolling material in UV units a second, or null. @param {Material | undefined} mat @returns {number[] | null} */
 export const uvSpeed = (mat) => (mat?.kind === 'uv' && mat.uv ? mat.uv : null);
@@ -127,7 +138,8 @@ function paintImage(s, g, im, w, h) {
     sty(s, g, 'backgroundRepeat', 'repeat');
     sty(s, g, 'backgroundPosition', `${(-(uv[0] * t) % 1 * tw).toFixed(1)}px ${((uv[1] * t) % 1 * th).toFixed(1)}px`);
   }
-  if (s.fill != null) for (const [k, v] of fillCss(s.fill, im.fillMethod ?? 0, im.fillOrigin ?? 0, im.clockwise !== 0)) sty(s, g, k, v);
+  if (s.circle) { const m = arcMask(s.circle); sty(s, g, 'maskImage', m); sty(s, g, 'webkitMaskImage', m); }
+  else if (s.fill != null) for (const [k, v] of fillCss(s.fill, im.fillMethod ?? 0, im.fillOrigin ?? 0, im.clockwise !== 0)) sty(s, g, k, v);
 }
 
 /**
@@ -141,6 +153,7 @@ export function paintGraphic(s, w, h) {
   sty(s, g, 'display', s.gEnabled && !s.stHide ? '' : 'none');
   const mat = (c.img || c.grad)?.mat;
   sty(s, g, 'mixBlendMode', blendOf(mat));
+  if (mat?.kind === 'grey') sty(s, g, 'filter', 'grayscale(1)');
   if (c.img) paintImage(s, g, c.img, w, h);
   else if (c.grad) sty(s, g, 'background', gradientCss(c.grad, drawnColor(s)));
 }

@@ -1,10 +1,13 @@
-// The layout pass (docs/spec/ui.md 界面-2–界面-4): every frame each shown node's box from its rect (or its layout
-// group's placement), written as CSS only when it changed; content size fitters, best-fit texts, stencil masks.
+// The layout pass (docs/spec/ui.md 界面-2–界面-4, 界面-24, 界面-29, 界面-30): every frame each shown node's box from its
+// rect (or its layout group's placement, or its fitter), written as CSS only when it changed; content size fitters,
+// best-fit texts, scalers, stencil masks, what takes taps.
 import { originCss, rectBox, transformCss } from './rect.js';
 import { arrange, gridArrange, prefSize } from './groups.js';
 import { paintGraphic, rgba, sty } from './paint.js';
 import { stencilUri } from './raster.js';
-import { bestFit } from './text.js';
+import { bestFit, fitSize } from './text.js';
+import { applyScaler, fitRect, screenBox } from './fit.js';
+import { rayPass } from './rays.js';
 
 /** @typedef {import('./node.js').UiNode} UiNode */
 
@@ -29,12 +32,24 @@ function applyStencil(s, k, w, h, off = [0, 0]) {
   for (const [a, b] of [['webkitMaskImage', v], ['maskImage', v], ['webkitMaskSize', '100% 100%'], ['maskSize', '100% 100%'], ['webkitMaskRepeat', 'no-repeat'], ['maskRepeat', 'no-repeat']]) sty(s, s.el, a, b);
 }
 
-/** A best-fit text's size for its box. @param {UiNode} s @param {number} w @param {number} h */
+/**
+ * A text's size for its box: Unity's best fit; a multiline best fit, the largest size not above the text's own that
+ * fits the box when wrapped at its width (界面-29); a scaler's factor on the text's size (界面-30).
+ * @param {UiNode} s @param {number} w @param {number} h
+ */
 function fitText(s, w, h) {
-  const tc = s.n.comps.text;
-  if (!s.t || tc.best !== 1) return;
-  const size = bestFit(s.scr.ctx.measure(s, tc.max), tc.max, [w, h], [Math.max(1, tc.min), tc.max]);
-  sty(s, s.t, 'fontSize', `${size}px`);
+  const tc = s.n.comps.text, mb = s.n.comps.bestFit;
+  if (!s.t) return;
+  if (tc.best === 1) {
+    const max = tc.max * s.fontK, size = bestFit(s.scr.ctx.measure(s, max), max, [w, h], [Math.max(1, tc.min * s.fontK), max]);
+    sty(s, s.t, 'fontSize', `${size}px`);
+  } else if (mb) {
+    const key = `${s.txt}|${Math.round(w)}|${Math.round(h)}|${s.fontK}`;
+    if (key === s.fitKey) return;
+    s.fitKey = key;
+    const top = Math.round(tc.size * s.fontK), fits = (/** @type {number} */ z) => { const m = s.scr.ctx.measure(s, z); return m[1] <= h + 0.5 && m[0] <= w + 0.5; };
+    sty(s, s.t, 'fontSize', `${fitSize(fits, Math.max(1, mb.min), top)}px`);
+  } else if (s.fontK !== 1) sty(s, s.t, 'fontSize', `${tc.size * s.fontK}px`);
 }
 
 /**
@@ -44,6 +59,8 @@ function fitText(s, w, h) {
  */
 function boxOf(s, PW, PH, ppivot) {
   const csf = s.n.comps.csf, rt = s.rt;
+  if (s.n.comps.fullscreen) return screenBox(s);
+  fitRect(s, PW, PH);
   if (csf) for (const a of [0, 1]) if (csf[a] && rt.amin[a] === rt.amax[a]) rt.size[a] = prefSize(s, a);
   if (s.lgRect) return { left: s.lgRect.x, top: s.lgRect.y, w: s.lgRect.w, h: s.lgRect.h };
   return rectBox(rt, PW, PH, ppivot, s.lp);
@@ -70,6 +87,8 @@ export function layout(s, PW, PH, ppivot, shownUp) {
   s.w = w; s.h = h; s.box = [left, top, w, h];
   if (s.t && s.color) { sty(s, s.t, 'color', rgba(s.color)); fitText(s, w, h); }
   paintGraphic(s, w, h);
+  rayPass(s);
+  if (s.n.comps.scaler) applyScaler(s);
   if (s.n.comps.lg) arrange(s, w, h);
   else if (s.n.comps.grid) gridArrange(s, w, h);
   for (const k of s.kids) layout(k, w, h, rt.pivot, s.shown);

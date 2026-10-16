@@ -18,9 +18,10 @@ const flexOf = (k, ax) => { const le = k.n.comps.le; return le?.flex && le.flex[
  * @param {UiNode} s @param {number} ax @returns {number}
  */
 export function prefSize(s, ax) {
-  const le = s.n.comps.le;
+  const le = s.n.comps.le, over = s.prefOver?.[ax];
   let v;
-  if (le && le.pref[ax] >= 0) v = le.pref[ax];
+  if (over != null) v = over;
+  else if (le && le.pref[ax] >= 0) v = le.pref[ax];
   else if (s.n.comps.lg) v = groupPref(s, ax);
   else if (s.n.comps.grid) v = gridPref(s, ax);
   else if (s.t) v = s.scr.ctx.measure(s)[ax];
