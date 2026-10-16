@@ -15,7 +15,8 @@ import { rayPass } from './rays.js';
 function markHidden(s) { for (const k of s.kids) { k.shown = false; markHidden(k); } }
 
 /**
- * A stencil group's mask: its writer's shape at the writer's box, as the group's CSS mask.
+ * A stencil group's mask: its writer's shape at the writer's box, as the group's CSS mask (everything but the shape
+ * for readers that draw outside it).
  * @param {UiNode} s the masked node @param {UiNode} k the writer @param {number} w @param {number} h @param {number[]} [off]
  */
 function applyStencil(s, k, w, h, off = [0, 0]) {
@@ -23,10 +24,10 @@ function applyStencil(s, k, w, h, off = [0, 0]) {
     if (s.stKey) { s.stKey = ''; sty(s, s.el, 'webkitMaskImage', 'none'); sty(s, s.el, 'maskImage', 'none'); }
     return;
   }
-  const box = [k.box[0] - off[0], k.box[1] - off[1], k.box[2], k.box[3]], key = [w, h, ...box].map((v) => Math.round(v)).join(',');
+  const box = [k.box[0] - off[0], k.box[1] - off[1], k.box[2], k.box[3]], key = [w, h, ...box].map((v) => Math.round(v)).join(',') + (s.stOut ? 'o' : '');
   if (s.stKey === key) return;
   s.stKey = key;
-  const uri = stencilUri(s.scr.ctx, k, box, w, h);
+  const uri = stencilUri(s.scr.ctx, k, box, [w, h], s.stOut);
   if (!uri) return;
   const v = `url("${uri}")`;
   for (const [a, b] of [['webkitMaskImage', v], ['maskImage', v], ['webkitMaskSize', '100% 100%'], ['maskSize', '100% 100%'], ['webkitMaskRepeat', 'no-repeat'], ['maskRepeat', 'no-repeat']]) sty(s, s.el, a, b);

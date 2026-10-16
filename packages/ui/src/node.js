@@ -58,6 +58,8 @@ export class UiNode {
     /** @type {{ x: number, y: number, w: number, h: number } | null} */ this.lgRect = null;
     /** @type {UiNode | null} */ this.stW = null;
     /** @type {UiNode | null} */ this.stOuter = null;
+    /** the stencil it is masked by is read outside the writer's shape (a not-equal compare) */
+    this.stOut = false;
     this.stHide = false; this.stKey = ''; this.paintKey = '';
     /** its hidden subtree is marked not shown @type {boolean} */ this.sealed = false;
     /** placed by its rect even in a layout group (the page put it there) @type {boolean} */ this.free = false;
@@ -255,6 +257,9 @@ export function setPicture(s, url) {
 /** Whether a subtree holds a stencil reader. @param {UiNode} k @returns {boolean} */
 const hasReaders = (k) => k.n.comps.mask === 'stencil' || k.kids.some(hasReaders);
 
+/** Whether a subtree's stencil reader draws where its writer did not (a not-equal compare). @param {UiNode} k @returns {boolean} */
+const readsOutside = (k) => (k.n.comps.mask === 'stencil' ? !!k.n.comps.stencilOut : k.kids.some(readsOutside));
+
 /**
  * Stencil groups, top-down over a built tree (界面-4): among siblings the first stencil graphic writes (a stencil graphic
  * that draws nothing when there is one) and the later ones read — siblings, or inside a sibling; when the group also
@@ -275,6 +280,6 @@ function stencilGroup(s) {
   if (!wr) return;
   const others = s.kids.filter((k) => k !== wr), holders = others.filter(hasReaders);
   if (!holders.length) return;
-  if (holders.length === others.length) s.stW = wr; else for (const k of holders) k.stOuter = wr;
+  if (holders.length === others.length) { s.stW = wr; s.stOut = others.some(readsOutside); } else for (const k of holders) { k.stOuter = wr; k.stOut = readsOutside(k); }
   if (/mask/i.test(wr.n.name) || !wr.n.comps.img?.ref) wr.stHide = true;
 }

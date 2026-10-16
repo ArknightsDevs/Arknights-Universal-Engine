@@ -285,3 +285,21 @@ test('[界面-9] a wiping image is drawn in its material\'s main colour, its opa
   assert.deepEqual(drawnColor(node({ kind: 'none', fx: 'dissolve' }, [1, 0, 1, 1])), [1, 1, 1, 1], 'no material values: white');
   assert.deepEqual(drawnColor(node({ kind: 'blend' }, [1, 0.25, 1, 0.8])), [1, 0.25, 1, 0.8], 'any other image: its colour');
 });
+
+test('[界面-4] a stencil reader with a not-equal compare is masked outside its writer\'s shape; one that reads equal inside it', () => {
+  const frame = N('frame', {}, [
+    N('logo', img()), N('tail', img()), N('hole', { nodraw: 'stencil' }, [], R({ size: [100, 60] })),
+    N('around', { ...img(), mask: 'stencil', stencilOut: 1 }, [], R({ amin: [0, 0], amax: [1, 1], size: [0, 0] })),
+  ], R({ amin: [0, 0], amax: [1, 1], size: [0, 0] }));
+  const badge = N('badge', {}, [N('mask', { ...img(), mask: 'stencil' }), N('bg', { ...img(), mask: 'stencil' })], R({ size: [50, 50] }));
+  const ui = createUi({ pack: /** @type {any} */ ({ ...pack(), screens: { m: N('m', {}, [frame, badge]) } }), host: fakeHost(fakeDocument()) });
+  const s = ui.open('m');
+  ui.tick(0);
+  const around = /** @type {any} */ (s.one('frame/around')), hole = s.one('frame/hole');
+  assert.equal(around.stOuter, hole, 'only the reader is masked, by the stencil graphic');
+  assert.equal(around.stOut, true, 'outside the hole');
+  assert.equal(/** @type {any} */ (s.one('frame/tail')).stOuter, null, 'the plate is not stencilled');
+  const b = /** @type {any} */ (s.one('badge'));
+  assert.equal(b.stW, s.one('badge/mask'), 'the first stencil image writes');
+  assert.equal(b.stOut, false, 'its reader draws inside');
+});

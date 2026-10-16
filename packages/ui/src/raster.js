@@ -131,26 +131,34 @@ export function wipeMaskUri(ctx, mat, g) {
 }
 
 /**
- * A stencil writer's shape in a group of w × h (its box inside the group) as a white image: its sprite (sliced when it
- * is), else the shape its material draws — a circle, a rounded rect (UV units of the rect) —, else an ellipse for a
- * round name, else the rect. Null without a canvas.
- * @param {Ctx} ctx @param {import('./node.js').UiNode} k the writer @param {number[]} box [x, y, w, h] in the group
- * @param {number} w @param {number} h
+ * A stencil writer's shape at its box: its sprite (sliced when it is), else the shape its material draws — a circle,
+ * a rounded rect (UV units of the rect) —, else an ellipse for a round name, else the rect.
+ * @param {CanvasRenderingContext2D} x @param {Ctx} ctx @param {import('./node.js').UiNode} k the writer @param {number[]} box
  */
-export function stencilUri(ctx, k, box, w, h) {
+function writerShape(x, ctx, k, [X, Y, W, H]) {
+  const im = k.n.comps.img, img = im?.ref ? ctx.imgs.get(im.ref) : undefined;
+  if (img) { x.drawImage(img, X, Y, W, H); return; }
+  const mat = /** @type {import('./paint.js').Material | undefined} */ (k.n.comps.mat ?? im?.mat), sh = mat?.shape ?? [];
+  x.beginPath();
+  if (mat?.kind === 'circle') x.ellipse(X + W / 2, Y + H / 2, W * sh[0], H * sh[0], 0, 0, Math.PI * 2);
+  else if (mat?.kind === 'rect') x.roundRect(X + (W - W * sh[0]) / 2, Y + (H - H * sh[1]) / 2, W * sh[0], H * sh[1], Math.min(W, H) * sh[2]);
+  else if (/circle|round|avatar/i.test(k.n.name)) x.ellipse(X + W / 2, Y + H / 2, W / 2, H / 2, 0, 0, Math.PI * 2);
+  else x.rect(X, Y, W, H);
+  x.fill();
+}
+
+/**
+ * A stencil writer's shape in a group of w × h (its box inside the group) as a white image (writerShape); with
+ * `out`, all of the group but that shape. Null without a canvas.
+ * @param {Ctx} ctx @param {import('./node.js').UiNode} k the writer @param {number[]} box [x, y, w, h] in the group
+ * @param {number[]} size [w, h] of the group @param {boolean} [out] for readers that draw outside the shape
+ */
+export function stencilUri(ctx, k, box, [w, h], out = false) {
   const d = canvas2d(ctx, w, h, 2);
   if (!d) return null;
-  const x = d.x, [X, Y, W, H] = box, im = k.n.comps.img, img = im?.ref ? ctx.imgs.get(im.ref) : undefined;
-  x.fillStyle = '#fff';
-  if (img) x.drawImage(img, X, Y, W, H);
-  else {
-    const mat = /** @type {import('./paint.js').Material | undefined} */ (k.n.comps.mat ?? im?.mat), sh = mat?.shape ?? [];
-    x.beginPath();
-    if (mat?.kind === 'circle') x.ellipse(X + W / 2, Y + H / 2, W * sh[0], H * sh[0], 0, 0, Math.PI * 2);
-    else if (mat?.kind === 'rect') x.roundRect(X + (W - W * sh[0]) / 2, Y + (H - H * sh[1]) / 2, W * sh[0], H * sh[1], Math.min(W, H) * sh[2]);
-    else if (/circle|round|avatar/i.test(k.n.name)) x.ellipse(X + W / 2, Y + H / 2, W / 2, H / 2, 0, 0, Math.PI * 2);
-    else x.rect(X, Y, W, H);
-    x.fill();
-  }
+  d.x.fillStyle = '#fff';
+  // read outside the shape: all of the group, the shape taken out of it
+  if (out) { d.x.fillRect(0, 0, w, h); d.x.globalCompositeOperation = 'destination-out'; }
+  writerShape(d.x, ctx, k, box);
   return d.c.toDataURL();
 }
