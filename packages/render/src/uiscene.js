@@ -136,6 +136,30 @@ export function canvasCorners(parent, rt, cam, w, h) {
 }
 
 /**
+ * The root of an effect at a point of a world-space canvas (渲染-18): (x, y) in the canvas's pixels from its top left,
+ * the effect's unit `s` canvas pixels; its axes the canvas's (x right, y up, z into it: Unity's local +z).
+ * @param {THREE.Object3D} parent the canvas's parent object @param {NonNullable<UiNode3['n']['rt']>} rt @param {number} x @param {number} y @param {number} s
+ * @returns {import('./fx/geometry.js').Root}
+ */
+export function canvasRoot(parent, rt, x, y, s) {
+  const o = new THREE.Object3D();
+  o.position.set(...posOf([rt.pos[0], rt.pos[1], 0]));
+  if (rt.q) o.quaternion.set(...quatOf(rt.q));
+  // a canvas's scale along its depth is not in the pack: as its x (canvases are scaled alike in every axis)
+  o.scale.set(rt.scale[0], rt.scale[1], rt.scale[0]);
+  parent.add(o);
+  o.updateWorldMatrix(true, false);
+  const [sw, sh] = rt.size, [px, py] = rt.pivot, m = o.matrixWorld;
+  const at = new THREE.Vector3(x - px * sw, sh - y - py * sh, 0).applyMatrix4(m);
+  // a unit step along each of the canvas's axes, in the world (its scale kept), times the effect's unit
+  const zero = new THREE.Vector3(0, 0, 0).applyMatrix4(m);
+  const axis = (/** @type {number[]} */ v) => new THREE.Vector3(...v).applyMatrix4(m).sub(zero).multiplyScalar(s).toArray();
+  parent.remove(o);
+  // Unity's local +z (into the canvas, away from its front) is three's local −z, mirrored
+  return { o: at.toArray(), ex: axis([1, 0, 0]), ey: axis([0, 1, 0]), ez: axis([0, 0, -1]) };
+}
+
+/**
  * The 3D scene of a UI screen's subtree (渲染-17).
  * @param {{ canvas: HTMLCanvasElement, root: UiNode3, scene: Scene3d, base: string, renderer?: THREE.WebGLRenderer }} o
  */
@@ -173,6 +197,13 @@ export function createUiScene(o) {
     get background() { return b.sky ?? null; },
     /** The camera the scene is seen through, or null. */
     get camera() { return view?.cam ?? null; },
+    /** The three.js scene (for the UI's effects on its world-space canvas, 渲染-18). */
+    scene,
+    /** An effect's root at a point of a world-space canvas node (canvasRoot), or null. @param {UiNode3} u @param {number} x @param {number} y @param {number} s */
+    canvasRoot(u, x, y, s) {
+      const parent = up.get(u), obj = parent ? b.nodes.get(parent) : undefined;
+      return obj && u.n.rt ? canvasRoot(obj, u.n.rt, x, y, s) : null;
+    },
     /** The canvas's size in CSS pixels. @param {number} width @param {number} height @param {number} [ratio] */
     resize(width, height, ratio = 1) { w = Math.max(1, width); h = Math.max(1, height); renderer.setPixelRatio(ratio); renderer.setSize(w, h, false); },
     /** Draws the scene as the UI's clips have it now, if its camera's node is shown. */

@@ -11,7 +11,7 @@ import { mm, lerp, unitVector, euler, rot, rotT, current, animate, noise3, start
  *   age: number, life: number, size: number, sizeY: number, rot: number, col: number[], r1: number, r2: number, r3: number,
  *   R: any, tr?: { x: number, y: number, z: number, a: number }[], trLife?: number, subs?: Record<number, any> }} Particle
  */
-/** The instance a system belongs to (player.js). @typedef {{ t: number, R: any, v: number[], rand: () => number, stopped: boolean, kind: string, sysAt: (FxSystem | null)[] }} Host */
+/** The instance a system belongs to (player.js). @typedef {{ t: number, R: any, v: number[], rand: () => number, stopped: boolean, kind: string, sysAt: (FxSystem | null)[], uiScale?: number }} Host */
 
 /** A sphere or hemisphere (shell or volume) point. @param {any} sh @param {() => number} r */
 function sphere(sh, r) {
@@ -86,7 +86,8 @@ export class FxSystem {
 
   place() {
     const p = this.p, c = this.cur, s = p.scaling === 1 ? p.ls || [1, 1, 1] : p.scaling === 2 ? [1, 1, 1] : c.scl;
-    this.M = c.M; this.pos = c.pos; this.shs = c.scl; this.sz = Math.abs(s[0]) || 1;
+    // (a UI's: a system scaled by its own transform only — local or shape scaling — keeps its size whatever its parents' scale, 渲染-18)
+    this.M = c.M; this.pos = c.pos; this.shs = c.scl; this.sz = (Math.abs(s[0]) || 1) * (p.scaling ? this.inst.uiScale ?? 1 : 1);
   }
 
   get emitting() { return !this.inst.stopped && this.t < this.end && !this.sub && !!this.cur.on; }

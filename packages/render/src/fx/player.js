@@ -150,7 +150,7 @@ class FxDrawn {
     if (!b.room(nv, m3.f.length)) return;
     const c = Math.cos(q.rot), si = Math.sin(q.rot), M = p.render.align === 2 || p.render.align === 1 ? this.S.M : null, base = b.n;
     for (let j = 0; j < nv; j++) {
-      const x = m3.v[j * 3] * s.size, y = m3.v[j * 3 + 1] * s.sizeY, z = m3.v[j * 3 + 2] * s.size;
+      const x = m3.v[j * 3] * s.size, y = m3.v[j * 3 + 1] * s.sizeY, z = m3.v[j * 3 + 2] * s.size * (this.inst.flipZ ? -1 : 1);
       let w = [x * c - y * si, x * si + y * c, z];
       if (M) w = rot(M, w);
       b.vert(toWorld(s.R, [q.x + w[0], q.y + w[1], q.z + w[2]]), uv(m3.uv[j * 2], m3.uv[j * 2 + 1]), k.C, k.S);
@@ -199,11 +199,12 @@ function brighten(p, C) {
 export class FxInstance {
   /**
    * @param {any} e the effect's data @param {Root} R
-   * @param {{ kind: string, speed?: number, tex: Map<string, THREE.Texture>, rand?: () => number, order?: number }} o `order`: the render
-   *   order its renderers start from (after the units by default)
+   * @param {{ kind: string, speed?: number, tex: Map<string, THREE.Texture>, rand?: () => number, order?: number, flipMeshZ?: boolean, uiScale?: number }} o `order`: the render
+   *   order its renderers start from (after the units by default); `flipMeshZ`: mesh particles' z turned the other way, `uiScale`: a UI
+   *   particle component's scale (a UI's, 渲染-18)
    */
   constructor(e, R, o) {
-    this.e = e; this.R = R; this.kind = o.kind; this.sp = o.speed || 1; this.tex = o.tex; this.rand = o.rand || Math.random;
+    this.e = e; this.R = R; this.kind = o.kind; this.sp = o.speed || 1; this.tex = o.tex; this.rand = o.rand || Math.random; this.flipZ = !!o.flipMeshZ; this.uiScale = o.uiScale ?? 1;
     this.t = 0; this.wait = e.w || 0; this.stopped = false; this.stopT = 0; this.fade = 1; this.v = [0, 0, 0];
     /** @type {Root | null} */ this.Rp = null;
     this.group = new THREE.Group();
