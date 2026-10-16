@@ -263,11 +263,11 @@
 ### 界面-30 适配
 
 - **宽高比适配**（Unity 的 AspectRatioFitter）：宽决定高（高 = 宽 ÷ 比例）、高决定宽、放进父节点、盖满父节点；后两种居中、锚点拉满。
-- **背景适配**：按图片的宽高比盖满父节点。
+- **背景适配**：按图片的宽高比盖满父节点；背景自己的矩形（父节点加上它的尺寸差）已经比这更大（两边都不小）时保持自己的矩形，居中。
 - **全屏**：图片铺满整块画布，不管它的父节点在哪里。
 - **缩放器**：它记下的目标尺寸与目标现在的尺寸之比（两轴取小）为系数，记下的各节点的位置、尺寸和字号乘以系数；系数为 1 时不变。记下的节点不在预制件里时不管。
 
-- 来源：Unity UI 手册「Aspect Ratio Fitter」<https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/script-AspectRatioFitter.html>；背景适配、全屏与缩放器取自界面包的字段（维护者另行准备的素材，ADR 0018）；缩放器的系数为推断 INF-0181
+- 来源：Unity UI 手册「Aspect Ratio Fitter」<https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/script-AspectRatioFitter.html>；背景适配、全屏与缩放器取自界面包的字段（维护者另行准备的素材，ADR 0018）；缩放器的系数为推断 INF-0181，背景保持自己更大的矩形为推断 INF-0191
 
 ### 界面-31 输入框
 

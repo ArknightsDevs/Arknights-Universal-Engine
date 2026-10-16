@@ -49,6 +49,7 @@ const pack = () => ({
       N('tw', { group: { alpha: 1 }, tween: { kind: 'fade', from: 0, to: 1, startFrom: 1, time: 1, delay: 0, ease: 1, loop: -1, loopType: 1, auto: 1 } }),
       N('arc', { ...img({ fill: 1, fillMethod: 4 }), circle: { start: -90, span: 270 } }),
       N('cover', { bgFit: { ratio: 2 } }, [], R({ amin: [0, 0], amax: [1, 1], size: [0, 0] })),
+      N('coverBig', { bgFit: { ratio: 2 } }, [], R({ amin: [0, 0], amax: [1, 1], size: [320, 280] })),
       N('nest', {}, [N('full', { fullscreen: true })], R({ size: [100, 100], pos: [200, 0] })),
       N('scaled', { scaler: { target: '@scaled', steps: [{ rt: '@scaled', pos: [0, 0], size: [200, 100] }, { rt: '@scaled/kid', pos: [20, 10], size: [40, 20], text: { size: 20 } }] } },
         [N('kid', text('k', { size: 20 }), [], R({ size: [40, 20], pos: [20, 10] }))], R({ size: [100, 50] })),
@@ -213,6 +214,8 @@ test('[界面-30] fitters: aspect modes, a background covering its parent, a ful
   const { s } = setup();
   const cover = /** @type {any} */ (s.one('cover')), full = /** @type {any} */ (s.one('nest/full')), kid = /** @type {any} */ (s.one('scaled/kid'));
   assert.deepEqual([cover.w, cover.h], [1440, 720]);
+  const big = /** @type {any} */ (s.one('coverBig'));
+  assert.deepEqual([big.w, big.h], [1600, 1000], 'a background whose own rect covers more keeps it');
   assert.deepEqual([full.w, full.h, full.box[0] + /** @type {any} */ (s.one('nest')).box[0]], [1280, 720, 0]);
   assert.deepEqual([kid.rt.pos, kid.rt.size, kid.fontK], [[10, 5], [20, 10], 0.5], 'the scaler made at 200 × 100 now 100 × 50');
 });
