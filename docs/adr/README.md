@@ -37,7 +37,7 @@
 | [0021](0021-battle-ui-restoration.md) | 界面：战斗界面按原版还原，战斗外界面自己设计 | 已采纳 | 素材 |
 | [0022](0022-map-generation.md) | 地图按关卡数据生成 | 已采纳 | 素材 |
 | [0023](0023-operator-effects-and-player.md) | 干员特效：MVP 做攻击、命中和常见状态，技能特效分批 | 已采纳 | 素材 |
-| [0024](0024-audio-sources.md) | 音频：原版音效照用，缺的先空着，BGM 可替换 | 已采纳 | 素材 |
+| [0024](0024-audio-sources.md) | 音频：原版音效照用，缺的先空着，BGM 可替换 | 已取代（见 0061） | 素材 |
 | [0025](0025-true-3d-three-js.md) | 渲染：原版样式的真 3D，战斗只用 three.js | 已采纳 | 渲染 |
 | [0026](0026-camera-model.md) | 镜头：社区模型 + 每关镜头表 + 截图校验 | 已采纳 | 渲染 |
 | [0027](0027-occlusion-draw-order.md) | 遮挡和绘制顺序：照原版 | 已采纳 | 渲染 |
@@ -74,3 +74,4 @@
 | [0058](0058-stronghold-kits-in-matches.md) | Stronghold 的 kit 作为固定版本的脚本 mod 进入对局 | 已采纳 | 模拟内核 |
 | [0059](0059-player-chosen-performance.md) | 画面开销由玩家选择，不设统一预算 | 已采纳 | 渲染 |
 | [0060](0060-frame-cost-memos.md) | 帧内反复求值的纯函数加备忘，按输入逐项核对 | 已采纳 | 模拟内核 |
+| [0061](0061-voices-and-battle-music-source.md) | 战斗语音和缺的战斗曲来自 ArknightsAssets2，固定提交，进入 v0.1.0 | 已采纳 | 素材 |
