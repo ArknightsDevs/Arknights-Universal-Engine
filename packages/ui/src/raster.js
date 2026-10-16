@@ -70,9 +70,11 @@ export function drawNine(x, img, slice, box) {
   const kx = L + R > W ? W / (L + R) : 1, ky = T + B > H ? H / (T + B) : 1;
   const sx = [0, L, iw - R, iw], sy = [0, T, ih - B, ih];
   const dx = [X, X + L * kx, X + W - R * kx, X + W], dy = [Y, Y + T * ky, Y + H - B * ky, Y + H];
+  // a middle column or row of no width (borders that meet) stretches the one line of pixels where they meet, as Unity does
+  const mid = (/** @type {number[]} */ s, /** @type {number} */ i, /** @type {number} */ n) => (i === 1 && s[2] - s[1] <= 0 ? [Math.min(n - 1, Math.max(0, Math.floor(s[1]))), 1] : [s[i], s[i + 1] - s[i]]);
   for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
-    const sw = sx[i + 1] - sx[i], sh = sy[j + 1] - sy[j], dw = dx[i + 1] - dx[i], dh = dy[j + 1] - dy[j];
-    if (sw > 0 && sh > 0 && dw > 0 && dh > 0) x.drawImage(img, sx[i], sy[j], sw, sh, dx[i], dy[j], dw, dh);
+    const [x0, sw] = mid(sx, i, iw), [y0, sh] = mid(sy, j, ih), dw = dx[i + 1] - dx[i], dh = dy[j + 1] - dy[j];
+    if (sw > 0 && sh > 0 && dw > 0 && dh > 0) x.drawImage(img, x0, y0, sw, sh, dx[i], dy[j], dw, dh);
   }
 }
 

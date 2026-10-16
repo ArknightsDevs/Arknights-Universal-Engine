@@ -3,6 +3,7 @@
 // back to the page. What the engine does not have is not shown (ADR 0021): the system menu, the range toggle, the
 // auto-deploy panels, the practice hint.
 import { refNode } from '../node.js';
+import { ease } from '../tween.js';
 import { createCards, cardViews } from './cards.js';
 import { createCoopTop } from './coop.js';
 import { createFieldMenus } from './menus.js';
@@ -33,6 +34,26 @@ export function costView(s) {
   const max = s.cost >= s.maxCost;
   return { text: String(Math.floor(s.cost)), progress: max ? 1 : s.costPeriod > 0 ? Math.max(0, Math.min(1, 1 - s.costTimer / s.costPeriod)) : 0, max };
 }
+
+/**
+ * The cost panel's flash (界面-11): a whole point gained turns the panel's colour to the pack's flash colour, the point
+ * that reaches the cap to its grey; none when the cost has not grown (a point spent, the first frame).
+ * @param {number} was the whole points shown before (−1: none yet) @param {number} now @param {number} maxCost
+ * @param {{ flash?: number[], maxFlash?: number[] }} c @returns {number[] | null}
+ */
+export function costFlash(was, now, maxCost, c) {
+  if (was < 0 || now <= was) return null;
+  return (now >= maxCost ? c.maxFlash : c.flash) ?? null;
+}
+
+/**
+ * The panel's colour `t` seconds into a flash: from the flash colour back to its own over the flash's time, easing out
+ * (INF-0188). @param {number[]} flash @param {number[]} own @param {number} t @param {number} time
+ */
+export const flashColor = (flash, own, t, time) => {
+  const u = ease(0, time > 0 ? t / time : 1);
+  return u >= 1 ? [...own] : own.map((v, i) => flash[i] + (v - flash[i]) * u);
+};
 
 /** The speed button's sprite for a speed (1×, 2×…), from the pack's list (0× first). @param {string[]} sprites @param {number} speed */
 export const speedSprite = (sprites, speed) => sprites[Math.max(0, Math.min(sprites.length - 1, Math.round(speed)))] ?? null;
@@ -72,6 +93,7 @@ export function createBattleHud(ui, o) {
   }
   const menus = createFieldMenus(ui, hud, { cancel: () => emit('cancel'), withdraw: () => emit('withdraw'), skill: () => emit('skill') });
   const { states, bars, start, banner } = overlays(ui, scr, hud, !!coop, o.stage ?? null);
+  const flash = costFlasher(scr, hud.cost);
   return {
     screen: scr, cards, coop, cost, states, bars, start, banner, direction: menus.direction, menu: menus.menu,
     /** @param {string} name @param {(arg?: string) => void} fn */
@@ -80,6 +102,7 @@ export function createBattleHud(ui, o) {
     update(s) {
       cards.update(cardViews(o.deck, s), s.selected, ui.canvas.w);
       showCost(scr, hud.cost, s);
+      flash(s);
       if (coop && s.coop) coop.update(s.coop);
       if (cost && s.coop?.cost) cost.update(s.coop.cost);
       if (s.states) states.update(s.states);
@@ -127,6 +150,30 @@ function showCost(scr, c, s) {
   if (slider) scr.slider('', v.progress, slider);
   if (bar) bar.active = v.max;
   if (icon?.color) icon.color[3] = v.max ? 1 : 0;
+}
+
+/**
+ * The cost panel's flashes (界面-11): each frame's cost against the last shown; a flash runs on the UI's clock and a
+ * later one replaces it. @param {Screen} scr @param {Record<string, any>} c
+ */
+function costFlasher(scr, c) {
+  const panel = refNode(scr.root, c.panel), own = panel?.color ? [...panel.color] : null;
+  let was = -1, seq = 0;
+  return (/** @type {HudState} */ s) => {
+    const now = Math.floor(s.cost), color = panel && own ? costFlash(was, now, s.maxCost, c) : null;
+    was = now;
+    if (!color || !panel || !own) return;
+    const id = ++seq, time = c.flashTime ?? 0.5;
+    let t = 0;
+    const paint = () => { panel.color = flashColor(color, own, t, time); panel.paintKey = ''; };
+    paint();
+    scr.ctx.tickers?.add({ scr, step: (dt) => {
+      if (id !== seq) return false;
+      t += dt;
+      paint();
+      return t < time;
+    } });
+  };
 }
 
 /** @param {Screen} scr @param {Record<string, any>} t @param {HudState} s */

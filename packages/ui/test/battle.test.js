@@ -1,7 +1,7 @@
 // The battle HUD (docs/spec/ui.md 界面-10–界面-14) on a small pack shaped like the battle UI's, in a minimal document.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createUi, createBattleHud, cardViews, cardWidth, waitText, placeSummons, costView, speedSprite, coopSpeedSprite, reviveText, dragFacing, ARROW_DIRS,
+import { createUi, createBattleHud, cardViews, cardWidth, waitText, placeSummons, costView, costFlash, flashColor, speedSprite, coopSpeedSprite, reviveText, dragFacing, ARROW_DIRS,
   homography, mapPoint, matrix3d, groundTransform, copyRect, DEF_RT } from '../src/index.js';
 import { fakeDocument, fakeHost } from './dom.js';
 
@@ -21,7 +21,7 @@ const PRESS = { transition: 1, colors: { normal: [1, 1, 1, 1], pressed: [0.5, 0.
 const battle = N('UI', {}, [
   N('orthogonal_root', { canvas: {} }, [
     N('list', { lg: row }, [], R({ amin: [0, 0], amax: [1, 0], size: [0, 184], pivot: [1, 0] })),
-    N('cost', {}, [N('text', text), N('slider', slider('@orthogonal_root/cost/slider/fill'), [N('fill', img())]), N('max', img(), [N('icon', img('sprite/a', { color: [1, 1, 1, 0] }))])]),
+    N('cost', img('sprite/white', { color: [0.2, 0.2, 0.2, 0.7] }), [N('text', text), N('slider', slider('@orthogonal_root/cost/slider/fill'), [N('fill', img())]), N('max', img(), [N('icon', img('sprite/a', { color: [1, 1, 1, 0] }))])]),
     N('top', {}, [N('speed', img('sprite/x1'), [N('collider', { nodraw: 'raycast' })]), N('pause', {}, [N('image_pause', img()), N('image_resume', img()), N('collider', { nodraw: 'raycast' })]),
       N('mask', img()), N('menu', img()), N('range', img()), N('status', {}, [N('life', text), N('enemies', text), N('icon_monster', img())])]),
     N('mask_bottom', img()),
@@ -55,7 +55,8 @@ const hud = {
   extras: ['@content/combo'], professions: { SNIPER: { sprite: 'sprite/sniper', color: [0.7, 0.1, 0.1, 1] } }, rarity: ['sprite/r1', 'sprite/r2', 'sprite/r3', 'sprite/r4', 'sprite/r5', 'sprite/r6'],
   elite: [null, 'sprite/e1', 'sprite/e2'], tint: ['@content/avatar', '@content/cost'], normal: [1, 1, 1, 1], disabled: [0.5, 0.5, 0.5, 1], raise: 20 },
   list: { container: '@orthogonal_root/list', widths: [109, 178] },
-  cost: { text: '@orthogonal_root/cost/text', slider: '@orthogonal_root/cost/slider', maxBar: '@orthogonal_root/cost/max', maxIcon: '@orthogonal_root/cost/max/icon' },
+  cost: { text: '@orthogonal_root/cost/text', slider: '@orthogonal_root/cost/slider', maxBar: '@orthogonal_root/cost/max', maxIcon: '@orthogonal_root/cost/max/icon',
+    panel: '@orthogonal_root/cost', flash: [0, 0.5, 1, 0.7], maxFlash: [0.6, 0.6, 0.6, 0.7], flashTime: 0.5 },
   top: { speed: '@orthogonal_root/top/speed', pause: '@orthogonal_root/top/pause', pauseButton: '@orthogonal_root/top/pause', pauseMask: '@orthogonal_root/top/mask', menu: '@orthogonal_root/top/menu',
     range: '@orthogonal_root/top/range', status: { panel: '@orthogonal_root/top/status', life: '@orthogonal_root/top/status/life', enemies: '@orthogonal_root/top/status/enemies' },
     speedSprites: ['sprite/x0', 'sprite/x1', 'sprite/x2', 'sprite/x3'] },
@@ -189,6 +190,26 @@ test('[界面-11] the cost: whole points, the bar filling to the next point, MAX
   hud.update(state({ cost: 99 }));
   assert.equal(node(s.one('cost/max')).active, true);
   assert.equal(node(s.one('cost/max/icon')).color?.[3], 1);
+});
+
+test('[界面-11] a point gained flashes the panel blue, the one reaching the cap grey; it fades back to its colour in 0.5 s', () => {
+  const c = { flash: [0, 0.5, 1, 0.7], maxFlash: [0.6, 0.6, 0.6, 0.7] };
+  assert.deepEqual([costFlash(-1, 10, 99, c), costFlash(10, 10, 99, c), costFlash(10, 9, 99, c)], [null, null, null], 'the first frame, no change, a point spent');
+  assert.deepEqual(costFlash(10, 11, 99, c), c.flash);
+  assert.deepEqual(costFlash(98, 99, 99, c), c.maxFlash);
+  const own = [0.2, 0.2, 0.2, 0.7];
+  assert.deepEqual(flashColor(c.flash, own, 0, 0.5), c.flash);
+  assert.deepEqual(flashColor(c.flash, own, 0.5, 0.5), own);
+  assert.ok(flashColor(c.flash, own, 0.25, 0.5)[2] < 0.6 && flashColor(c.flash, own, 0.25, 0.5)[2] > 0.2, 'easing out: past half way at half time');
+  const { ui, hud } = setup();
+  const panel = node(hud.screen.one('cost'));
+  hud.update(state());
+  ui.tick(0);
+  assert.deepEqual(panel.color, own, 'no flash on the first frame');
+  hud.update(state({ cost: 11 }));
+  assert.deepEqual(panel.color, c.flash);
+  ui.tick(0.6);
+  assert.deepEqual(panel.color, own);
 });
 
 test('[界面-12] the top bar alone: lives, the speed\'s sprite, pause and resume, the mask; what the engine lacks hidden', () => {

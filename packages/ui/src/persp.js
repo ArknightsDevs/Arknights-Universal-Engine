@@ -35,7 +35,10 @@ function solve(m) {
 /** A 2D projective map as a CSS matrix3d (with the transform origin at 0 0). @param {number[]} H */
 export function matrix3d(H) {
   const [a, b, c, d, e, f, g, h, i] = H;
-  return `matrix3d(${[a / i, d / i, 0, g / i, b / i, e / i, 0, h / i, 0, 0, 1, 0, c / i, f / i, 0, 1].map((v) => +v.toPrecision(9)).join(',')})`;
+  // scaled by a positive number only: the sign of w is where the plane is in front (a map whose origin is behind the
+  // camera has i < 0), so it is kept
+  const k = Math.abs(i) > 1e-9 ? Math.abs(i) : Math.max(...H.map(Math.abs)) || 1;
+  return `matrix3d(${[a / k, d / k, 0, g / k, b / k, e / k, 0, h / k, 0, 0, 1, 0, c / k, f / k, 0, i / k].map((v) => +v.toPrecision(9)).join(',')})`;
 }
 
 /**

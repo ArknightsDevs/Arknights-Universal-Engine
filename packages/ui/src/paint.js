@@ -6,7 +6,8 @@ import { slicedUri, tintedUri } from './raster.js';
 /** @typedef {import('./node.js').UiNode} UiNode */
 /**
  * What a graphic's material does, as the pack names it: plain or additive blending, scrolling UVs (UV units a second,
- * additive when `add`), a stencil shape (a rounded rect [w, h, corner] or a circle [radius] in UV units of the rect),
+ * additive when `add`), a shape (a rounded rect [w, h, corner] or a circle [outer radius, inner radius, outer and
+ * inner softness] in UV units of the rect: a stencil writer's shape, else the ring a shown image is cut to),
  * an outline around a text (界面-29), grey, or something the engine does not draw ('none'; with an effect hint `fx`
  * it is drawn plainly by its blending, 界面-9).
  * @typedef {{ kind: 'blend' | 'add' | 'uv' | 'rect' | 'circle' | 'outline' | 'grey' | 'none', uv?: number[], add?: boolean, shape?: number[],
@@ -21,6 +22,27 @@ export const rgba = (c) => `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 2
 
 /** The CSS blend of a material: additive for an additive one. @param {Material | undefined} mat */
 export const blendOf = (mat) => (mat && (mat.kind === 'add' || mat.add) ? 'plus-lighter' : '');
+
+/** Hermite smoothing of a clamped fraction (a shader's smoothstep). @param {number} t */
+const smooth = (t) => { const u = Math.max(0, Math.min(1, t)); return u * u * (3 - 2 * u); };
+
+/**
+ * How opaque a circle shape is at a distance from its rect's centre (UV units: 0.5 is the middle of an edge): inside
+ * the outer radius, outside the inner one, each edge softened over its width (界面-9, INF-0190). A shape with one
+ * radius is a disk.
+ * @param {number[]} shape @param {number} d
+ */
+export function ringAlpha(shape, d) {
+  const [out, inner = 0, os = 0.005, is = 0.005] = shape;
+  return Math.max(0, Math.min(1, smooth((out - d) / Math.max(1e-4, os)) - smooth((inner - d) / Math.max(1e-4, is))));
+}
+
+/** A circle shape as a CSS mask over its rect: the ring's opacity sampled every 0.01 out to the corners. @param {number[]} shape */
+export function ringMask(shape) {
+  const stops = [];
+  for (let i = 0; i <= 71; i++) stops.push(`rgba(0,0,0,${+ringAlpha(shape, i / 100).toFixed(3)}) ${i}%`);
+  return `radial-gradient(ellipse 100% 100% at 50% 50%, ${stops.join(', ')})`;
+}
 
 /**
  * A circle bar's arc (界面-34) as a CSS mask: degrees counter-clockwise from the right, from `start` over `span`.
@@ -67,12 +89,14 @@ export function fillCss(f, method, origin, clockwise) {
 }
 
 /**
- * A gradient graphic: its colour points times its colour, running left to right on a vertical tape (direction 1), else
- * bottom to top.
- * @param {{ dir: number, points: [number[], number][] }} grad @param {number[]} color
+ * A gradient graphic as CSS (界面-4): its colour points times the graphic's colour, a vertical tape from left to right,
+ * else from bottom to top. A point's place is measured as if the rect's pivot were at its centre: with the pivot on an
+ * edge the tape runs from 0.5 at that edge (INF-0189).
+ * @param {{ dir?: number, points: [number[], number][] }} grad @param {number[]} color @param {number[]} [pivot]
  */
-export function gradientCss(grad, color) {
-  const pts = grad.points.map(([c, p]) => `${rgba([c[0] * color[0], c[1] * color[1], c[2] * color[2], c[3] * color[3]])} ${p * 100}%`);
+export function gradientCss(grad, color, pivot = [0.5, 0.5]) {
+  const off = 0.5 - (grad.dir === 1 ? pivot[0] : pivot[1]);
+  const pts = grad.points.map(([c, p]) => `${rgba([c[0] * color[0], c[1] * color[1], c[2] * color[2], c[3] * color[3]])} ${+((p - off) * 100).toFixed(4)}%`);
   return pts.length ? `linear-gradient(${grad.dir === 1 ? 'to right' : 'to top'}, ${pts.join(', ')})` : rgba(color);
 }
 
@@ -142,7 +166,16 @@ function paintImage(s, g, im, w, h) {
     sty(s, g, 'backgroundRepeat', 'repeat');
     sty(s, g, 'backgroundPosition', `${(-(uv[0] * t) % 1 * tw).toFixed(1)}px ${((uv[1] * t) % 1 * th).toFixed(1)}px`);
   }
-  if (s.circle) { const m = arcMask(s.circle); sty(s, g, 'maskImage', m); sty(s, g, 'webkitMaskImage', m); }
+  paintCut(s, g, im);
+}
+
+/**
+ * What of an image shows: a circle bar's arc, a shown circle shape's ring, a filled image's part.
+ * @param {UiNode} s @param {HTMLElement} g @param {Record<string, any>} im
+ */
+function paintCut(s, g, im) {
+  const m = s.circle ? arcMask(s.circle) : im.mat?.kind === 'circle' && !s.n.comps.mask && im.mat.shape ? ringMask(im.mat.shape) : null;
+  if (m) { sty(s, g, 'maskImage', m); sty(s, g, 'webkitMaskImage', m); }
   else if (s.fill != null) for (const [k, v] of fillCss(s.fill, im.fillMethod ?? 0, im.fillOrigin ?? 0, im.clockwise !== 0)) sty(s, g, k, v);
 }
 
@@ -159,5 +192,5 @@ export function paintGraphic(s, w, h) {
   sty(s, g, 'mixBlendMode', blendOf(mat));
   if (mat?.kind === 'grey') sty(s, g, 'filter', 'grayscale(1)');
   if (c.img) paintImage(s, g, c.img, w, h);
-  else if (c.grad) sty(s, g, 'background', gradientCss(c.grad, drawnColor(s)));
+  else if (c.grad) sty(s, g, 'background', gradientCss(c.grad, drawnColor(s), s.rt.pivot));
 }

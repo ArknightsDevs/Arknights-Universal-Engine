@@ -1,7 +1,7 @@
 // Graphics, texts and what is not drawn (docs/spec/ui.md 界面-4, 界面-9), and auto layout (界面-3).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fillCss, gradientCss, sliceOf, isSliced, drawable, blendOf, uvSpeed, rgba, drawNine, richHtml, isRich, faceOf, alignCss, shadowCss, bestFit, DEFAULT_FONTS } from '../src/index.js';
+import { fillCss, gradientCss, sliceOf, isSliced, drawable, blendOf, uvSpeed, rgba, ringAlpha, ringMask, drawNine, richHtml, isRich, faceOf, alignCss, shadowCss, bestFit, DEFAULT_FONTS } from '../src/index.js';
 
 test('[界面-4] filled images: horizontal, vertical, radial from each origin either way', () => {
   assert.deepEqual(fillCss(0.25, 0, 0, true), [['clipPath', 'inset(0 75% 0 0)']]);
@@ -17,6 +17,9 @@ test('[界面-4] gradients, nine-slice borders, colours', () => {
   assert.equal(gradientCss({ dir: 1, points: [[[1, 0, 0, 1], 0], [[0, 0, 1, 0.5], 1]] }, [1, 1, 1, 0.5]), 'linear-gradient(to right, rgba(255,0,0,0.5) 0%, rgba(0,0,255,0.25) 100%)');
   assert.equal(gradientCss({ dir: 0, points: [] }, [0, 0, 0, 1]), 'rgba(0,0,0,1)');
   assert.equal(gradientCss({ dir: 0, points: [[[1, 1, 1, 1], 0.5]] }, [1, 1, 1, 1]), 'linear-gradient(to top, rgba(255,255,255,1) 50%)');
+  // pivot on the bottom edge: the tape starts at 0.5 there (a shade over the bottom half, clear above)
+  assert.equal(gradientCss({ dir: 0, points: [[[0, 0, 0, 0.8], 0.5], [[0, 0, 0, 0], 1]] }, [1, 1, 1, 1], [0.5, 0]), 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 50%)');
+  assert.equal(gradientCss({ dir: 1, points: [[[0, 0, 0, 0], 0], [[0, 0, 0, 1], 0.5]] }, [1, 1, 1, 1], [1, 0.5]), 'linear-gradient(to right, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 100%)');
   assert.deepEqual(sliceOf({ kind: 'image', border: [1, 2, 3, 4] }, undefined), [1, 3, 4, 2]);
   assert.deepEqual(sliceOf({ kind: 'atlas', slice: [0.25, 0.1, 0.75, 0.9] }, { w: 40, h: 20 }), [10, 10, 2, 2]);
   assert.deepEqual(sliceOf({ kind: 'raw' }, undefined), [0, 0, 0, 0]);
@@ -39,6 +42,13 @@ test('[界面-4] nine-slice drawing: corners kept, shrunk in proportion when the
   drawNine(x, img, [10, 10, 10, 10], [0, 0, 10, 40]);
   assert.deepEqual(calls[0], [0, 0, 10, 10, 0, 0, 5, 10], 'corners halve across when the width is half the borders');
   assert.equal(calls.length, 6, 'no centre column');
+  // borders that meet (each half the width): the middle column is the line of pixels where they meet, stretched
+  calls.length = 0;
+  const bar = /** @type {HTMLImageElement} */ (/** @type {unknown} */ ({ width: 63, height: 59 }));
+  drawNine(x, bar, [31.5, 31.5, 1, 1], [0, 0, 346, 1000]);
+  assert.equal(calls.length, 9);
+  assert.deepEqual(calls[3].slice(0, 4), [31, 0, 1, 1], 'the middle column, top row');
+  assert.deepEqual(calls[4], [31, 1, 1, 57, 31.5, 1, 283, 998]);
 });
 
 test('[界面-4] texts: rich text, faces, alignment, outlines and shadows, best fit', () => {
@@ -61,6 +71,21 @@ test('[界面-4] texts: rich text, faces, alignment, outlines and shadows, best 
   assert.equal(bestFit([50, 20], 70, [100, 92], [1, 70]), 70);
   assert.equal(bestFit([1000, 50], 70, [100, 92], [10, 70]), 10);
   assert.equal(bestFit([0, 0], 70, [100, 92], [1, 70]), 70);
+});
+
+test('[界面-9] a circle shape on a shown image: a ring between its radii, softened; one radius a disk', () => {
+  // a ground's edge: clear in the middle, opaque from half way out (outer 1, inner 0.49 softened over 0.5)
+  const edge = [1, 0.49, 0.005, 0.5];
+  assert.ok(ringAlpha(edge, 0) < 0.01);
+  assert.ok(ringAlpha(edge, 0.25) > 0.4 && ringAlpha(edge, 0.25) < 0.6);
+  assert.equal(ringAlpha(edge, 0.5), 1);
+  // a thin ring: opaque between 0.392 and 0.475 only
+  const ring = [0.475, 0.392, 0.005, 0.005];
+  assert.deepEqual([0.3, 0.43, 0.5].map((d) => ringAlpha(ring, d)), [0, 1, 0]);
+  assert.deepEqual([0.2, 0.6].map((d) => ringAlpha([0.42], d)), [1, 0], 'a disk');
+  const m = ringMask(edge);
+  assert.match(m, /^radial-gradient\(ellipse 100% 100% at 50% 50%, rgba\(0,0,0,0(\.\d+)?\) 0%, /);
+  assert.match(m, /rgba\(0,0,0,1\) 71%\)$/);
 });
 
 test('[界面-9] materials: the ones not drawn, additive blending, scrolling UVs', () => {

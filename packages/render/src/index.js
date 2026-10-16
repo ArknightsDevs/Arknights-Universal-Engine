@@ -15,7 +15,7 @@ export { unitTextureKey } from './units.js';
 export { SHADOW } from './shadows.js';
 export { createPlacing, INDICATOR } from './placing.js';
 export { createBattleAudio } from './audio.js';
-export { createUiScene, canvasCorners, canvasRoot, meshGeometry, posOf, quatOf } from './uiscene.js';
+export { createUiScene, canvasCorners, canvasPlane, canvasRoot, meshGeometry, posOf, quatOf } from './uiscene.js';
 export { createUiFx, pageRoot } from './uifx.js';
 export { soundsOf, musicOf, pickSound, roomFor } from './sounds.js';
 export { dubOf, linesOf, voicesOf, leaderOf, admit, newGate, inDub, LINE_TYPES } from './voices.js';

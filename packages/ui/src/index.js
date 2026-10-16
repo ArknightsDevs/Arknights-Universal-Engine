@@ -10,9 +10,9 @@ export { arrange, groupPref, prefSize, groupKids, gridArrange, gridPref, gridCol
 export { canvasSize, rectBox, transformCss, originCss, copyRect, DEF_RT, FULL_RT } from './rect.js';
 export { evalKeys, applyCurve, spriteAt } from './curves.js';
 export { richHtml, isRich, faceOf, alignCss, shadowCss, bestFit, DEFAULT_FONTS } from './text.js';
-export { fillCss, gradientCss, sliceOf, isSliced, drawable, blendOf, uvSpeed, rgba } from './paint.js';
+export { fillCss, gradientCss, sliceOf, isSliced, drawable, blendOf, uvSpeed, rgba, ringAlpha, ringMask } from './paint.js';
 export { drawNine } from './raster.js';
-export { createBattleHud, costView, speedSprite } from './battle/hud.js';
+export { createBattleHud, costView, costFlash, flashColor, speedSprite } from './battle/hud.js';
 export { createCards, cardViews, cardWidth, waitText, placeSummons } from './battle/cards.js';
 export { createCoopTop, coopSpeedSprite, reviveText } from './battle/coop.js';
 export { createFieldMenus, dragFacing, ARROW_DIRS } from './battle/menus.js';

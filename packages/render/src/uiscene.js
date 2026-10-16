@@ -85,8 +85,9 @@ function build(u, b) {
     b.cameras.push({ node: u, cam });
   }
   if (c.light) {
-    const l = new THREE.DirectionalLight(new THREE.Color(c.light.color[0], c.light.color[1], c.light.color[2]), c.light.intensity);
-    // it shines along the node's forward: Unity's local +z, the mirrored −z
+    const l = new THREE.DirectionalLight(new THREE.Color(c.light.color[0], c.light.color[1], c.light.color[2]), c.light.intensity * Math.PI);
+    // it shines along the node's forward: Unity's local +z, the mirrored −z; Unity's intensity lights a white face
+    // facing it fully, which three's (physical units) does at π times as much
     l.position.set(0, 0, 0);
     l.target.position.set(0, 0, -1);
     o.add(l, l.target);
@@ -133,6 +134,44 @@ export function canvasCorners(parent, rt, cam, w, h) {
   }
   parent.remove(o);
   return out;
+}
+
+/**
+ * A world-space canvas's plane on the page (渲染-17): the projective map (row-major 3 × 3) from its pixels — x from its
+ * left, y down from its top — to page pixels of a view [w, h], and the part of its plane in front of the camera's near
+ * plane as a polygon of its pixels (none when it is all behind), so a canvas the camera comes down close to still
+ * shows where it can be seen. The polygon reaches `pad` times the canvas's size past each edge: what the canvas holds
+ * may overflow it. The map's scale is kept positive where the canvas is in front.
+ * @param {THREE.Object3D} parent the canvas's parent object @param {NonNullable<UiNode3['n']['rt']>} rt
+ * @param {THREE.Camera} cam @param {number[]} view @param {number} [pad]
+ * @returns {{ H: number[], clip: number[][] }}
+ */
+export function canvasPlane(parent, rt, cam, view, pad = 0) {
+  const [w, h] = view;
+  const o = new THREE.Object3D();
+  o.position.set(...posOf([rt.pos[0], rt.pos[1], 0]));
+  if (rt.q) o.quaternion.set(...quatOf(rt.q));
+  o.scale.set(rt.scale[0], rt.scale[1], 1);
+  parent.add(o);
+  o.updateWorldMatrix(true, false);
+  cam.updateMatrixWorld();
+  const e = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse).multiply(o.matrixWorld).elements;
+  parent.remove(o);
+  const [sw, sh] = rt.size, [px, py] = rt.pivot, ax = -px * sw, ay = sh * (1 - py);
+  // a clip coordinate as a function of the canvas pixel (x, y): the object point is (x + ax, ay − y, 0)
+  const row = (/** @type {number} */ r) => [e[r], -e[4 + r], e[r] * ax + e[4 + r] * ay + e[12 + r]];
+  const X = row(0), Y = row(1), Z = row(2), W = row(3);
+  const H = [...X.map((v, i) => (v + W[i]) * w / 2), ...W.map((v, i) => (v - Y[i]) * h / 2), ...W];
+  // in front of the near plane: z + w > 0 (a little margin), the rectangle clipped to it
+  const f = (/** @type {number[]} */ p) => (Z[0] + W[0]) * p[0] + (Z[1] + W[1]) * p[1] + Z[2] + W[2] - 1e-4;
+  const x0 = -pad * sw, y0 = -pad * sh, x1 = (1 + pad) * sw, y1 = (1 + pad) * sh;
+  const rect = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], clip = [];
+  for (let i = 0; i < 4; i++) {
+    const a = rect[i], b = rect[(i + 1) % 4], fa = f(a), fb = f(b);
+    if (fa >= 0) clip.push(a);
+    if ((fa >= 0) !== (fb >= 0)) { const t = fa / (fa - fb); clip.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+  }
+  return { H, clip };
 }
 
 /**
@@ -215,6 +254,11 @@ export function createUiScene(o) {
     corners(u) {
       const parent = up.get(u), obj = parent ? b.nodes.get(parent) : undefined;
       return obj && u.n.rt && view ? canvasCorners(obj, u.n.rt, view.cam, w, h) : null;
+    },
+    /** A world-space canvas node's plane on the page (as canvasPlane), or null. @param {UiNode3} u @param {number} [pad] */
+    plane(u, pad) {
+      const parent = up.get(u), obj = parent ? b.nodes.get(parent) : undefined;
+      return obj && u.n.rt && view ? canvasPlane(obj, u.n.rt, view.cam, [w, h], pad) : null;
     },
     dispose() { renderer.dispose(); for (const t of textures.values()) t.dispose(); },
   };
