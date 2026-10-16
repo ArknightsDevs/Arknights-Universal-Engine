@@ -158,7 +158,8 @@ export function build(n, parent, path, scr, base) {
   if (base != null) { s.proot = s; s.pbase = base; }
   buildGraphic(s, c, doc);
   if (c.text && drawable(c.text.mat)) buildText(s, c);
-  if (c.mask) s.el.style.overflow = 'hidden';
+  // a soft mask reading another graphic shows its subtree through that graphic only, not cut to its own rect (layout.js)
+  if (c.mask && !c.softMask?.mask) s.el.style.overflow = 'hidden';
   if (c.click) clickSound(s, c.click);
   scr.all.push(s);
   for (const ch of n.children) s.kids.push(build(ch, s, `${path}/${ch.name}`, scr));

@@ -65,9 +65,10 @@ function hide(root, refs) { for (const r of refs) { const n = refNode(root, r); 
  * The HUD on a UI: opens the battle screen, fills the cards, readies the menus on the field (menus.js); `update` shows a
  * frame's state; `on` takes the taps: 'card' (id), 'speed', 'pause', 'cancel', 'withdraw', 'skill'; in a match of two
  * also 'ask' (the cost request), 'answer' and 'confirm' ('yes' or 'no': the mate's cost and pause requests). With a
- * stage in a match of two the start panel shows until the first frame's update (界面-21).
+ * stage in a match of two the start panel shows until the first frame's update (界面-21); a page that opened the start
+ * panel before (as its loading screen) gives it as `start`.
  * @param {ReturnType<typeof import('../ui.js').createUi>} ui
- * @param {{ deck: DeckCard[], coop?: boolean, stage?: import('./start.js').StageInfo | null }} o
+ * @param {{ deck: DeckCard[], coop?: boolean, stage?: import('./start.js').StageInfo | null, start?: ReturnType<typeof createStart> }} o
  */
 export function createBattleHud(ui, o) {
   const hud = /** @type {Record<string, any>} */ (ui.ctx.pack).hud;
@@ -92,7 +93,7 @@ export function createBattleHud(ui, o) {
     tapRef(scr, root, t.pause, () => emit('pause'));
   }
   const menus = createFieldMenus(ui, hud, { cancel: () => emit('cancel'), withdraw: () => emit('withdraw'), skill: () => emit('skill') });
-  const { states, bars, start, banner } = overlays(ui, scr, hud, !!coop, o.stage ?? null);
+  const { states, bars, start, banner } = overlays(ui, scr, hud, !!coop, o);
   const flash = costFlasher(scr, hud.cost);
   return {
     screen: scr, cards, coop, cost, states, bars, start, banner, direction: menus.direction, menu: menus.menu,
@@ -118,13 +119,11 @@ export function createBattleHud(ui, o) {
  * The panels over the battle: the state panels (界面-18), the units' bars when the pack has them (界面-19); in a match
  * of two the start panel given its stage (界面-21) and the stage start banner (界面-22).
  * @param {ReturnType<typeof import('../ui.js').createUi>} ui @param {Screen} scr @param {Record<string, any>} hud @param {boolean} coop
- * @param {import('./start.js').StageInfo | null} stage
+ * @param {{ stage?: import('./start.js').StageInfo | null, start?: ReturnType<typeof createStart> }} o the stage, or a start panel already open
  */
-function overlays(ui, scr, hud, coop, stage) {
-  return {
-    states: createStates(ui, scr, coop), bars: hud.units ? createUnitBars(scr, hud.units) : null,
-    start: coop && stage ? createStart(ui, stage) : null, banner: coop ? createBanner(ui) : null,
-  };
+function overlays(ui, scr, hud, coop, o) {
+  const start = o.start !== undefined ? o.start : coop && o.stage ? createStart(ui, o.stage) : null;
+  return { states: createStates(ui, scr, coop), bars: hud.units ? createUnitBars(scr, hud.units) : null, start, banner: coop ? createBanner(ui) : null };
 }
 
 /** A tap on the node at a reference (its hit area when it has one). @param {Screen} scr @param {UiNode} root @param {string} ref @param {() => void} fn */

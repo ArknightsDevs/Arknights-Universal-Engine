@@ -27,6 +27,7 @@ test('[界面-21] the start panel: the stage\'s code and name, its start clip, t
   const text = (/** @type {string} */ n) => /** @type {any} */ (s.screen.one(n)).txt;
   assert.deepEqual([text('text_stage_no'), text('text_stage_name'), text('text_operation')], ['IG-1', '逃离火线', 'Operation']);
   assert.deepEqual([s.screen.root.active, s.phase()], [true, 'start']);
+  assert.equal(/** @type {any} */ (s.screen).wrap.style.zIndex, '10', 'above the battle screen, which may open after it');
   ui.tick(1.1);
   await flush();
   assert.equal(s.phase(), 'wait', 'its start clip over, the battle not begun: waiting');
