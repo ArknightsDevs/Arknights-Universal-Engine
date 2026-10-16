@@ -190,7 +190,7 @@ test('[界面-29] multiline best fit: the largest size not above the text\'s own
   assert.equal(fitSize(() => true, 2, 24), 24);
   const ring = css(/** @type {any} */ (s.one('ring')).t).textShadow;
   assert.equal(ring.split(', ').length, 16);
-  assert.ok(ring.startsWith('5.00px 0.00px 0 rgba(0,0,0,1)'));
+  assert.ok(ring.startsWith('0.50px 0.00px 0 rgba(0,0,0,1)'), "a tenth of the material's width");
   assert.equal(ringCss({}).split(', ').length, 16);
 });
 
