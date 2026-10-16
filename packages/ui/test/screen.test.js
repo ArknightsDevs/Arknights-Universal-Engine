@@ -45,6 +45,7 @@ const pack = () => ({
       N('fitted', { text: { text: 'a b c', size: 20, style: 0, align: 3, color: [1, 1, 1, 1], best: 0, hwrap: 0, vwrap: 1 }, csf: [2, 0] }, [], R({ size: [0, 30] })),
       N('oneline', { text: { text: 'a b c', size: 20, style: 0, align: 3, color: [1, 1, 1, 1], best: 0, hwrap: 0, vwrap: 0 } }, [], R({ size: [50, 30] })),
       N('laid', { lg: { ...row, cw: 1 } }, [N('cell', { text: { text: 'a b c', size: 20, style: 0, align: 3, color: [1, 1, 1, 1], best: 0, hwrap: 0, vwrap: 1 } })]),
+      N('para', { lg: { ...col, ch: 1 } }, [N('desc', { text: { text: 'a b c', size: 17, style: 0, align: 0, color: [1, 1, 1, 1], best: 0, hwrap: 0, vwrap: 0 } }, [], R({ size: [236, 0] }))]),
     ]),
     bar: N('bar', {}, [], R({ amin: [0, 1], amax: [1, 1], size: [0, 1], pivot: [0, 1] })),
     item: N('item', { slider: { fill: '@x', dir: 0, min: 0, max: 1, value: 0, whole: 0 } }, [N('x', img('sprite/a'))], R({ size: [40, 40] })),
@@ -96,11 +97,28 @@ test('[界面-3] a layout group places its active children', () => {
   assert.equal(css(fit.t).fontSize, '40px', 'best fit: 175 px wide at 70 → 70 × 100 / 175');
 });
 
+test('[界面-3] short of space, a group that sets its children\'s heights gives each one the same share between its minimum and preferred height', () => {
+  // the stage detail's goal panel: 365 high, 34 at the top, a scroll view of 365 and the record of 78 below it
+  const le = (/** @type {number} */ h) => ({ le: { ignore: 0, min: [-1, -1], pref: [256, h], flex: [-1, -1] } });
+  const panel = N('panel', { lg: { ...col, pad: [0, 0, 34, 0], ch: 1, fh: 1 } }, [
+    N('list', le(365)), N('record', { lg: { ...col, ch: 1 } }, [N('regular', le(78))]),
+  ], R({ size: [256, 365] }));
+  const ui = createUi({ pack: /** @type {any} */ ({ ...pack(), screens: { m: N('m', {}, [panel]) } }), host: fakeHost(fakeDocument()) });
+  const s = ui.open('m');
+  ui.tick(0);
+  const list = /** @type {any} */ (s.one('panel/list')), record = /** @type {any} */ (s.one('panel/record'));
+  const t = (365 - 34) / (365 + 78);
+  assert.ok(Math.abs(list.box[3] - 365 * t) < 1e-9 && Math.abs(record.box[3] - 78 * t) < 1e-9, `${list.box[3]} ${record.box[3]}`);
+  assert.ok(Math.abs(record.box[1] + record.box[3] - 365) < 1e-9, 'the record ends at the panel\'s bottom');
+  assert.ok(Math.abs(record.box[3] - 58.27991) < 1e-4, 'as the prefab saved it from Unity');
+});
+
 test('[界面-4] texts that wrap at their width, and those sized to their own width or one line high that do not', () => {
   const { scr } = setup();
   const ws = (/** @type {string} */ name) => css(/** @type {any} */ (scr.one(name)).t).whiteSpace ?? '';
   assert.equal(ws('wrapping'), 'pre-wrap');
   assert.deepEqual([ws('fitted'), ws('oneline'), ws('laid/cell')], ['', '', ''], 'a content size fitter, a truncating one-line rect, a layout group setting widths');
+  assert.equal(ws('para/desc'), 'pre-wrap', 'a group setting its height: all its lines (the stage detail description)');
 });
 
 test('[界面-4] images: the sprite tinted, the colour without one, nothing for a missing sprite, a page picture', () => {

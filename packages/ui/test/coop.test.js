@@ -108,18 +108,23 @@ test('[界面-16] the stage\'s task: stage, objective line, count on the bar and
   co.update({ me: side, mate: side, speed: 1, paused: false, asking: -1, task: { stage: 2, objective: 'protect', count: 3, goal: 4, left: 61 } });
   ui.tick(0);
   assert.equal(node(s.one('text_stage_info_01')).txt, 'STAGE.2');
-  assert.equal(node(s.one('split_line/group_text/text_monster')).txt, '3/4');
+  assert.deepEqual([node(s.one('split_line')).active, node(s.one('group_text_02')).active, node(s.one('group_text_02/text_monster')).txt], [false, true, '3/4'],
+    'no advanced goal: the count at the right end, no line');
   assert.ok(Math.abs(/** @type {number} */ (node(s.one('normal/fill')).fill) - 0.85 / 1.1) < 1e-12, 'the bar runs from −0.1');
-  assert.equal(node(s.one('group_text_02')).active, false);
   assert.deepEqual(OBJECTIVES.map((o) => node(s.one(`taskInfo/${o}`)).active), OBJECTIVES.map((o) => o === 'protect'));
   assert.deepEqual([node(s.one('text_timer_normal')).txt, node(s.one('text_timer_normal')).active, node(s.one('group_timeout')).active], ['01:01', true, false]);
   assert.deepEqual(['fortress', 'fortress_lastWave', 'slider_progress_outer', 'btn_menu'].map((n) => node(s.one(n)).active), [false, false, false, false]);
   co.update({ me: side, mate: side, speed: 1, paused: false, asking: -1, task: { stage: 2, objective: 'kill', count: 3, goal: 4, advanced: 6, left: 9.5 } });
   ui.tick(0);
-  assert.deepEqual([node(s.one('group_text_02')).active, node(s.one('group_text_02/text_monster')).txt], [true, '3/6']);
+  assert.deepEqual([node(s.one('split_line')).active, node(s.one('split_line/group_text/text_monster')).txt, node(s.one('group_text_02/text_monster')).txt], [true, '3/4', '3/6'],
+    'an advanced goal: the goal left of the line, the advanced goal at the right end');
   assert.deepEqual([node(s.one('text_timer')).txt, node(s.one('text_timer')).active, node(s.one('group_timeout')).active, node(s.one('text_timer_normal')).active], ['00:10', true, true, false]);
   co.update({ me: side, mate: side, speed: 1, paused: false, asking: -1, task: { stage: 1, objective: 'kill', count: 0, goal: 0, left: 5 } });
-  assert.ok(Math.abs(/** @type {number} */ (node(s.one('normal/fill')).fill) - 0.1 / 1.1) < 1e-12, 'no goal: the bar at its start');
+  assert.equal(node(s.one('normal/fill')).fill, 0, 'no goal: the bar empty');
+  co.update({ me: side, mate: side, speed: 1, paused: false, asking: -1, task: { stage: 1, objective: 'kill', count: 0, goal: 46, left: 5 } });
+  assert.equal(node(s.one('normal/fill')).fill, 0, 'nothing counted: the bar empty, not at the count 0 of its range');
+  co.update({ me: side, mate: side, speed: 1, paused: false, asking: -1, task: { stage: 1, objective: 'kill', count: 7, goal: 46, left: 5 } });
+  assert.ok(Math.abs(/** @type {number} */ (node(s.one('normal/fill')).fill) - (7 / 46 + 0.1) / 1.1) < 1e-12, 'about a quarter at 7/46, as the original');
 });
 
 test('[界面-17] the mate\'s pause request: the popup with its time left, the answers; this seat\'s request on the button', () => {

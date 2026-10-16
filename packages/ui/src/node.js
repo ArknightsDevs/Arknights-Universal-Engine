@@ -208,12 +208,28 @@ function buildText(s, c) {
 /**
  * Whether a wrapping text never wraps (界面-4): sized to its own width — by a content size fitter at its preferred
  * width, or by a horizontal layout group that sets its children's widths without stretching them — it is that wide
- * unwrapped; dropping the lines it has no room for (vertical overflow: truncate) in a rect one line high, it shows one.
+ * unwrapped; dropping the lines it has no room for (vertical overflow: truncate) in a rect one line high, it shows one
+ * — unless a layout group or a fitter sets its height, which is then all its lines.
  * @param {UiNode} s @param {Record<string, any>} c
  */
 function ownWidth(s, c) {
-  const rt = s.n.rt, lg = s.parent?.n.comps.lg, flex = c.le?.flex?.[0] ?? -1;
-  if (c.csf?.[0] === 2 || (lg?.dir === 'h' && lg.cw === 1 && !lg.fw && !(flex > 0))) return true;
+  const lg = s.parent?.n.comps.lg;
+  if (fittedWidth(c, lg)) return true;
+  return lg?.ch !== 1 && c.csf?.[1] !== 2 && oneLineHigh(s, c);
+}
+
+/**
+ * A text sized to its preferred width: by a content size fitter, or by a horizontal layout group that sets widths
+ * without stretching it. @param {Record<string, any>} c @param {Record<string, any> | undefined} lg
+ */
+function fittedWidth(c, lg) {
+  const flex = c.le?.flex?.[0] ?? -1;
+  return c.csf?.[0] === 2 || (lg?.dir === 'h' && lg.cw === 1 && !lg.fw && !(flex > 0));
+}
+
+/** A truncating text whose rect is one line high. @param {UiNode} s @param {Record<string, any>} c */
+function oneLineHigh(s, c) {
+  const rt = s.n.rt;
   return c.text.vwrap === 0 && !!rt && rt.amin[1] === rt.amax[1] && rt.size[1] < 2 * c.text.size * 1.12;
 }
 

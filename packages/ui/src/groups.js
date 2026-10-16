@@ -33,6 +33,21 @@ export function prefSize(s, ax) {
 const childSize = (g, k, ax) => ((ax === 0 ? g.cw : g.ch) ? prefSize(k, ax) : k.rt.size[ax]);
 
 /**
+ * A node's minimum size on an axis: its layout element's minimum, a group's from its children (padding, spacing, the
+ * children's minimums where it controls their size, else their sizes), else none.
+ * @param {UiNode} s @param {number} ax @returns {number}
+ */
+export function minSize(s, ax) {
+  const le = s.n.comps.le, g = /** @type {Group | undefined} */ (s.n.comps.lg);
+  if (le && le.min[ax] >= 0) return le.min[ax];
+  if (!g) return 0;
+  const main = g.dir === 'h' ? 0 : 1, kids = groupKids(s), ctrl = ax === 0 ? g.cw : g.ch;
+  const pad = ax === 0 ? g.pad[0] + g.pad[1] : g.pad[2] + g.pad[3];
+  const sz = kids.map((k) => (ctrl ? minSize(k, ax) : k.rt.size[ax]));
+  return pad + (ax === main ? sz.reduce((a, b) => a + b, 0) + g.spacing * Math.max(0, kids.length - 1) : (sz.length ? Math.max(...sz) : 0));
+}
+
+/**
  * A group's preferred size on an axis: padding plus its children along the main axis (with spacing), the largest
  * across.
  * @param {UiNode} s @param {number} ax
@@ -45,15 +60,22 @@ export function groupPref(s, ax) {
 }
 
 /**
- * The sizes of a group's children: their own or preferred sizes; the space left along the main axis shared by their
- * flexible sizes (force-expand counts as 1) when the group controls that size.
+ * The sizes of a group's children: their own or preferred sizes; when the group controls the size along the main
+ * axis, the space left shared by their flexible sizes (force-expand counts as 1), or, short of space, each between its
+ * minimum and preferred size by the same share (Unity's LayoutGroup).
  * @param {Group} g @param {UiNode[]} kids @param {number[]} inner @param {number} main
  */
 function childSizes(g, kids, inner, main) {
   const sizes = kids.map((k) => [childSize(g, k, 0), childSize(g, k, 1)]);
-  let total = sizes.reduce((a, z) => a + z[main], 0) + g.spacing * Math.max(0, kids.length - 1);
+  const gaps = g.spacing * Math.max(0, kids.length - 1);
+  let total = sizes.reduce((a, z) => a + z[main], 0) + gaps;
   const ctrl = main === 0 ? g.cw : g.ch, force = main === 0 ? g.fw : g.fh;
-  if (ctrl && kids.length && total < inner[main]) {
+  if (ctrl && kids.length && total > inner[main] + 1e-6) {
+    const mins = kids.map((k, i) => Math.min(minSize(k, main), sizes[i][main])), least = mins.reduce((a, b) => a + b, 0) + gaps;
+    const t = total > least ? Math.max(0, Math.min(1, (inner[main] - least) / (total - least))) : 0;
+    sizes.forEach((z, i) => { z[main] = mins[i] + (z[main] - mins[i]) * t; });
+    total = sizes.reduce((a, z) => a + z[main], 0) + gaps;
+  } else if (ctrl && kids.length && total < inner[main]) {
     const wts = kids.map((k) => Math.max(flexOf(k, main), force ? 1 : 0)), sum = wts.reduce((a, b) => a + b, 0);
     if (sum > 0) {
       const extra = inner[main] - total;

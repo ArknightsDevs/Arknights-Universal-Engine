@@ -85,10 +85,15 @@ function showTask(scr, status, t, warn) {
   task.active = t !== null;
   if (!t) return;
   scr.text('text_stage_info_01', `STAGE.${t.stage}`, task);
-  scr.slider('normal', t.goal > 0 ? Math.min(1, t.count / t.goal) : 0, task);
+  // nothing counted yet: the bar stays at its minimum, empty (the original at 0/46); then the count over the goal
+  scr.slider('normal', t.goal > 0 && t.count > 0 ? Math.min(1, t.count / t.goal) : -Infinity, task);
+  // with an advanced goal the count over the goal stands left of the line and the count over the advanced goal at the
+  // right end; without one only the count over the goal, at the right end, no line (the original's stages 2 and 1)
+  const adv = t.advanced !== undefined;
+  scr.show('split_line', adv, task);
   scr.text('split_line/group_text/text_monster', `${t.count}/${t.goal}`, task);
-  scr.show('group_text_02', t.advanced !== undefined, task);
-  if (t.advanced !== undefined) scr.text('group_text_02/text_monster', `${t.count}/${t.advanced}`, task);
+  scr.show('group_text_02', true, task);
+  scr.text('group_text_02/text_monster', `${t.count}/${adv ? t.advanced : t.goal}`, task);
   for (const o of OBJECTIVES) scr.show(`taskInfo/${o}`, o === t.objective, task);
   const late = t.left <= warn;
   scr.show('group_timeout', late, task);
