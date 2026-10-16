@@ -24,7 +24,7 @@ const text = (t, more = {}) => ({ text: { text: t, size: 24, style: 0, align: 0,
 
 /** A lobby-like pack (its graphics say whether they take taps). @returns {any} */
 const pack = () => ({
-  version: 1, ref: [1280, 720], sprites: {}, sounds: { click: { 0: 'ui.ON_DEFAULT_BTN_CLICK' } },
+  version: 1, ref: [1280, 720], sprites: { fade: { w: 100, h: 50, uri: 'fade.webp' } }, sounds: { click: { 0: 'ui.ON_DEFAULT_BTN_CLICK' } },
   clips: {
     show: { wrap: 0, length: 1, curves: [], events: [{ t: 0, kind: 'start' }, { t: 0.5, kind: 'sound', bank: 'ui.ON_MULTIV3_PICK' }, { t: 1, kind: 'end' }, { t: 0.7, kind: 'call', data: 'next' }] },
   },
@@ -54,6 +54,7 @@ const pack = () => ({
       N('scaled', { scaler: { target: '@scaled', steps: [{ rt: '@scaled', pos: [0, 0], size: [200, 100] }, { rt: '@scaled/kid', pos: [20, 10], size: [40, 20], text: { size: 20 } }] } },
         [N('kid', text('k', { size: 20 }), [], R({ size: [40, 20], pos: [20, 10] }))], R({ size: [100, 50] })),
       N('box', {}, [], R({ size: [300, 200] })),
+      N('softy', { mask: 'soft', softMask: { ch: 'r', mask: '@softy/m' } }, [N('m', img({ ref: 'fade', color: [1, 1, 1, 0] }), [], R({ size: [100, 50], pos: [10, 5] }))], R({ size: [300, 200] })),
     ]),
     item: N('item', {}, [N('label', text(''))], R({ size: [40, 50] })),
     dot: N('dot', img(), [], R({ size: [35, 35] })),
@@ -218,6 +219,13 @@ test('[界面-30] fitters: aspect modes, a background covering its parent, a ful
   assert.deepEqual([big.w, big.h], [1600, 1000], 'a background whose own rect covers more keeps it');
   assert.deepEqual([full.w, full.h, full.box[0] + /** @type {any} */ (s.one('nest')).box[0]], [1280, 720, 0]);
   assert.deepEqual([kid.rt.pos, kid.rt.size, kid.fontK], [[10, 5], [20, 10], 0.5], 'the scaler made at 200 × 100 now 100 × 50');
+});
+
+test('[界面-4] a soft mask reading another graphic shows its subtree through that sprite at its box, by brightness for a colour channel', () => {
+  const { s } = setup();
+  const el = css(/** @type {any} */ (s.one('softy')).el);
+  assert.deepEqual([el.maskImage, el.maskSize, el.maskPosition, el.maskRepeat, el.maskMode], ['url("fade.webp")', '100.00px 50.00px', '110.00px 70.00px', 'no-repeat', 'luminance']);
+  assert.notEqual(el.overflow, 'hidden', 'not cut to its own rect');
 });
 
 test('[界面-31] an input field gets a text box in its text\'s style: placeholder, limit, changes, Enter, focus on tap', () => {
