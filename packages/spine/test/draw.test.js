@@ -6,7 +6,7 @@ import { updateOrder } from '../src/order.js';
 import { updateWorld } from '../src/world.js';
 import { drawList, colorsOf } from '../src/draw.js';
 import { triangulate, cutConvex, signedArea } from '../src/clip.js';
-import { bone, slot, skeleton, defaultSkin } from './skel.js';
+import { bone, slot, skeleton, defaultSkin, near } from './skel.js';
 
 /** A 10 × 10 region attachment centred at x, y (white). @param {string} name @param {number} x @param {number} y */
 const square = (name, x, y) => ({ name, type: 'region', path: name, x, y, rotation: 0, scaleX: 1, scaleY: 1, width: 10, height: 10, color: -1 });
@@ -82,8 +82,8 @@ function clipped(end) {
 
 test('[骨骼-17] clipping cuts the slots after it up to its end slot; its own slot as the end clips to the end', () => {
   const [one] = clipped(1);
-  assert.equal(area({ ...one, indices: one.indices.slice(0, one.indices.length - 6) }), 25);
-  assert.equal(area(one), 125);
+  assert.ok(near(area({ ...one, indices: one.indices.slice(0, one.indices.length - 6) }), 25));
+  assert.ok(near(area(one), 125));
   const [all] = clipped(0);
-  assert.equal(area(all), 50);
+  assert.ok(near(area(all), 50));
 });

@@ -7,7 +7,7 @@ import { TRANSFORM, placeBone, recoverApplied, updateBone } from './pose.js';
 /** @typedef {{ compress: boolean, stretch: boolean, uniform: boolean, alpha: number }} OneOptions */
 /** @typedef {{ bend: number, stretch: boolean, softness: number, alpha: number }} TwoOptions */
 
-const DEG = Math.PI / 180;
+import { PI, RAD_DEG } from './math.js';
 
 /** An angle in degrees brought into [−180, 180] by one turn. @param {number} r */
 const wrap = (r) => (r > 180 ? r - 360 : r < -180 ? r + 360 : r);
@@ -31,7 +31,7 @@ function towards(p, s, i, target) {
     const k = Math.abs(pa * pd - pb * pc) / (pa * pa + pc * pc), sa = pa / p.scaleX, sc = pc / p.scaleY;
     pb = -sc * k * p.scaleX;
     pd = sa * k * p.scaleY;
-    turn = Math.atan2(sc, sa) / DEG;
+    turn = Math.atan2(sc, sa) * RAD_DEG;
   }
   const x = target[0] - q.worldX, y = target[1] - q.worldY, d = pa * pd - pb * pc;
   return { tx: (x * pd - y * pb) / d - v.x, ty: (y * pa - x * pc) / d - v.y, turn };
@@ -44,7 +44,7 @@ function towards(p, s, i, target) {
  */
 export function pointBone(p, s, i, target, o) {
   const v = applied(p, s, i), bone = p.bones[i], mode = s.bones[i].transform, to = towards(p, s, i, target);
-  let tx = to.tx, ty = to.ty, rotation = -v.shearX - v.rotation + to.turn + Math.atan2(ty, tx) / DEG;
+  let tx = to.tx, ty = to.ty, rotation = -v.shearX - v.rotation + to.turn + Math.atan2(ty, tx) * RAD_DEG;
   if (v.scaleX < 0) rotation += 180;
   rotation = wrap(rotation);
   let sx = v.scaleX, sy = v.scaleY;
@@ -62,7 +62,11 @@ export function pointBone(p, s, i, target, o) {
 
 /**
  * The two angles (radians) of a parent with unequal scales: the child's reach is an ellipse; the exact solution when
- * the target is on it, else the nearest or farthest point of it.
+ * the target is on it, else the nearest or farthest point of it. At the solution's x, r, the child reaches e = r − l1
+ * along the parent: the target is on the ellipse when |e| ≤ a, at the height (b / a)·√(a² − e²) — in exact arithmetic
+ * the same as the runtimes' r² ≤ dd and √(dd − r²). Those cancel to rounding noise when the parent is squashed nearly
+ * flat, so there the runtimes' result jumps with the last bits of the target; we take the exact solution on purpose
+ * and may differ from them (骨骼-12).
  * @param {{ l1: number, l2: number, psx: number, psy: number, tx: number, ty: number, dd: number, bend: number }} k @returns {number[]}
  */
 function ellipseAngles(k) {
@@ -74,13 +78,13 @@ function ellipseAngles(k) {
     let q = Math.sqrt(d);
     if (c1 < 0) q = -q;
     q = -(c1 + q) / 2;
-    const r0 = q / c2, r1 = c / q, r = Math.abs(r0) < Math.abs(r1) ? r0 : r1;
-    if (r * r <= dd) {
-      const y = Math.sqrt(dd - r * r) * bend;
-      return [ta - Math.atan2(y, r), Math.atan2(y / psy, (r - l1) / psx)];
+    const r0 = q / c2, r1 = c / q, r = Math.abs(r0) < Math.abs(r1) ? r0 : r1, e = r - l1;
+    if (e * e <= aa) {
+      const h = Math.sqrt(aa - e * e) * bend;
+      return [ta - Math.atan2((h * psy) / psx, r), Math.atan2(h, e)];
     }
   }
-  const near = { angle: Math.PI, x: l1 - a, y: 0, dist: (l1 - a) * (l1 - a) }, far = { angle: 0, x: l1 + a, y: 0, dist: (l1 + a) * (l1 + a) };
+  const near = { angle: PI, x: l1 - a, y: 0, dist: (l1 - a) * (l1 - a) }, far = { angle: 0, x: l1 + a, y: 0, dist: (l1 + a) * (l1 + a) };
   c = -a * l1 / (aa - bb);
   if (c >= -1 && c <= 1) {
     c = Math.acos(c);
@@ -149,7 +153,7 @@ export function bendBones(p, s, bones, target, o) {
     a1 = Math.atan2(ty * a - tx * b, tx * a + ty * b);
   } else [a1, a2] = ellipseAngles({ l1, l2, psx, psy: f.psy, tx, ty, dd, bend: o.bend });
   const os = Math.atan2(f.cy, f.cx) * f.s2, pr = P.rotation, cr = C.rotation;
-  const t1 = wrap((a1 - os) / DEG + f.os1 - pr), t2 = wrap(((a2 + os) / DEG - C.shearX) * f.s2 + f.os2 - cr);
+  const t1 = wrap((a1 - os) * RAD_DEG + f.os1 - pr), t2 = wrap(((a2 + os) * RAD_DEG - C.shearX) * f.s2 + f.os2 - cr);
   placeBone(p, s, pi, { x: P.x, y: P.y, rotation: pr + t1 * o.alpha, scaleX: sx, scaleY: P.scaleY, shearX: 0, shearY: 0 });
   placeBone(p, s, ci, { x: f.cx, y: f.cy, rotation: cr + t2 * o.alpha, scaleX: C.scaleX, scaleY: C.scaleY, shearX: C.shearX, shearY: C.shearY });
 }

@@ -82,12 +82,12 @@ const SLOT = {
   /** @param {Pose} p @param {Skeleton} _s @param {Timeline} tl @param {{ i: number, t: number }} at */
   attachment(p, _s, tl, at) { p.slots[tl.target].attachment = /** @type {string | null} */ (tl.frames[at.i].values[0]); },
   /** @param {Pose} p @param {Skeleton} _s @param {Timeline} tl @param {{ i: number, t: number }} at */
-  color(p, _s, tl, at) { p.slots[tl.target].color = lerpColor(tl.frames, at, 0); },
+  color(p, _s, tl, at) { p.slots[tl.target].color = clamp01(lerpColor(tl.frames, at, 0)); },
   /** @param {Pose} p @param {Skeleton} _s @param {Timeline} tl @param {{ i: number, t: number }} at */
   twoColor(p, _s, tl, at) {
     const slot = p.slots[tl.target];
-    slot.color = lerpColor(tl.frames, at, 0);
-    slot.dark = lerpColor(tl.frames, at, 1).slice(0, 3).concat(1);
+    slot.color = clamp01(lerpColor(tl.frames, at, 0));
+    slot.dark = clamp01(lerpColor(tl.frames, at, 1).slice(0, 3)).concat(1);
   },
 };
 
@@ -116,6 +116,9 @@ const CONSTRAINT = {
 
 /** Every timeline kind but deform, by name. @type {Record<string, (p: Pose, s: Skeleton, tl: Timeline, at: { i: number, t: number }) => void>} */
 const KINDS = { ...BONE, ...SLOT, ...CONSTRAINT };
+
+/** A color's channels held to 0…1, as the runtimes' Color.set does: a curve may overshoot a key (骨骼-9). @param {number[]} c */
+const clamp01 = (c) => c.map((v) => (v < 0 ? 0 : v > 1 ? 1 : v));
 
 /** A frame's rgba8888 color (value k) towards the next. @param {Timeline['frames']} f @param {{ i: number, t: number }} at @param {number} k */
 function lerpColor(f, at, k) {
@@ -165,20 +168,39 @@ function deformTarget(s, tl) {
 }
 
 /**
- * The pose of an animation at a time over the setup pose (骨骼-9): every timeline that has begun sets its value; a
- * looping animation's time wraps at its duration. The pose's bones, slots and draw order must be in the setup pose.
- * @param {Pose} p @param {Skeleton} s @param {Animation} anim @param {number} time @param {boolean} loop
+ * The pose of an animation at a time over the setup pose (骨骼-9): every timeline that has begun sets its value — with
+ * the update order given, not those of an inactive bone, of a slot on one or of a constraint not in use, as the
+ * runtimes skip them; a looping animation's time wraps at its duration. The pose's bones, slots and draw order must be
+ * in the setup pose.
+ * @param {Pose} p @param {Skeleton} s @param {Animation} anim @param {number} time
+ * @param {boolean | { loop: boolean, order?: import('./order.js').Order | null }} how whether it loops; with an object, also the update order
  */
-export function applyAnimation(p, s, anim, time, loop) {
+export function applyAnimation(p, s, anim, time, how) {
+  const loop = typeof how === 'boolean' ? how : how.loop, order = typeof how === 'boolean' ? null : how.order ?? null;
   const t = loop && anim.duration > 0 ? time % anim.duration : time;
   for (const tl of anim.timelines) {
+    if (order && !inUse(s, order, tl)) continue;
     const at = frameAt(tl.frames, t);
     if (!at) continue;
     if (Object.hasOwn(KINDS, tl.kind)) KINDS[tl.kind](p, s, tl, at);
     else if (tl.kind === 'deform') applyDeform(p, s, tl, at);
   }
-  const order = anim.drawOrder.filter((k) => k.time <= t).at(-1);
-  if (order) p.drawOrder = drawOrderOf(order.offsets, s.slots.length);
+  const key = anim.drawOrder.filter((k) => k.time <= t).at(-1);
+  if (key) p.drawOrder = drawOrderOf(key.offsets, s.slots.length);
+}
+
+/** The constraint list a constraint timeline's kind acts on. @type {Record<string, 'ik' | 'transform' | 'path'>} */
+const CONSTRAINT_OF = { ik: 'ik', transform: 'transform', pathPosition: 'path', pathSpacing: 'path', pathMix: 'path' };
+
+/**
+ * Whether a timeline acts in a pose updated in this order (骨骼-9): a bone's while the bone is active, a slot's while its
+ * bone is, a constraint's while the constraint is in use.
+ * @param {Skeleton} s @param {import('./order.js').Order} order @param {Timeline} tl
+ */
+function inUse(s, order, tl) {
+  if (Object.hasOwn(BONE, tl.kind)) return order.active[tl.target];
+  if (Object.hasOwn(CONSTRAINT_OF, tl.kind)) return order.constraints[CONSTRAINT_OF[tl.kind]][tl.target];
+  return order.active[s.slots[tl.target].bone];
 }
 
 /** A deform timeline (骨骼-9): the frame's vertices towards the next's. @param {Pose} p @param {Skeleton} s @param {Timeline} tl @param {{ i: number, t: number }} at */

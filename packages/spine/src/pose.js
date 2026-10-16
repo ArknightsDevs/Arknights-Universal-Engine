@@ -4,7 +4,7 @@
 
 /** @typedef {import('./skeleton.js').Skeleton} Skeleton */
 
-const DEG = Math.PI / 180;
+import { DEG_RAD, RAD_DEG } from './math.js';
 
 /** A transform mode (骨骼-3): how a bone inherits its parent's transform. */
 export const TRANSFORM = Object.freeze({ NORMAL: 0, ONLY_TRANSLATION: 1, NO_ROTATION_OR_REFLECTION: 2, NO_SCALE: 3, NO_SCALE_OR_REFLECTION: 4 });
@@ -79,7 +79,7 @@ export function placeBone(p, s, i, v) {
   const b = p.bones[i], parent = s.bones[i].parent, sx = p.scaleX, sy = p.scaleY, ap = b.applied;
   ap.x = v.x; ap.y = v.y; ap.rotation = v.rotation; ap.scaleX = v.scaleX; ap.scaleY = v.scaleY; ap.shearX = v.shearX; ap.shearY = v.shearY;
   b.valid = true;
-  const rx = (v.rotation + v.shearX) * DEG, ry = (v.rotation + 90 + v.shearY) * DEG;
+  const rx = (v.rotation + v.shearX) * DEG_RAD, ry = (v.rotation + 90 + v.shearY) * DEG_RAD;
   const la = Math.cos(rx) * v.scaleX, lb = Math.cos(ry) * v.scaleY, lc = Math.sin(rx) * v.scaleX, ld = Math.sin(ry) * v.scaleY;
   if (parent < 0) {
     Object.assign(b, { a: la * sx, b: lb * sx, c: lc * sy, d: ld * sy, worldX: v.x * sx + p.x, worldY: v.y * sy + p.y });
@@ -124,12 +124,12 @@ function noRotation(b, m, sx, sy) {
     s = Math.abs(pa * pd - pb * pc) / s;
     pa /= sx; pc /= sy;
     pb = pc * s; pd = pa * s;
-    prx = Math.atan2(pc, pa) / DEG;
+    prx = Math.atan2(pc, pa) * RAD_DEG;
   } else {
     pa = 0; pc = 0;
-    prx = 90 - Math.atan2(pd, pb) / DEG;
+    prx = 90 - Math.atan2(pd, pb) * RAD_DEG;
   }
-  const rx = (b.rotation + b.shearX - prx) * DEG, ry = (b.rotation + b.shearY - prx + 90) * DEG;
+  const rx = (b.rotation + b.shearX - prx) * DEG_RAD, ry = (b.rotation + b.shearY - prx + 90) * DEG_RAD;
   const la = Math.cos(rx) * b.scaleX, lb = Math.cos(ry) * b.scaleY, lc = Math.sin(rx) * b.scaleX, ld = Math.sin(ry) * b.scaleY;
   return [(pa * la - pb * lc) * sx, (pa * lb - pb * ld) * sx, (pc * la + pd * lc) * sy, (pc * lb + pd * ld) * sy];
 }
@@ -139,15 +139,15 @@ function noRotation(b, m, sx, sy) {
  * @param {number} mode @param {Local} b @param {number[]} m the parent's matrix @param {number} sx @param {number} sy @returns {number[]}
  */
 function noScale(mode, b, m, sx, sy) {
-  const [pa, pb, pc, pd] = m, cos = Math.cos(b.rotation * DEG), sin = Math.sin(b.rotation * DEG);
+  const [pa, pb, pc, pd] = m, cos = Math.cos(b.rotation * DEG_RAD), sin = Math.sin(b.rotation * DEG_RAD);
   let za = (pa * cos + pb * sin) / sx, zc = (pc * cos + pd * sin) / sy, s = Math.sqrt(za * za + zc * zc);
   if (s > 0.00001) s = 1 / s;
   za *= s; zc *= s;
   s = Math.sqrt(za * za + zc * zc);
   if (mode === TRANSFORM.NO_SCALE && (pa * pd - pb * pc < 0) !== ((sx < 0) !== (sy < 0))) s = -s;
   const r = Math.PI / 2 + Math.atan2(zc, za), zb = Math.cos(r) * s, zd = Math.sin(r) * s;
-  const la = Math.cos(b.shearX * DEG) * b.scaleX, lb = Math.cos((90 + b.shearY) * DEG) * b.scaleY;
-  const lc = Math.sin(b.shearX * DEG) * b.scaleX, ld = Math.sin((90 + b.shearY) * DEG) * b.scaleY;
+  const la = Math.cos(b.shearX * DEG_RAD) * b.scaleX, lb = Math.cos((90 + b.shearY) * DEG_RAD) * b.scaleY;
+  const lc = Math.sin(b.shearX * DEG_RAD) * b.scaleX, ld = Math.sin((90 + b.shearY) * DEG_RAD) * b.scaleY;
   return [(za * la + zb * lc) * sx, (za * lb + zb * ld) * sx, (zc * la + zd * lc) * sy, (zc * lb + zd * ld) * sy];
 }
 
@@ -160,8 +160,8 @@ export function recoverApplied(p, s, i) {
   const b = p.bones[i], parent = s.bones[i].parent, v = b.applied;
   b.valid = true;
   if (parent < 0) {
-    Object.assign(v, { x: b.worldX, y: b.worldY, rotation: Math.atan2(b.c, b.a) / DEG, scaleX: Math.sqrt(b.a * b.a + b.c * b.c), scaleY: Math.sqrt(b.b * b.b + b.d * b.d), shearX: 0 });
-    v.shearY = Math.atan2(b.a * b.b + b.c * b.d, b.a * b.d - b.b * b.c) / DEG;
+    Object.assign(v, { x: b.worldX, y: b.worldY, rotation: Math.atan2(b.c, b.a) * RAD_DEG, scaleX: Math.sqrt(b.a * b.a + b.c * b.c), scaleY: Math.sqrt(b.b * b.b + b.d * b.d), shearX: 0 });
+    v.shearY = Math.atan2(b.a * b.b + b.c * b.d, b.a * b.d - b.b * b.c) * RAD_DEG;
     return;
   }
   const q = p.bones[parent], pid = 1 / (q.a * q.d - q.b * q.c), dx = b.worldX - q.worldX, dy = b.worldY - q.worldY;
@@ -174,13 +174,13 @@ export function recoverApplied(p, s, i) {
   if (v.scaleX > 0.0001) {
     const det = ra * rd - rb * rc;
     v.scaleY = det / v.scaleX;
-    v.shearY = Math.atan2(ra * rb + rc * rd, det) / DEG;
-    v.rotation = Math.atan2(rc, ra) / DEG;
+    v.shearY = Math.atan2(ra * rb + rc * rd, det) * RAD_DEG;
+    v.rotation = Math.atan2(rc, ra) * RAD_DEG;
   } else {
     v.scaleX = 0;
     v.scaleY = Math.sqrt(rb * rb + rd * rd);
     v.shearY = 0;
-    v.rotation = 90 - Math.atan2(rd, rb) / DEG;
+    v.rotation = 90 - Math.atan2(rd, rb) * RAD_DEG;
   }
 }
 

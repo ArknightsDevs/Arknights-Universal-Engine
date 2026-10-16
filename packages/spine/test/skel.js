@@ -39,5 +39,16 @@ export const transform = (bones, target, v = {}) => ({
 /** The default skin with attachments by slot and key. @param {{ slot: number, key: string, attachment: Record<string, unknown> }[]} attachments */
 export const defaultSkin = (attachments) => ({ name: 'default', bones: [], ik: [], transform: [], path: [], attachments });
 
-/** Close enough for floating point. @param {number} a @param {number} b @param {number} [eps] */
-export const near = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps;
+/**
+ * Close enough: the runtimes turn degrees to radians with their π, 3.1415927 (骨骼-7), so a quarter turn's cosine is
+ * 2e-8, not 0 — values near 1 agree to about 1e-7.
+ * @param {number} a @param {number} b @param {number} [eps]
+ */
+export const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
+
+/**
+ * Close enough where the runtimes' π shows more: an angle in degrees (a 90° turn reads back as 90.0000013°) or a point
+ * tens of units out (moved by about 2e-8 of its distance).
+ * @param {number} a @param {number} b
+ */
+export const nearPi = (a, b) => near(a, b, 1e-5);

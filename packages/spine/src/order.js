@@ -6,8 +6,9 @@
 /** @typedef {{ kind: 'bone' | 'ik' | 'transform' | 'path', index: number }} Step */
 /**
  * The update order: its steps; the bones whose applied values are reset to their local values first (a constraint
- * reads them before they are updated); which bones are active (a bone a skin needs is active only with that skin).
- * @typedef {{ steps: Step[], reset: number[], active: boolean[] }} Order
+ * reads them before they are updated); which bones are active (a bone a skin needs is active only with that skin) and
+ * which constraints are in use (骨骼-9: the timelines of inactive bones, their slots and unused constraints do nothing).
+ * @typedef {{ steps: Step[], reset: number[], active: boolean[], constraints: { ik: boolean[], transform: boolean[], path: boolean[] } }} Order
  */
 
 /** The bones each bone is the parent of, in order. @param {Skeleton} s */
@@ -71,7 +72,11 @@ export function updateOrder(s, skin = null) {
     if (k >= 0) sortPath(ctx, k);
   }
   s.bones.forEach((_, i) => bone(i));
-  return { steps, reset, active };
+  const constraints = {
+    ik: ik.map((c, i) => inUse(ctx, c, i, 'ik', c.target)), transform: transform.map((c, i) => inUse(ctx, c, i, 'transform', c.target)),
+    path: path.map((c, i) => inUse(ctx, c, i, 'path', s.slots[c.target].bone)),
+  };
+  return { steps, reset, active, constraints };
 }
 
 /**
