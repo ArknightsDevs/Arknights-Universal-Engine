@@ -2,12 +2,11 @@
 // with mix, bend direction, softness, and stretching or compressing the bone. Our own implementation of the Spine 3.8
 // semantics; no Spine runtime code.
 import { TRANSFORM, placeBone, recoverApplied, updateBone } from './pose.js';
+import { PI, RAD_DEG } from './math.js';
 
 /** @typedef {import('./skeleton.js').Skeleton} Skeleton @typedef {import('./pose.js').Pose} Pose */
 /** @typedef {{ compress: boolean, stretch: boolean, uniform: boolean, alpha: number }} OneOptions */
 /** @typedef {{ bend: number, stretch: boolean, softness: number, alpha: number }} TwoOptions */
-
-import { PI, RAD_DEG } from './math.js';
 
 /** An angle in degrees brought into [−180, 180] by one turn. @param {number} r */
 const wrap = (r) => (r > 180 ? r - 360 : r < -180 ? r + 360 : r);

@@ -1,10 +1,9 @@
 // A skeleton's pose (docs/spec/spine.md 骨骼-7, 骨骼-8): every bone's local values, its applied values and world
 // transform, every slot's color and attachment, every constraint's mix, the draw order. Our own implementation of the
 // Spine 3.8 semantics; no Spine runtime code.
+import { DEG_RAD, RAD_DEG } from './math.js';
 
 /** @typedef {import('./skeleton.js').Skeleton} Skeleton */
-
-import { DEG_RAD, RAD_DEG } from './math.js';
 
 /** A transform mode (骨骼-3): how a bone inherits its parent's transform. */
 export const TRANSFORM = Object.freeze({ NORMAL: 0, ONLY_TRANSLATION: 1, NO_ROTATION_OR_REFLECTION: 2, NO_SCALE: 3, NO_SCALE_OR_REFLECTION: 4 });
