@@ -50,6 +50,9 @@ test('[界面-4] texts: rich text, faces, alignment, outlines and shadows, best 
   assert.deepEqual(faceOf(DEFAULT_FONTS, 'Novecentowide-Normal', '12', 1), ['var(--aue-ui-latin)', 700]);
   assert.deepEqual(faceOf(DEFAULT_FONTS, undefined, 'PAUSE 2×', 0), ['var(--aue-ui-latin)', 500]);
   assert.deepEqual(faceOf(DEFAULT_FONTS, 'Unknown', '暂停中', 1), ['var(--aue-ui-cjk)', 700]);
+  assert.deepEqual(faceOf(DEFAULT_FONTS, 'SourceHanSansCN-Heavy', '房间', 0), ['var(--aue-ui-cjk)', 900]);
+  assert.deepEqual(faceOf(DEFAULT_FONTS, 'JovannyLemonad-Bender', '2', 0), ['var(--aue-ui-bender)', 400], 'the lobby\'s name for Bender');
+  assert.deepEqual(faceOf(DEFAULT_FONTS, 'AEwide', '1', 0), ['var(--aue-ui-latin)', 400], 'no AEwide: the Latin wide face');
   assert.deepEqual(alignCss(4), { justifyContent: 'center', alignItems: 'center', textAlign: 'center' });
   assert.deepEqual(alignCss(6), { justifyContent: 'flex-start', alignItems: 'flex-end', textAlign: 'left' });
   assert.equal(shadowCss({ color: [0, 0, 0, 1], d: [1, -2], kind: 'shadow' }), '1px 2px 0 rgba(0,0,0,1)');

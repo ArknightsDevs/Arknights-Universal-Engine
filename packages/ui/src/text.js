@@ -11,7 +11,8 @@ export const DEFAULT_FONTS = Object.freeze({
   'SourceHanSansCN-Medium': ['var(--aue-ui-cjk)', 500], 'SourceHanSansCN-Bold': ['var(--aue-ui-cjk)', 700], 'SourceHanSansCN-Heavy': ['var(--aue-ui-cjk)', 900],
   'Novecentowide-Light': ['var(--aue-ui-latin)', 300], 'Novecentowide-Normal': ['var(--aue-ui-latin)', 400],
   'Novecentowide-Medium': ['var(--aue-ui-latin)', 500], 'Novecentowide-Bold': ['var(--aue-ui-latin)', 700],
-  'Bender': ['var(--aue-ui-bender)', 400], 'Arvo-Bold': ['var(--aue-ui-arvo)', 700],
+  'Bender': ['var(--aue-ui-bender)', 400], 'JovannyLemonad-Bender': ['var(--aue-ui-bender)', 400], 'AEwide': ['var(--aue-ui-latin)', 400],
+  'Arvo-Bold': ['var(--aue-ui-arvo)', 700],
 });
 
 const LATIN = /^[ -~×]*$/;
