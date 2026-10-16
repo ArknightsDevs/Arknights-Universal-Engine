@@ -17,9 +17,10 @@ import { admit, dubOf, linesOf, newGate, voicesOf, LINE_TYPES } from './voices.j
  */
 /**
  * The voices' state (音频-4…6): the index, the directory, the volume, the chosen dub (null: each one's default), the
- * gate, the units that met an enemy since their deployment, the voice playing, the last voices said.
+ * gate, the units that met an enemy since their deployment, the voice playing, the last voices said (their files and
+ * lengths in seconds).
  * @typedef {{ index: VoiceIndex, base: string, gain: GainNode, chosen: string | null, gate: import('./voices.js').VoiceGate, met: Set<number>,
- *   now: { src: AudioBufferSourceNode, gain: GainNode } | null, said: (Voice & { file: string })[] }} Voices
+ *   now: { src: AudioBufferSourceNode, gain: GainNode } | null, said: (Voice & { file: string, length: number })[] }} Voices
  */
 /**
  * The player's state: the index, the context and its volumes, the decoded files, each bank's sounds now, the music,
@@ -128,7 +129,7 @@ async function say(P, v) {
   src.start(at);
   V.now = { src, gain };
   src.onended = () => { if (V.now?.src === src) V.now = null; };
-  V.said.push({ ...v, file });
+  V.said.push({ ...v, file, length: buf.duration });
   if (V.said.length > 20) V.said.shift();
 }
 
