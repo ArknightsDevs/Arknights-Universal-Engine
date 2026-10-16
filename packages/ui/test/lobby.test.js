@@ -110,6 +110,21 @@ test('[界面-24] [界面-25] a group that is not interactable: its buttons do n
   s.state('hot', 2);
   ui.tick(0);
   assert.deepEqual(/** @type {any} */ (s.one('hot_text')).tint, COLORS.disabled, 'a state the page set holds');
+  fire(hot.el, 'click');
+  assert.equal(taps, 1, 'disabled by the page');
+  s.state('locked/btn', 0);
+  fire(btn.el, 'click');
+  assert.equal(taps, 2, 'enabled by the page');
+});
+
+test('[界面-24] in a pack that does not mark tap targets (the battle pack) a button saved as not interactable still works', () => {
+  const battle = createUi({ pack: /** @type {any} */ ({ ...pack(), screens: { m: N('m', {}, [N('pause', { button: { interactable: 0, transition: 1, colors: COLORS, target: '@pause' }, ...img() })]) } }), host: fakeHost(fakeDocument()) });
+  const bs = battle.open('m');
+  battle.tick(0);
+  let taps = 0;
+  bs.tap('pause', () => { taps++; });
+  fire(/** @type {any} */ (bs.one('pause')).el, 'click');
+  assert.equal(taps, 1);
 });
 
 test('[界面-25] a switch shows its on or off part; with a fade time both fade, the hidden one turning off at the end', () => {
