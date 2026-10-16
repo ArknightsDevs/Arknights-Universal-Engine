@@ -8,8 +8,43 @@ import { stencilUri } from './raster.js';
 import { bestFit, fitSize } from './text.js';
 import { applyScaler, fitRect, screenBox } from './fit.js';
 import { rayPass } from './rays.js';
+import { refNode } from './node.js';
 
 /** @typedef {import('./node.js').UiNode} UiNode */
+
+/**
+ * A soft mask that reads another node's graphic (界面-4): its subtree shows through that graphic's sprite at the
+ * graphic's box — by the sprite's alpha, or by its brightness for a colour channel (INF-0192) — and not outside it.
+ * @param {UiNode} s @param {{ ch: string, mask?: string }} sm
+ */
+function softMask(s, sm) {
+  const m = refNode(s, sm.mask), sp = m ? maskSprite(m) : null;
+  if (!m?.box || !sp) return;
+  const [x, y] = offsetIn(m, s), url = `url("${s.scr.ctx.base}${sp.uri}")`, size = `${m.box[2].toFixed(2)}px ${m.box[3].toFixed(2)}px`, at = `${x.toFixed(2)}px ${y.toFixed(2)}px`;
+  // not clipped to the node's own box: the mask graphic's box may be larger
+  for (const [k, v] of [['maskImage', url], ['maskSize', size], ['maskPosition', at], ['maskRepeat', 'no-repeat'], ['maskClip', 'no-clip']]) { sty(s, s.el, k, v); sty(s, s.el, `webkit${k[0].toUpperCase()}${k.slice(1)}`, v); }
+  sty(s, s.el, 'maskMode', sm.ch === 'a' ? 'alpha' : 'luminance');
+}
+
+/** The sprite a node's graphic draws, or null. @param {UiNode} m */
+function maskSprite(m) {
+  const key = m.sprite ?? m.n.comps.img?.ref;
+  return key ? m.scr.ctx.pack.sprites[key] ?? null : null;
+}
+
+/** A node's box's corner in an ancestor's box. @param {UiNode} m @param {UiNode} s @returns {number[]} */
+function offsetIn(m, s) {
+  let x = 0, y = 0;
+  for (let n = /** @type {UiNode | null} */ (m); n && n !== s; n = n.parent) { x += n.box?.[0] ?? 0; y += n.box?.[1] ?? 0; }
+  return [x, y];
+}
+
+/** The masks over a laid-out node's subtree: a soft mask reading another graphic, the stencil groups. @param {UiNode} s @param {number} w @param {number} h */
+function masks(s, w, h) {
+  if (s.n.comps.softMask?.mask) softMask(s, s.n.comps.softMask);
+  if (s.stW) applyStencil(s, s.stW, w, h);
+  for (const k of s.kids) if (k.stOuter && k.box) applyStencil(k, k.stOuter, k.box[2], k.box[3], [k.box[0], k.box[1]]);
+}
 
 /** A node not laid out: hidden, and its subtree not shown. @param {UiNode} s */
 function markHidden(s) { for (const k of s.kids) { k.shown = false; markHidden(k); } }
@@ -93,6 +128,5 @@ export function layout(s, PW, PH, ppivot, shownUp) {
   if (s.n.comps.lg) arrange(s, w, h);
   else if (s.n.comps.grid) gridArrange(s, w, h);
   for (const k of s.kids) layout(k, w, h, rt.pivot, s.shown);
-  if (s.stW) applyStencil(s, s.stW, w, h);
-  for (const k of s.kids) if (k.stOuter && k.box) applyStencil(k, k.stOuter, k.box[2], k.box[3], [k.box[0], k.box[1]]);
+  masks(s, w, h);
 }
