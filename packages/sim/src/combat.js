@@ -22,7 +22,7 @@ import { palsyInterrupts, inflict } from './status.js';
 import { draw } from './rng.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
 import { mayAttack, healsNow, healerNow, inSkill, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale, fortressTargets, fortressSplash } from './modes.js';
-import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitDealt, traitAsk, traitSkip, summonHeld } from './traits.js';
+import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitDealt, traitAsk, traitSkip, summonHeld, dollNow } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_CUT_FRAMES } from './swing.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
@@ -50,7 +50,7 @@ export function targetsOf(w, c, op) {
   const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], t = traitOfDef(d);
   const keys = reachKeys(c, op);
   if (healsNow(c, op)) return healOrder(c, op, w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && inKeys(u, keys, grid) && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal));
-  const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id, air = t.idleAirOnly && !inSkill(op), any = { canHitFly: true }, sel = { canHitFly: t.antiAir };
+  const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id, air = t.idleAirOnly && !inSkill(op), any = { canHitFly: true }, sel = { canHitFly: t.antiAir || !!dollNow(c, op)?.antiAir };
   const bySummon = t.summonBlocked ? summonHeld(w, op) : () => false, skip = traitSkip(w, c, op);
   const cands = w.units.filter((u) => hostile(u)
     && ((held(u) && selectable(u, any)) || ((bySummon(u) || (inKeys(u, keys, grid, t.rangeTiles) && (!air || statsOf(u).flying))) && selectable(u, sel))) && !skip?.(u));

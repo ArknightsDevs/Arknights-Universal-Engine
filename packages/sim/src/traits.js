@@ -68,6 +68,21 @@ export function traitOfDef(d) {
 /** A deployed operator's trait. @param {Content} c @param {Unit} op @returns {TraitDef} */
 export const traitOf = (c, op) => traitOfDef(c.operators[op.key]);
 
+/** The key of the buff that holds a 傀儡师's phase (职业-15). */
+export const DOLL = 'doll';
+/** The phases, as the buff's value (职业-15): switching to the 替身, the 替身, switching back. Its own form has no buff. */
+export const DOLL_PHASE = Object.freeze({ IN: 1, DOLL: 2, OUT: 3 });
+
+/** A 傀儡师's phase: 0 in its own form (职业-15). @param {Unit} u */
+export const dollPhase = (u) => u.buffs.find((b) => b.key === DOLL)?.value ?? 0;
+
+/**
+ * A 傀儡师's 替身 while it fights (职业-15 phase 2, 职业-16): its trait's `doll`; null in another phase, or for a unit
+ * that is not one.
+ * @param {Content} c @param {Unit} op @returns {TraitDef['doll']}
+ */
+export const dollNow = (c, op) => (dollPhase(op) === DOLL_PHASE.DOLL ? traitOf(c, op).doll : null);
+
 /**
  * Whether an enemy is blocked by one of an operator's own summons (职业-14), as a test made for the units of now.
  * @param {World} w @param {Unit} op @returns {(e: Unit) => boolean}

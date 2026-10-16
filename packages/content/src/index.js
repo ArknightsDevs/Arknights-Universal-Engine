@@ -55,8 +55,15 @@ export function levelContent(id, difficulty) {
   return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), devices: lv.devices, operators: skeletonContent.operators, behaviors: BEHAVIORS });
 }
 
-/** The talent fields of an operator record (干员-6…干员-14): a kit applies its talents itself (兼容-6). @param {import('@aue/sim').OperatorDef} op */
-const withoutTalents = ({ talentBb, fieldTalents, rangeTalents, critTalents, timedTalents, deployTalents, ...rest }) => /** @type {import('@aue/sim').OperatorDef} */ (rest);
+/**
+ * An operator record without its talent fields (干员-6…干员-15) — a 傀儡师's 替身 without its talents' parts, its range
+ * kept (职业-16) —: a kit applies its talents itself (兼容-6).
+ * @param {import('@aue/sim').OperatorDef} op @returns {import('@aue/sim').OperatorDef}
+ */
+function withoutTalents({ talentBb, fieldTalents, rangeTalents, critTalents, timedTalents, deployTalents, ...rest }) {
+  const doll = rest.trait?.doll;
+  return doll ? { ...rest, trait: { ...rest.trait, doll: { ...doll, attack: true, aura: null } } } : rest;
+}
 
 /**
  * The content of a match (同步-9): its level at its difficulty, and every seat's deck at its trainings — an operator's key
