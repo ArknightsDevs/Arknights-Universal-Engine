@@ -31,7 +31,7 @@
 | [0015](0015-multiplayer-in-core.md) | 多玩家能力放进内核，玩法规则放进插件 | 已采纳 | 模拟内核 |
 | [0016](0016-arbitrary-operator-levels.md) | 任意练度在数据层计算 | 已采纳 | 内容兼容 |
 | [0017](0017-data-pipeline-auto-update.md) | 数据流程：定时自动更新，可复现，握手比对数据哈希 | 已采纳 | 数据 |
-| [0018](0018-asset-repository-and-hosting.md) | 素材：独立素材仓库，开服时下载固定版本并自己提供 | 已采纳 | 素材 |
+| [0018](0018-asset-repository-and-hosting.md) | 素材：独立素材仓库，开服时下载固定版本并自己提供 | 已取代（见 0062） | 素材 |
 | [0019](0019-operator-spine-source.md) | 干员战斗 Spine 来自 HX0922，固定提交 | 已采纳 | 素材 |
 | [0020](0020-texture-format-webp.md) | 贴图格式：MVP 先用 WebP，实测后再决定 KTX2 | 已采纳 | 素材 |
 | [0021](0021-battle-ui-restoration.md) | 界面：战斗界面按原版还原，战斗外界面自己设计 | 已采纳 | 素材 |
@@ -75,3 +75,4 @@
 | [0059](0059-player-chosen-performance.md) | 画面开销由玩家选择，不设统一预算 | 已采纳 | 渲染 |
 | [0060](0060-frame-cost-memos.md) | 帧内反复求值的纯函数加备忘，按输入逐项核对 | 已采纳 | 模拟内核 |
 | [0061](0061-voices-and-battle-music-source.md) | 战斗语音和缺的战斗曲来自 ArknightsAssets2，固定提交，进入 v0.1.0 | 已采纳 | 素材 |
+| [0062](0062-release-bundles-with-assets.md) | 发布包附带素材和 kit | 已采纳 | 素材 |
