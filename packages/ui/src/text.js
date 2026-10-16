@@ -86,13 +86,16 @@ export function bestFit(measured, at, rect, range) {
   return Math.max(min, Math.min(max, Math.floor(at * k)));
 }
 
+/** The outline's width in units for each unit of the material's width (界面-29: measured on the original's recording). */
+export const OUTLINE_UNIT = 0.1;
+
 /**
- * An outline material around a text (界面-29): its width in pixels all round in its colour, as sixteen copies of the
- * text on a circle.
+ * An outline material around a text (界面-29): a tenth of its width in units all round in its colour, as sixteen
+ * copies of the text on a circle.
  * @param {{ width?: number, color?: number[] }} mat
  */
 export function ringCss(mat) {
-  const w = mat.width ?? 1, c = mat.color ?? [0, 0, 0, 1];
+  const w = (mat.width ?? 1) * OUTLINE_UNIT, c = mat.color ?? [0, 0, 0, 1];
   const col = `rgba(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)},${c[3]})`;
   /** @type {string[]} */
   const out = [];
