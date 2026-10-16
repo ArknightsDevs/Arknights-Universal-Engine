@@ -30,6 +30,7 @@ const pack = () => ({
       N('gone', img('sprite/missing')),
       N('hidden', img('sprite/a', { mat: { kind: 'none' } })),
       N('add', img('sprite/a', { mat: { kind: 'add' } })),
+      N('warped', img('sprite/a', { mat: { kind: 'none', fx: 'warp', noise: 'sprite/a', speed: [0.01, 0.01], amount: [0.02, 0.02] } })),
       N('label', { text: { text: 'hi', size: 20, style: 0, align: 4, color: [1, 1, 1, 1], best: 0, hwrap: 1, font: 'Novecentowide-Normal' } }),
       N('fit', { text: { text: '12345', size: 70, style: 0, align: 4, color: [1, 1, 1, 1], best: 1, min: 1, max: 70, hwrap: 0 }, csf: [0, 0] }, [], R({ size: [100, 92] })),
       N('btn', { button: PRESS, ...img('sprite/a') }, [N('collider', { nodraw: 'raycast' })]),
@@ -137,6 +138,10 @@ test('[界面-4] images: the sprite tinted, the colour without one, nothing for 
   assert.equal(css(plain.g).backgroundImage, 'url("/avatar.png")');
   assert.equal(css(gone.g).backgroundImage, 'url("/u/sprites/a.webp")');
   assert.equal(css(/** @type {any} */ (scr.one('add')).g).mixBlendMode, 'plus-lighter');
+  // an effect the page cannot run (no WebGL here): the image drawn plainly (界面-9, 界面-36)
+  const warped = /** @type {any} */ (scr.one('warped'));
+  assert.equal(css(warped.g).backgroundImage, 'url("/u/sprites/a.webp")');
+  assert.equal(warped.shade, null);
   assert.equal(css(/** @type {any} */ (scr.one('masked')).el).overflow, 'hidden');
   scr.text('label', '<b>x</b>');
   assert.equal(/** @type {any} */ (scr.one('label')).t.textContent, 'x');
