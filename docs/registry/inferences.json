@@ -1167,5 +1167,26 @@
     "statement": "持续一段时间的携带物效果只给部署那一刻在场的干员，之后部署的干员不得；喷射汽水机喷技能弹药数（20）次，每次在双方在场的干员里不重复地随机选至多 3 名；两名玩家同时部署同一种携带物时效果叠加。",
     "basis": "PRTS 写的是「部署后N秒内，使双方（所有）在场干员……」与「持续向双方干员随机喷射」，没有说之后部署的干员是否得到、喷几次和怎么选目标；喷射汽水机的技能是 AMMO 型、duration 20，攻击间隔 0.2 秒。",
     "status": "待查证"
+  },
+  {
+    "id": "INF-0168",
+    "clause": "音频-1",
+    "statement": "音效库的权重都为 0 时等概率选；同时在播的个数到上限且不挤掉最早的一个时，这次不播。",
+    "basis": "audio_data.json 给了 weight、maxSoundAllowed 与 popOldest，但没有说明权重全为 0 和上限满时不挤的处理。",
+    "status": "待查证"
+  },
+  {
+    "id": "INF-0169",
+    "clause": "音频-2",
+    "statement": "部署、撤退、阵亡、敌人进入目标点、技能开始、合作模式的失守、复活、费用请求被拒、阶段结算、中场休整、协作者的暂停与加速申请按音频-2 的表对应 audio_data.json 的音效库；单位没有自己的库时，召唤物和携带物用 token 的库，干员用 char 的库，敌人用 enemy 的库。",
+    "basis": "库名与事件的名字一一对得上（ON_UNIT_BORN、ON_CHARACTER_WITHDRAW、ON_UNIT_DEAD、ON_ENEMY_REACHED_EXIT、ON_SKILL_START、ON_COOPERATE_*），但游戏里触发它们的确切时机没有公开文档；携带物在数据里没有通用的 trap 库。",
+    "status": "待查证"
+  },
+  {
+    "id": "INF-0170",
+    "clause": "音频-3",
+    "statement": "战斗音乐在所有座位就绪、战斗开始时开始，先前奏后循环；战斗结束时按交叉淡化秒数淡出。",
+    "basis": "bgmBanks 给了前奏、循环和 crossfade，没有写开始与停止的时机。",
+    "status": "待查证"
   }
 ]
