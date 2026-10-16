@@ -800,8 +800,8 @@
   {
     "id": "INF-0115",
     "clause": "界面-4",
-    "statement": "预制件要的字体换成页面提供的字体（思源黑体系换成中文字体，Novecento 系换成拉丁字体，JovannyLemonad-Bender 换成 Bender，AEwide 换成拉丁字体）；模板遮罩按兄弟节点分组：第一个带模板的图形写、后面的读。",
-    "basis": "原版的字体不在素材里，页面用外观相近的字体；JovannyLemonad-Bender 与 Bender 是同一款字体（Jovanny Lemonad 是 Bender 作者的字体工作室名），AEwide 找不到公开来源，只用在活动界面的大号数字上；模板遮罩的分组规则按争锋频道界面复刻里对照原版截图得出的规则。",
+    "statement": "预制件要的字体换成页面提供的字体（思源黑体系换成中文字体，Novecento 系换成拉丁字体并按大写显示，JovannyLemonad-Bender 换成 Bender，AEwide 换成拉丁字体）；模板遮罩按兄弟节点分组：第一个带模板的图形写、后面的读。",
+    "basis": "原版的字体不在素材里，页面用外观相近的字体；JovannyLemonad-Bender 与 Bender 是同一款字体（Jovanny Lemonad 是 Bender 作者的字体工作室名），AEwide 找不到公开来源，只用在活动界面的大号数字上；模板遮罩的分组规则按争锋频道界面复刻里对照原版截图得出的规则；Novecento 系字体的小写字母位置画的也是大写（同一段文字用它与用别的字体渲染对照），所以换成的字体按大写显示。",
     "status": "待查证"
   },
   {

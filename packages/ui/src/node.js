@@ -20,7 +20,7 @@ import { drawable } from './paint.js';
  * and the drawn images cached by key, a text measurer, the clock; whether the pack marks its tap targets (界面-24),
  * the page's sound for the pack's sound banks (界面-32), the behaviours advanced with the clock (scroll views, tweens),
  * and the canvas's scale (CSS pixels a reference pixel).
- * @typedef {{ doc: Document, pack: UiPack, base: string, fonts: Readonly<Record<string, [string, number]>>,
+ * @typedef {{ doc: Document, pack: UiPack, base: string, fonts: Readonly<Record<string, import('./text.js').Face>>,
  *   imgs: Map<string, HTMLImageElement>, cache: Map<string, string>, measure: (s: UiNode, size?: number) => number[],
  *   time: number, rays?: boolean, sound?: (bank: string) => void, tickers?: Set<Ticker>, k?: number }} Ctx
  */
@@ -215,8 +215,8 @@ export function setText(s, value) {
   s.txt = txt; s.t.dataset.set = '1';
   if (tc.rich !== 0 && isRich(txt)) s.t.innerHTML = richHtml(txt);
   else s.t.textContent = txt;
-  const [family, weight] = faceOf(s.scr.ctx.fonts, tc.font, txt, tc.style);
-  s.t.style.fontFamily = family; s.t.style.fontWeight = String(weight);
+  const [family, weight, caps] = faceOf(s.scr.ctx.fonts, tc.font, txt, tc.style);
+  s.t.style.fontFamily = family; s.t.style.fontWeight = String(weight); s.t.style.textTransform = caps ? 'uppercase' : '';
 }
 
 /**

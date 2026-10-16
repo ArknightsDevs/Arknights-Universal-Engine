@@ -17,9 +17,10 @@ import { rgba } from './paint.js';
  * @param {UiNode} s @param {Record<string, any>} tc the text @param {number[] | undefined} caret @param {string} sample
  */
 function boxStyle(s, tc, caret, sample) {
-  const [family, weight] = faceOf(s.scr.ctx.fonts, tc.font, sample, tc.style ?? 0);
+  const [family, weight, caps] = faceOf(s.scr.ctx.fonts, tc.font, sample, tc.style ?? 0);
   return { position: 'absolute', left: '0', top: '0', width: '100%', height: '100%', margin: '0', padding: '0', border: '0',
     outline: 'none', background: 'transparent', pointerEvents: 'auto', boxSizing: 'border-box', fontFamily: family, fontWeight: String(weight),
+    textTransform: caps ? 'uppercase' : 'none',
     fontSize: `${tc.size ?? 20}px`, color: rgba(tc.color ?? [0, 0, 0, 1]), textAlign: ['left', 'center', 'right'][(tc.align ?? 0) % 3],
     caretColor: rgba(caret ?? [0, 0, 0, 1]) };
 }

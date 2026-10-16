@@ -26,10 +26,10 @@ export const UI_CSS = `.aue-ui{position:absolute;inset:0;overflow:hidden;pointer
  */
 function measureText(m, cache, s, size) {
   const t = /** @type {HTMLElement} */ (s.t), st = t.style, fs = size ? `${size}px` : st.fontSize, wrap = s.wrapW ? Math.round(s.w) : 0;
-  const key = `${t.innerHTML}|${fs}|${st.fontFamily}|${st.fontWeight}|${wrap}`;
+  const key = `${t.innerHTML}|${fs}|${st.fontFamily}|${st.fontWeight}|${st.textTransform}|${wrap}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  Object.assign(m.style, { fontSize: fs, fontFamily: st.fontFamily, fontWeight: st.fontWeight, whiteSpace: wrap ? 'pre-wrap' : 'pre',
+  Object.assign(m.style, { fontSize: fs, fontFamily: st.fontFamily, fontWeight: st.fontWeight, textTransform: st.textTransform, whiteSpace: wrap ? 'pre-wrap' : 'pre',
     wordBreak: wrap ? 'break-all' : 'normal', width: wrap ? `${wrap}px` : 'auto' });
   m.innerHTML = t.innerHTML;
   const v = [m.offsetWidth, m.offsetHeight];
@@ -40,7 +40,7 @@ function measureText(m, cache, s, size) {
 
 /**
  * Creates the UI over a host element.
- * @param {{ pack: UiPack, host: HTMLElement, base?: string, fonts?: Readonly<Record<string, [string, number]>>, doc?: Document,
+ * @param {{ pack: UiPack, host: HTMLElement, base?: string, fonts?: Readonly<Record<string, import('./text.js').Face>>, doc?: Document,
  *   sound?: (bank: string) => void }} o
  *   `base`: the URL the pack's sprite files are relative to; `fonts`: the page's faces for the prefabs' fonts; `sound`:
  *   plays a sound bank of the pack (clip events, click sounds; 界面-32)

@@ -2,15 +2,20 @@
 // nine alignments, outlines and shadows.
 
 /**
- * The page's faces for the fonts the prefabs name: [CSS font family, weight]. Hosts load the faces and may pass their
- * own table; a name not in it falls back by the text — a Latin-only text to the Latin face, else the CJK face.
- * @type {Readonly<Record<string, [string, number]>>}
+ * A face of the page: [CSS font family, weight], and `true` third when the prefab's font draws every letter as a capital
+ * (the page shows the text in capitals then, 界面-4).
+ * @typedef {[string, number] | [string, number, boolean]} Face
+ */
+/**
+ * The page's faces for the fonts the prefabs name. Hosts load the faces and may pass their own table; a name not in it
+ * falls back by the text — a Latin-only text to the Latin face, else the CJK face.
+ * @type {Readonly<Record<string, Face>>}
  */
 export const DEFAULT_FONTS = Object.freeze({
   'NotoSansHans-Regular': ['var(--aue-ui-cjk)', 400], 'NotoSansHans-Medium': ['var(--aue-ui-cjk)', 500], 'NotoSansHans-Bold': ['var(--aue-ui-cjk)', 700],
   'SourceHanSansCN-Medium': ['var(--aue-ui-cjk)', 500], 'SourceHanSansCN-Bold': ['var(--aue-ui-cjk)', 700], 'SourceHanSansCN-Heavy': ['var(--aue-ui-cjk)', 900],
-  'Novecentowide-Light': ['var(--aue-ui-latin)', 300], 'Novecentowide-Normal': ['var(--aue-ui-latin)', 400],
-  'Novecentowide-Medium': ['var(--aue-ui-latin)', 500], 'Novecentowide-Bold': ['var(--aue-ui-latin)', 700],
+  'Novecentowide-Light': ['var(--aue-ui-latin)', 300, true], 'Novecentowide-Normal': ['var(--aue-ui-latin)', 400, true],
+  'Novecentowide-Medium': ['var(--aue-ui-latin)', 500, true], 'Novecentowide-Bold': ['var(--aue-ui-latin)', 700, true],
   'Bender': ['var(--aue-ui-bender)', 400], 'JovannyLemonad-Bender': ['var(--aue-ui-bender)', 400], 'AEwide': ['var(--aue-ui-latin)', 400],
   'Arvo-Bold': ['var(--aue-ui-arvo)', 700],
 });
@@ -36,16 +41,17 @@ export function richHtml(txt) {
 }
 
 /**
- * The face of a text: its prefab's font from the table, else by its characters; bold (style bit 1) is at least 700.
- * @param {Readonly<Record<string, [string, number]>>} fonts @param {string | undefined} name @param {string} txt
+ * The face of a text: its prefab's font from the table, else by its characters; bold (style bit 1) is at least 700;
+ * whether it shows in capitals.
+ * @param {Readonly<Record<string, Face>>} fonts @param {string | undefined} name @param {string} txt
  * @param {number} style Unity's font style (1 bold, 2 italic)
- * @returns {[string, number]}
+ * @returns {[string, number, boolean]}
  */
 export function faceOf(fonts, name, txt, style) {
   const bold = (style & 1) !== 0, f = name ? fonts[name] : undefined;
-  if (f) return [f[0], bold ? Math.max(700, f[1]) : f[1]];
+  if (f) return [f[0], bold ? Math.max(700, f[1]) : f[1], f[2] === true];
   const latin = LATIN.test(txt.replace(/<[^>]+>/g, ''));
-  return [latin ? 'var(--aue-ui-latin)' : 'var(--aue-ui-cjk)', bold ? 700 : 500];
+  return [latin ? 'var(--aue-ui-latin)' : 'var(--aue-ui-cjk)', bold ? 700 : 500, false];
 }
 
 /**

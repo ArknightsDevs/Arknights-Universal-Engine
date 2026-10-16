@@ -46,13 +46,13 @@ test('[界面-4] texts: rich text, faces, alignment, outlines and shadows, best 
   assert.ok(!isRich('a < b'));
   assert.equal(richHtml('<b>x</b> & <color=#ff0000>y</color><size=20>z</size><i>w</i> <q>'),
     '<b>x</b> &amp; <span style="color:#ff0000">y</span><span style="font-size:20px">z</span><i>w</i> &lt;q&gt;');
-  assert.deepEqual(faceOf(DEFAULT_FONTS, 'Novecentowide-Normal', '12', 0), ['var(--aue-ui-latin)', 400]);
-  assert.deepEqual(faceOf(DEFAULT_FONTS, 'Novecentowide-Normal', '12', 1), ['var(--aue-ui-latin)', 700]);
-  assert.deepEqual(faceOf(DEFAULT_FONTS, undefined, 'PAUSE 2×', 0), ['var(--aue-ui-latin)', 500]);
-  assert.deepEqual(faceOf(DEFAULT_FONTS, 'Unknown', '暂停中', 1), ['var(--aue-ui-cjk)', 700]);
-  assert.deepEqual(faceOf(DEFAULT_FONTS, 'SourceHanSansCN-Heavy', '房间', 0), ['var(--aue-ui-cjk)', 900]);
-  assert.deepEqual(faceOf(DEFAULT_FONTS, 'JovannyLemonad-Bender', '2', 0), ['var(--aue-ui-bender)', 400], 'the lobby\'s name for Bender');
-  assert.deepEqual(faceOf(DEFAULT_FONTS, 'AEwide', '1', 0), ['var(--aue-ui-latin)', 400], 'no AEwide: the Latin wide face');
+  assert.deepEqual(faceOf(DEFAULT_FONTS, 'Novecentowide-Normal', '12', 0), ['var(--aue-ui-latin)', 400, true], 'a capitals-only font: in capitals');
+  assert.deepEqual(faceOf(DEFAULT_FONTS, 'Novecentowide-Normal', '12', 1), ['var(--aue-ui-latin)', 700, true]);
+  assert.deepEqual(faceOf(DEFAULT_FONTS, undefined, 'PAUSE 2×', 0), ['var(--aue-ui-latin)', 500, false]);
+  assert.deepEqual(faceOf(DEFAULT_FONTS, 'Unknown', '暂停中', 1), ['var(--aue-ui-cjk)', 700, false]);
+  assert.deepEqual(faceOf(DEFAULT_FONTS, 'SourceHanSansCN-Heavy', '房间', 0), ['var(--aue-ui-cjk)', 900, false]);
+  assert.deepEqual(faceOf(DEFAULT_FONTS, 'JovannyLemonad-Bender', '2', 0), ['var(--aue-ui-bender)', 400, false], 'the lobby\'s name for Bender');
+  assert.deepEqual(faceOf(DEFAULT_FONTS, 'AEwide', '1', 0), ['var(--aue-ui-latin)', 400, false], 'no AEwide: the Latin wide face');
   assert.deepEqual(alignCss(4), { justifyContent: 'center', alignItems: 'center', textAlign: 'center' });
   assert.deepEqual(alignCss(6), { justifyContent: 'flex-start', alignItems: 'flex-end', textAlign: 'left' });
   assert.equal(shadowCss({ color: [0, 0, 0, 1], d: [1, -2], kind: 'shadow' }), '1px 2px 0 rgba(0,0,0,1)');
