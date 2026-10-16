@@ -12,6 +12,7 @@ export { evalKeys, applyCurve, spriteAt } from './curves.js';
 export { richHtml, isRich, faceOf, alignCss, shadowCss, bestFit, DEFAULT_FONTS } from './text.js';
 export { fillCss, gradientCss, sliceOf, isSliced, drawable, blendOf, uvSpeed, rgba, ringAlpha, ringMask } from './paint.js';
 export { drawNine, wipeAlpha } from './raster.js';
+export { shaded, noiseOffset, warpUv, fadeAlpha } from './shade.js';
 export { createBattleHud, costView, costFlash, flashColor, speedSprite } from './battle/hud.js';
 export { createCards, cardViews, cardWidth, waitText, placeSummons } from './battle/cards.js';
 export { createCoopTop, coopSpeedSprite, reviveText } from './battle/coop.js';

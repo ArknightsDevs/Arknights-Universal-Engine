@@ -1,7 +1,8 @@
 // Graphics (docs/spec/ui.md 界面-4, 界面-9): an image's sprite tinted by its colour — simple, sliced, tiled or filled —,
 // a graphic without a sprite as its colour, gradients, the materials the engine knows (additive blending, scrolling
-// UVs), written as CSS on the node's graphic div.
+// UVs), written as CSS on the node's graphic div; an image drawn through its effect (界面-36) on a canvas in it.
 import { slicedUri, tintedUri, wipeMaskUri } from './raster.js';
+import { paintShaded, shaded, unshade } from './shade.js';
 
 /** @typedef {import('./node.js').UiNode} UiNode */
 /**
@@ -11,9 +12,13 @@ import { slicedUri, tintedUri, wipeMaskUri } from './raster.js';
  * an outline around a text (界面-29), grey, or something the engine does not draw ('none'; with an effect hint `fx`
  * it is drawn plainly by its blending, 界面-9).
  * A wipe (fx 'dissolve') carries its main colour and gain, softness, intensity, whether the image's colour tints it,
- * and its wipe texture's sprite (`noise`).
+ * and its wipe texture's sprite (`noise`). A warp (fx 'warp', 界面-36) carries its noise's sprite and tiling (`st`:
+ * scale, offset), the noise's scroll (`speed`) and how far the UVs are pulled (`amount`, UV units), the image's scroll
+ * (`scroll`); a fade (fx 'fade') its noise, tiling and scroll, its threshold (`di`), width (`border`), gain
+ * (`opacity`), main colour and the image's scroll.
  * @typedef {{ kind: 'blend' | 'add' | 'uv' | 'rect' | 'circle' | 'outline' | 'grey' | 'none', uv?: number[], add?: boolean, shape?: number[],
- *   fx?: string, width?: number, color?: number[], main?: number[], gain?: number, soft?: number, di?: number, rgb?: number, noise?: string }} Material
+ *   fx?: string, width?: number, color?: number[], main?: number[], gain?: number, soft?: number, di?: number, rgb?: number, noise?: string,
+ *   st?: number[], speed?: number[], amount?: number[], scroll?: number[], border?: number, opacity?: number }} Material
  */
 
 /** Whether a graphic with this material is drawn (界面-9; no material: the default). @param {Material | undefined} mat */
@@ -159,7 +164,16 @@ function imageBackground(s, im, col, w, h) {
 
 /** An image's graphic. @param {UiNode} s @param {HTMLElement} g @param {Record<string, any>} im @param {number} w @param {number} h */
 function paintImage(s, g, im, w, h) {
-  const col = drawnColor(s), key = `${s.sprite}|${s.picture}|${col.slice(0, 3).map((v) => v.toFixed(2)).join(',')}|${Math.round(w)}x${Math.round(h)}`;
+  const col = drawnColor(s);
+  if (shaded(im.mat) && paintShaded(s, g, im, col, [w, h])) {
+    // drawn through its effect on its canvas, the colour's alpha with it (界面-36)
+    if (s.paintKey !== 'shade') { s.paintKey = 'shade'; sty(s, g, 'backgroundImage', 'none'); sty(s, g, 'backgroundColor', ''); }
+    sty(s, g, 'opacity', '1');
+    paintCut(s, g, im);
+    return;
+  }
+  if (s.shade) { unshade(s); s.paintKey = ''; }
+  const key = `${s.sprite}|${s.picture}|${col.slice(0, 3).map((v) => v.toFixed(2)).join(',')}|${Math.round(w)}x${Math.round(h)}`;
   if (key !== s.paintKey) {
     s.paintKey = key;
     for (const [k, v] of imageBackground(s, im, col, w, h)) sty(s, g, k, v);

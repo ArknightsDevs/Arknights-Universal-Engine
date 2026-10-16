@@ -61,6 +61,7 @@ export class UiNode {
     /** the stencil it is masked by is read outside the writer's shape (a not-equal compare) */
     this.stOut = false;
     this.stHide = false; this.stKey = ''; this.paintKey = '';
+    /** the canvas an image is drawn on through its effect (界面-36) @type {{ c: HTMLCanvasElement, x: CanvasRenderingContext2D, last?: { key: string, at: number[] } } | null} */ this.shade = null;
     /** its hidden subtree is marked not shown @type {boolean} */ this.sealed = false;
     /** placed by its rect even in a layout group (the page put it there) @type {boolean} */ this.free = false;
     /** @type {string} */ this.txt = '';
