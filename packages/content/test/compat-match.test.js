@@ -33,8 +33,8 @@ test('[兼容-6] the pinned commit is the oracle’s; each kit file holds its op
 });
 
 test('[兼容-6] loading: the enabled kits of the operators asked; one that does not load is named', async () => {
-  const ok = await loadKits(root, ['char_112_siege', 'char_400_weedy', 'char_112_siege']);
-  assert.deepEqual([Object.keys(ok.kits), ok.failed], [['char_112_siege'], []], 'not enabled: not loaded');
+  const ok = await loadKits(root, ['char_112_siege', 'char_285_medic2', 'char_112_siege']);
+  assert.deepEqual([Object.keys(ok.kits), ok.failed], [['char_112_siege'], []], 'an operator without a kit (Lancet-2): none loaded');
   const bad = await loadKits(`${root}nowhere/`, ['char_112_siege']);
   assert.deepEqual([Object.keys(bad.kits), bad.failed], [[], ['char_112_siege']]);
 });
