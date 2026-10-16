@@ -101,11 +101,12 @@ const dubNow = (P, char) => (P.voice ? dubOf(P.voice.index, char, P.voice.chosen
 
 /**
  * Says a voice (音频-5, 音频-6): one of the character's lines of its type in its dub, at random, when the gate lets
- * it; one taking over fades the other out and itself in over the crossfade. @param {Player} P @param {Voice} v
+ * it; one taking over fades the other out and itself in over the crossfade. None while the browser keeps the page
+ * silent: its clock stands still (音频-6). @param {Player} P @param {Voice} v
  */
 async function say(P, v) {
   const V = P.voice;
-  if (!V) return;
+  if (!V || P.ctx.state !== 'running') return;
   const files = linesOf(V.index, v.char, v.type, dubNow(P, v.char));
   if (!files.length) return;
   const file = files[Math.min(files.length - 1, Math.floor(P.random() * files.length))], buf = await buffer(P, file, V.base);

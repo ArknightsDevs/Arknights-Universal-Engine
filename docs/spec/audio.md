@@ -94,6 +94,6 @@
 - 接替时，旧的在交叉淡化秒数内淡出，新的同时淡入。
 - 一种类型播过之后，冷却秒数内同类型不再播。「行动开始」离上一条播出的「行动开始」不足最短间隔时也不播。
 - 触发后过了延迟秒数才开始播。
-- 时间按页面的音频时钟算，不进模拟，各座位可以不同。
+- 时间按页面的音频时钟算，不进模拟，各座位可以不同。浏览器还不让页面出声时（音频时钟不走），语音不说，也不排队。
 
 - 来源：数据：battleVoice（crossfade、minTimeDeltaForEnemyEncounter、voiceTypeOptions 的 priority、overlapIfSamePriority、cooldown、delay）；一次一条、接替时交叉淡化、冷却按类型计、最短间隔从上一条播出的「行动开始」算为推断 INF-0174
