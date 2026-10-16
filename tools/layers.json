@@ -74,7 +74,12 @@
       "role": "the worker entry and its build"
     },
     "simcheck": {
-      "allow": [],
+      "allow": [
+        "@aue/schema",
+        "@aue/sim",
+        "@aue/content",
+        "playwright"
+      ],
       "node": true,
       "role": "the cross-engine check (shared with Duel Channel and Stronghold Protocol)"
     },

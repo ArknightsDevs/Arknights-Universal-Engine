@@ -10,5 +10,11 @@
   },
   "aue": {
     "node": true
+  },
+  "dependencies": {
+    "@aue/content": "workspace:*",
+    "@aue/schema": "workspace:*",
+    "@aue/sim": "workspace:*",
+    "playwright": "1.63.0"
   }
 }

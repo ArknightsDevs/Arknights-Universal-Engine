@@ -1,0 +1,45 @@
+name: Cross-engine check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: simcheck-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  simcheck:
+    name: simcheck (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    env:
+      NO_COLOR: '1'
+    steps:
+      - uses: actions/checkout@v7
+
+      # the pnpm version comes from package.json "packageManager"
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Browsers
+        run: pnpm --filter @aue/simcheck exec playwright install --with-deps chromium firefox webkit
+
+      # the same matches in Node, Chromium, Firefox and WebKit: every state hash equal (docs/spec/lockstep.md 同步-12)
+      - name: Cross-engine check
+        run: pnpm run simcheck

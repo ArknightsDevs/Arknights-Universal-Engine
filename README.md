@@ -6,6 +6,7 @@
 ![license](https://img.shields.io/badge/code%20license-GPL--3.0--or--later-blue)
 ![node](https://img.shields.io/badge/node-22%20%7C%2024-339933)
 [![CI](https://github.com/Cloudnyco/Arknights-Universal-Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Cloudnyco/Arknights-Universal-Engine/actions/workflows/ci.yml)
+[![跨引擎一致](https://github.com/Cloudnyco/Arknights-Universal-Engine/actions/workflows/simcheck.yml/badge.svg)](https://github.com/Cloudnyco/Arknights-Universal-Engine/actions/workflows/simcheck.yml)
 
 一个**确定性、帧同步**的《明日方舟》战斗引擎，跑在浏览器和 Node 上。第一个基于它的玩法平台是 [促融共竞（Icebreaker-Games）](https://github.com/Cloudnyco/Icebreaker-Games)：双人实时合作。
 

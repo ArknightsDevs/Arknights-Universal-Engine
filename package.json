@@ -17,7 +17,8 @@
     "coverage": "aue-check coverage",
     "check": "aue-check",
     "ci": "pnpm run oracle && pnpm run lint && pnpm run typecheck && pnpm run types && pnpm run coverage && pnpm run check",
-    "oracle": "aue-check oracle"
+    "oracle": "aue-check oracle",
+    "simcheck": "node packages/simcheck/src/cli.js"
   },
   "devDependencies": {
     "@aue/lint": "workspace:*",
