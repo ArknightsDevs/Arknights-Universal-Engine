@@ -59,6 +59,8 @@ test('[干员-1] [干员-2] [干员-3] an operator\'s training data: phases with
     [12, { spType: 'INCREASE_WITH_TIME', spCost: 28, initSp: 0, maxChargeTime: 1 }, [{ key: 'atk', value: 0.2 }], true],
   ]);
   assert.deepEqual(t.traits, [{ phase: 0, level: 1, potential: 0, bb: { cost: 1 } }]);
+  const ranged = /** @type {any} */ (extractTraining(char({ trait: { candidates: [{ unlockCondition: { phase: 'PHASE_0', level: 1 }, requiredPotentialRank: 0, rangeId: 'x-4', blackboard: [] }] } }), 'char_x', ranges, skills, equip));
+  assert.deepEqual(ranged.traits, [{ phase: 0, level: 1, potential: 0, rangeId: 'x-4', bb: {} }], 'a candidate\'s range id, when it has one');
   const none = /** @type {any} */ (extractTraining(char({ trait: null, favorKeyFrames: null, potentialRanks: null }), 'char_x', ranges, skills, equip));
   assert.deepEqual([none.traits, none.favor, none.potentials], [[], null, []]);
   assert.throws(() => extractTraining(char({ potentialRanks: [{ buff: { attributes: { attributeModifiers: [{ attributeType: 'SP', formulaItem: 'ADDITION', value: 1 }] } } }] }), 'char_x', ranges, skills, equip), /unsupported SP ADDITION/);

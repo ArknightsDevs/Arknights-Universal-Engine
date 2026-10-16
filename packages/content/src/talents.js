@@ -295,3 +295,22 @@ export function deployPart(c) {
   return deployEffect(first.replace(ON_DEPLOY, '').split('，')[0].trim(), c.bb);
 }
 
+
+/** A 替身 talent's aura (干员-15): 「<替身>使周围敌人移动速度-N%且每秒造成相当于M%攻击力的法术伤害」. */
+const DOLL_AURA = /^<替身>使周围敌人移动速度-\d+(?:\.\d+)?%且每秒造成相当于\d+(?:\.\d+)?%攻击力的法术伤害/u;
+/** A 替身 that does not attack (干员-15): 「<替身>不攻击」. */
+const DOLL_IDLE = /<替身>不攻击/u;
+
+/**
+ * The 替身 part of a talent (干员-15), read with 「<替身>」 kept and the other rich-text tags and bracketed potential
+ * differences removed: an aura (its description begins as DOLL_AURA, the blackboard having `move_speed` and
+ * `atk_scale`) — the enemies around it at move speed × (1 + `move_speed`), `atk_scale` × its attack as arts damage each
+ * second, and no attack of its own —, or no attack (「<替身>不攻击」 anywhere). Null otherwise; hidden talents have none.
+ * @param {Talent} c @returns {{ attack: false, aura: { moveMul: number, scale: number } | null } | null}
+ */
+export function dollPart(c) {
+  if (c.hidden || !c.description) return null;
+  const text = c.description.replace(/<(?!替身>)[^>]*>/gu, '').replace(/（[^）]*）/gu, '');
+  if (DOLL_AURA.test(text) && Number.isFinite(c.bb.move_speed) && Number.isFinite(c.bb.atk_scale)) return { attack: false, aura: { moveMul: 1 + c.bb.move_speed, scale: c.bb.atk_scale } };
+  return DOLL_IDLE.test(text) ? { attack: false, aura: null } : null;
+}

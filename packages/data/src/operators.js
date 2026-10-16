@@ -240,12 +240,14 @@ function levelOf(raw, p) {
   };
 }
 
-/** The trait candidates with their unlock conditions (干员-3). @param {unknown} raw @param {string} p */
+/** The trait candidates with their unlock conditions, and the range id of one that has it (干员-3). @param {unknown} raw @param {string} p */
 function traitsOf(raw, p) {
   if (raw === null || raw === undefined) return [];
   return asArray(field(asObject(raw, p), 'candidates', p), `${p}.candidates`).map((x, i) => {
     const cp = `${p}.candidates[${i}]`, o = asObject(x, cp), u = asObject(field(o, 'unlockCondition', cp), `${cp}.unlockCondition`);
-    return { phase: phaseOf(u.phase, `${cp}.unlockCondition.phase`), level: asInt(u.level, `${cp}.unlockCondition.level`, 0, 200), potential: asInt(o.requiredPotentialRank, `${cp}.requiredPotentialRank`, 0, 5), bb: boardOf(o.blackboard, `${cp}.blackboard`) };
+    const rangeId = o.rangeId === null || o.rangeId === undefined ? null : asString(o.rangeId, `${cp}.rangeId`);
+    return { phase: phaseOf(u.phase, `${cp}.unlockCondition.phase`), level: asInt(u.level, `${cp}.unlockCondition.level`, 0, 200), potential: asInt(o.requiredPotentialRank, `${cp}.requiredPotentialRank`, 0, 5),
+      ...(rangeId === null ? {} : { rangeId }), bb: boardOf(o.blackboard, `${cp}.blackboard`) };
   });
 }
 

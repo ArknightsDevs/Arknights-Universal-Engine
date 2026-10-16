@@ -119,7 +119,7 @@
 | 塑灵术师 | 法术伤害；`summonBlocked`，`summonBlockedScale` = blackboard `atk_scale`（模组的 1.15，没有时 1）（职业-14） |
 | 战术家 | `summonBlockedScale` = blackboard `atk_scale`（1.5，模组 1.65）（职业-14）；援军与战术点见 召唤-4、召唤-11；TAC-Y 模组追加的「援军阻挡的敌人更容易受到我方的攻击」还没有实现 |
 | 陷阱师 | `trapTiles`（职业-14）；模组追加的「有20%概率部署造成2倍伤害的陷阱」还没有实现 |
-| 傀儡师 | `doll`：替身持续 blackboard `duration` 秒，替身的攻击力、最大生命值 + `atk`、`max_hp`（模组的；没有时 0），切换 1 秒（职业-15） |
+| 傀儡师 | `doll`：替身持续 blackboard `duration` 秒，替身的攻击力、最大生命值 + `atk`、`max_hp`（模组的；没有时 0），切换 1 秒（职业-15）；替身的范围、对空、不攻击与光环（职业-16） |
 
 - 来源：[PRTS「分支特性信息/data」oldid=427899](https://prts.wiki/index.php?title=%E5%88%86%E6%94%AF%E7%89%B9%E6%80%A7%E4%BF%A1%E6%81%AF/data&oldid=427899)（可对空、优先攻击阻挡单位、最大目标数等于阻挡数、同时攻击范围内的所有敌人、治疗规则、停顿时间、击杀来源）；[PRTS「选择器」oldid=428553](https://prts.wiki/index.php?title=%E9%80%89%E6%8B%A9%E5%99%A8&oldid=428553)：二次过滤器「FLY_FIRST 飞行单位优先 速射手特性」；[PRTS「仇恨」oldid=429076](https://prts.wiki/index.php?title=%E4%BB%87%E6%81%A8&oldid=429076)：「防御升序 典型使用者：神射手」，「重量降序 典型使用者：攻城手」；[PRTS「部署费用」oldid=434779](https://prts.wiki/index.php?title=%E9%83%A8%E7%BD%B2%E8%B4%B9%E7%94%A8&oldid=434779)：返还倍率「先锋-冲锋手为100%」；数据：character_table 各分支特性文字（法术伤害、两次伤害、恢复三个友方单位）与 blackboard；[PRTS「谜图」oldid=435066](https://prts.wiki/index.php?title=%E8%B0%9C%E5%9B%BE&oldid=435066)、[PRTS「桃金娘」oldid=435164](https://prts.wiki/index.php?title=%E6%A1%83%E9%87%91%E5%A8%98&oldid=435164)、[PRTS「聆音」oldid=435037](https://prts.wiki/index.php?title=%E8%81%86%E9%9F%B3&oldid=435037)、[PRTS「余」oldid=435251](https://prts.wiki/index.php?title=%E4%BD%99&oldid=435251)、[PRTS「烛煌」oldid=435287](https://prts.wiki/index.php?title=%E7%83%9B%E7%85%8C&oldid=435287)、[PRTS「酒神」oldid=440179](https://prts.wiki/index.php?title=%E9%85%92%E7%A5%9E&oldid=440179)、[PRTS「狮蝎」oldid=435138](https://prts.wiki/index.php?title=%E7%8B%AE%E8%9D%8E&oldid=435138) 的特性文字（情报官、执旗手、本源近卫、本源铁卫、本源术师、巫役、伏击客；本源术师、巫役「攻击造成法术伤害」，伏击客「对攻击范围内所有敌人造成伤害」「拥有50%的物理和法术闪避」）；「分支特性信息/data」同版：情报官「可对空」，伏击客「嘲讽等级为-1」，策士、工匠只有「可以且优先攻击自身阻挡的单位」一行，游击手「可对空」，炼金师「攻击可对空」「投掷的炼金单元为弹道效果；干员离场时已投掷的炼金单元会留在场上」，其余分支的特性行；数据：character_table 策士「能够阻挡两个敌人，可以支援待部署区的我方单位」、工匠「能够阻挡两个敌人，使用<支援装置>协助作战」、游击手「可以使用触发型效果协助作战」、炼金师「可以投掷炼金单元协助作战」，这四个分支的特性没有 blackboard，效果写在各干员的天赋与技能里（如松桐「使当前待部署区最右边的1名干员部署费用-4」、锡人「投掷一个炼金单元」、佩德洛「对目标施加触发型效果」）；没有「优先攻击阻挡的单位」一行的分支不设该项为推断 INF-0085
 
@@ -206,6 +206,23 @@
 2. **替身**：切换结束时再清除一次 Buff，生命设为最大生命值；替身持续 `duration` 秒：阻回，阻挡数 ×0，攻击力、最大生命值直接乘算 +`atk`、+`maxHp`。替身生命归 0 时干员照常离场。
 3. **切换回本体**：替身时间到，开始切换回去：清除 Buff、生命设为最大生命值，切换期间的效果同上，只是阻挡数恢复。切换结束时再清除一次 Buff、生命设为最大生命值，回到本体形态。
 
-阶段是干员身上一个键为 `doll` 的 Buff（值 1 切换到替身、2 替身、3 切换回本体；本体没有这个 Buff），随快照保存。替身的攻击范围与伤害类型由各干员的天赋改变（特性 blackboard 的 `talent_override_rangeid_flag`），技能直接切换到替身，画面上替身的动画，都还没有实现。
+阶段是干员身上一个键为 `doll` 的 Buff（值 1 切换到替身、2 替身、3 切换回本体；本体没有这个 Buff），随快照保存。替身的攻击范围、对空、不攻击与光环见 职业-16；替身的伤害类型（贝娜的天赋）、技能直接切换到替身、画面上替身的动画还没有实现。
 
 - 来源：[PRTS「分支特性信息/data」oldid=427899](https://prts.wiki/index.php?title=%E5%88%86%E6%94%AF%E7%89%B9%E6%80%A7%E4%BF%A1%E6%81%AF/data&oldid=427899) 傀儡师「初始处于<本体>形态，此形态下受到足以致命的伤害且未持有不死的情况下，干员会在一段切换动画后，切换为<替身>形态战斗，持续20秒（期间持有阻回）」「<替身>形态持续时间结束时干员会在一段切换动画后，切换回<本体>形态」「切换动画开始时会清除自身一切Buff；切换途中重设自身生命至最大值，随后再次清除自身一切Buff」「切换动画期间干员持有以下效果：不死，无敌，阻回，禁疗，孤立，强制缴械，眩晕免疫，冻结免疫，睡眠免疫」「<替身>形态下阻挡数最终×0（通常从切换至<替身>开始时持续至切换回非<替身>开始）」；数据：character_table 傀儡师特性「受到致命伤时不撤退，切换成<替身>作战（替身阻挡数为0），持续20秒后自身再次替换<替身>」，blackboard `duration` 20、`atk` 0、`max_hp` 0；PUM-Y 模组「替身阻挡数为0但生命值提升」（`max_hp` 0.2），PUM-X 模组「但攻击力提升」（`atk` 0.15）；切换时长取自 HX0922/ArknightsSpine@dc788e3 的 7 名傀儡师战斗正面骨骼：切换的动画（Start_B、Start_2、Doll_SwitchIn、Doll_SwitchOut、Doll_Switchin、SwitchOut、Skill_N_SwitchOut、Doll_Skill_N_SwitchIn）都是 1 秒；切换时长等于动画长度、「一切Buff」不含自身的常驻 Buff 而运行中的技能随之结束、每次切换开始与结束都设生命为最大值、模组的 `atk`、`max_hp` 为直接乘算为推断 INF-0161
+
+### 职业-16 替身的攻击范围、对空与替身天赋
+
+傀儡师的 `doll`（职业-15）还可以带下面几项，由 `@aue/content` 从数据里取（干员-15）：
+
+- **替身的范围**（`range`）：特性 blackboard（含模组的特性部件，干员-7）带 `talent_override_rangeid_flag` 时，取模组特性部件里最后一个已解锁的范围编号，没有时取特性候选（干员-3）的；否则取带这个键的天赋候选（含模组的，干员-15）的范围编号。范围按范围表（干员-8）展开。
+  - 替身战斗时（职业-15 的阶段 2），攻击范围换成这个范围，随朝向转动，攻击距离照常拉伸；技能运行时仍照 技能-8。
+  - 切换期间和本体形态用自己的范围。
+- **对空**（`antiAir`）：有替身范围的替身，普通攻击能选中攻击范围内的飞行单位（职业-1）。干员的召唤物不受影响。
+- **不攻击**（`attack` 为否）：替身战斗时持有 `noAttack`（职业-13），不进行普通攻击。
+- **光环**（`aura`：`moveMul`、`scale`）：替身战斗时：
+  - **减速**：每帧（与 部署-6 同时）给它攻击范围内每个地面敌人（不含飞行的、中立的）一个键为 `doll:<它的 id>` 的 Buff，移动速度最终乘算 ×`moveMul`。离开范围、或替身结束时去掉。
+  - **伤害**：替身出现后每满 1 秒（30 帧），对攻击范围内的每个地面敌人按创建顺序各造成一次法术伤害，数值为 `scale` × 它当时的攻击力。这不是攻击，击杀算在干员身上（职业-5）。
+
+数据里有替身范围的：风丸、维荻（x-4）、双月（x-1）、若叶睦（1-1）在特性上；贝娜、归溟幽灵鲨（x-4）在天赋上。结城理的特性有范围编号，但 blackboard 没有这个键，不算。
+
+- 来源：数据：character_table 的 trait.candidates[]（rangeId、blackboard `talent_override_rangeid_flag`）、talents[].candidates[]（rangeId、blackboard）；[PRTS「风丸」oldid=358106](https://prts.wiki/index.php?title=%E9%A3%8E%E4%B8%B8&oldid=358106)特性备注「※<替身>状态下可对空，由技能产生的召唤物不可对空」；[PRTS「贝娜」oldid=392038](https://prts.wiki/index.php?title=%E8%B4%9D%E5%A8%9C&oldid=392038)「※<替身>形态下，普通攻击可对空」；[PRTS「双月」oldid=401113](https://prts.wiki/index.php?title=%E5%8F%8C%E6%9C%88&oldid=401113)「※<替身>形态普通攻击可对空。」；[PRTS「归溟幽灵鲨」oldid=361755](https://prts.wiki/index.php?title=%E5%BD%92%E6%BA%9F%E5%B9%BD%E7%81%B5%E9%B2%A8&oldid=361755)特性备注「<替身>不进行普通攻击」，天赋备注「伤害与减速不可对空」；范围的取法与生效的阶段为推断 INF-0196，没有备注的替身（维荻）也能对空为推断 INF-0197，光环的时机与对象为推断 INF-0198
