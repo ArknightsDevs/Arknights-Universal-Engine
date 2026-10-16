@@ -8,11 +8,11 @@ import { toThree, tileWorld } from './camera.js';
 /**
  * A map theme's tile kit (渲染-7): the highland height, materials, pieces (tile-local: x east, y north, z down, from the
  * tile centre on the ground) and, per tile key, the piece for each pattern of high-ground neighbours (N E S W, '1' for
- * high ground).
- * @typedef {{ name: string, map: string, color: number[], cutout: number | null, emissiveMap: string | null, emissive: number[] }} KitMaterial
+ * high ground); a level's own kit also its scenery, a piece in the map's coordinates (from the map's centre).
+ * @typedef {{ name: string, map: string, color: number[], cutout: number | null, emissiveMap: string | null, emissive: number[], blend?: boolean, opacity?: number }} KitMaterial
  * @typedef {{ material: number, position: number[], normal: number[], uv: number[], index: number[] }} KitGroup
  * @typedef {{ version: number, theme: string, highland: number, materials: KitMaterial[], pieces: { groups: KitGroup[] }[],
- *   tiles: Record<string, Record<string, number>> }} TileKit
+ *   tiles: Record<string, Record<string, number>>, scenery?: number }} TileKit
  * @typedef {{ kit: TileKit, textures: Map<string, THREE.Texture> }} LoadedKit a kit with its textures by file name
  */
 
@@ -52,7 +52,7 @@ function kitMaterial(lk, m) {
   const tex = (/** @type {string | null} */ f) => (f ? lk.textures.get(f) ?? null : null);
   const srgb = (/** @type {number[]} */ c) => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
   return new THREE.MeshLambertMaterial({ map: tex(m.map), color: srgb(m.color), alphaTest: m.cutout ?? 0,
-    emissiveMap: tex(m.emissiveMap), emissive: srgb(m.emissive) });
+    emissiveMap: tex(m.emissiveMap), emissive: srgb(m.emissive), ...(m.blend ? { transparent: true, opacity: m.opacity ?? 1, depthWrite: false } : {}) });
 }
 
 /**
@@ -60,24 +60,34 @@ function kitMaterial(lk, m) {
  * @param {KitLevel} level @param {TileKit} kit
  */
 function mergePieces(level, kit) {
-  /** @type {{ position: number[], normal: number[], uv: number[], index: number[] }[]} */
-  const out = kit.materials.map(() => ({ position: [], normal: [], uv: [], index: [] }));
+  const out = merged(kit);
   level.tiles.forEach((cols, row) => cols.forEach((t, col) => {
     const key = kitKey(kit, t);
     if (key === null) return;
     const [ox, oy] = tileWorld(level, col, row, 0);
-    for (const g of kit.pieces[kit.tiles[key][kitPattern(level, col, row)]].groups) {
-      const o = out[g.material], base = o.position.length / 3;
-      for (let i = 0; i < g.position.length; i += 3) {
-        o.position.push(...toThree([g.position[i] + ox, g.position[i + 1] + oy, g.position[i + 2]]));
-        o.normal.push(...toThree([g.normal[i], g.normal[i + 1], g.normal[i + 2]]));
-      }
-      o.uv.push(...g.uv);
-      // the turn into three.js coordinates mirrors, so each triangle's corners go the other way round
-      for (let i = 0; i < g.index.length; i += 3) o.index.push(g.index[i] + base, g.index[i + 2] + base, g.index[i + 1] + base);
-    }
+    addPiece(out, kit.pieces[kit.tiles[key][kitPattern(level, col, row)]], ox, oy);
   }));
   return out;
+}
+
+/** Empty merged geometry, one per material. @param {TileKit} kit @returns {{ position: number[], normal: number[], uv: number[], index: number[] }[]} */
+const merged = (kit) => kit.materials.map(() => ({ position: [], normal: [], uv: [], index: [] }));
+
+/**
+ * A piece's groups added to the merged geometry, moved by (ox, oy) and turned into three.js coordinates.
+ * @param {ReturnType<typeof merged>} out @param {{ groups: KitGroup[] }} piece @param {number} ox @param {number} oy
+ */
+function addPiece(out, piece, ox, oy) {
+  for (const g of piece.groups) {
+    const o = out[g.material], base = o.position.length / 3;
+    for (let i = 0; i < g.position.length; i += 3) {
+      o.position.push(...toThree([g.position[i] + ox, g.position[i + 1] + oy, g.position[i + 2]]));
+      o.normal.push(...toThree([g.normal[i], g.normal[i + 1], g.normal[i + 2]]));
+    }
+    o.uv.push(...g.uv);
+    // the turn into three.js coordinates mirrors, so each triangle's corners go the other way round
+    for (let i = 0; i < g.index.length; i += 3) o.index.push(g.index[i] + base, g.index[i + 2] + base, g.index[i + 1] + base);
+  }
 }
 
 /** @param {{ position: number[], normal: number[], uv: number[], index: number[] }} a */
@@ -105,6 +115,13 @@ export function createKitTerrain(level, lk, textures, patch = () => {}) {
     patch(mat);
     group.add(new THREE.Mesh(keep(geometry(a)), mat));
   });
+  // the scenery around the map (a level's own kit): not part of the tiles, so not highlighted
+  const scenery = lk.kit.scenery === undefined ? null : lk.kit.pieces[lk.kit.scenery];
+  if (scenery) {
+    const out = merged(lk.kit);
+    addPiece(out, scenery, 0, 0);
+    out.forEach((a, m) => { if (a.index.length) group.add(new THREE.Mesh(keep(geometry(a)), keep(kitMaterial(lk, lk.kit.materials[m])))); });
+  }
   const sun = new THREE.DirectionalLight(0xffffff, KIT_LIGHT.directional);
   sun.position.set(...KIT_LIGHT.from);
   group.add(new THREE.AmbientLight(0xffffff, KIT_LIGHT.ambient), sun);

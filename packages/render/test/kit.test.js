@@ -92,3 +92,17 @@ test('[渲染-7] high ground is the theme\'s height when given, else STEP_HEIGHT
   assert.equal(tileWorld({ width: 3, height: 3, highland: 0.3 }, 1, 1, 1)[2], -0.3);
   assert.equal(tileWorld({ width: 3, height: 3 }, 1, 1, 1)[2], -STEP_HEIGHT);
 });
+
+test('[渲染-7] a level kit\'s scenery: drawn from the map\'s centre, not highlighted; a blending material is transparent', () => {
+  const blendKit = { ...kit, materials: [...kit.materials, { name: 'fog', map: 'b.webp', color: [1, 1, 1], cutout: null, emissiveMap: null, emissive: [0, 0, 0], blend: true, opacity: 0.4 }],
+    pieces: [...kit.pieces, { groups: [{ ...square(-1, 2).groups[0] }] }], scenery: 3 };
+  const patched = /** @type {THREE.Material[]} */ ([]);
+  const t = createKitTerrain(level, { ...loaded, kit: blendKit }, new Map(), (m) => patched.push(m));
+  const meshes = /** @type {THREE.Mesh[]} */ (t.object.children.filter((c) => c instanceof THREE.Mesh && c.visible));
+  const fog = meshes.find((m) => /** @type {THREE.MeshLambertMaterial} */ (m.material).transparent);
+  assert.ok(fog, 'the scenery mesh');
+  const fm = /** @type {THREE.MeshLambertMaterial} */ (fog.material), pos = /** @type {THREE.BufferAttribute} */ (fog.geometry.getAttribute('position'));
+  assert.deepEqual([fm.opacity, fm.depthWrite, patched.includes(fm)], [0.4, false, false]);
+  assert.deepEqual([pos.getX(0), pos.getY(0), pos.getZ(0)], [-0.5, 1, 0.5], 'corner (−0.5, −0.5, −1) at the map\'s centre → three.js (−0.5, 1, 0.5)');
+  t.dispose();
+});
