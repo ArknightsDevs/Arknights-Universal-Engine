@@ -1,21 +1,21 @@
 // Auras (docs/spec/traits.md 职业-13, docs/spec/field.md 部署-5, 部署-6, docs/spec/devices.md 装置-4): an operator that
 // raises the 生命回复速度 of every operator in its attack range by a share of its attack, an operator's talents for every
-// operator of a profession or faction, its talents for the units in its attack range, and a device's modifiers for
-// every enemy, while the source is on the field — a buff per aura on each of them, kept in step every frame, gone with
-// the aura's source.
+// operator of a profession or faction, its talents for the units in its attack range, a 替身's slow of the enemies
+// around it, and a device's modifiers for every enemy, while the source is on the field — a buff per aura on each of
+// them, kept in step every frame, gone with the aura's source.
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune } from './buffs.js';
 import { inKeys, hostile } from './targeting.js';
 import { reachKeys } from './reach.js';
-import { traitOf } from './traits.js';
+import { traitOf, dollNow } from './traits.js';
 import { statMods } from './skills.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** What an aura gives one unit: its source, its strength (to see a change) and its modifiers. @typedef {{ src: number, value: number, mods: Record<string, number> }} Want */
 
 /** Whether a buff is an aura's. @param {{ key: string }} b */
-const isAura = (b) => b.key.startsWith('aura:') || b.key.startsWith('field:') || b.key.startsWith('range:');
+const isAura = (b) => b.key.startsWith('aura:') || b.key.startsWith('field:') || b.key.startsWith('range:') || b.key.startsWith('doll:');
 
 /**
  * An aura's share of its source's attack now (职业-13): its skill's `attack@atk_to_hp_recovery_ratio` (or the same key
@@ -73,6 +73,18 @@ function rangeTalents(c, src, units, want) {
 }
 
 /**
+ * The slow of a 替身's aura (职业-16): while it fights, every ground enemy (not neutral) in its range moves at × `moveMul`
+ * (最终乘算), one buff per 替身.
+ * @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
+ */
+function dollAura(c, src, units, want) {
+  const a = dollNow(c, src)?.aura;
+  if (!a) return;
+  const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src);
+  for (const u of units) if (hostile(u) && !statsOf(u).flying && inKeys(u, keys, grid)) want.get(u)?.set(`doll:${src.id}`, { src: src.id, value: a.moveMul, mods: { moveMul: a.moveMul } });
+}
+
+/**
  * A device's modifiers for every enemy on the field, neutral units aside (装置-4): one buff per device, so the devices'
  * modifiers stack.
  * @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
@@ -84,9 +96,9 @@ function deviceAura(c, src, units, want) {
 }
 
 /**
- * Every aura this frame, before the operators' turns (职业-13, 部署-5, 部署-6, 装置-4): each operator on the field gives
- * its regen aura, its on-field team talents and its in-range talents as buffs, each device its modifiers for the
- * enemies; a unit out of an aura's reach, or whose source left, loses its buff.
+ * Every aura this frame, before the operators' turns (职业-13, 职业-16, 部署-5, 部署-6, 装置-4): each operator on the
+ * field gives its regen aura, its on-field team talents, its in-range talents and its 替身's slow as buffs, each device
+ * its modifiers for the enemies; a unit out of an aura's reach, or whose source left, loses its buff.
  * @param {World} w @param {Content} c
  */
 export function auras(w, c) {
@@ -97,6 +109,7 @@ export function auras(w, c) {
     regenAura(c, src, ops, want);
     fieldTalents(c, src, ops, want);
     rangeTalents(c, src, units, want);
+    dollAura(c, src, units, want);
   }
   for (const src of units) if (src.kind === KIND.DEVICE) deviceAura(c, src, units, want);
   for (const u of w.units) sync(u, want.get(u) ?? new Map());

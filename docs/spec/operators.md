@@ -22,9 +22,9 @@
 
 ### 干员-3 特性的练度
 
-分支特性的 blackboard（职业-7）取特性候选中已经解锁的最后一个：解锁阶段不高于干员的精英化阶段（同一阶段时解锁等级不高于干员等级），需要的潜能不高于干员的潜能。没有特性记录的干员 blackboard 为空。
+分支特性的 blackboard（职业-7）取特性候选中已经解锁的最后一个：解锁阶段不高于干员的精英化阶段（同一阶段时解锁等级不高于干员等级），需要的潜能不高于干员的潜能。没有特性记录的干员 blackboard 为空。候选带范围编号时一并记作 `rangeId`（散射手的 1-3，傀儡师替身的范围，职业-16），没有时不写。
 
-- 来源：数据：character_table 的 trait.candidates[]（unlockCondition.phase、unlockCondition.level、requiredPotentialRank、blackboard）；取最后一个已解锁的候选为推断 INF-0079
+- 来源：数据：character_table 的 trait.candidates[]（unlockCondition.phase、unlockCondition.level、requiredPotentialRank、rangeId、blackboard）；取最后一个已解锁的候选为推断 INF-0079
 
 ### 干员-4 天赋
 
@@ -73,7 +73,7 @@ blackboard 里的数值条目记作 `{ 键: 值 }`；带 `valueStr` 的条目是
 - **属性**：模组这一级的属性加成 `stats` 和潜能一样加到原始属性上（在潜能之后）。
 - **天赋**：这一级里目标为 `TALENT` 或 `TALENT_DATA_ONLY`、不属于召唤物、对所有模式和地图有效（`gameTag`、`mapTag` 为 null）的部件，按顺序取其中已解锁的天赋候选（解锁条件同干员-3）；`index` 不小于 0 的候选替换第 `index` 个天赋的候选，描述用它的升级描述 `upgrade`，再按干员-6 取常驻部分。同一个天赋有几个这样的候选时，最后一个起作用。`index` 小于 0 的是模组的隐藏天赋：它们的 blackboard 按顺序合并，交给分支特性（职业-7）读取（如解放者的 `init_atk`）。
 - **特性**：这一级里目标为 `TRAIT` 或 `TRAIT_DATA_ONLY`、不属于召唤物、对所有模式和地图有效的部件，按顺序把其中已解锁的特性候选的 blackboard 盖在特性的 blackboard（干员-3）上：同名的键取模组的值，其余保留。追加、替换的特性说明只作展示。
-- **还没有实现**：模组特性部件改动的范围（`rangeId`）、模组自己带的天赋（`index` 为负）、召唤物的属性加成、只在某些模式或地图有效的部件。
+- **还没有实现**：模组特性部件改动的范围（`rangeId`；替身的范围除外，职业-16）、模组自己带的天赋（`index` 为负）、召唤物的属性加成、只在某些模式或地图有效的部件。
 
 - 来源：[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「属性」定义：「信赖、潜能和模组提供数值也会在这一步计（算）入，使得原始属性变为原始属性+」；数据：uniequip_table 的 unlockEvolvePhase、unlockLevel，battle_equip_table 的 phases[]；天赋部件替换天赋的方式为推断 INF-0089
 
@@ -159,3 +159,14 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 
 - 来源：数据：character_table 的天赋文字与 blackboard，如炎熔「部署后立即获得35点技力」、艾雅法拉「部署后立即随机获得7~15点技力」（`sp_min` 7、`sp_max` 16）、Lancet-2「部署后立即恢复全场友方单位500点生命」、末药「部署后立刻恢复全体友方单位的生命值，恢复量为末药攻击力的160%」、年「部署后立即获得3层护盾」；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 护盾「每层护盾可以抵挡一次伤害」
 
+### 干员-15 替身天赋
+
+傀儡师（职业-15）的天赋描述保留「<替身>」，去掉其余富文本标签和全角括号里的潜能差值后：
+
+- 以「<替身>使周围敌人移动速度-N%且每秒造成相当于M%攻击力的法术伤害」开头、blackboard 有 `move_speed` 和 `atk_scale` 时，是替身的**光环**：`moveMul` = 1 + `move_speed`，`scale` = `atk_scale`；替身不攻击。
+- 描述里有「<替身>不攻击」时，替身**不攻击**。
+- 隐藏候选没有替身天赋。
+
+读替身天赋（和替身的范围，职业-16）时，模组同一级里对同一个天赋的几个候选（干员-7）按顺序合并：后面的候选有升级描述、范围编号时取它的，blackboard 盖在前面的上。这样，归溟幽灵鲨的模组 PUM-X 2、3 级里，只改数据的部件给出光环的新数值和范围，另一个部件给出描述和「替换时」的技力。替身天赋作为 `doll` 的 `attack`、`aura`，由模拟按 职业-16 生效。
+
+- 来源：数据：character_table 的天赋文字与 blackboard，如归溟幽灵鲨「<替身>使周围敌人移动速度-20%且每秒造成相当于20%攻击力的法术伤害」（`move_speed` −0.2、`atk_scale` 0.2）、若叶睦「<替身>不攻击」；battle_equip_table 中归溟幽灵鲨模组 2、3 级的 `TALENT_DATA_ONLY` 与 `TALENT` 部件；[PRTS「归溟幽灵鲨」oldid=361755](https://prts.wiki/index.php?title=%E5%BD%92%E6%BA%9F%E5%B9%BD%E7%81%B5%E9%B2%A8&oldid=361755)「※<替身>不进行普通攻击」、移动速度为最终乘算；模组候选的合并为推断 INF-0196，光环天赋即替身不攻击为推断 INF-0197

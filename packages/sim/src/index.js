@@ -53,6 +53,7 @@ export { reserveIds } from './units.js';
 /** @typedef {import('./types.js').SkillDef} SkillDef */
 /** @typedef {import('./skills.js').SkillBehavior} SkillBehavior */
 /** @typedef {import('./types.js').TraitDef} TraitDef */
+/** @typedef {import('./types.js').Doll} Doll */
 /** @typedef {import('./types.js').OperatorDef} OperatorDef @typedef {import('./types.js').TeamTalent} TeamTalent @typedef {import('./types.js').RangeTalent} RangeTalent @typedef {import('./types.js').CritTalent} CritTalent @typedef {import('./types.js').TimedTalent} TimedTalent @typedef {import('./types.js').DeployTalent} DeployTalent @typedef {import('./types.js').CarriedEffect} CarriedEffect */
 /** @typedef {import('./types.js').SummonDef} SummonDef @typedef {import('./types.js').SummonCard} SummonCard */
 /** @typedef {import('./types.js').EnemyDef} EnemyDef */

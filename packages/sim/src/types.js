@@ -107,6 +107,20 @@
  * @property {boolean} [rangeAll] while it runs the operator's attack reaches the whole map (技能-8)
  */
 /**
+ * A 傀儡师's 替身 (职业-15, 职业-16). The fields after `maxHp` may be left out: no range of its own, ground units only, it
+ * attacks, no aura.
+ * @typedef {object} Doll
+ * @property {number} duration the seconds it fights
+ * @property {number} switch the seconds of each switch
+ * @property {number} atk its attack + this (直接乘算)
+ * @property {number} maxHp its maximum HP + this (直接乘算)
+ * @property {Cell[] | null} [range] its own range, as offsets facing right, in place of the operator's (职业-16)
+ * @property {boolean} [antiAir] its normal attack can select flying units
+ * @property {boolean} [attack] false: it makes no normal attack
+ * @property {{ moveMul: number, scale: number } | null} [aura] the ground enemies in its range move at × `moveMul` (最终乘算)
+ *   and take `scale` × its attack as arts damage each second
+ */
+/**
  * A branch trait as the simulation reads it (职业-1…职业-6): anything left out takes the default of the operator's
  * position (traits.js defaultTrait).
  * @typedef {object} TraitDef
@@ -166,9 +180,8 @@
  * @property {number} summonBlockedScale its attack's 倍率 against an enemy one of its own summons blocks is multiplied by
  *   this (职业-14)
  * @property {boolean} trapTiles its summons cannot be deployed on a tile a ground enemy stands on (职业-14)
- * @property {{ duration: number, switch: number, atk: number, maxHp: number } | null} doll brought to 0 HP in its own form it
- *   switches (`switch` seconds) to its 替身, which fights `duration` seconds with attack and maximum HP + `atk`, `maxHp`
- *   (直接乘算), then switches back (职业-15)
+ * @property {Doll | null} doll brought to 0 HP in its own form it switches (`switch` seconds) to its 替身, which fights
+ *   `duration` seconds with attack and maximum HP + `atk`, `maxHp` (直接乘算), then switches back (职业-15)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
  */
 /**

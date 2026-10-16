@@ -57,3 +57,11 @@ test('[兼容-6] a match with a kit: her record without talents, her kit’s beh
   const u = mine();
   assert.deepEqual(u.buffs.map((/** @type {any} */ b) => b.key).sort(), ['talent:siege:pioneers', 'talent:siege:self'], 'her talents, by her kit');
 });
+
+test('[兼容-6] [干员-15] a 傀儡师 with a kit: its 替身 keeps its range; its 替身 talent is the kit\'s to apply', async () => {
+  const kits = { char_1023_ghost2: () => ({ skills: {} }) };
+  const plain = await matchContent(match('char_1023_ghost2')), kitted = await matchContent(match('char_1023_ghost2'), undefined, kits);
+  const doll = (/** @type {any} */ c) => c.operators['char_1023_ghost2#0'].trait.doll;
+  assert.deepEqual([doll(plain).attack, doll(plain).aura, doll(plain).range.length], [false, { moveMul: 0.4, scale: 0.8 }, 9], 'PUM-X 3: the engine\'s');
+  assert.deepEqual([doll(kitted).attack, doll(kitted).aura, doll(kitted).range], [true, null, doll(plain).range]);
+});

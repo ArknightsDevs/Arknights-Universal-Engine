@@ -1,28 +1,40 @@
-// An operator's attack range now (docs/spec/skills.md 技能-8, 攻击-1): its skill's while the skill runs and has one — the
-// one its behaviour gives, else its record's —, its own otherwise — the one content gave it, else its record's —,
-// turned with it, extended by its 攻击距离.
+// An operator's attack range now (docs/spec/skills.md 技能-8, 攻击-1, 职业-16): its skill's while the skill runs and has
+// one — the one its behaviour gives, else its record's —, its 替身's own while that fights, its own otherwise — the one
+// content gave it, else its record's —, turned with it, extended by its 攻击距离.
 import { statsOf } from './attrs.js';
 import { rangeKeys } from './targeting.js';
-import { traitOfDef } from './traits.js';
+import { traitOfDef, dollNow } from './traits.js';
 import { dirOfCode } from './dir.js';
 
 /** @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 
 /**
- * The tile keys an operator's attack reaches now (攻击-1, 技能-8): every tile of the map while a skill that reaches it
- * runs; the skill's range while one with a range runs; else the operator's range — with the extra tiles content gave it.
+ * The tile keys an operator's attack reaches now (攻击-1, 技能-8, 职业-16): every tile of the map while a skill that
+ * reaches it runs; the skill's range while one with a range runs; its 替身's own range while a 替身 that has one fights;
+ * else the operator's range — with the extra tiles content gave it.
  * The same set as the last time while nothing it is worked out from changed: read it, never change it.
  * @param {Content} c @param {Unit} op @returns {Set<number>}
  */
 export function reachKeys(c, op) {
   const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], sk = op.skill && op.skill.active ? d.skill : undefined;
   if (sk && sk.rangeAll) return new Set(Array.from({ length: grid.rows * grid.cols }, (_, k) => k));
-  const range = (sk && behaviorRange(c, op, sk.id)) || (sk && sk.range) || op.range || d.range, extend = statsOf(op).rangeExtend, m = reachMemo.get(op);
+  const range = rangeNow(c, op, sk), extend = statsOf(op).rangeExtend, m = reachMemo.get(op);
   if (m !== undefined && sameReach(m, c, op, range, extend)) return m.keys;
   const keys = rangeKeys(grid, op, range, extend);
   for (const k of op.reachExtra ?? []) keys.add(k);
   reachMemo.set(op, { c, x: op.x, y: op.y, dir: op.dir, cells: range.flatMap((x) => [x.row, x.col]), extend, extra: op.reachExtra ? [...op.reachExtra] : undefined, keys });
   return keys;
+}
+
+/**
+ * An operator's range now, as offsets facing right (攻击-1, 技能-8, 职业-16): the running skill's — its behaviour's, else
+ * its record's —, its 替身's own while that fights, the one content gave it, its record's.
+ * @param {Content} c @param {Unit} op @param {import('./types.js').SkillDef | undefined} sk the running skill
+ * @returns {readonly import('./types.js').Cell[]}
+ */
+function rangeNow(c, op, sk) {
+  const own = sk ? behaviorRange(c, op, sk.id) || sk.range : null;
+  return own || dollNow(c, op)?.range || op.range || c.operators[op.key].range;
 }
 
 /**

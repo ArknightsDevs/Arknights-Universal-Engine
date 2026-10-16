@@ -5,6 +5,7 @@ import index from '../data/operators/index.json' with { type: 'json' };
 import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
 import { unlockedAt, talentsAt, alwaysOnBb, teamPart, rangePart, critPart, timedPart, deployPart } from './talents.js';
+import { dollOf } from './doll.js';
 
 /** @typedef {import('@aue/sim').OperatorDef} OperatorDef */
 /**
@@ -20,7 +21,7 @@ import { unlockedAt, talentsAt, alwaysOnBb, teamPart, rangePart, critPart, timed
  *   phases: { maxLevel: number, range: { row: number, col: number }[], frames: { level: number, stats: Stats }[] }[],
  *   favor: { level: number, stats: Stats } | null, potentials: Stats[],
  *   skills: ({ id: string, phase: number, levels: import('./skills.js').SkillLevel[], token?: string } | null)[],
- *   traits: { phase: number, level: number, potential: number, bb: Stats }[], talents: TalentCandidate[][], modules: Module[], tokens?: string[],
+ *   traits: { phase: number, level: number, potential: number, rangeId?: string, bb: Stats }[], talents: TalentCandidate[][], modules: Module[], tokens?: string[],
  *   description?: string | null }} Training
  */
 /**
@@ -151,9 +152,10 @@ function talentFields(t, b, mod) {
 }
 
 /**
- * An operator at a training (干员-1…干员-3, 干员-6, 干员-7, 干员-9, 干员-11…干员-13) as @aue/sim reads it: its
- * attributes, the elite phase's range, its branch's trait (职业-7), the skill it brings at its level (技能-1), and its
- * talents' fields (talentFields). Throws for an elite phase it does not have, or a skill or module not unlocked yet.
+ * An operator at a training (干员-1…干员-3, 干员-6, 干员-7, 干员-9, 干员-11…干员-13, 干员-15) as @aue/sim reads it: its
+ * attributes, the elite phase's range, its branch's trait (职业-7; a 傀儡师's with its 替身, 职业-16), the skill it brings
+ * at its level (技能-1), and its talents' fields (talentFields). Throws for an elite phase it does not have, or a skill
+ * or module not unlocked yet.
  * @param {Training} t @param {Build} b @returns {OperatorDef}
  */
 export const operatorAt = (t, b) => recordAt(t, b, moduleAt(t, b));
@@ -185,11 +187,13 @@ export function recordAt(t, b, mod) {
   const slot = b.skill >= 0 ? t.skills[b.skill] : undefined;
   if (b.skill >= 0 && (!slot || slot.phase > b.elite)) throw new RangeError(`${t.name}: skill ${b.skill} is not unlocked at elite ${b.elite}`);
   const s = statsAt(t, b, mod), level = slot ? slot.levels[clamp(b.skillLevel, 1, slot.levels.length) - 1] : null;
-  const { cost, respawn, fields } = talentFields(t, b, mod);
-  return withTrait({
-    name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: phase.range, traitBb: traitAt(t, b), hiddenBb: hiddenAt(b, mod),
+  const { cost, respawn, fields } = talentFields(t, b, mod), traitBb = traitAt(t, b);
+  const rec = withTrait({
+    name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: phase.range, traitBb, hiddenBb: hiddenAt(b, mod),
     maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: Math.max(0, s.cost + cost), blockCnt: s.blockCnt, baseAttackTime: s.baseAttackTime,
     respawnTime: Math.max(0, s.respawnTime + respawn), aspd: s.aspd, tauntLevel: s.tauntLevel, massLevel: s.massLevel,
     ...fields, ...(slot && level ? { skill: skillDefOf(slot.id, level) } : {}),
   });
+  // a 傀儡师's 替身: its own range, flying units, its attack and aura (职业-16)
+  return rec.trait?.doll ? { ...rec, trait: { ...rec.trait, doll: { ...rec.trait.doll, ...dollOf(t, b, mod, traitBb) } } } : rec;
 }
