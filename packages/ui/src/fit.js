@@ -23,15 +23,17 @@ export function aspectSize(mode, ratio, own, PW, PH) {
 
 /**
  * A node's rect after its fitters (界面-30): an aspect ratio fitter or a background cover sets its size (fit and cover
- * also centre it on its parent by stretching anchors).
+ * also centre it on its parent by stretching anchors); a background whose own rect already covers what the cover
+ * would keeps its own rect (INF-0191).
  * @param {UiNode} s @param {number} PW @param {number} PH
  */
 export function fitRect(s, PW, PH) {
   const c = s.n.comps, f = c.aspect ?? (c.bgFit ? { mode: 4, ratio: c.bgFit.ratio } : null);
   if (!f || !f.mode) return;
   const rt = s.rt, own = [(rt.amax[0] - rt.amin[0]) * PW + rt.size[0], (rt.amax[1] - rt.amin[1]) * PH + rt.size[1]];
-  const size = aspectSize(f.mode, f.ratio, own, PW, PH);
+  let size = aspectSize(f.mode, f.ratio, own, PW, PH);
   if (!size) return;
+  if (!c.aspect && own[0] >= size[0] && own[1] >= size[1]) size = own;
   if (f.mode >= 3) { rt.amin = [0, 0]; rt.amax = [1, 1]; rt.pos = [0, 0]; rt.size = [size[0] - PW, size[1] - PH]; return; }
   const a = f.mode === 1 ? 1 : 0;
   rt.size[a] = size[a] - (rt.amax[a] - rt.amin[a]) * (a === 0 ? PW : PH);
