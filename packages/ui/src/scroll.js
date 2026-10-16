@@ -47,15 +47,20 @@ function down(v, e) {
   if (v.s.n.comps.dragFit && !canDrag(v)) return;
   v.drag = { x: e.clientX, y: e.clientY, off: v.ax.map((a) => a.off), on: false };
   v.snap = null;
-  /** @type {any} */ (v.s.el).setPointerCapture?.(e.pointerId);
 }
 
-/** The pointer moved: past the start distance the drag moves the content (rubber band, clamping). @param {View} v @param {PointerEvent} e */
+/**
+ * The pointer moved: past the start distance the drag moves the content (rubber band, clamping). The view takes the
+ * pointer only then: a captured pointer's click goes to the view, so a press that does not drag still reaches the
+ * buttons in it.
+ * @param {View} v @param {PointerEvent} e
+ */
 function move(v, e) {
   const d = v.drag;
   if (!d) return;
   const dx = e.clientX - d.x, dy = e.clientY - d.y;
   if (!d.on && Math.hypot(dx, dy) < DRAG_START) return;
+  if (!d.on) /** @type {any} */ (v.s.el).setPointerCapture?.(e.pointerId);
   d.on = true;
   const k = v.s.scr.ctx.k ?? 1, sc = v.s.n.comps.scroll, raw = [d.off[0] + dx / k, d.off[1] - dy / k];
   for (const a of axesOf(v)) v.ax[a].off = v.geo ? dragged(raw[a], v.geo[a].r, v.geo[a].V, sc.move) : raw[a];

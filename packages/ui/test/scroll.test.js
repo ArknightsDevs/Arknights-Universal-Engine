@@ -95,10 +95,15 @@ test('[界面-27] scroll bars and pages: the normalized position, the handle\'s 
 test('[界面-27] a drag moves the content past the start distance; a tap that turned into a drag is no tap; it coasts, then stays inside', () => {
   const { ui, s } = setup();
   const sv = /** @type {any} */ (s.one('sv')), ct = /** @type {any} */ (s.one('sv/vp/ct'));
+  /** @type {number[]} */
+  const caps = [];
+  sv.el.setPointerCapture = (/** @type {number} */ id) => caps.push(id);
   ptr(sv, 'pointerdown', 10, 200);
   ptr(sv, 'pointermove', 10, 200 - DRAG_START + 1);
   assert.equal(ct.rt.pos[1], 0, 'not yet a drag');
+  assert.deepEqual(caps, [], 'a press keeps its click for the buttons in the view');
   for (let y = 180; y >= 100; y -= 20) { ptr(sv, 'pointermove', 10, y); ui.tick(0.016); }
+  assert.deepEqual(caps, [1], 'the drag takes the pointer once');
   assert.equal(ct.rt.pos[1], 100);
   ptr(sv, 'pointerup', 10, 100);
   let stopped = false;
