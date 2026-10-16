@@ -109,8 +109,7 @@ class FxDrawn {
 
   /** @param {any} q @param {Cam} cam @param {number[]} sc */
   particle(q, cam, sc) {
-    const p = this.S.p, tl = q.age / q.life, R = q.R || this.inst.R, sOL = p.sizeOL ? mm(p.sizeOL, tl, q.r2) : 1;
-    const size = q.size * sOL, sizeY = p.size3D ? q.sizeY * (p.sizeOLY ? mm(p.sizeOLY, tl, q.r2) : sOL) : size;
+    const p = this.S.p, tl = q.age / q.life, R = q.R || this.inst.R, { size, sizeY, sizeZ } = sizesOf(p, q, tl);
     const oc = p.col ? grad(p.col, tl) : [1, 1, 1, 1], tint = this.S.cur.tint;
     if (q.tr && this.tb) this.ribbon(q, { tl, size, col: q.col.map((/** @type {number} */ v, /** @type {number} */ i) => v * oc[i]), R }, cam);
     if (!(Math.abs(size) > 1e-3) || p.render.mode === 5) return;
@@ -118,7 +117,7 @@ class FxDrawn {
     if (this.plain) brighten(p, C);
     if (C[3] <= 0.004) return;
     const cell = sheetCell(p, tl, q), o = this.customData(q, tl), uv = uvOf(p, this.S.cur, sc, o);
-    if (p.render.mode === 4 && p.mesh) this.meshParticle(q, { size, sizeY, R }, uv, { C, S });
+    if (p.render.mode === 4 && p.mesh) this.meshParticle(q, { size, sizeY, sizeZ, R }, uv, { C, S });
     else quad(this.b, particleAxes(p, q, { R, M: this.S.M, size, sizeY }, cam), cell, uv, { C, S });
   }
 
@@ -144,14 +143,21 @@ class FxDrawn {
     return S;
   }
 
-  /** A mesh particle: the mesh scaled by the size, turned by the rotation (and the system's place when aligned). */
-  meshParticle(/** @type {any} */ q, /** @type {{ size: number, sizeY: number, R: Root }} */ s, /** @type {(u: number, v: number) => number[]} */ uv, /** @type {{ C: number[], S: number[] }} */ k) {
+  /**
+   * A mesh particle: the mesh scaled by the size, turned by the rotation — for one facing the view, a 3D one as Unity's
+   * Euler order, about z, then x, then y, mirrored with the flipped z (x and y turn the other way) — and by the system's
+   * place when aligned to the world or the system (those take their x and y turns from that place, as before).
+   */
+  meshParticle(/** @type {any} */ q, /** @type {{ size: number, sizeY: number, sizeZ: number, R: Root }} */ s, /** @type {(u: number, v: number) => number[]} */ uv, /** @type {{ C: number[], S: number[] }} */ k) {
     const p = this.S.p, m3 = p.mesh, nv = m3.v.length / 3, b = this.b;
     if (!b.room(nv, m3.f.length)) return;
     const c = Math.cos(q.rot), si = Math.sin(q.rot), M = p.render.align === 2 || p.render.align === 1 ? this.S.M : null, base = b.n;
+    const ax = !M && q.rx ? [Math.cos(-q.rx), Math.sin(-q.rx)] : null, ay = !M && q.ry ? [Math.cos(-q.ry), Math.sin(-q.ry)] : null;
     for (let j = 0; j < nv; j++) {
-      const x = m3.v[j * 3] * s.size, y = m3.v[j * 3 + 1] * s.sizeY, z = m3.v[j * 3 + 2] * s.size * (this.inst.flipZ ? -1 : 1);
+      const x = m3.v[j * 3] * s.size, y = m3.v[j * 3 + 1] * s.sizeY, z = m3.v[j * 3 + 2] * s.sizeZ * (this.inst.flipZ ? -1 : 1);
       let w = [x * c - y * si, x * si + y * c, z];
+      if (ax) w = [w[0], w[1] * ax[0] - w[2] * ax[1], w[1] * ax[1] + w[2] * ax[0]];
+      if (ay) w = [w[0] * ay[0] + w[2] * ay[1], w[1], -w[0] * ay[1] + w[2] * ay[0]];
       if (M) w = rot(M, w);
       b.vert(toWorld(s.R, [q.x + w[0], q.y + w[1], q.z + w[2]]), uv(m3.uv[j * 2], m3.uv[j * 2 + 1]), k.C, k.S);
     }
@@ -179,6 +185,16 @@ class FxDrawn {
 
   get meshes() { return [this.b.mesh, ...(this.tb ? [this.tb.mesh] : [])]; }
   dispose() { this.b.dispose(); this.tb?.dispose(); }
+}
+
+/**
+ * A particle's size now on each axis (start size × size over its life): the axes apart when the system sizes them so,
+ * a mesh's depth its own on z then, else its width. @param {any} p @param {any} q @param {number} tl
+ */
+function sizesOf(p, q, tl) {
+  const sOL = p.sizeOL ? mm(p.sizeOL, tl, q.r2) : 1, size = q.size * sOL;
+  if (!p.size3D) return { size, sizeY: size, sizeZ: size };
+  return { size, sizeY: q.sizeY * (p.sizeOLY ? mm(p.sizeOLY, tl, q.r2) : sOL), sizeZ: q.sizeZ ? q.sizeZ * (p.sizeOLZ ? mm(p.sizeOLZ, tl, q.r2) : sOL) : size };
 }
 
 /** A texture-sheet cell of a particle now: its frame and the sheet's size. @param {any} p @param {number} tl @param {any} q */

@@ -251,6 +251,13 @@ test('[界面-32] clip events as the playhead passes them: start at once, a soun
   assert.equal(passes(0.5, 0, 2.6, 1, true), 3, 'three times round');
   assert.equal(passes(0.5, -1, 3, 1, false), 1);
   assert.equal(passes(0.5, 0.6, 1, 1, false), 0);
+  // from a time into it: what comes before is skipped, events and all
+  /** @type {string[]} */
+  const late = [];
+  const again = s.play('', 'show', { from: 0.6, onStart: () => late.push('start'), onEnd: () => late.push('end'), onEvent: (n) => late.push(n) });
+  ui.tick(0.5);
+  await again;
+  assert.deepEqual([late, sounds.length], [['next', 'end'], 1], 'no start, no second sound: they are before 0.6');
 });
 
 test('[界面-33] tweens: eased, back and forth, for ever; a fade on a group from the clock', () => {

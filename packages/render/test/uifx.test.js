@@ -44,5 +44,13 @@ test('[渲染-18] the effects: one played, its group scaled; mesh particles\' z 
   assert.ok(PREWARM > 0);
   /** @type {any} */ (h).remove();
   assert.equal(fx.count, 0);
+  // one that plays once is not run ahead: a burst at its start still shows (simulated a cycle first, it would be over)
+  const once = { ...sys(0), loop: false, dur: 1, rate: { st: 0, sc: 0 }, life: { st: 0, sc: 0.5 }, bursts: [{ t: 0, n: { st: 0, sc: 3 }, cycles: 1, iv: 1 }] };
+  const pack2 = { data: { fx: { b: { d: 1, ps: [once], tr: [] } } }, textures: pack.textures };
+  const fx2 = createUiFx({ pack: pack2, scene, camera: () => cam });
+  fx2.play('b', pageRoot(0, 0, 1), 1);
+  fx2.frame(0.1);
+  assert.ok(/** @type {any[]} */ (fx2.inspect())[0].parts.length > 0, 'the burst is drawn');
+  fx2.dispose();
   fx.dispose();
 });

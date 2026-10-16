@@ -1,6 +1,6 @@
 // Clip playback (docs/spec/ui.md 界面-5, 界面-32): a clip played on a node binds its curves to the nodes at their paths;
-// it runs on the UI's clock — once (holding its last frame) or looping, forwards or reversed, after a delay, at a rate
-// — and its first frame applies at once, so a node does not flash in its prefab pose. Its events fire as the playhead
+// it runs on the UI's clock — once (holding its last frame) or looping, forwards or reversed, after a delay, at a rate,
+// from a time into it — and its first frame applies at once, so a node does not flash in its prefab pose. Its events fire as the playhead
 // passes them: start and end call the page back, a sound event plays its bank, others name a call.
 import { applyCurve } from './curves.js';
 import { nodeAt } from './node.js';
@@ -9,7 +9,8 @@ import { nodeAt } from './node.js';
 /** @typedef {import('./curves.js').Clip} Clip */
 /** @typedef {import('./curves.js').ClipEvent} ClipEvent */
 /**
- * @typedef {{ loop?: boolean, reverse?: boolean, delay?: number, rate?: number, onStart?: () => void, onEnd?: () => void,
+ * `from`: seconds of the clip's run skipped (its playhead starts there; their events do not fire).
+ * @typedef {{ loop?: boolean, reverse?: boolean, delay?: number, rate?: number, from?: number, onStart?: () => void, onEnd?: () => void,
  *   onEvent?: (name: string) => void }} PlayOptions
  */
 /**
@@ -54,11 +55,12 @@ export class Animator {
     }
     this.drop((p) => p.s === s && p.clip === clip);
     return new Promise((done) => {
-      const p = { s, clip, binds, t: -(o.delay ?? 0), loop: o.loop ?? loops(clip, name), rev: !!o.reverse, len: clip.length || 1e-4, rate: o.rate ?? 1, done, o };
+      const len = clip.length || 1e-4, at = Math.max(0, Math.min(len, o.from ?? 0));
+      const p = { s, clip, binds, t: at - (o.delay ?? 0), loop: o.loop ?? loops(clip, name), rev: !!o.reverse, len, rate: o.rate ?? 1, done, o };
       this.playing.push(p);
       if (!o.delay) {
-        for (const [target, c] of binds) applyCurve(target, c, p.rev ? p.len : 0);
-        this.events(p, -1e-9, 0);
+        for (const [target, c] of binds) applyCurve(target, c, p.rev ? p.len - at : at);
+        this.events(p, at - 1e-9, at);
       }
     });
   }

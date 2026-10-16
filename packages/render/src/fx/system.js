@@ -5,12 +5,28 @@
 import { mm, lerp, unitVector, euler, rot, rotT, current, animate, noise3, startColor } from './curves.js';
 
 /**
- * A particle: place, velocity (and the velocity it moved by this step: svx…), age and life, start size and rotation,
- * start colour, three randoms, the root it was born under (world-space systems), a trail of past places.
+ * A particle: place, velocity (and the velocity it moved by this step: svx…), age and life, start size and rotation
+ * (with a 3D start rotation, also about x and y: rx, ry), start colour, three randoms, the root it was born under
+ * (world-space systems), a trail of past places.
  * @typedef {{ x: number, y: number, z: number, vx: number, vy: number, vz: number, svx?: number, svy?: number, svz?: number,
- *   age: number, life: number, size: number, sizeY: number, rot: number, col: number[], r1: number, r2: number, r3: number,
+ *   age: number, life: number, size: number, sizeY: number, sizeZ?: number, rot: number, rx?: number, ry?: number, col: number[], r1: number, r2: number, r3: number,
  *   R: any, tr?: { x: number, y: number, z: number, a: number }[], trLife?: number, subs?: Record<number, any> }} Particle
  */
+/**
+ * A particle's 3D start: its rotation about x and y (radians; about z it is its rotation) and its size on z (scaled
+ * as its other sizes). @param {Particle} q @param {any} p @param {number} tn @param {() => number} r @param {number} sz
+ */
+function start3D(q, p, tn, r, sz) {
+  if (p.rot3D) { q.rx = p.rotX ? mm(p.rotX, tn, r()) : 0; q.ry = p.rotY ? mm(p.rotY, tn, r()) : 0; }
+  if (p.size3D && p.sizeZ) q.sizeZ = mm(p.sizeZ, tn, r()) * sz;
+}
+
+/** A particle's rotation about x and y over its life (separate axes; radians a second). @param {Particle} q @param {any} p @param {number} tl @param {number} dt */
+function spin3D(q, p, tl, dt) {
+  if (p.rotOLX) q.rx = (q.rx ?? 0) + mm(p.rotOLX, tl, q.r3) * dt;
+  if (p.rotOLY) q.ry = (q.ry ?? 0) + mm(p.rotOLY, tl, q.r3) * dt;
+}
+
 /** The instance a system belongs to (player.js). @typedef {{ t: number, R: any, v: number[], rand: () => number, stopped: boolean, kind: string, sysAt: (FxSystem | null)[], uiScale?: number }} Host */
 
 /** A sphere or hemisphere (shell or volume) point. @param {any} sh @param {() => number} r */
@@ -106,6 +122,7 @@ export class FxSystem {
     const q = { x: o.x + P[0], y: o.y + P[1], z: o.z + P[2], vx: D[0] * sp, vy: D[1] * sp, vz: D[2] * sp, age: 0,
       life: Math.max(0.02, mm(p.life, tn, r())), size: mm(p.size, tn, r()) * this.sz, sizeY: p.size3D ? mm(p.sizeY, tn, r()) * this.sz : 0,
       rot: mm(p.rot, tn, r()), col: startColor(p.color, tn, r()), r1: r(), r2: r(), r3: r(), R: from ? from.R : p.space === 1 ? { ...this.inst.R } : null };
+    start3D(q, p, tn, r, this.sz);
     if (p.inh) { const k = mm(p.inh.c, tn, r()), v = this.inst.v; q.vx += v[0] * k; q.vy += v[1] * k; q.vz += v[2] * k; }
     if (from && inh) inherit(q, from, inh);
     if (p.trl && r() < (p.trl.ratio ?? 1)) { q.tr = []; q.trLife = Math.max(0.02, mm(p.trl.life, 0, r()) * q.life); }
@@ -195,6 +212,7 @@ export class FxSystem {
     q.x += v[0] * dt; q.y += v[1] * dt; q.z += v[2] * dt;
     q.svx = v[0]; q.svy = v[1]; q.svz = v[2];
     if (p.rotOL) q.rot += mm(p.rotOL, tl, q.r3) * dt;
+    if (p.rotOLX || p.rotOLY) spin3D(q, p, tl, dt);
     if (p.coll && p.coll.pl) this.collide(q, tl);
     if (p.sub) this.emitSubs(q, dt);
     if (q.tr) this.trailPoint(q, dt);

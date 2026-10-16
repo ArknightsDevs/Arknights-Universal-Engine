@@ -96,8 +96,10 @@ export function createUiFx(o) {
       /** @type {Live} */
       const h = { inst: new FxInstance(e, u.root, { kind: 'loop', tex: o.pack.textures, flipMeshZ: true, uiScale: scale / u.k }), done: false, clip: null };
       h.inst.group.scale.setScalar(u.k);
-      // already running when it shows: one cycle simulated first (up to PREWARM seconds)
-      for (let t = 0; t < Math.min(PREWARM, e.d ?? 0); t += PREWARM_STEP) h.inst.step(PREWARM_STEP);
+      // a looping effect is already running when it shows: one cycle simulated first (up to PREWARM seconds); one that
+      // plays once (a title's) starts as it shows
+      const loops = (e.ps ?? []).some((/** @type {any} */ p) => p.loop);
+      for (let t = 0; loops && t < Math.min(PREWARM, e.d ?? 0); t += PREWARM_STEP) h.inst.step(PREWARM_STEP);
       into.add(h.inst.group);
       live.add(h);
       return {
