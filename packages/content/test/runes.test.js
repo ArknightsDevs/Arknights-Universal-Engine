@@ -2,7 +2,7 @@
 // deploy limit, and runes not supported yet.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { matchContent, seatRules, withRunes, PROFESSION_BITS } from '../src/index.js';
+import { matchContent, seatRules, withRunes, PROFESSION_BITS, carriedDef, CARRIED_PROFILES } from '../src/index.js';
 
 const BUILD = { elite: 2, level: 90, potential: 1, trust: 100, skill: 0, skillLevel: 10 };
 /** The eight operator professions (符文-1). */
@@ -10,7 +10,10 @@ const OPERATORS = 639;
 /** @param {string} key @param {[string, number | string][]} board @param {number} [professions] */
 const rune = (key, board, professions = OPERATORS) => ({ key, professions, board });
 
-/** Runes of the 促融共竞 play styles (activity_table MULTIPLAY_V3/act1multi squadEffectList), without the device cards. */
+/** A carried unit's card rune (符文-6) as the play styles have them. @param {string} key */
+const card = (key) => rune('insert_token_card', [['token_key', key], ['level', 1], ['skill', 0], ['count', 1], ['skill_level', 1]], 384);
+
+/** Runes of the 促融共竞 play styles (activity_table MULTIPLAY_V3/act1multi squadEffectList), without the device cards (CARDS). */
 const STYLES = {
   基础: [rune('char_attribute_mul', [['atk', 1.1]])],
   驻场: [rune('char_respawntime_mul', [['scale', 1.15]]), rune('env_gbuff_new', [['key', 'attr_up_on_trigger[atk][max_hp]'], ['atk', 0.03], ['max_hp', 0.03], ['max_stack_cnt', 20], ['interval', 5]])],
@@ -22,6 +25,9 @@ const STYLES = {
     rune('env_gbuff_new', [['key', 'heal_scale[advanced][out]'], ['heal_scale', 1.4]])],
 };
 
+/** Each play style's carried unit. */
+const CARDS = { 基础: 'trap_201_muulco', 驻场: 'trap_197_muulwr', 游走: 'trap_198_muulas', 攻坚: 'trap_199_muulrg', 支援: 'trap_200_muulcl' };
+
 test('[符文-1] the profession bits; 639 is the eight operator professions, without summons and devices', () => {
   assert.deepEqual(PROFESSION_BITS, { WARRIOR: 1, SNIPER: 2, TANK: 4, MEDIC: 8, SUPPORT: 16, CASTER: 32, SPECIAL: 64, TOKEN: 128, TRAP: 256, PIONEER: 512 });
   const ops = Object.entries(PROFESSION_BITS).filter(([, b]) => (OPERATORS & b) !== 0).map(([p]) => p);
@@ -29,10 +35,11 @@ test('[符文-1] the profession bits; 639 is the eight operator professions, wit
 });
 
 test('[符文-1] [符文-2] [符文-3] [符文-4] [符文-5] each play style\'s runes are supported; a rune not supported is named', () => {
-  for (const [name, runes] of Object.entries(STYLES)) assert.deepEqual(seatRules(runes).unsupported, [], name);
+  for (const [name, runes] of Object.entries(STYLES)) assert.deepEqual(seatRules([...runes, card(CARDS[/** @type {keyof typeof CARDS} */ (name)])]).unsupported, [], name);
   assert.equal(seatRules(STYLES.游走).limitAdd, -1);
-  assert.deepEqual(seatRules([rune('insert_token_card', [['token_key', 'trap_201_muulco']], 384), rune('env_gbuff_new', [['key', 'nope']])]).unsupported,
-    ['insert_token_card', 'env_gbuff_new:nope']);
+  assert.deepEqual(seatRules([card('trap_201_muulco')]).cards, [{ key: 'trap_201_muulco', level: 1, skill: 0, skillLevel: 1 }]);
+  const two = rune('insert_token_card', [['token_key', 'trap_201_muulco'], ['level', 1], ['skill', 0], ['count', 2], ['skill_level', 1]], 384);
+  assert.deepEqual(seatRules([two, rune('env_gbuff_new', [['key', 'nope']])]).unsupported, ['insert_token_card', 'env_gbuff_new:nope']);
 });
 
 test('[符文-1] [符文-2] [符文-3] a unit whose profession is in the mask takes the runes: base attributes, redeployment, block, SP at deployment, buffs', () => {
@@ -59,4 +66,28 @@ test('[符文-1] [符文-2] a match with runes: each seat\'s own operators and s
   assert.deepEqual(c.level.options.characterLimitAdd, [-1, 0]);
   assert.equal(plain.level.options.characterLimitAdd, undefined);
   await assert.rejects(matchContent({ level: 'act1multi_01', difficulty: 'NORMAL', seed: 1, decks, runes: [[rune('nope', [])], []] }), /seat 0: runes not supported yet: nope/);
+});
+
+test('[符文-6] [装置-6] each play style\'s carried unit: a free card on any tile that never attacks, its effect from its skill, no skill of its own', async () => {
+  const want = {
+    trap_201_muulco: { seconds: 10, allyMods: { atkPct: 0.2 } },
+    trap_197_muulwr: { seconds: 20, barrier: 6000 },
+    trap_198_muulas: { enemyDamage: { type: 'arts', amount: 3000 }, readyCards: true },
+    trap_199_muulrg: { seconds: 10, allyMods: { defMul: 0, resMul: 0, aspd: 120 } },
+    trap_200_muulcl: { spray: { shots: 20, every: 0.2, targets: 3, sp: 3 } },
+  };
+  assert.deepEqual(Object.keys(CARRIED_PROFILES).sort(), Object.keys(want).sort());
+  for (const [id, effect] of Object.entries(want)) {
+    const d = /** @type {any} */ (await carriedDef(id, { level: 1, skill: 0, skillLevel: 1 }));
+    assert.deepEqual([d.position, d.profession, d.cost, d.respawnTime, d.maxHp, d.trait.free, d.trait.noAttack, d.skill], ['ALL', 'TRAP', 5, 60, 100, true, true, undefined], id);
+    assert.deepEqual(d.carried, effect, id);
+  }
+  await assert.rejects(carriedDef('trap_257_muulct', { level: 1, skill: 0, skillLevel: 1 }), /no profile yet/);
+});
+
+test('[符文-6] a match with a carried card: the unit in the seat\'s deck once, its seat\'s operator runes not on it', async () => {
+  const decks = [[{ id: 'char_1035_wisdel', build: BUILD }], []];
+  const c = await matchContent({ level: 'act1multi_01', difficulty: 'NORMAL', seed: 1, decks, runes: [[...STYLES.基础, card('trap_201_muulco'), card('trap_201_muulco')], []] });
+  assert.deepEqual(c.decks, [['char_1035_wisdel#0', 'trap_201_muulco#0'], []]);
+  assert.equal(c.operators['trap_201_muulco#0'].atk, 0, 'atk × 1.1 is for operators');
 });

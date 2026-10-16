@@ -51,3 +51,9 @@
 `char_dynamic_ability_new`，`key` 为 `dyn_attr_get_in_attack_range[modify_sp]`：开局后每过 `interval` 秒，这个座位每名在场的、职业在掩码里的干员，它攻击范围内的所有干员（不论座位，包括它自己的格子在范围内时的它自己）各得 `sp` 点技力（技能-2：阻回时不得）。一名干员同时在几名干员的范围内，也只得一次。
 
 - 来源：[PRTS「促融共竞」oldid=377839](https://prts.wiki/index.php?title=%E4%BF%83%E8%9E%8D%E5%85%B1%E7%AB%9E&oldid=377839) 支援「攻击范围内的所有干员每秒技力额外回复1（不叠加）」（sp 1、interval 1）；从开局计时、直接给技力（而不是改技力自然回复速度）为推断 INF-0165
+
+### 符文-6 携带物卡
+
+`insert_token_card`：这个座位的卡组多一张 `token_key` 的卡（`count` 现在只支持 1）。卡上的单位按它的训练数据组装：精英 0、等级 `level`、潜能 1。它可以部署在近战位和远程位，不占可部署人数，不攻击，部署后可以撤退；费用、再部署时间和再部署惩罚与干员相同（部署-3）。它部署时的效果见 装置-6；它自己的技能不运行。它的职业是装置，所以这个座位的干员符文（掩码 639）不作用于它。
+
+- 来源：数据：activity_table `MULTIPLAY_V3/act1multi` `squadEffectList` 的 `insert_token_card`（token_key、level 1、skill 0、count 1、skill_level 1）；[PRTS「赛场啦啦队」revid 338721](https://prts.wiki/index.php?title=%E8%B5%9B%E5%9C%BA%E5%95%A6%E5%95%A6%E9%98%9F&oldid=338721) 等五个携带物的「装置信息」：「部署条件=部署于近战/远程位」「占用部署数=0」「撤回策略=部署后可撤回」；不攻击、再部署惩罚与干员相同为推断 INF-0166

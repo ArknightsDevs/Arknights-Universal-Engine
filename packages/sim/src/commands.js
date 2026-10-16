@@ -6,6 +6,7 @@ import { makeOperator } from './units.js';
 import { onDeploy, commandSkill } from './skills.js';
 import { traitDeploy, traitOfDef, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
+import { carriedDeploy } from './carried.js';
 import { cardOf, deployCost, deployLimit, withdraw } from './deck.js';
 import { occupying, summonProblem, deploySummon, supplySummons, inOwnerRange, trapRefused } from './summons.js';
 import { isDown, askCost, answerCost } from './coop.js';
@@ -112,7 +113,7 @@ function deploy(w, c, seat, cmd) {
 
 /**
  * An operator's deployment takes hold (部署-2, 部署-9): the `enter` event, its trait, its attack mode, its deployment
- * talents, its passive skill, its summon cards, then the `deploy` event — `move` for a 移动.
+ * talents, a carried unit's effect (装置-6), its passive skill, its summon cards, then the `deploy` event — `move` for a 移动.
  * @param {World} w @param {Content} c @param {import('./types.js').Unit} u @param {boolean} [move]
  */
 export function arrive(w, c, u, move = false) {
@@ -120,6 +121,7 @@ export function arrive(w, c, u, move = false) {
   traitDeploy(w, c, u);
   modeDeploy(u, traitOf(c, u));
   deployTalents(w, c, u);
+  carriedDeploy(w, c, u);
   onDeploy(w, c, u);
   supplySummons(w, c, u);
   emit(w, 'deploy', { unit: u, initial: false, ...(move ? { move: true } : {}) });

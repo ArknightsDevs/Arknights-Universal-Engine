@@ -1,7 +1,8 @@
 // Seat runes (docs/spec/runes.md): what a mode gives one seat — a play style's buffs and costs — as changes to that
 // seat's operators and summons whose profession is in each rune's mask (符文-1): their base attributes, redeployment,
 // blocking and SP on deployment (符文-2), an always-on buff and a stacking one (符文-3), SP on dealing damage (符文-4)
-// and SP for the operators in their attack range (符文-5); and the seat's deploy limit.
+// and SP for the operators in their attack range (符文-5); the seat's deploy limit; and the carried units its runes put
+// into its deck (符文-6).
 
 /** Each profession's bit in a rune's mask (符文-1). */
 export const PROFESSION_BITS = Object.freeze({ WARRIOR: 1, SNIPER: 2, TANK: 4, MEDIC: 8, SUPPORT: 16, CASTER: 32, SPECIAL: 64, TOKEN: 128, TRAP: 256, PIONEER: 512 });
@@ -43,6 +44,15 @@ function keyedEffect(mask, bb) {
   return null;
 }
 
+/** A carried unit's card (符文-6): its unit, level, skill and skill level. @typedef {{ key: string, level: number, skill: number, skillLevel: number }} CarriedCard */
+
+/** insert_token_card's card, or null for one not supported (a count other than 1). @param {SeatRune} r @returns {CarriedCard | null} */
+function cardOf(r) {
+  const bb = boardOf(r);
+  if (typeof bb.token_key !== 'string' || (bb.count ?? 1) !== 1) return null;
+  return { key: bb.token_key, level: num(bb, 'level'), skill: num(bb, 'skill'), skillLevel: num(bb, 'skill_level') };
+}
+
 /** One rune's effect (符文-2…5), or null for a key not supported. @param {SeatRune} r @returns {RuneEffect | null} */
 function effectOf(r) {
   const bb = boardOf(r), mask = r.professions;
@@ -54,22 +64,26 @@ function effectOf(r) {
 }
 
 /**
- * A seat's runes (符文-1): each one's effect, the change to the seat's deploy limit, and the runes not supported.
- * @param {readonly SeatRune[]} runes @returns {{ effects: RuneEffect[], limitAdd: number, unsupported: string[] }}
+ * A seat's runes (符文-1): each one's effect, the change to the seat's deploy limit, the carried units' cards (符文-6),
+ * and the runes not supported.
+ * @param {readonly SeatRune[]} runes @returns {{ effects: RuneEffect[], limitAdd: number, cards: CarriedCard[], unsupported: string[] }}
  */
 export function seatRules(runes) {
   /** @type {RuneEffect[]} */
   const effects = [];
   let limitAdd = 0;
+  /** @type {CarriedCard[]} */
+  const cards = [];
   /** @type {string[]} */
   const unsupported = [];
   for (const r of runes) {
     if (r.key === 'global_deck_placeable_char_num_add') { limitAdd += num(boardOf(r), 'value'); continue; }
+    if (r.key === 'insert_token_card') { const card = cardOf(r); if (card) cards.push(card); else unsupported.push(r.key); continue; }
     const e = effectOf(r);
     if (e) effects.push(e);
     else unsupported.push(r.key === 'env_gbuff_new' || r.key === 'char_dynamic_ability_new' ? `${r.key}:${String(boardOf(r).key)}` : r.key);
   }
-  return { effects, limitAdd, unsupported };
+  return { effects, limitAdd, cards, unsupported };
 }
 
 /** Modifiers of two runes together: products for the `Mul` keys, sums for the others (属性-2). @param {Record<string, number>} a @param {Record<string, number>} b */

@@ -14,6 +14,7 @@ import { kitsBehaviors, withKitTrait } from './compat/kits.js';
 import { defOf, tokenDefOf } from './compat/records.js';
 import { KIT_SOURCE } from './compat/kitmod.js';
 import { seatRules, withRunes } from './runes.js';
+import { carriedDef } from './carried.js';
 
 /** The official behaviours: skills (技能-6) and enemy abilities (敌能-2). */
 const BEHAVIORS = Object.freeze({ skills: skillBehaviors, foes: foeBehaviors });
@@ -90,7 +91,7 @@ export async function matchContent(match, levels = LEVELS, kits = {}) {
     for (const { id, build } of deck) Object.assign(operators, await summonsOf(id, build, seat, lv.blockAdd, Object.hasOwn(kits, id)));
     return built.map((x) => x.key);
   }));
-  const limitAdd = withSeatRunes(operators, match.runes ?? []);
+  const limitAdd = await withSeatRunes(operators, decks, match.runes ?? []);
   const used = [...new Set(Object.keys(entries).map((k) => k.split('#')[0]))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const kb = used.length ? kitsBehaviors(entries) : null;
   const behaviors = kb ? { ...BEHAVIORS, world: kb.world, skills: { ...BEHAVIORS.skills, ...kb.skills }, buffs: kb.buffs, traits: kb.traits } : BEHAVIORS;
@@ -99,17 +100,27 @@ export async function matchContent(match, levels = LEVELS, kits = {}) {
 }
 
 /**
- * Every seat's runes on its operators and summons (keys ending in #seat, 符文-1…5); each seat's change to the deploy
- * limit. Throws for runes not supported yet.
- * @param {Record<string, import('@aue/sim').OperatorDef>} operators @param {readonly import('./runes.js').SeatRune[][]} runes @returns {number[]}
+ * Every seat's runes on its operators and summons (keys ending in #seat, 符文-1…5), then its carried units' cards added
+ * to its deck (符文-6, key "unit id#seat"); each seat's change to the deploy limit. Throws for runes not supported yet.
+ * @param {Record<string, import('@aue/sim').OperatorDef>} operators @param {string[][]} decks @param {readonly import('./runes.js').SeatRune[][]} runes
+ * @returns {Promise<number[]>}
  */
-function withSeatRunes(operators, runes) {
-  return runes.map((list, seat) => {
+async function withSeatRunes(operators, decks, runes) {
+  const rules = runes.map((list, seat) => {
     const r = seatRules(list);
     if (r.unsupported.length > 0) throw new RangeError(`seat ${seat}: runes not supported yet: ${r.unsupported.join(', ')}`);
-    for (const k of Object.keys(operators)) if (k.endsWith(`#${seat}`)) operators[k] = withRunes(operators[k], r.effects);
-    return r.limitAdd;
+    return r;
   });
+  for (const [seat, r] of rules.entries()) {
+    for (const k of Object.keys(operators)) if (k.endsWith(`#${seat}`)) operators[k] = withRunes(operators[k], r.effects);
+    for (const card of r.cards) {
+      const key = `${card.key}#${seat}`;
+      if (decks[seat].includes(key)) continue;
+      operators[key] = await carriedDef(card.key, card);
+      decks[seat].push(key);
+    }
+  }
+  return rules.map((r) => r.limitAdd);
 }
 
 /**
@@ -173,3 +184,4 @@ export { TOKENS, SUMMON_PAGES, loadToken, tokenAt } from './tokens.js';
 export { KIT_SOURCE, KIT_FILES, KITS_ENABLED, KIT_DIFFERENCES, loadKits } from './compat/kitmod.js';
 export { MAPPING, mappedUrl } from './compat/mapping.js';
 export { PROFESSION_BITS, seatRules, withRunes } from './runes.js';
+export { CARRIED, CARRIED_PROFILES, loadCarried, carriedDef } from './carried.js';

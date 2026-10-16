@@ -43,3 +43,19 @@
 
 - 来源：[PRTS「山海众掌令使」oldid=436476](https://prts.wiki/index.php?title=%E5%B1%B1%E6%B5%B7%E4%BC%97%E6%8E%8C%E4%BB%A4%E4%BD%BF&oldid=436476)「在经过的首个可部署的“玉门天灾工事”上部署30级的山海密语仪」；朝向与「可部署」的判定为推断 INF-0157
 
+
+### 装置-6 携带物的效果
+
+玩家卡组里的携带物（符文-6）每次部署时：
+
+| 携带物 | 效果 |
+|---|---|
+| 赛场啦啦队 `trap_201_muulco` | 双方此时在场的干员攻击力 +`atk`（直接乘算），持续 `buff_duration` 秒 |
+| 护具分发员 `trap_197_muulwr` | 双方此时在场的干员获得 `dynamic` 点屏障（伤害-8），持续 `shield_duration` 秒 |
+| 混乱烟花箱 `trap_198_muulas` | 对所有敌人（中立单位除外）造成 `damage` 点法术伤害，来源是它；双方正在再部署的干员卡立即可以部署 |
+| 猛兽能量饮料 `trap_199_muulrg` | 双方此时在场的干员防御力和法术抗性降为 0（最终乘算 ×0），攻击速度 +`attack_speed`，持续 `buff_duration` 秒 |
+| 喷射汽水机 `trap_200_muulcl` | 此后每过它的攻击间隔喷一次，共喷技能的弹药数次：每次从双方在场的干员中随机选至多 `attack@max_target` 名，各得 `attack@sp` 点技力（技能-2：阻回时不得） |
+
+数值取它技能 blackboard 在卡的技能等级时的值。「干员」不含携带物自己和其他装置。两名玩家的同一种携带物各自生效，效果叠加。
+
+- 来源：[PRTS「赛场啦啦队」revid 338721](https://prts.wiki/index.php?title=%E8%B5%9B%E5%9C%BA%E5%95%A6%E5%95%A6%E9%98%9F&oldid=338721)「部署后10秒内，使双方所有在场干员攻击力提升攻击力+20%」；[PRTS「护具分发员」revid 404325](https://prts.wiki/index.php?title=%E6%8A%A4%E5%85%B7%E5%88%86%E5%8F%91%E5%91%98&oldid=404325)「部署后20秒内，使双方在场干员获得6000点屏障」；[PRTS「混乱烟花箱」revid 404326](https://prts.wiki/index.php?title=%E6%B7%B7%E4%B9%B1%E7%83%9F%E8%8A%B1%E7%AE%B1&oldid=404326)「部署后对所有敌人造成3000点伤害，并将双方再部署中的干员再部署时间减少至0」「※伤害类型为法术」；[PRTS「猛兽能量饮料」revid 404327](https://prts.wiki/index.php?title=%E7%8C%9B%E5%85%BD%E8%83%BD%E9%87%8F%E9%A5%AE%E6%96%99&oldid=404327)「部署后10秒内，使双方在场干员的防御力和法术抗性降低至0，但攻击速度+120」；[PRTS「喷射汽水机」revid 404328](https://prts.wiki/index.php?title=%E5%96%B7%E5%B0%84%E6%B1%BD%E6%B0%B4%E6%9C%BA&oldid=404328)「部署后持续向双方干员随机喷射汽水瓶，砸到的干员获得3点技力」「攻击间隔=0.2」；数据：skill_table sktok_muulco_1、sktok_muulwr_1、sktok_muulas_1、sktok_muulrg_1、sktok_muulcl_1（AMMO，duration 20）；只作用于部署那一刻在场的干员、汽水机喷的次数与选法、两人的效果叠加为推断 INF-0167

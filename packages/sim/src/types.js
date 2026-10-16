@@ -188,14 +188,14 @@
  * its factions, `rangeTalents` its talents for the units in its attack range while it is on the field (部署-6),
  * `critTalents` its chances to strike harder (攻击-4), `timedTalents` its talents in time on the field (部署-7),
  * `deployTalents` what its talents do at its deployment (部署-8); from its seat's runes, `runeMods` its always-on buff
- * (符文-3), `probSp` its chances of SP on dealing damage (符文-4), `rangeSp` the SP it gives in its attack range (符文-5). A
- * summon's record names its owner's key (`summoner`)
+ * (符文-3), `probSp` its chances of SP on dealing damage (符文-4), `rangeSp` the SP it gives in its attack range (符文-5); a
+ * carried unit's record (符文-6) what its deployment does (`carried`, 装置-6). A summon's record names its owner's key (`summoner`)
  * and how its card works (`summon`, 召唤-3, 召唤-4); `position` ALL lets it stand on melee and ranged tiles.
  * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
  *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, trait?: Partial<TraitDef>, respawnTime?: number, char?: string,
  *   talentBb?: Record<string, number>, fieldTalents?: TeamTalent[], powers?: string[], rangeTalents?: RangeTalent[],
  *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[], summoner?: string, summon?: SummonDef,
- *   runeMods?: Record<string, number>, probSp?: { prob: number, sp: number }[], rangeSp?: { sp: number, interval: number } }} OperatorDef
+ *   runeMods?: Record<string, number>, probSp?: { prob: number, sp: number }[], rangeSp?: { sp: number, interval: number }, carried?: CarriedEffect }} OperatorDef
  */
 /**
  * A summon's card rules (召唤-3, 召唤-4): its limits on the field and held, what its owner's deployment adds (0: no card),
@@ -211,6 +211,13 @@
  * A deployment talent (部署-8): SP between `sp[0]` and below `sp[1]`, a heal of every operator (`value` HP or `scale` × the
  * attack), shield layers.
  * @typedef {{ sp?: [number, number], heal?: { value: number } | { scale: number }, shield?: number }} DeployTalent
+ */
+/**
+ * What a carried unit's deployment does (装置-6): for every operator on the field then, modifiers (`allyMods`) or a
+ * barrier for `seconds`; damage to every enemy; every redeploying operator card ready; and a spray of SP — `shots`
+ * times, one every `every` seconds, `sp` to each of up to `targets` operators on the field at random.
+ * @typedef {{ seconds?: number, allyMods?: Record<string, number>, barrier?: number, enemyDamage?: { type: 'phys' | 'arts', amount: number }, readyCards?: boolean,
+ *   spray?: { shots: number, every: number, targets: number, sp: number } }} CarriedEffect
  */
 /**
  * A timed talent (部署-7): from deployment, a step of `mods` every `seconds` up to `max` steps ('stack'), the mods once

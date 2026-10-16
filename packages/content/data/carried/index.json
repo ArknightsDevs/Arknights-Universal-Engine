@@ -1,0 +1,33 @@
+{
+ "source": {
+  "repo": "Kengxxiao/ArknightsGameData",
+  "commit": "17759cc8cdf37388414145d16262a3a06f3ab25e",
+  "server": "zh_CN"
+ },
+ "carried": {
+  "trap_009_battery": {
+   "name": "便携式补给站"
+  },
+  "trap_046_oxygen": {
+   "name": "防水蚀镀膜装置"
+  },
+  "trap_197_muulwr": {
+   "name": "护具分发员"
+  },
+  "trap_198_muulas": {
+   "name": "混乱烟花箱"
+  },
+  "trap_199_muulrg": {
+   "name": "猛兽能量饮料"
+  },
+  "trap_200_muulcl": {
+   "name": "喷射汽水机"
+  },
+  "trap_201_muulco": {
+   "name": "赛场啦啦队"
+  },
+  "trap_257_muulct": {
+   "name": "迷幻反射镜"
+  }
+ }
+}
