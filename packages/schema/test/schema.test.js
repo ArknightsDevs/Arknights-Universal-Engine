@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import fc from 'fast-check';
 import {
   VIEW_VERSION, viewLength, writeView, readView, eventProblems, clientMessageProblem, commandProblem, snapshotProblem, PROTOCOL_VERSION, serverMessageProblem,
-  matchProblem, buildProblem, MAX_DECK, DIFFICULTIES,
+  matchProblem, buildProblem, MAX_DECK, MAX_RUNES, MAX_BOARD, DIFFICULTIES,
 } from '../src/index.js';
 
 const SEED = 20261011;
@@ -59,7 +59,7 @@ test('client messages: exactly the well-formed ones are accepted', () => {
   }
   const bad = [
     [[], 'message is not an object'], [{ t: 'nope' }, 'unknown message type nope'], [{ t: 'constructor' }, 'unknown message type constructor'],
-    [{ ...HELLO, v: 3 }, 'protocol version 3, expected 7'], [{ ...HELLO, seat: 8 }, 'hello.seat out of range'], [{ ...HELLO, key: 'a b' }, 'hello.key is not an id'],
+    [{ ...HELLO, v: 3 }, 'protocol version 3, expected 8'], [{ ...HELLO, seat: 8 }, 'hello.seat out of range'], [{ ...HELLO, key: 'a b' }, 'hello.key is not an id'],
     [{ ...HELLO, since: 1.5 }, 'hello.since out of range'], [{ ...HELLO, admin: true }, 'unknown field admin'], [{ t: 'hash', frame: 1 }, 'missing field hash'],
     [{ t: 'hash', frame: 1, hash: -1 }, 'hash.hash is not a uint32'], [{ t: 'hash', frame: -1, hash: 1 }, 'hash.frame out of range'],
     [{ t: 'cmd', at: 2e6, cmd: DEPLOY }, 'cmd.at out of range'], [{ t: 'cmd', at: 1, cmd: { ...DEPLOY, row: 64 } }, 'deploy tile out of range'],
@@ -107,7 +107,7 @@ test('server messages: well-formed ones pass; broken ones are reported, never th
   for (const m of ok) assert.equal(serverMessageProblem(m), null, JSON.stringify(m));
   const bad = [
     [null, 'message is not an object'], [{ t: 'hello' }, 'unknown message type hello'],
-    [{ ...ok[0], v: 3 }, 'protocol version 3, expected 7'], [{ ...ok[0], seed: 1.5 }, 'welcome fields out of range'], [{ ...ok[0], content: -1 }, 'welcome fields out of range'],
+    [{ ...ok[0], v: 3 }, 'protocol version 3, expected 8'], [{ ...ok[0], seed: 1.5 }, 'welcome fields out of range'], [{ ...ok[0], content: -1 }, 'welcome fields out of range'],
     [{ ...ok[1], to: 2 }, 'frames range malformed'], [{ ...ok[1], cmds: {} }, 'sealed commands are not an array'],
     [{ ...ok[1], cmds: [[4, 9, DEPLOY]] }, 'frames.cmds has a malformed entry'], [{ ...ok[1], cmds: [[4, 1, { type: 'x' }]] }, 'unknown command type x'],
     [{ t: 'restamp', from: -1, to: 1 }, 'restamp out of range'], [{ t: 'error', code: 1, message: 'y' }, 'error fields are not strings'],
@@ -144,4 +144,22 @@ test('[同步-9] match settings: exactly the well-formed ones pass; a welcome ca
   assert.equal(serverMessageProblem({ ...welcome, match: { ...match, seed: 1.5 } }), 'match.seed is not a uint32');
   const { match: _m, ...noMatch } = welcome;
   assert.equal(serverMessageProblem(noMatch), 'missing field match');
+});
+
+test('[同步-9] [符文-1] a match may carry each seat\'s runes: a key, a profession mask and a blackboard of [key, number or text]', () => {
+  const build = { elite: 2, level: 90, potential: 6, trust: 200, skill: 2, skillLevel: 10 };
+  const match = { level: 'act1multi_01', difficulty: 'NORMAL', seed: 7, decks: [[{ id: 'char_122_beagle', build }], []] };
+  const r = { key: 'env_gbuff_new', professions: 639, board: [['key', 'attr_up_on_trigger[atk][max_hp]'], ['atk', 0.03], ['attack@sp', 3]] };
+  assert.equal(PROTOCOL_VERSION, 8);
+  assert.equal(matchProblem({ ...match, runes: [[r], []] }), null);
+  assert.equal(matchProblem({ ...match, runes: [[], []] }), null);
+  const bad = [
+    [{ ...match, runes: [[r]] }, 'match.runes is not one list per seat'], [{ ...match, runes: [Array(MAX_RUNES + 1).fill(r), []] }, `a seat's runes are not a list of at most ${MAX_RUNES}`],
+    [{ ...match, runes: [[1], []] }, 'a rune is not an object'], [{ ...match, runes: [[{ ...r, x: 1 }], []] }, 'unknown field x'],
+    [{ ...match, runes: [[{ ...r, key: 'A B' }], []] }, 'rune.key is not a rune key'], [{ ...match, runes: [[{ ...r, professions: 1024 }], []] }, 'rune.professions is not a profession mask'],
+    [{ ...match, runes: [[{ ...r, board: [['atk', Infinity]] }], []] }, 'rune.board is not a list of [key, value]'],
+    [{ ...match, runes: [[{ ...r, board: [['atk']] }], []] }, 'rune.board is not a list of [key, value]'],
+    [{ ...match, runes: [[{ ...r, board: Array(MAX_BOARD + 1).fill(['atk', 1]) }], []] }, 'rune.board is not a list of [key, value]'],
+  ];
+  for (const [m, why] of bad) assert.equal(matchProblem(m), why, JSON.stringify(m).slice(0, 120));
 });

@@ -1,11 +1,12 @@
-// The network messages, version 7 (ADR 0053; version 2 adds the skill command, version 3 the cost request and its answer,
+// The network messages, version 8 (ADR 0053; version 2 adds the skill command, version 3 the cost request and its answer,
 // and the speed and pause controls, version 4 the match settings in the welcome, version 5 the content hash in it,
-// version 6 the ready message: the page has loaded the battle, version 7 the replay in the welcome and the resync). Messages from browsers are untrusted: the server accepts one only when
+// version 6 the ready message: the page has loaded the battle, version 7 the replay in the welcome and the resync, version 8 the seats' runes
+// in the match settings). Messages from browsers are untrusted: the server accepts one only when
 // clientMessageProblem returns null — exact fields, integers in range, short ids, nothing else.
 import { isRecord, isInt, isId, keyProblem } from './checks.js';
 import { matchProblem } from './match.js';
 
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 
 /** Largest frame number (about 9.5 hours at 30 frames per second). */
 export const MAX_FRAME = 1_000_000;
@@ -122,7 +123,8 @@ export function serverMessageProblem(m) {
  * @typedef {{ elite: number, level: number, potential: number, trust: number, skill: number, skillLevel: number, module?: number, moduleLevel?: number }} Build
  */
 /** @typedef {{ id: string, build: Build }} DeckEntry */
-/** The match settings (同步-9; match.js checks them). @typedef {{ level: string, difficulty: 'NORMAL' | 'FOUR_STAR', seed: number, decks: DeckEntry[][] }} Match */
+/** A seat rune (符文-1): its key, the professions it applies to (a bit mask), its blackboard. @typedef {{ key: string, professions: number, board: [string, number | string][] }} SeatRune */
+/** The match settings (同步-9; match.js checks them). @typedef {{ level: string, difficulty: 'NORMAL' | 'FOUR_STAR', seed: number, decks: DeckEntry[][], runes?: SeatRune[][] }} Match */
 /**
  * The welcome: the seat, the seed, the last sealed frame, the arbiter's snapshot — or, for content with a world setup,
  * every sealed command from frame 0 to replay (同步-5) —, and the match settings (同步-9; null when both sides know the

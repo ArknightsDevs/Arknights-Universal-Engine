@@ -24,6 +24,49 @@ export function gridOf(id) {
 /** skill_table's spType number → Stronghold's name. @type {Record<string, string>} */
 const SP_NAMES = { 1: 'INCREASE_WITH_TIME', 2: 'INCREASE_WHEN_ATTACK', 4: 'INCREASE_WHEN_TAKEN_DAMAGE', 8: 'NONE' };
 
+/** A number as Stronghold's records print it: a whole one as it is, another to 6 places. @param {number} v */
+const cleanNum = (v) => (Number.isInteger(v) || Math.abs(v) >= 1e6 ? v : Math.round(v * 1e6) / 1e6);
+
+/**
+ * A blackboard value in a description's format (`0%`, `0.0`, …; none: as it is), as Stronghold's records print it.
+ * @param {unknown} v @param {string | undefined} fmt
+ */
+function formatValue(v, fmt) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return String(v);
+  if (!fmt) return String(cleanNum(v));
+  const pct = fmt.endsWith('%'), core = pct ? fmt.slice(0, -1) : fmt, decimals = core.includes('.') ? core.split('.')[1].length : 0;
+  const scale = Number(`1e${decimals}`), x = pct ? v * 100 : v, rounded = (Math.sign(x) * Math.round(Math.abs(x) * scale + 1e-9)) / scale;
+  return rounded.toFixed(decimals) + (pct ? '%' : '');
+}
+
+/**
+ * A description with its placeholders — `{key}`, `{-key}`, `{key:format}`, keys in any case — filled from the
+ * blackboard (a text value wins where there is no format); an unknown one stays.
+ * @param {string} text @param {Record<string, number>} bb @param {Record<string, string>} bbStr
+ */
+function filled(text, bb, bbStr) {
+  const num = new Map(Object.entries(bb ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
+  const str = new Map(Object.entries(bbStr ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
+  return text.replace(/\{(-?)([^{}:]+)(?::([^{}]+))?\}/g, (m, neg, key, fmt) => {
+    const k = key.trim().toLowerCase();
+    if (str.has(k) && (!num.has(k) || !fmt)) return String(str.get(k));
+    return num.has(k) ? formatValue(neg ? -Number(num.get(k)) : num.get(k), fmt) : m;
+  });
+}
+
+/** Official rich text without its markup (`<@…>`, `<$…>`, `<#…>`, `</>`, colours, bold, italics); literal labels stay. @param {string} s */
+const plain = (s) => s.replace(/<[@$#][^<>]*>/g, '').replace(/<\/>/g, '').replace(/<\/?color[^<>]*>/gi, '').replace(/<\/?[bi]>/gi, '');
+
+/**
+ * A description as a record's `desc` and `descRaw`, as Stronghold's records have them: its literal `\n` as newlines,
+ * its placeholders filled; the one without markup, the other with it.
+ * @param {string | null | undefined} raw @param {Record<string, number>} [bb] @param {Record<string, string>} [bbStr]
+ */
+export function textPair(raw, bb = {}, bbStr = {}) {
+  const descRaw = filled(String(raw ?? '').replace(/\\n/g, '\n'), bb, bbStr);
+  return { desc: plain(descRaw), descRaw };
+}
+
 /**
  * The skill records of a training (兼容-3): each skill unlocked at its elite phase at the build's skill level.
  * @param {Training} t @param {Build} b @returns {Rec[]}
@@ -36,7 +79,7 @@ function skillRecords(t, b) {
     return [{
       skillId: slot.id, index, name: '', skillType: lv.skillType, durationType: lv.durationType, duration: lv.duration,
       spType: SP_NAMES[String(sp.spType)] ?? String(sp.spType), spCost: sp.spCost, initSp: sp.initSp, maxChargeTime: sp.maxChargeTime,
-      bb, bbStr, rangeId: lv.rangeId ?? null, rangeGrid: gridOf(lv.rangeId), desc: lv.description ?? '', trigger: { rule: 'DEFAULT' },
+      bb, bbStr, rangeId: lv.rangeId ?? null, rangeGrid: gridOf(lv.rangeId), ...textPair(lv.description, bb, bbStr), trigger: { rule: 'DEFAULT' },
     }];
   });
 }
@@ -45,7 +88,7 @@ function skillRecords(t, b) {
  * A talent record (兼容-3) from a talent candidate. @param {import('../operators.js').TalentCandidate} c @param {number} index @returns {Rec}
  */
 const talentRecord = (c, index) => ({
-  index, name: c.name ?? '', desc: c.description ?? '', bb: { ...c.bb }, bbStr: { ...(c.text ?? {}) }, rangeGrid: gridOf(c.rangeId),
+  index, name: c.name ?? '', ...textPair(c.description, c.bb, c.text), bb: { ...c.bb }, bbStr: { ...(c.text ?? {}) }, rangeGrid: gridOf(c.rangeId),
   tokenKey: c.token ?? null, hidden: !!c.hidden,
 });
 
@@ -95,7 +138,7 @@ function moduleRecords(t, b) {
     return [{
       uniEquipId: m.id, name: m.name, typeName: m.type, isDefault: i === b.module, level: lv?.level ?? 1, attr: { ...(lv?.stats ?? {}) },
       traitOverride: trait ? traitRecord(t, b, lv) : null,
-      talentChanges: talentChanges(lv, b).map((c) => ({ talentIndex: c.index, name: c.name ?? null, desc: c.upgrade ?? '', bb: { ...c.bb },
+      talentChanges: talentChanges(lv, b).map((c) => ({ talentIndex: c.index, name: c.name ?? null, ...textPair(c.upgrade, c.bb, c.text), bb: { ...c.bb },
         bbStr: { ...(c.text ?? {}) }, rangeGrid: gridOf(c.rangeId), tokenKey: null, hidden: !!c.hidden })),
     }];
   });
@@ -107,8 +150,9 @@ function moduleRecords(t, b) {
  * @param {Rec | null} old @param {import('../operators.js').ModulePart['talents'][number]} c @returns {Rec}
  */
 function changedTalent(old, c) {
-  const o = old ?? { name: '', desc: '', bb: {}, bbStr: {}, rangeGrid: null, tokenKey: null, hidden: c.hidden };
-  return { index: c.index, name: c.name ?? o.name, desc: c.upgrade ?? o.desc, bb: { ...o.bb, ...c.bb }, bbStr: { ...o.bbStr, ...(c.text ?? {}) },
+  const o = old ?? { name: '', desc: '', descRaw: '', bb: {}, bbStr: {}, rangeGrid: null, tokenKey: null, hidden: c.hidden };
+  const bb = { ...o.bb, ...c.bb }, bbStr = { ...o.bbStr, ...(c.text ?? {}) }, text = c.upgrade != null ? textPair(c.upgrade, bb, bbStr) : { desc: o.desc, descRaw: o.descRaw ?? o.desc };
+  return { index: c.index, name: c.name ?? o.name, ...text, bb, bbStr,
     rangeGrid: gridOf(c.rangeId) ?? o.rangeGrid, tokenKey: o.tokenKey, hidden: !!(o.hidden && c.hidden), fromModule: true };
 }
 
@@ -170,7 +214,7 @@ export function tokenRecordOf(id, token, owner, b) {
   const byTalent = owner.talents.flat().some((c) => c.token === id), bySkill = b.skill >= 0 && owner.skills[b.skill]?.token === id;
   return {
     name: token.name, profession: 'TOKEN', subProfessionId: token.branch, position: SUMMON_PAGES[id]?.position ?? token.position,
-    description: token.description ?? '', phase: tb.elite, level: tb.level,
+    description: textPair(token.description).desc, phase: tb.elite, level: tb.level,
     stats: { ...statsRecord(s), deployLimit: limitsAt(token, tb, mod).deployLimit }, rangeGrid: token.phases[tb.elite].range.map((c) => [c.row, c.col]),
     trait: traitRecord(token, tb, mod), talents: talentRecords(token, tb, mod), skill: skillRecords(token, tb).find((x) => x.index === tb.skill) ?? null,
     count: supply > 0 ? supply : null, sources: byTalent || bySkill ? [...(byTalent ? ['talent'] : []), ...(bySkill ? ['skill'] : [])] : ['display'],

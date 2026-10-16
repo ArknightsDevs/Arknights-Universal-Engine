@@ -6,7 +6,7 @@ import { statsOf, activeBuffs } from './attrs.js';
 import { removeBuff } from './buffs.js';
 import { draw } from './rng.js';
 import { MIN_DAMAGE_RATIO } from './constants.js';
-import { hurtSp } from './sp.js';
+import { hurtSp, gainSp } from './sp.js';
 import { emit, hasHook } from './bus.js';
 import { worksMul } from './works.js';
 
@@ -31,6 +31,8 @@ import { worksMul } from './works.js';
  * @property {boolean} [hpLoss]
  * @property {boolean} [sourceless] 无来源 though credited to its source: the events see no source, the kill is its source's,
  *   without the source's penetration and multiplier (伤害-7)
+ * @property {boolean} [throughSleep] 沉睡's invincibility does not stop it (伤害-7: a skill that damages the enemies it puts
+ *   to sleep); 无敌 still does
  */
 
 /** @typedef {{ defIgnorePct: number, defIgnoreFlat: number, resIgnorePct: number, resIgnoreFlat: number }} Penetration */
@@ -177,6 +179,15 @@ function settle(dmg) {
 }
 
 /**
+ * Whether a unit's invincibility stops a hit (伤害-7, 状态-5): 无敌 always, 沉睡 unless the hit goes through it.
+ * @param {Unit} target @param {Damage} dmg
+ */
+function untouchable(target, dmg) {
+  const f = statsOf(target).flags;
+  return !!(f.invincible || (f.sleep && !dmg.throughSleep));
+}
+
+/**
  * The `hit` event before the defences (钩子-3): whether the hit goes on — not cancelled, the target still on the field
  * with HP, not made invincible by a handler.
  * @param {World} w @param {Unit | null} src @param {Unit} target @param {Damage} dmg
@@ -184,7 +195,7 @@ function settle(dmg) {
 function hitGoesOn(w, src, target, dmg) {
   if (!hasHook(w, 'hit')) return true;
   emit(w, 'hit', { source: seenOf(src, dmg), credit: src, target, dmg });
-  return !dmg.cancel && target.hp > 0 && w.units.includes(target) && !statsOf(target).invincible;
+  return !dmg.cancel && target.hp > 0 && w.units.includes(target) && !untouchable(target, dmg);
 }
 
 /**
@@ -211,9 +222,19 @@ export function regenAll(w) {
 }
 
 /**
+ * A hit's source with its seat runes' SP on dealing damage (符文-4): for each, with its chance (one draw), its SP.
+ * @param {World} w @param {import('./types.js').Content} c @param {Unit} src
+ */
+function runeSp(w, c, src) {
+  const chances = c.operators[src.key]?.probSp;
+  if (!chances || !src.skill) return;
+  for (const p of chances) if (draw(w) < p.prob) gainSp(src.skill, p.sp);
+}
+
+/**
  * Deals a hit (伤害-7): nothing to a unit already at 0 HP; 生命流失 goes straight to the HP; nothing to an invincible
- * unit (无敌, 沉睡, disappeared: 路线-4); otherwise the `hit` event, then the hit counts for 受击回复 (技能-2), then the
- * target's defences, `mul`, the source's multiplier, the 工事 multiplier (地图-3; given the content), the target's 伤判
+ * unit (无敌, 沉睡, disappeared: 路线-4); otherwise the `hit` event, then the hit counts for 受击回复 (技能-2) and for
+ * its source's rune SP (符文-4; given the content), then the target's defences, `mul`, the source's multiplier, the 工事 multiplier (地图-3; given the content), the target's 伤判
  * effects, the `hpDamage` event, then the HP. A `sourceless` hit takes neither its source's penetration nor its
  * multipliers, and its events see no source (`credit` names it). Returns the HP taken.
  * @param {World} w @param {Unit | null} src @param {Unit} target @param {Damage} dmg @param {import('./types.js').Content} [c]
@@ -222,8 +243,9 @@ export function dealDamage(w, src, target, dmg, c) {
   if (target.hp <= 0) return 0;
   settle(dmg);
   if (dmg.hpLoss) return loseHp(w, src, target, dmg.amount, dmg);
-  if (statsOf(target).invincible || target.hidden || !hitGoesOn(w, src, target, dmg)) return 0;
+  if (untouchable(target, dmg) || target.hidden || !hitGoesOn(w, src, target, dmg)) return 0;
   hurtSp(target);
+  if (c && src && !dmg.sourceless) runeSp(w, c, src);
   const seen = seenOf(src, dmg), ss = seen ? statsOf(seen) : null;
   let amount = mitigate(dmg.amount, dmg.type, statsOf(target), penetration(ss, dmg)) * /** @type {number} */ (dmg.mul);
   if (ss) amount *= dealtMul(ss, dmg.type) * (c && seen ? worksMul(c, seen, target) : 1);
@@ -243,17 +265,18 @@ export function setHp(u, hp) {
 
 /**
  * Heals (伤害-11): the amount times the healer's 治疗倍率 and the target's 受到治疗倍率, nothing under 禁疗, never above
- * the maximum HP; a `heal` handler may change the amount before it is applied (钩子-3). A unit no ally may heal
- * (`noAllyHeal`, 职业-9) takes heals only from itself, and those even under 禁疗. Returns the HP restored.
- * @param {World} w @param {Unit | null} src @param {Unit} target @param {number} amount
+ * the maximum HP; a `heal` handler may change the amount before it is applied (钩子-3) and sees whether it is the
+ * healer's trait's self-heal (`trait`, 职业-9). A unit no ally may heal (`noAllyHeal`, 职业-9) takes heals only from
+ * itself, and those even under 禁疗. Returns the HP restored.
+ * @param {World} w @param {Unit | null} src @param {Unit} target @param {number} amount @param {{ trait?: boolean }} [how]
  */
-export function heal(w, src, target, amount) {
+export function heal(w, src, target, amount, how = {}) {
   if (target.hp <= 0) return 0;
   const ts = statsOf(target), own = src === target && ts.flags.noAllyHeal === true;
   if ((ts.flags.noAllyHeal && src !== target) || (ts.flags.healFree && !own)) return 0;
   let amt = amount * (src ? statsOf(src).healingDealtMul : 1) * ts.healingTakenMul;
   if (hasHook(w, 'heal')) {
-    const k = emit(w, 'heal', { source: src, target, amount: amt });
+    const k = emit(w, 'heal', { source: src, target, amount: amt, trait: how.trait === true });
     amt = Number.isFinite(k.amount) ? Math.max(0, k.amount) : 0;
     if (target.hp <= 0 || !w.units.includes(target)) return 0;
   }

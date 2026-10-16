@@ -4,6 +4,6 @@ export { extractWaves, readAction, hiddenGroupsOf, predefinesOf, maskCovers, sta
 export { NEUTRAL_ENEMIES } from './neutral.js';
 export { extractLevel, difficultyOf } from './level.js';
 export { devicesOf } from './devices.js';
-export { extractRoster, extractTraining, extractTokens, extractRanges, extractPowers } from './operators.js';
+export { extractRoster, extractTraining, extractTokens, extractRanges, extractPowers, carriedIds, extractCarried } from './operators.js';
 export { enemyOf, mergeEnemyData, damageTypeOf } from './enemies.js';
 export { attackClip, attackTiming, frameProblem } from './timings.js';

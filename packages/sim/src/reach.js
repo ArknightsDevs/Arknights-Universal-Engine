@@ -1,5 +1,6 @@
-// An operator's attack range now (docs/spec/skills.md 技能-8, 攻击-1): its skill's while the skill runs and has one, its
-// own otherwise — the one content gave it, else its record's —, turned with it, extended by its 攻击距离.
+// An operator's attack range now (docs/spec/skills.md 技能-8, 攻击-1): its skill's while the skill runs and has one — the
+// one its behaviour gives, else its record's —, its own otherwise — the one content gave it, else its record's —,
+// turned with it, extended by its 攻击距离.
 import { statsOf } from './attrs.js';
 import { rangeKeys } from './targeting.js';
 import { traitOfDef } from './traits.js';
@@ -16,12 +17,21 @@ import { dirOfCode } from './dir.js';
 export function reachKeys(c, op) {
   const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], sk = op.skill && op.skill.active ? d.skill : undefined;
   if (sk && sk.rangeAll) return new Set(Array.from({ length: grid.rows * grid.cols }, (_, k) => k));
-  const range = (sk && sk.range) || op.range || d.range, extend = statsOf(op).rangeExtend, m = reachMemo.get(op);
+  const range = (sk && behaviorRange(c, op, sk.id)) || (sk && sk.range) || op.range || d.range, extend = statsOf(op).rangeExtend, m = reachMemo.get(op);
   if (m !== undefined && sameReach(m, c, op, range, extend)) return m.keys;
   const keys = rangeKeys(grid, op, range, extend);
   for (const k of op.reachExtra ?? []) keys.add(k);
   reachMemo.set(op, { c, x: op.x, y: op.y, dir: op.dir, cells: range.flatMap((x) => [x.row, x.col]), extend, extra: op.reachExtra ? [...op.reachExtra] : undefined, keys });
   return keys;
+}
+
+/**
+ * The range a running skill's behaviour gives it now (技能-8), or null. @param {Content} c @param {Unit} op @param {string} id
+ * @returns {import('./types.js').Cell[] | null}
+ */
+function behaviorRange(c, op, id) {
+  const own = c.behaviors?.skills, beh = own && Object.hasOwn(own, id) ? own[id] : null;
+  return typeof beh?.range === 'function' ? beh.range(op) : null;
 }
 
 /**

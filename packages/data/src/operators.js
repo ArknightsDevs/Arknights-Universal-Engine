@@ -119,9 +119,41 @@ function tokensOf(c, p) {
  * @param {{ uniequip: unknown, battle: unknown }} equipment @returns {Record<string, Record<string, unknown>>}
  */
 export function extractTokens(charactersRaw, rangesRaw, skillsRaw, equipment) {
+  // (the summons: every token_ character whose profession is TOKEN)
   const all = asObject(charactersRaw, 'characters');
   const ids = Object.keys(all).filter((id) => id.startsWith('token_') && asObject(all[id], `characters[${id}]`).profession === 'TOKEN').toSorted();
   return Object.fromEntries(ids.map((id) => [id, extractTraining(all[id], id, rangesRaw, skillsRaw, equipment)]));
+}
+
+/**
+ * The units a rune puts into a player's deck (符文-6): every `token_key` of an `insert_token_card` rune anywhere in the
+ * activity table, sorted.
+ * @param {unknown} activityRaw activity_table @returns {string[]}
+ */
+export function carriedIds(activityRaw) {
+  /** @type {Set<string>} */
+  const ids = new Set();
+  /** @param {unknown} x */
+  const walk = (x) => {
+    if (Array.isArray(x)) { for (const v of x) walk(v); return; }
+    if (typeof x !== 'object' || x === null) return;
+    const o = /** @type {Record<string, unknown>} */ (x);
+    if (o.key === 'insert_token_card' && Array.isArray(o.blackboard)) {
+      for (const b of o.blackboard) if (b && b.key === 'token_key' && typeof b.valueStr === 'string') ids.add(b.valueStr);
+    }
+    for (const v of Object.values(o)) walk(v);
+  };
+  walk(activityRaw);
+  return [...ids].toSorted();
+}
+
+/**
+ * The training data of the units runes put into decks (符文-6, carriedIds), by id.
+ * @param {unknown} charactersRaw @param {readonly string[]} ids @param {unknown} rangesRaw @param {unknown} skillsRaw @param {Parameters<typeof extractTraining>[4]} equipment
+ */
+export function extractCarried(charactersRaw, ids, rangesRaw, skillsRaw, equipment) {
+  const all = asObject(charactersRaw, 'characters');
+  return Object.fromEntries(ids.filter((id) => Object.hasOwn(all, id)).map((id) => [id, extractTraining(all[id], id, rangesRaw, skillsRaw, equipment)]));
 }
 
 /**

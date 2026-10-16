@@ -18560,7 +18560,8 @@
       0,
       -6.6,
       -10.63
-    ]
+    ],
+    "bgm": "bat_boss_ymmons"
   },
   "difficulties": {
     "NORMAL": {

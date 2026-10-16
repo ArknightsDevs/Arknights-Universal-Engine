@@ -207,18 +207,25 @@ function chargeAt(ch, op) {
 
 /**
  * The charge's behaviour (职业-12): each second its skill does not run it gains a step, up to its trait's steps, each
- * step the share of its attack bonus; while the skill runs it holds; the first second after it ran, it is back at 0.
+ * step the share of its attack bonus; while the skill runs it holds. The skill's end takes it back to 0 (restartCharge).
  * @param {Content} c @returns {import('./buffs.js').Behavior}
  */
 export function chargeBehavior(c) {
   return {
     tick: (_w, u, b) => {
       const ch = traitOf(c, u).charge;
-      if (!ch || u.kind !== KIND.OPERATOR) return;
-      if (inSkill(u)) { if (b.n === 0) count(b, 1); return; }
-      if (b.n > 0) { count(b, -b.n); retune(u, b, 0, {}); return; }
+      if (!ch || u.kind !== KIND.OPERATOR || inSkill(u)) return;
       const n = Math.min(b.value + 1, ch.steps);
       retune(u, b, n, { atkPct: (ch.atk * n) / ch.steps });
     },
   };
+}
+
+/**
+ * A charge back at 0 when its operator's skill ends (职业-12: 「技能结束时重置攻击力」) — also a skill that began and ended
+ * between two of its triggers. @param {Unit} op
+ */
+export function restartCharge(op) {
+  const b = op.buffs.find((x) => x.key === 'charge');
+  if (b && b.value !== 0) retune(op, b, 0, {});
 }

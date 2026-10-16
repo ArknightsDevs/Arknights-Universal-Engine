@@ -35,7 +35,7 @@
 | `hpDamage` | 伤判效果之后、扣生命之前，剩下的伤害大于 0 时 | `source`、`credit`、`target`、`amount`（只能调低）、`dmg` |
 | `fatal` | 扣生命使它归零时（含生命流失） | `unit`、`source`、`credit`、`dmg`、`amount`、`prevented`：设为是时它留下 1 点生命（生命上限不足 1 时为上限） |
 | `damaged` | 扣生命之后（含生命流失） | `source`、`credit`、`target`、`amount`、`type`、`dmg`。这四个伤害事件的 `credit` 是伤害记在谁名下：一般同 `source`；记在来源名下的无来源伤害（伤害-7）`source` 为空，`credit` 是来源 |
-| `heal` | 治疗算完倍率、回复生命之前（伤害-11） | `source`、`target`、`amount`（可改） |
+| `heal` | 治疗算完倍率、回复生命之前（伤害-11） | `source`、`target`、`amount`（可改）、`trait`（是治疗者特性的自身回复时为真，职业-9） |
 | `beforeAttack` | 一次攻击锁定目标时（攻击-2 第 1 步） | `attacker`、`targets`（可换，留下仍在场、有生命的；为空时这次不攻击）、`isSkill`、`scale`（这次攻击的倍率再乘它，默认 1）、`mark`（内容给这次攻击的标记，整数，默认 0；随攻击和它的投射物带到 `attackHit`） |
 | `attack` | 一次攻击命中、对锁定的目标结算之后（攻击-2 第 3 步），有目标时 | `attacker`、`targets`、`isSkill`、`noAmmo`：设为是时这次攻击不耗弹药技能的弹药 |
 | `attackHit` | 一次攻击对一个目标的各段伤害结算之后（引擎自己的事件） | `attacker`、`target`、`dealt`（各段合计）、`kind`：`main`、`splash`、`chain`、`aftershock`，`isSkill`，`mark`（这次攻击的标记） |

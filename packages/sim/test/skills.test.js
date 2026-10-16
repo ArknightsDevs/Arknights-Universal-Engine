@@ -257,6 +257,22 @@ test('[技能-8] while a skill with a range runs, the operator attacks within it
   assert.equal(reachKeys(c, g).size, 18);
 });
 
+test('[技能-8] a skill behaviour may give the running skill\'s range, read as it is now, over the record\'s', () => {
+  const c = /** @type {any} */ (tinyContent());
+  c.level.waves = [];
+  const cells = [{ row: 0, col: 1 }];
+  c.operators.guard = { ...c.operators.guard, range: [{ row: 0, col: 0 }], skill: sk({ cost: 1, init: 1, duration: 10, range: [{ row: 0, col: 1 }, { row: 0, col: 2 }] }) };
+  c.behaviors = { skills: { test: { range: () => [...cells] } } };
+  const w = createWorld(c, { seed: 1, players: 1 });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 }]]);
+  const g = w.units[0];
+  assert.deepEqual([...reachKeys(c, g)], [7], 'its own range while the skill is off');
+  step(w, c, [[0, { type: 'skill', unit: g.id }]]);
+  assert.deepEqual([...reachKeys(c, g)], [8], 'the behaviour\'s');
+  cells.push({ row: 0, col: 3 });
+  assert.deepEqual([...reachKeys(c, g)].sort((a, b) => a - b), [8, 10], 'as it is now');
+});
+
 test('[技能-9] what a description adds: every blocked enemy as targets or more of them, hits, arts, a status on each hit, modifiers', () => {
   const c = /** @type {any} */ (tinyContent());
   c.level.waves = [];

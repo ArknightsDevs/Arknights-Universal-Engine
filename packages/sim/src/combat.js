@@ -22,7 +22,7 @@ import { palsyInterrupts, inflict } from './status.js';
 import { draw } from './rng.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
 import { mayAttack, healsNow, healerNow, inSkill, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale, fortressTargets, fortressSplash } from './modes.js';
-import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitAsk, summonHeld } from './traits.js';
+import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitDealt, traitAsk, traitSkip, summonHeld } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_CUT_FRAMES } from './swing.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
@@ -51,9 +51,9 @@ export function targetsOf(w, c, op) {
   const keys = reachKeys(c, op);
   if (healsNow(c, op)) return healOrder(c, op, w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && inKeys(u, keys, grid) && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal));
   const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id, air = t.idleAirOnly && !inSkill(op), any = { canHitFly: true }, sel = { canHitFly: t.antiAir };
-  const bySummon = t.summonBlocked ? summonHeld(w, op) : () => false;
+  const bySummon = t.summonBlocked ? summonHeld(w, op) : () => false, skip = traitSkip(w, c, op);
   const cands = w.units.filter((u) => hostile(u)
-    && ((held(u) && selectable(u, any)) || ((bySummon(u) || (inKeys(u, keys, grid) && (!air || statsOf(u).flying))) && selectable(u, sel))));
+    && ((held(u) && selectable(u, any)) || ((bySummon(u) || (inKeys(u, keys, grid) && (!air || statsOf(u).flying))) && selectable(u, sel))) && !skip?.(u));
   return fortressTargets(w, c, op, sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary }));
 }
 
@@ -109,7 +109,8 @@ function hitTarget(w, c, src, t, load) {
  */
 function oneHit(w, c, src, t, load) {
   const el = /** @type {import('./elements.js').Element | ''} */ (load.element), op = src && src.kind === KIND.OPERATOR ? src : null;
-  const alive = t.hp > 0, dealt = dealDamage(w, src, t, damageOf(load), c);
+  const alive = t.hp > 0, dmg = damageOf(load), dealt = dealDamage(w, src, t, dmg, c);
+  if (op) traitDealt(w, c, op, t, { dmg, taken: dealt });
   if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
   if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
   if (el && load.ep > 0) dealEp(w, t, el, load.ep, src);
@@ -287,14 +288,14 @@ function operatorLanded(w, c, a, how) {
 
 /**
  * An operator's own heal after its attack reached enemies (职业-9): the trait's amount for each of them, at most its
- * cap (a number, or its 阻挡数 and at least 1).
+ * cap (a number, or its 阻挡数 and at least 1) — a trait that heals for every hit instead heals as it deals them (traitDealt).
  * @param {World} w @param {Content} c @param {Unit} a @param {number} reached
  */
 function selfHeal(w, c, a, reached) {
   const t = traitOf(c, a);
-  if (t.selfHeal <= 0 || reached === 0 || t.heal) return;
+  if (t.selfHeal <= 0 || t.selfHealOn === 'damage' || reached === 0 || t.heal) return;
   const cap = t.selfHealMax === 'blockCnt' ? Math.max(1, statsOf(a).blockCnt) : t.selfHealMax;
-  for (let k = 0; k < Math.min(reached, cap); k++) w.events.push({ type: 'heal', id: a.id, target: a.id, amount: heal(w, a, a, t.selfHeal) });
+  for (let k = 0; k < Math.min(reached, cap); k++) w.events.push({ type: 'heal', id: a.id, target: a.id, amount: heal(w, a, a, t.selfHeal, { trait: true }) });
 }
 
 /**

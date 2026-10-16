@@ -144,7 +144,7 @@ export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage
     source: { repo: 'Kengxxiao/ArknightsGameData', commit, server: 'zh_CN', ...(view ? { view: view.source } : {}) },
     level: { id, ...stageNames(stage), width, height, options: extractOptions(field(lv, 'options', 'level')), tiles, ...(blockEdges.length > 0 ? { blockEdges } : {}),
       routes, waves, predefines: predefinesOf(lv.predefines), stages: withTasks(stagesOf(lv.predefines), missions),
-      ...(view ? { view: viewOf(view.vector) } : {}) },
+      ...(view ? { view: viewOf(view.vector) } : {}), ...(typeof lv.bgmEvent === 'string' && lv.bgmEvent ? { bgm: lv.bgmEvent } : {}) },
     difficulties,
     enemies: Object.fromEntries(keys.map((k) => [k, { ...enemyOf(enemyDb, k, refs.get(k)), ...damageTypeOf(handbook, k), ...(shared.has(k) ? { shared: true } : {}) }])),
     ...(charTable ? { devices: devicesOf(charTable, lv.predefines) } : {}),
