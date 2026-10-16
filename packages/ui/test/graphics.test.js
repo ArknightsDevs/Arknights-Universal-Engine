@@ -1,7 +1,8 @@
 // Graphics, texts and what is not drawn (docs/spec/ui.md 界面-4, 界面-9), and auto layout (界面-3).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fillCss, gradientCss, sliceOf, isSliced, drawable, blendOf, uvSpeed, rgba, ringAlpha, ringMask, wipeAlpha, drawNine, richHtml, isRich, faceOf, alignCss, shadowCss, bestFit, DEFAULT_FONTS } from '../src/index.js';
+import { fillCss, gradientCss, sliceOf, isSliced, drawable, blendOf, uvSpeed, rgba, ringAlpha, ringMask, wipeAlpha, drawNine, richHtml, isRich, faceOf, alignCss, shadowCss, bestFit, DEFAULT_FONTS,
+  shaded, noiseOffset, warpUv, fadeAlpha } from '../src/index.js';
 
 test('[界面-4] filled images: horizontal, vertical, radial from each origin either way', () => {
   assert.deepEqual(fillCss(0.25, 0, 0, true), [['clipPath', 'inset(0 75% 0 0)']]);
@@ -97,6 +98,37 @@ test('[界面-9] a wipe: nothing at green 0, all at green 0.94 and up; between, 
   assert.deepEqual(mid, [...mid].sort((x, y) => x - y), 'more of it shows the higher the texture');
   assert.ok(mid[0] < 0.5 && mid[4] > 0.5);
   assert.equal(wipeAlpha({ soft: 0, di: 0.9, rgb: 1 }, 0, 0.5), wipeAlpha({ soft: 0, di: 0.9, rgb: 1 }, 1, 0.5), 'colour-tinted: its intensity, not the green');
+});
+
+test("[界面-36] a warp: the UVs pulled toward the noise by its amount, the noise scrolling; both times twice the colour's red and green", () => {
+  // the prepare page's background: the noise scrolls 0.01 a second each way, the UVs pulled 0.02 toward it
+  const bg = { kind: /** @type {const} */ ('none'), fx: 'warp', noise: 'sprite/fxnoise/flow', speed: [0.01, 0.01], amount: [0.02, 0.02] }, white = [1, 1, 1, 1];
+  assert.ok(shaded(bg));
+  assert.ok(!shaded({ kind: 'none', fx: 'warp' }), 'no noise: drawn plainly');
+  assert.ok(!shaded({ kind: 'none', fx: 'disturb', noise: 'n' }), 'other effects: drawn plainly');
+  const uv = warpUv(bg, white, 0, [0.5, 1], 0.25);
+  assert.ok(Math.abs(uv[0] - (0.5 + 0.04 * (0.25 - 0.5))) < 1e-12 && Math.abs(uv[1] - (1 + 0.04 * (0.25 - 1))) < 1e-12, `${uv}`);
+  assert.deepEqual(warpUv(bg, [0, 1, 1, 1], 0, [0.5, 1], 0.25), [0.5, 1], 'a colour of no red: no pull');
+  const o = noiseOffset(bg, white, 10);
+  assert.ok(Math.abs(o[0] - 0.2) < 1e-9 && Math.abs(o[1] - 0.2) < 1e-9, `${o}`);
+  assert.deepEqual(noiseOffset(bg, white, 0), [0, 0]);
+  const w = noiseOffset(bg, white, 75);
+  assert.ok(w[0] >= 0 && w[0] < 1 && Math.abs(w[0] - 0.5) < 1e-9, 'wrapped');
+  assert.deepEqual(warpUv({ ...bg, scroll: [0.1, 0] }, white, 1, [0, 0], 0), [0.1 * 0.96, 0], 'the image scrolled, then pulled');
+});
+
+test("[界面-36] a fade: the image's alpha times the gain and how far the noise is past the threshold, at most 1; all of it with no threshold", () => {
+  // the countdown circle's line: threshold 0.047 over a width of 1, gain 1.2
+  const ring = { kind: /** @type {const} */ ('none'), fx: 'fade', noise: 'sprite/fxnoise/flow', speed: [0.4, -0.3], di: 0.047, border: 1, opacity: 1.2 };
+  assert.ok(shaded(ring));
+  assert.ok(Math.abs(fadeAlpha(ring, 1, 0.5) - 1.2 * (0.5 - 0.047)) < 1e-9);
+  assert.equal(fadeAlpha(ring, 1, 0.04), 0, 'short of the threshold');
+  assert.equal(fadeAlpha(ring, 1, 1), 1, 'at most 1');
+  assert.ok(Math.abs(fadeAlpha(ring, 0.5, 0.5) - 0.6 * 0.453) < 1e-9, "times the image's alpha");
+  assert.equal(fadeAlpha({ ...ring, di: 0, opacity: 1 }, 0.8, 0), 0.8, 'no threshold: all of it');
+  assert.ok(Math.abs(fadeAlpha({ ...ring, di: 0.5, border: 0.1 }, 1, 0.55) - 0.6) < 1e-9, 'half way past the threshold over the width');
+  const o = noiseOffset(ring, [0, 0, 0, 1], 1);
+  assert.ok(Math.abs(o[0] - 0.4) < 1e-9 && Math.abs(o[1] - 0.7) < 1e-9, "its scroll is the material's, not the colour's");
 });
 
 test('[界面-9] materials: the ones not drawn, additive blending, scrolling UVs', () => {
