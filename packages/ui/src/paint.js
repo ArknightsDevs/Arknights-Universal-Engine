@@ -82,9 +82,13 @@ export function sty(s, el, k, v) {
   if (s.css.get(key) !== v) { s.css.set(key, v); el.style.setProperty(k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`).replace(/^webkit-/, '-webkit-'), v); }
 }
 
-/** The colour drawn: the node's colour times a pressed button's tint. @param {UiNode} s */
-const drawnColor = (s) => {
+/**
+ * The colour drawn: the node's colour times a pressed button's tint. A dissolving image's colour drives its effect
+ * instead (界面-9): no tint, and it fades as its green channel (the dissolve amount) goes from 0 to 1. @param {UiNode} s
+ */
+export const drawnColor = (s) => {
   const c = /** @type {number[]} */ (s.color), k = s.tint;
+  if (s.n.comps.img?.mat?.fx === 'dissolve') return [1, 1, 1, c[3] * Math.max(0, 1 - c[1]) * (k ? k[3] : 1)];
   return k ? [c[0] * k[0], c[1] * k[1], c[2] * k[2], c[3] * k[3]] : c;
 };
 

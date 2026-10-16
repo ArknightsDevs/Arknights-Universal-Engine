@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createUi, copyRect, DEF_RT, FULL_RT, nodeAt } from '../src/index.js';
 import { applyCurve } from '../src/curves.js';
-import { drawable, blendOf, arcMask } from '../src/paint.js';
+import { drawable, blendOf, arcMask, drawnColor } from '../src/paint.js';
 import { fitSize, ringCss } from '../src/text.js';
 import { aspectSize } from '../src/fit.js';
 import { ease, tweenAt } from '../src/tween.js';
@@ -275,4 +275,11 @@ test('[界面-34] a circle bar shows its arc from its start over its span, count
   applyCurve(arc, { kind: 'float', path: '', attr: 'circle.span', keys: [[0, 90, 0, 0]] }, 0);
   ui.tick(0);
   assert.equal(css(arc.g).maskImage, 'conic-gradient(from 90deg, #000 90deg, transparent 0)');
+});
+
+test('[界面-9] a dissolving image is not tinted by its colour: its green channel is the dissolve amount, its alpha fades with it', () => {
+  const node = (/** @type {any} */ mat, /** @type {number[]} */ color) => /** @type {any} */ ({ color, tint: null, n: { comps: { img: { mat } } } });
+  assert.deepEqual(drawnColor(node({ kind: 'none', fx: 'dissolve' }, [1, 0.25, 1, 0.8])), [1, 1, 1, 0.6000000000000001]);
+  assert.deepEqual(drawnColor(node({ kind: 'none', fx: 'dissolve' }, [1, 1, 1, 1])), [1, 1, 1, 0], 'dissolved away');
+  assert.deepEqual(drawnColor(node({ kind: 'blend' }, [1, 0.25, 1, 0.8])), [1, 0.25, 1, 0.8], 'any other image: its colour');
 });
