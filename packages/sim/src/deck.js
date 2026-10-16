@@ -18,6 +18,9 @@ export const DEFAULT_RESPAWN = 60;
 /** A player's card for an operator: the one recorded, or a fresh one (no penalty, deployable at once). @param {Player} p @param {string} key @returns {Card} */
 export const cardOf = (p, key) => (Object.hasOwn(p.cards, key) ? p.cards[key] : { penalty: 0, ready: 0 });
 
+/** A seat's deploy limit (部署-2): the level's, changed by the seat's runes (符文-2), not below 0. @param {Content} c @param {number} seat */
+export const deployLimit = (c, seat) => Math.max(0, c.level.options.characterLimit + (c.level.options.characterLimitAdd?.[seat] ?? 0));
+
 /**
  * The cost to deploy an operator now (部署-3): its initial cost × (1 + 0.5 × 再部署惩罚), rounded down.
  * @param {Content} c @param {Player} p @param {string} key

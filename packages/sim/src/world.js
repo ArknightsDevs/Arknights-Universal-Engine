@@ -22,6 +22,7 @@ import { BURST_BEHAVIORS } from './elements.js';
 import { upkeepBehaviors, timedBehaviors } from './upkeep.js';
 import { chargeBehavior } from './modes.js';
 import { auras } from './aura.js';
+import { runeRangeSp } from './runes.js';
 import { regenAll } from './damage.js';
 import { emit, hasHook, runTimers } from './bus.js';
 import { fallIntoHoles } from './holes.js';
@@ -154,6 +155,7 @@ export function step(w, c, commands = []) {
   enemiesAct(w, c);
   fallIntoHoles(w, c);
   auras(w, c);
+  runeRangeSp(w, c);
   operatorsAttack(w, c);
   shotsFly(w, c);
   foeEffects(w, c);

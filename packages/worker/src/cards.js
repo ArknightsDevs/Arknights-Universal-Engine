@@ -21,7 +21,7 @@ const free = (d) => traits.traitOfDef(d).free === true;
 export function operatorCards(w, c, seat) {
   const p = w.players[seat];
   return {
-    slots: c.level.options.characterLimit - summons.occupying(w, c, seat, free),
+    slots: deck.deployLimit(c, seat) - summons.occupying(w, c, seat, free),
     cards: Object.fromEntries((c.decks?.[seat] ?? []).map((k) => [k, { cost: deck.deployCost(c, p, k), ready: deck.cardOf(p, k).ready }])),
   };
 }

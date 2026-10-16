@@ -6,7 +6,7 @@ import { makeOperator } from './units.js';
 import { onDeploy, commandSkill } from './skills.js';
 import { traitDeploy, traitOfDef, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
-import { cardOf, deployCost, withdraw } from './deck.js';
+import { cardOf, deployCost, deployLimit, withdraw } from './deck.js';
 import { occupying, summonProblem, deploySummon, supplySummons, inOwnerRange, trapRefused } from './summons.js';
 import { isDown, askCost, answerCost } from './coop.js';
 import { emit } from './bus.js';
@@ -72,12 +72,12 @@ function operatorProblem(w, c, seat, cmd) {
 }
 
 /**
- * The deploy limit (部署-2, 召唤-4): an operator that is not free, or a summon whose 部署占用数 is 1, needs a place.
+ * The deploy limit (部署-2, 召唤-4, 符文-2): an operator that is not free, or a summon whose 部署占用数 is 1, needs a place.
  * @param {World} w @param {Content} c @param {number} seat @param {import('./types.js').OperatorDef} d
  */
 function limitProblem(w, c, seat, d) {
   const takes = d.summon ? d.summon.occupy === 1 : !free(d);
-  return takes && occupying(w, c, seat, free) >= c.level.options.characterLimit ? 'deploy limit reached' : null;
+  return takes && occupying(w, c, seat, free) >= deployLimit(c, seat) ? 'deploy limit reached' : null;
 }
 
 /**

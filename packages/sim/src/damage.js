@@ -6,7 +6,7 @@ import { statsOf, activeBuffs } from './attrs.js';
 import { removeBuff } from './buffs.js';
 import { draw } from './rng.js';
 import { MIN_DAMAGE_RATIO } from './constants.js';
-import { hurtSp } from './sp.js';
+import { hurtSp, gainSp } from './sp.js';
 import { emit, hasHook } from './bus.js';
 import { worksMul } from './works.js';
 
@@ -222,9 +222,19 @@ export function regenAll(w) {
 }
 
 /**
+ * A hit's source with its seat runes' SP on dealing damage (符文-4): for each, with its chance (one draw), its SP.
+ * @param {World} w @param {import('./types.js').Content} c @param {Unit} src
+ */
+function runeSp(w, c, src) {
+  const chances = c.operators[src.key]?.probSp;
+  if (!chances || !src.skill) return;
+  for (const p of chances) if (draw(w) < p.prob) gainSp(src.skill, p.sp);
+}
+
+/**
  * Deals a hit (伤害-7): nothing to a unit already at 0 HP; 生命流失 goes straight to the HP; nothing to an invincible
- * unit (无敌, 沉睡, disappeared: 路线-4); otherwise the `hit` event, then the hit counts for 受击回复 (技能-2), then the
- * target's defences, `mul`, the source's multiplier, the 工事 multiplier (地图-3; given the content), the target's 伤判
+ * unit (无敌, 沉睡, disappeared: 路线-4); otherwise the `hit` event, then the hit counts for 受击回复 (技能-2) and for
+ * its source's rune SP (符文-4; given the content), then the target's defences, `mul`, the source's multiplier, the 工事 multiplier (地图-3; given the content), the target's 伤判
  * effects, the `hpDamage` event, then the HP. A `sourceless` hit takes neither its source's penetration nor its
  * multipliers, and its events see no source (`credit` names it). Returns the HP taken.
  * @param {World} w @param {Unit | null} src @param {Unit} target @param {Damage} dmg @param {import('./types.js').Content} [c]
@@ -235,6 +245,7 @@ export function dealDamage(w, src, target, dmg, c) {
   if (dmg.hpLoss) return loseHp(w, src, target, dmg.amount, dmg);
   if (untouchable(target, dmg) || target.hidden || !hitGoesOn(w, src, target, dmg)) return 0;
   hurtSp(target);
+  if (c && src && !dmg.sourceless) runeSp(w, c, src);
   const seen = seenOf(src, dmg), ss = seen ? statsOf(seen) : null;
   let amount = mitigate(dmg.amount, dmg.type, statsOf(target), penetration(ss, dmg)) * /** @type {number} */ (dmg.mul);
   if (ss) amount *= dealtMul(ss, dmg.type) * (c && seen ? worksMul(c, seen, target) : 1);

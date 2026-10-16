@@ -35,7 +35,8 @@
  */
 /**
  * A level's options; `costTransfer` is the most a cost request moves (合作-5; default 15).
- * @typedef {{ maxLifePoint: number, initialCost: number, maxCost: number, costIncreaseTime: number, characterLimit: number, moveMultiplier: number, costTransfer?: number }} LevelOptions
+ * @typedef {{ maxLifePoint: number, initialCost: number, maxCost: number, costIncreaseTime: number, characterLimit: number, moveMultiplier: number, costTransfer?: number,
+ *   characterLimitAdd?: number[] }} LevelOptions
  */
 /**
  * A level: its map, options, routes, waves (波次-1), the hidden groups enabled (波次-4), its predefined units (波次-6) and
@@ -186,12 +187,15 @@
  * `fieldTalents` its talents for every operator of a profession or faction while it is on the field (部署-5), `powers`
  * its factions, `rangeTalents` its talents for the units in its attack range while it is on the field (部署-6),
  * `critTalents` its chances to strike harder (攻击-4), `timedTalents` its talents in time on the field (部署-7),
- * `deployTalents` what its talents do at its deployment (部署-8). A summon's record names its owner's key (`summoner`)
+ * `deployTalents` what its talents do at its deployment (部署-8); from its seat's runes, `runeMods` its always-on buff
+ * (符文-3), `probSp` its chances of SP on dealing damage (符文-4), `rangeSp` the SP it gives in its attack range (符文-5). A
+ * summon's record names its owner's key (`summoner`)
  * and how its card works (`summon`, 召唤-3, 召唤-4); `position` ALL lets it stand on melee and ranged tiles.
  * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
  *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, trait?: Partial<TraitDef>, respawnTime?: number, char?: string,
  *   talentBb?: Record<string, number>, fieldTalents?: TeamTalent[], powers?: string[], rangeTalents?: RangeTalent[],
- *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[], summoner?: string, summon?: SummonDef }} OperatorDef
+ *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[], summoner?: string, summon?: SummonDef,
+ *   runeMods?: Record<string, number>, probSp?: { prob: number, sp: number }[], rangeSp?: { sp: number, interval: number } }} OperatorDef
  */
 /**
  * A summon's card rules (召唤-3, 召唤-4): its limits on the field and held, what its owner's deployment adds (0: no card),
