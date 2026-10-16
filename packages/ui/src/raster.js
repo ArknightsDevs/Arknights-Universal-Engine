@@ -98,6 +98,39 @@ export function slicedUri(ctx, key, slice, rgb, size) {
 }
 
 /**
+ * How much of a wipe shows at a texel (界面-9, INF-0182): its wipe texture's value `n` (0–1) against the image's
+ * colour's green `g` (0 shows nothing; about 0.94 and up, all), the material's softness, intensity and whether the
+ * colour drives it; smoothed. @param {{ soft?: number, di?: number, rgb?: number }} mat @param {number} g @param {number} n
+ */
+export function wipeAlpha(mat, g, n) {
+  const s = mat.soft ?? 0, u = (mat.rgb ? 1 : 0) * ((mat.di ?? 0) - (1 - g)) + (1 - g);
+  const b = 0.55 - 1.05 * (u * (1.05 - s) + s / 2), d = 1 - 2 * s, x0 = n + 2 * b - s;
+  const x = Math.max(0, Math.min(1, d > 1e-6 ? x0 / d : x0 > 0 ? 1 : 0));
+  return x * x * (3 - 2 * x);
+}
+
+/**
+ * A wiping image's mask at a green (界面-9): its wipe texture thresholded texel by texel (wipeAlpha), as an image the
+ * size of the texture; the green rounded to 1/128; null before the texture has loaded or without a canvas.
+ * @param {Ctx} ctx @param {{ noise: string, soft?: number, di?: number, rgb?: number }} mat @param {number} g
+ */
+export function wipeMaskUri(ctx, mat, g) {
+  const q = Math.round(Math.max(0, Math.min(1, g)) * 128) / 128, ck = `w|${mat.noise}|${mat.soft}|${mat.di}|${mat.rgb}|${q}`;
+  const hit = ctx.cache.get(ck);
+  if (hit) return hit;
+  const im = ctx.imgs.get(mat.noise);
+  if (!im) return null;
+  const d = canvas2d(ctx, im.width, im.height, 1);
+  if (!d?.x.getImageData) return null;
+  d.x.drawImage(im, 0, 0);
+  const px = d.x.getImageData(0, 0, im.width, im.height), a = px.data, lut = new Uint8ClampedArray(256);
+  for (let v = 0; v < 256; v++) lut[v] = Math.round(255 * wipeAlpha(mat, q, v / 255));
+  for (let i = 0; i < a.length; i += 4) { a[i + 3] = lut[a[i]]; a[i] = a[i + 1] = a[i + 2] = 0; }
+  d.x.putImageData(px, 0, 0);
+  return remember(ctx, ck, d.c.toDataURL());
+}
+
+/**
  * A stencil writer's shape in a group of w × h (its box inside the group) as a white image: its sprite (sliced when it
  * is), else the shape its material draws — a circle, a rounded rect (UV units of the rect) —, else an ellipse for a
  * round name, else the rect. Null without a canvas.

@@ -1,7 +1,7 @@
 // Graphics, texts and what is not drawn (docs/spec/ui.md 界面-4, 界面-9), and auto layout (界面-3).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fillCss, gradientCss, sliceOf, isSliced, drawable, blendOf, uvSpeed, rgba, ringAlpha, ringMask, drawNine, richHtml, isRich, faceOf, alignCss, shadowCss, bestFit, DEFAULT_FONTS } from '../src/index.js';
+import { fillCss, gradientCss, sliceOf, isSliced, drawable, blendOf, uvSpeed, rgba, ringAlpha, ringMask, wipeAlpha, drawNine, richHtml, isRich, faceOf, alignCss, shadowCss, bestFit, DEFAULT_FONTS } from '../src/index.js';
 
 test('[界面-4] filled images: horizontal, vertical, radial from each origin either way', () => {
   assert.deepEqual(fillCss(0.25, 0, 0, true), [['clipPath', 'inset(0 75% 0 0)']]);
@@ -86,6 +86,17 @@ test('[界面-9] a circle shape on a shown image: a ring between its radii, soft
   const m = ringMask(edge);
   assert.match(m, /^radial-gradient\(ellipse 100% 100% at 50% 50%, rgba\(0,0,0,0(\.\d+)?\) 0%, /);
   assert.match(m, /rgba\(0,0,0,1\) 71%\)$/);
+});
+
+test('[界面-9] a wipe: nothing at green 0, all at green 0.94 and up; between, the texels further along its texture first', () => {
+  const soft = { soft: 0.5, di: 0, rgb: 0 }, hard = { soft: 0, di: 0, rgb: 0 };
+  assert.deepEqual([0, 0.5, 1].map((n) => wipeAlpha(soft, 0, n)), [0, 0, 0], 'not begun');
+  assert.deepEqual([0, 0.5, 1].map((n) => wipeAlpha(soft, 0.94, n)), [1, 1, 1], 'done');
+  assert.deepEqual([0, 0.5, 1].map((n) => wipeAlpha(soft, 1, n)), [1, 1, 1], 'at rest (white) the image shows');
+  const mid = [0, 0.25, 0.5, 0.75, 1].map((n) => wipeAlpha(hard, 0.5, n));
+  assert.deepEqual(mid, [...mid].sort((x, y) => x - y), 'more of it shows the higher the texture');
+  assert.ok(mid[0] < 0.5 && mid[4] > 0.5);
+  assert.equal(wipeAlpha({ soft: 0, di: 0.9, rgb: 1 }, 0, 0.5), wipeAlpha({ soft: 0, di: 0.9, rgb: 1 }, 1, 0.5), 'colour-tinted: its intensity, not the green');
 });
 
 test('[界面-9] materials: the ones not drawn, additive blending, scrolling UVs', () => {

@@ -1,7 +1,7 @@
 // Graphics (docs/spec/ui.md 界面-4, 界面-9): an image's sprite tinted by its colour — simple, sliced, tiled or filled —,
 // a graphic without a sprite as its colour, gradients, the materials the engine knows (additive blending, scrolling
 // UVs), written as CSS on the node's graphic div.
-import { slicedUri, tintedUri } from './raster.js';
+import { slicedUri, tintedUri, wipeMaskUri } from './raster.js';
 
 /** @typedef {import('./node.js').UiNode} UiNode */
 /**
@@ -10,8 +10,10 @@ import { slicedUri, tintedUri } from './raster.js';
  * inner softness] in UV units of the rect: a stencil writer's shape, else the ring a shown image is cut to),
  * an outline around a text (界面-29), grey, or something the engine does not draw ('none'; with an effect hint `fx`
  * it is drawn plainly by its blending, 界面-9).
+ * A wipe (fx 'dissolve') carries its main colour and gain, softness, intensity, whether the image's colour tints it,
+ * and its wipe texture's sprite (`noise`).
  * @typedef {{ kind: 'blend' | 'add' | 'uv' | 'rect' | 'circle' | 'outline' | 'grey' | 'none', uv?: number[], add?: boolean, shape?: number[],
- *   fx?: string, width?: number, color?: number[] }} Material
+ *   fx?: string, width?: number, color?: number[], main?: number[], gain?: number, soft?: number, di?: number, rgb?: number, noise?: string }} Material
  */
 
 /** Whether a graphic with this material is drawn (界面-9; no material: the default). @param {Material | undefined} mat */
@@ -107,12 +109,16 @@ export function sty(s, el, k, v) {
 }
 
 /**
- * The colour drawn: the node's colour times a pressed button's tint. A dissolving image's colour drives its effect
- * instead (界面-9): no tint, and it fades as its green channel (the dissolve amount) goes from 0 to 1. @param {UiNode} s
+ * The colour drawn: the node's colour times a pressed button's tint. A wiping image's colour drives its wipe instead
+ * (界面-9, INF-0182): it is drawn in its material's main colour (times its own colour when the material says so), its
+ * opacity its own times the main colour's; its green is how far the wipe has come (wipeMaskUri). @param {UiNode} s
  */
 export const drawnColor = (s) => {
-  const c = /** @type {number[]} */ (s.color), k = s.tint;
-  if (s.n.comps.img?.mat?.fx === 'dissolve') return [1, 1, 1, c[3] * Math.max(0, 1 - c[1]) * (k ? k[3] : 1)];
+  const c = /** @type {number[]} */ (s.color), k = s.tint, mat = s.n.comps.img?.mat;
+  if (mat?.fx === 'dissolve') {
+    const m = mat.main ?? [1, 1, 1, 1], g = mat.gain ?? 1, own = mat.rgb ? c : [1, 1, 1];
+    return [0, 1, 2].map((i) => Math.min(1, m[i] * own[i] * g)).concat(Math.min(1, c[3] * m[3] * g * (k ? k[3] : 1)));
+  }
   return k ? [c[0] * k[0], c[1] * k[1], c[2] * k[2], c[3] * k[3]] : c;
 };
 
@@ -169,13 +175,23 @@ function paintImage(s, g, im, w, h) {
   paintCut(s, g, im);
 }
 
+/** A wiping image's mask now, as CSS, or null (no wipe, or its texture not loaded). @param {UiNode} s @param {Material | undefined} mat */
+function wipeCss(s, mat) {
+  if (mat?.fx !== 'dissolve' || !mat.noise || !s.color) return null;
+  const u = wipeMaskUri(s.scr.ctx, /** @type {any} */ (mat), s.color[1]);
+  return u ? `url("${u}")` : null;
+}
+
 /**
  * What of an image shows: a circle bar's arc, a shown circle shape's ring, a filled image's part.
  * @param {UiNode} s @param {HTMLElement} g @param {Record<string, any>} im
  */
 function paintCut(s, g, im) {
-  const m = s.circle ? arcMask(s.circle) : im.mat?.kind === 'circle' && !s.n.comps.mask && im.mat.shape ? ringMask(im.mat.shape) : null;
-  if (m) { sty(s, g, 'maskImage', m); sty(s, g, 'webkitMaskImage', m); }
+  const m = s.circle ? arcMask(s.circle) : im.mat?.kind === 'circle' && !s.n.comps.mask && im.mat.shape ? ringMask(im.mat.shape) : wipeCss(s, im.mat);
+  if (m) {
+    sty(s, g, 'maskImage', m); sty(s, g, 'webkitMaskImage', m);
+    if (im.mat?.noise) for (const k of ['maskSize', 'webkitMaskSize']) sty(s, g, k, '100% 100%');
+  }
   else if (s.fill != null) for (const [k, v] of fillCss(s.fill, im.fillMethod ?? 0, im.fillOrigin ?? 0, im.clockwise !== 0)) sty(s, g, k, v);
 }
 

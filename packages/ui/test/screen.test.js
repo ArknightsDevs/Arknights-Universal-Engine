@@ -41,6 +41,10 @@ const pack = () => ({
       N('mask', { mask: 'mask', maskHide: true, ...img('sprite/a') }),
       N('world', { canvas: {} }, [N('persp', {}, [N('dot', img('sprite/a'))])], R({ size: [100, 100], scale: [0.01, 0.01] })),
       N('screen', { canvas: {} }, [], R({ size: [0, 0] })),
+      N('wrapping', { text: { text: 'a b c', size: 20, style: 0, align: 3, color: [1, 1, 1, 1], best: 0, hwrap: 0, vwrap: 1 } }, [], R({ size: [50, 100] })),
+      N('fitted', { text: { text: 'a b c', size: 20, style: 0, align: 3, color: [1, 1, 1, 1], best: 0, hwrap: 0, vwrap: 1 }, csf: [2, 0] }, [], R({ size: [0, 30] })),
+      N('oneline', { text: { text: 'a b c', size: 20, style: 0, align: 3, color: [1, 1, 1, 1], best: 0, hwrap: 0, vwrap: 0 } }, [], R({ size: [50, 30] })),
+      N('laid', { lg: { ...row, cw: 1 } }, [N('cell', { text: { text: 'a b c', size: 20, style: 0, align: 3, color: [1, 1, 1, 1], best: 0, hwrap: 0, vwrap: 1 } })]),
     ]),
     bar: N('bar', {}, [], R({ amin: [0, 1], amax: [1, 1], size: [0, 1], pivot: [0, 1] })),
     item: N('item', { slider: { fill: '@x', dir: 0, min: 0, max: 1, value: 0, whole: 0 } }, [N('x', img('sprite/a'))], R({ size: [40, 40] })),
@@ -90,6 +94,13 @@ test('[界面-3] a layout group places its active children', () => {
   assert.equal(/** @type {any} */ (scr.one('row/off')).lgRect, null);
   const fit = /** @type {any} */ (scr.one('fit'));
   assert.equal(css(fit.t).fontSize, '40px', 'best fit: 175 px wide at 70 → 70 × 100 / 175');
+});
+
+test('[界面-4] texts that wrap at their width, and those sized to their own width or one line high that do not', () => {
+  const { scr } = setup();
+  const ws = (/** @type {string} */ name) => css(/** @type {any} */ (scr.one(name)).t).whiteSpace ?? '';
+  assert.equal(ws('wrapping'), 'pre-wrap');
+  assert.deepEqual([ws('fitted'), ws('oneline'), ws('laid/cell')], ['', '', ''], 'a content size fitter, a truncating one-line rect, a layout group setting widths');
 });
 
 test('[界面-4] images: the sprite tinted, the colour without one, nothing for a missing sprite, a page picture', () => {

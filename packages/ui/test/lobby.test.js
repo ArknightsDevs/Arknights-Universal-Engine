@@ -277,9 +277,11 @@ test('[界面-34] a circle bar shows its arc from its start over its span, count
   assert.equal(css(arc.g).maskImage, 'conic-gradient(from 90deg, #000 90deg, transparent 0)');
 });
 
-test('[界面-9] a dissolving image is not tinted by its colour: its green channel is the dissolve amount, its alpha fades with it', () => {
+test('[界面-9] a wiping image is drawn in its material\'s main colour, its opacity its own times the main colour\'s; its green is the wipe', () => {
   const node = (/** @type {any} */ mat, /** @type {number[]} */ color) => /** @type {any} */ ({ color, tint: null, n: { comps: { img: { mat } } } });
-  assert.deepEqual(drawnColor(node({ kind: 'none', fx: 'dissolve' }, [1, 0.25, 1, 0.8])), [1, 1, 1, 0.6000000000000001]);
-  assert.deepEqual(drawnColor(node({ kind: 'none', fx: 'dissolve' }, [1, 1, 1, 1])), [1, 1, 1, 0], 'dissolved away');
+  const red = { kind: 'none', fx: 'dissolve', main: [0.88, 0.07, 0.24, 1], gain: 1, rgb: 0 };
+  assert.deepEqual(drawnColor(node(red, [1, 0.25, 1, 0.8])), [0.88, 0.07, 0.24, 0.8], 'the green is not a colour');
+  assert.deepEqual(drawnColor(node({ ...red, rgb: 1 }, [0.5, 1, 1, 1])), [0.44, 0.07, 0.24, 1], 'its colour tints it when the material says so');
+  assert.deepEqual(drawnColor(node({ kind: 'none', fx: 'dissolve' }, [1, 0, 1, 1])), [1, 1, 1, 1], 'no material values: white');
   assert.deepEqual(drawnColor(node({ kind: 'blend' }, [1, 0.25, 1, 0.8])), [1, 0.25, 1, 0.8], 'any other image: its colour');
 });

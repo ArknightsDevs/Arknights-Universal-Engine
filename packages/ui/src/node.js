@@ -197,10 +197,22 @@ function buildText(s, c) {
   Object.assign(t.style, alignCss(c.text.align));
   t.style.fontSize = `${c.text.size}px`;
   t.style.fontStyle = c.text.style & 2 ? 'italic' : 'normal';
-  if (c.text.hwrap === 0 && c.text.best !== 1) wrapText(s);
+  if (c.text.hwrap === 0 && c.text.best !== 1 && !ownWidth(s, c)) wrapText(s);
   const shadows = [c.outline ? shadowCss(c.outline) : '', c.text.mat?.kind === 'outline' ? ringCss(c.text.mat) : ''].filter(Boolean);
   if (shadows.length) t.style.textShadow = shadows.join(', ');
   setText(s, c.text.text || '');
+}
+
+/**
+ * Whether a wrapping text never wraps (界面-4): sized to its own width — by a content size fitter at its preferred
+ * width, or by a horizontal layout group that sets its children's widths without stretching them — it is that wide
+ * unwrapped; dropping the lines it has no room for (vertical overflow: truncate) in a rect one line high, it shows one.
+ * @param {UiNode} s @param {Record<string, any>} c
+ */
+function ownWidth(s, c) {
+  const rt = s.n.rt, lg = s.parent?.n.comps.lg, flex = c.le?.flex?.[0] ?? -1;
+  if (c.csf?.[0] === 2 || (lg?.dir === 'h' && lg.cw === 1 && !lg.fw && !(flex > 0))) return true;
+  return c.text.vwrap === 0 && !!rt && rt.amin[1] === rt.amax[1] && rt.size[1] < 2 * c.text.size * 1.12;
 }
 
 /** A text that wraps at its rect's width (Unity's horizontal overflow: wrap), still placed by its alignment. @param {UiNode} s */
