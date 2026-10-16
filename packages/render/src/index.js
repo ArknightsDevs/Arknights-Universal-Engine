@@ -15,5 +15,5 @@ export { unitTextureKey } from './units.js';
 export { SHADOW } from './shadows.js';
 export { createPlacing, INDICATOR } from './placing.js';
 export { createBattleAudio } from './audio.js';
-export { soundsOf, musicOf, pickSound } from './sounds.js';
+export { soundsOf, musicOf, pickSound, roomFor } from './sounds.js';
 export { dubOf, linesOf, voicesOf, leaderOf, admit, newGate, inDub, LINE_TYPES } from './voices.js';

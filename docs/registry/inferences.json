@@ -1171,8 +1171,8 @@
   {
     "id": "INF-0168",
     "clause": "音频-1",
-    "statement": "音效库的权重都为 0 时等概率选；同时在播的个数到上限且不挤掉最早的一个时，这次不播。",
-    "basis": "audio_data.json 给了 weight、maxSoundAllowed 与 popOldest，但没有说明权重全为 0 和上限满时不挤的处理。",
+    "statement": "音效库的权重都为 0 时等概率选；同时在播的个数到上限且不挤掉最早的一个时，这次不播；上限（maxSoundAllowed）为 0 时不限。",
+    "basis": "audio_data.json 给了 weight、maxSoundAllowed 与 popOldest，但没有说明权重全为 0 和上限满时不挤的处理；战斗音效库里有 1266 个上限为 0，其中 1256 个不挤掉，包括部署、撤退这类每次都会响的库（battle.ON_UNIT_BORN.char、battle.ON_CHARACTER_WITHDRAW.char），按“上限 0”就永远不响。",
     "status": "待查证"
   },
   {

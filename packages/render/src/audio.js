@@ -3,7 +3,7 @@
 // the end (音频-3), and the operators' voices, one at a time (音频-4…6). Files come from the assets' audio and voice
 // directories; what the indexes do not have is not played. A browser lets a page sound only after the player touched
 // it: `resume` on the first gesture.
-import { pickSound, soundsOf, musicOf } from './sounds.js';
+import { pickSound, roomFor, soundsOf, musicOf } from './sounds.js';
 import { admit, dubOf, linesOf, newGate, voicesOf, LINE_TYPES } from './voices.js';
 
 /** @typedef {import('./sounds.js').AudioIndex} AudioIndex @typedef {import('./sounds.js').SoundContext} SoundContext */
@@ -42,11 +42,9 @@ function buffer(P, file, base = P.base) {
 async function play(P, name) {
   const bank = P.index.banks[name];
   if (!bank) return;
-  const now = P.playing.get(name) ?? [];
-  if (now.length >= bank.max) {
-    if (!bank.popOldest) return;
-    now.shift()?.stop();
-  }
+  const now = P.playing.get(name) ?? [], room = roomFor(bank, now.length);
+  if (room === 'none') return;
+  if (room === 'pop') now.shift()?.stop();
   const s = pickSound(bank, P.random), buf = await buffer(P, s.file);
   if (!buf) return;
   const src = P.ctx.createBufferSource(), gain = P.ctx.createGain();

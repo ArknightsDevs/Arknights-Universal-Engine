@@ -5,12 +5,12 @@
 ### 音频-1 音效库
 
 - 素材带一份音频索引：音效库（库名 → 几个音效，各有文件、权重、延迟秒数、音高范围、音量范围；同时播放的上限、满了时是否挤掉最早的一个、是否循环）和音乐库（前奏、循环、音量、交叉淡化秒数）。库名和这些数值取自游戏数据 `audio_data.json` 的 `soundFXBanks`、`bgmBanks`。
-- 播一个音效库：按权重随机选一个音效（权重都为 0 时等概率），音高和音量各在范围内均匀随机，延迟之后开始。这个库同时在播的个数已到上限时，挤掉最早的一个（`popOldest`），否则这次不播。
+- 播一个音效库：按权重随机选一个音效（权重都为 0 时等概率），音高和音量各在范围内均匀随机，延迟之后开始。这个库同时在播的个数已到上限时，挤掉最早的一个（`popOldest`），否则这次不播。上限为 0 表示不限。
 - 素材里没有的库不播。
 - 这里的随机数是页面自己的，不进模拟，各座位可以不同。
 - 音效和音乐的总音量由玩家设定（页面的画面设置）。
 
-- 来源：数据：audio_data.json `soundFXBanks[]`（name、sounds[].asset、weight、delay、minPitch、maxPitch、minVolume、maxVolume、maxSoundAllowed、popOldest、loop）、`bgmBanks[]`（name、intro、loop、volume、crossfade）；设计决定：[ADR 0024](../adr/0024-audio-sources.md)；权重为 0 时等概率、上限时不挤就不播为推断 INF-0168
+- 来源：数据：audio_data.json `soundFXBanks[]`（name、sounds[].asset、weight、delay、minPitch、maxPitch、minVolume、maxVolume、maxSoundAllowed、popOldest、loop）、`bgmBanks[]`（name、intro、loop、volume、crossfade）；设计决定：[ADR 0024](../adr/0024-audio-sources.md)；权重为 0 时等概率、上限时不挤就不播、上限为 0 表示不限为推断 INF-0168
 
 ### 音频-2 战斗事件的音效
 

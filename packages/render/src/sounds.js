@@ -93,3 +93,13 @@ export function pickSound(bank, random) {
   const s = bank.sounds[i], between = (/** @type {[number, number]} */ [lo, hi]) => lo + (hi - lo) * random();
   return { file: s.file, delay: s.delay, pitch: between(s.pitch), volume: between(s.volume) };
 }
+
+/**
+ * Whether a bank has room for one more sound (音频-1): under its limit (0: none) it plays; at it, the oldest goes when
+ * the bank says so, else this one does not play. @param {SoundBank} bank @param {number} playing how many play now
+ * @returns {'play' | 'pop' | 'none'}
+ */
+export function roomFor(bank, playing) {
+  if (bank.max <= 0 || playing < bank.max) return 'play';
+  return bank.popOldest ? 'pop' : 'none';
+}

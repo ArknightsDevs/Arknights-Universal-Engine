@@ -1,7 +1,7 @@
 // The sounds of a battle (docs/spec/audio.md): a frame's events to sound banks, a level's music, one sound of a bank.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { soundsOf, musicOf, pickSound } from '../src/sounds.js';
+import { soundsOf, musicOf, pickSound, roomFor } from '../src/sounds.js';
 
 const BANKS = new Set(['battle.ON_UNIT_BORN.char', 'battle.ON_UNIT_BORN.token', 'battle.ON_UNIT_BORN.char_special', 'battle.ON_CHARACTER_WITHDRAW.char', 'battle.ON_UNIT_DEAD.char',
   'battle.ON_UNIT_DEAD.enemy', 'battle.ON_UNIT_DEAD.token', 'battle.ON_ENEMY_REACHED_EXIT', 'battle.ON_SKILL_START.sk_a', 'battle.ON_COOPERATE_DYING', 'battle.ON_COOPERATE_MATE_DYING',
@@ -49,4 +49,10 @@ test('[音频-1] one sound of a bank: by weight (all 0: alike), pitch and volume
   assert.equal(pickSound(bank, seq([0.3, 0.5, 0.5])).file, 'b', '0.3 × 4 = 1.2: past a\'s weight');
   const even = { ...bank, sounds: [s('a', 0), s('b', 0)] };
   assert.deepEqual([pickSound(even, seq([0.4, 0, 0])).file, pickSound(even, seq([0.6, 0, 0])).file], ['a', 'b']);
+});
+
+test('[音频-1] room for one more sound: under the limit it plays; at it the oldest goes or this one does not; a limit of 0 is none', () => {
+  const bank = (/** @type {number} */ max, /** @type {boolean} */ popOldest) => ({ sounds: [], max, popOldest, loop: false });
+  assert.deepEqual([roomFor(bank(2, false), 1), roomFor(bank(2, false), 2), roomFor(bank(2, true), 2)], ['play', 'none', 'pop']);
+  assert.deepEqual([roomFor(bank(0, false), 0), roomFor(bank(0, false), 7), roomFor(bank(0, true), 3)], ['play', 'play', 'play'], 'battle.ON_UNIT_BORN.char: 0, no pop');
 });
