@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadTraining, operatorAt, skeletonContent, ROSTER } from '../src/index.js';
-import { traitAt, teamTalentsAt } from '../src/operators.js';
+import { traitAt, teamTalentsAt, upgradedTalentsAt, moduleOwnAt } from '../src/operators.js';
 import { talentsAt, alwaysOn, teamPart, rangePart, critPart, timedPart, deployPart } from '../src/talents.js';
 import { matchContent } from '../src/index.js';
 
@@ -88,6 +88,28 @@ test('[干员-7] a module adds its level\'s attributes and upgrades talents; onl
   assert.throws(() => operatorAt(angel, { ...e2, module: 2 }), /module 2 is not unlocked/);
   const y2 = operatorAt(angel, { ...e2, module: 1, moduleLevel: 2 });
   assert.equal(y2.talentBb?.attack_speed, 15, '快速弹匣\'s upgrade keeps its leading clause');
+});
+
+/** A training at elite 2, max level, potential 6, with a module at a level: its talents and its module's own data. */
+const moduled = async (/** @type {string} */ id, /** @type {number} */ module, /** @type {number} */ moduleLevel) => {
+  const t = await loadTraining(id), b = build({ elite: 2, level: t.phases[2].maxLevel, potential: 6, skill: -1 }), m = { ...b, module, moduleLevel };
+  return { base: upgradedTalentsAt(t, b), mod: upgradedTalentsAt(t, m), own: moduleOwnAt(t, m) };
+};
+
+test('[干员-7] a module\'s talent candidate upgrades the talent it is (prefabKey); a hidden one of none is the module\'s own data', async () => {
+  const [poca1, helage1, helage2, aigis] = await Promise.all([moduled('char_197_poca', 0, 1), moduled('char_188_helage', 0, 1), moduled('char_188_helage', 0, 2), moduled('char_4218_aigis', 0, 1)]);
+  assert.deepEqual([poca1.mod, poca1.own], [poca1.base, { atk_scale: 1.15, value: 3 }], '早露 SIE-X 1: 深入骨髓 stays; the 115 % against heavy enemies is the module\'s');
+  assert.deepEqual([helage1.mod, helage1.own], [helage1.base, { hp_ratio: 0.5, damage_resistance: 0.25 }], '赫拉格 SBL-X 1: 月盈星亏 stays; the 庇护 is the module\'s');
+  assert.deepEqual([helage2.mod[0].bb, helage2.mod[0].description?.includes('+120')], [{ min_hp_ratio: 0.4, min_attack_speed: 120 }, true], 'SBL-X 2 upgrades 月盈星亏 itself');
+  assert.deepEqual([aigis.mod[0].hidden, aigis.mod[0].bb, aigis.own], [true, { atk_scale: 1.1 }, { atk_scale: 1.1 }], '埃癸斯 BRK-X: her hidden talent, and the module\'s data');
+});
+
+test('[干员-7] a shown candidate of none of the talents adds to the one at its index: its text, its new keys, the talent\'s own values kept', async () => {
+  const [poca, siege, necras, shan] = await Promise.all([moduled('char_197_poca', 0, 2), moduled('char_112_siege', 0, 2), moduled('char_450_necras', 0, 2), moduled('char_264_f12yin', 1, 2)]);
+  assert.deepEqual([poca.mod[0].bb, poca.mod[0].description?.endsWith('并额外造成40%攻击力的物理伤害')], [{ extra_atk_scale: 0.4, value: 3, def_penetrate: 0.6 }, true], '早露 SIE-X 2');
+  assert.deepEqual(siege.mod[0].bb, { atk: 0.1, def: 0.1 }, '推进之王 SOL-X: the 先锋\'s +10 % kept, not the +6 % of its own');
+  assert.equal(necras.mod[0].bb.max_token_cnt, 3, '死芒 SOC-X 2: a part that only changes the text keeps 复燃\'s data');
+  assert.deepEqual([shan.mod[1].bb, shan.mod[1].description?.includes('战栗')], [{ prob: 0.2, def: 0.14 }, true], '山 FGT-X 2: 强壮肉体\'s data by its prefabKey (index 2), its text by index 1');
 });
 
 test('[干员-7] a module\'s trait parts put their values over the trait\'s blackboard; a part that only shows text changes none', async () => {

@@ -25,9 +25,10 @@ import { dollOf } from './doll.js';
  *   description?: string | null }} Training
  */
 /**
- * A talent candidate (干员-4): unlock, name and description (null for a hidden one), range id, numeric and text blackboard.
+ * A talent candidate (干员-4): unlock, name and description (null for a hidden one), range id, numeric and text blackboard,
+ * the talent it is (prefabKey).
  * @typedef {{ phase: number, level: number, potential: number, name: string | null, description: string | null, rangeId: string | null,
- *   bb: Stats, text?: Record<string, string>, hidden: boolean, token: string | null }} TalentCandidate
+ *   bb: Stats, text?: Record<string, string>, hidden: boolean, token: string | null, prefab: string | null }} TalentCandidate
  */
 /**
  * A module (干员-5): its levels with the attribute additions (the operator's and each token's), and the parts.
@@ -35,10 +36,14 @@ import { dollOf } from './doll.js';
  *   levels: { level: number, stats: Stats, tokens: Record<string, Stats>, parts: ModulePart[] }[] }} Module
  */
 /**
+ * A module part's talent candidate (干员-5): the talent index and the talent it is (prefabKey), unlock, texts, blackboard.
+ * @typedef {{ index: number, prefab: string | null, phase: number, level: number, potential: number, name: string | null, upgrade: string | null,
+ *   rangeId: string | null, bb: Stats, text?: Record<string, string>, hidden: boolean, modes: number[] | null }} ModuleTalent
+ */
+/**
  * @typedef {{ target: string, token: boolean, gameTag: string | null, mapTag: string | null,
  *   trait: { phase: number, level: number, potential: number, add: string | null, override: string | null, rangeId: string | null, bb: Stats, text?: Record<string, string> }[],
- *   talents: { index: number, phase: number, level: number, potential: number, name: string | null, upgrade: string | null, rangeId: string | null,
- *     bb: Stats, text?: Record<string, string>, hidden: boolean, modes: number[] | null }[] }} ModulePart
+ *   talents: ModuleTalent[] }} ModulePart
  */
 
 /** Every operator there is training data for, by id: name, rarity, profession, branch. */
@@ -94,17 +99,32 @@ export function moduleAt(t, b) {
 }
 
 /**
- * The talents at a training (干员-6, 干员-7): each talent's own candidate, or the module's upgrade of it — the last
- * unlocked candidate of the level's talent parts (not a token's, valid in every mode and map) for that talent, its
- * upgrade text as the description.
+ * The unlocked candidates of a module level's talent parts that are the operator's (not a token's, valid in every mode
+ * and map), in order (干员-7).
+ * @param {Build} b @param {ModuleLevel | null} mod @returns {ModuleTalent[]}
+ */
+const moduleTalents = (b, mod) => (mod?.parts ?? []).filter((p) => p.target.startsWith('TALENT') && !p.token && !p.gameTag && !p.mapTag)
+  .flatMap((p) => p.talents.filter((c) => unlockedAt(c, b)));
+
+/**
+ * The talents at a training (干员-6, 干员-7), with its module's upgrades. A module candidate that is one of the
+ * operator's talents (its prefabKey) upgrades it: the candidate's data, its upgrade text as the description; one more of
+ * these for a talent, the last. Then a shown candidate that is none of them adds to the talent at its index: its upgrade
+ * text, and its keys the talent does not have (the talent's own values kept). Hidden ones and those of no index are the
+ * module's own (hiddenAt).
  * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @returns {import('./talents.js').Talent[]}
  */
 function upgradedTalents(t, b, mod) {
   /** @type {(import('./talents.js').Talent | null)[]} */
-  const out = talentsAt(t, b);
-  for (const p of mod?.parts ?? []) {
-    if (!p.target.startsWith('TALENT') || p.token || p.gameTag || p.mapTag) continue;
-    for (const c of p.talents) if (c.index >= 0 && unlockedAt(c, b)) out[c.index] = { description: c.upgrade, bb: c.bb, hidden: c.hidden };
+  const out = talentsAt(t, b), cands = moduleTalents(b, mod);
+  const talentOf = (/** @type {ModuleTalent} */ c) => (c.prefab === null ? -1 : t.talents.findIndex((cs) => cs.some((x) => x.prefab === c.prefab)));
+  for (const c of cands) {
+    const i = talentOf(c), cur = out[i];
+    if (i >= 0) out[i] = { description: c.upgrade || (cur?.description ?? null), bb: c.bb, hidden: cur ? cur.hidden : c.hidden };
+  }
+  for (const c of cands) {
+    const cur = c.index >= 0 && !c.hidden && talentOf(c) < 0 ? out[c.index] : null;
+    if (cur) out[c.index] = { description: c.upgrade || cur.description, bb: { ...c.bb, ...cur.bb }, hidden: cur.hidden };
   }
   return out.filter((c) => c !== null);
 }
@@ -123,6 +143,15 @@ export function traitAt(t, b, mod = moduleAt(t, b)) {
   }
   return bb;
 }
+
+/**
+ * The talents at a training with its module's upgrades (干员-7). @param {Training} t @param {Build} b
+ * @returns {import('./talents.js').Talent[]}
+ */
+export const upgradedTalentsAt = (t, b) => upgradedTalents(t, b, moduleAt(t, b));
+
+/** The blackboard of a training's module's own talents (干员-7). @param {Training} t @param {Build} b @returns {Stats} */
+export const moduleOwnAt = (t, b) => hiddenAt(b, moduleAt(t, b));
 
 /**
  * The team parts of a training's talents (干员-9), with its module's upgrades: those for the deck and those on the field.
@@ -161,20 +190,13 @@ function talentFields(t, b, mod) {
 export const operatorAt = (t, b) => recordAt(t, b, moduleAt(t, b));
 
 /**
- * The blackboard of a module level's hidden talents (干员-7): the unlocked candidates of its talent parts that upgrade no
- * talent of the operator (index −1; not a token's, valid in every mode and map), in order — what the module adds to its
- * trait without a blackboard of the trait's own (解放者 LIB-X 「部署后获得+100%加成」: init_atk).
+ * The blackboard of a module level's own talents (干员-7): its unlocked talent candidates (not a token's, valid in every
+ * mode and map) that are hidden or of no talent index (−1, −2), merged in order — what the module adds to its trait
+ * without a blackboard of the trait's own (解放者 LIB-X 「部署后获得+100%加成」: init_atk; the effects of a part that only
+ * shows a trait line, such as 杰西卡 MAR-Y's attack_speed 8).
  * @param {Build} b @param {ModuleLevel | null} mod @returns {Stats}
  */
-function hiddenAt(b, mod) {
-  /** @type {Stats} */
-  let bb = {};
-  for (const p of mod?.parts ?? []) {
-    if (!p.target.startsWith('TALENT') || p.token || p.gameTag || p.mapTag) continue;
-    for (const c of p.talents) if (c.index < 0 && unlockedAt(c, b)) bb = { ...bb, ...c.bb };
-  }
-  return bb;
-}
+const hiddenAt = (b, mod) => Object.assign({}, ...moduleTalents(b, mod).filter((c) => c.index < 0 || c.hidden).map((c) => c.bb));
 
 /**
  * A training's record (operatorAt) with the module level given: the operator's own, or what its owner's module gives a

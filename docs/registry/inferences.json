@@ -618,8 +618,8 @@
   {
     "id": "INF-0089",
     "clause": "干员-7",
-    "statement": "模组某一级的天赋部件（TALENT、TALENT_DATA_ONLY）里 talentIndex 不小于 0 的已解锁候选，替换干员第 talentIndex 个天赋的候选，升级描述 upgradeDescription 是替换后的完整描述；同一天赋有几个候选时最后一个已解锁的起作用。",
-    "basis": "升级描述是完整的天赋描述（如能天使模组「天使的祝福」的升级描述「攻击力+8%，生命上限+14%。置入战场后这个效果会同样赋予给两名随机友方单位」），blackboard 也是完整的一套；字段名 addOrOverrideTalentDataBundle 说的是增加或覆盖。TALENT 与 TALENT_DATA_ONLY 的区别没有查证，这里同样处理。",
+    "statement": "模组某一级的天赋部件（TALENT、TALENT_DATA_ONLY）里已解锁的候选，prefabKey 与干员某个天赋相同的，升级那个天赋：blackboard 换成候选的完整一套，升级描述 upgradeDescription 是升级后的完整描述（为空时描述不变）；同一天赋有几个候选时最后一个已解锁的起作用。prefabKey 不是干员任何天赋的：隐藏的（isHideTalent）和 talentIndex 小于 0 的是模组自己的数据，不改天赋；不隐藏的追加在第 talentIndex 个天赋上，升级描述是追加后的完整描述，blackboard 只补上天赋没有的键，天赋的原有效果照常。",
+    "basis": "升级描述是完整的天赋描述（如能天使模组「天使的祝福」的升级描述「攻击力+8%，生命上限+14%。置入战场后这个效果会同样赋予给两名随机友方单位」），blackboard 也是完整的一套；字段名 addOrOverrideTalentDataBundle 说的是增加或覆盖。2326 个候选里 1602 个的 prefabKey 与第 talentIndex 个天赋相同；其余的 prefabKey 是 10、11、10_root 这类干员天赋里没有的编号：隐藏的只有数据、没有描述（早露 SIE-X 1 级 talentIndex 0 的 atk_scale 1.15、value 3 正是 DISPLAY 部件「攻击重量较重（重量等级大于等于3）的敌人时，攻击力提升至115%」，赫拉格 SBL-X 1 级的 damage_resistance 0.25 是「生命值低于50%时，获得25%的庇护」，都不是第一天赋「深入骨髓」「月盈星亏」的数据），按 talentIndex 替换会让这些干员带模组 1 级就失去第一天赋；不隐藏的升级描述把原天赋和新增的效果写在一起、blackboard 只有新增的键（早露 SIE-X 2 级「……无视其防御力的60%，并额外造成40%攻击力的物理伤害」只有 extra_atk_scale、value，没有 def_penetrate）。山 FGT-X 2 级的数据候选 talentIndex 是 2、prefabKey 是第二天赋的 2，按 prefabKey 才对得上「强壮肉体」。TALENT 与 TALENT_DATA_ONLY 的区别没有查证，这里同样处理。",
     "status": "待查证"
   },
   {

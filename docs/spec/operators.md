@@ -28,13 +28,13 @@
 
 ### 干员-4 天赋
 
-干员的天赋按 character_table 里 talents 的顺序记录，每个天赋是它的候选列表（talents 为空，或某个天赋没有候选时，对应为空列表）。每个候选记录：解锁的精英化阶段（`PHASE_n` 记作 n）和等级，需要的潜能（0–5），名称、描述（原文，富文本标签保留）、范围编号 `rangeId`（没有为 null），以及 blackboard。候选的解锁条件和特性候选一样（干员-3）。
+干员的天赋按 character_table 里 talents 的顺序记录，每个天赋是它的候选列表（talents 为空，或某个天赋没有候选时，对应为空列表）。每个候选记录：解锁的精英化阶段（`PHASE_n` 记作 n）和等级，需要的潜能（0–5），名称、描述（原文，富文本标签保留）、范围编号 `rangeId`（没有为 null），blackboard，以及它是哪一个天赋 `prefab`（prefabKey，没有为 null；模组的天赋部件用它指明改的是哪个天赋，干员-7）。候选的解锁条件和特性候选一样（干员-3）。
 
 blackboard 里的数值条目记作 `{ 键: 值 }`；带 `valueStr` 的条目是文本（它的值只是占位），另记作 `text: { 键: 文本 }`，没有文本条目时不写 `text`。同一个候选里键重复时报错。
 
 `isHideTalent` 为真的候选是不在干员信息里展示的天赋（名称和描述为空，多半带着召唤物或模组用的数据，`token` 记 `tokenKey`），也照样保留，用 `hidden: true` 标明，由使用方决定是否展示。
 
-- 来源：数据：character_table 的 talents[].candidates[]（unlockCondition.phase、unlockCondition.level、requiredPotentialRank、name、description、rangeId、blackboard[].key/value/valueStr、isHideTalent、tokenKey）；保留隐藏天赋、文本条目另记是设计决定
+- 来源：数据：character_table 的 talents[].candidates[]（unlockCondition.phase、unlockCondition.level、requiredPotentialRank、name、description、rangeId、blackboard[].key/value/valueStr、isHideTalent、tokenKey、prefabKey）；保留隐藏天赋、文本条目另记是设计决定
 
 ### 干员-5 模组
 
@@ -42,7 +42,7 @@ blackboard 里的数值条目记作 `{ 键: 值 }`；带 `valueStr` 的条目是
 
 1. **属性加成** `stats`：attributeBlackboard 里每个键加到干员属性上，用引擎的属性名（属性-1）：`max_hp`→`maxHp`、`atk`→`atk`、`def`→`def`、`attack_speed`→`aspd`、`magic_resistance`→`res`、`cost`→`cost`、`respawn_time`→`respawnTime`、`block_cnt`→`blockCnt`、`base_attack_time`→`baseAttackTime`。不在这个表里的键报错，不丢弃。
 2. **召唤物的属性加成** `tokens`：tokenAttributeBlackboard 按召唤物 id 分开记录，键用同一张表，再加 `max_deck_stack_cnt`→`maxDeckStackCnt`、`max_deploy_count`→`maxDeployCount`（可同时部署的数量，引擎还没有对应的属性）。
-3. **部件** `parts`：每个部件记录目标 `target`（`TRAIT`、`TRAIT_DATA_ONLY`、`DISPLAY`、`OVERWRITE_BATTLE_DATA`、`TALENT`、`TALENT_DATA_ONLY`，其他值报错）、是否属于召唤物 `token`（isToken）、只在哪种游戏模式和地图标签下有效（`gameTag`、`mapTag`，没有限制为 null）。部件的特性候选 `trait` 记：解锁阶段、等级、潜能、追加描述 `add`（additionalDescription）、替换描述 `override`（overrideDescripton，数据里就这样拼）、`rangeId`、blackboard（写法同干员-4）。部件的天赋候选 `talents` 记：`index`（talentIndex：加到第几个天赋上，从 0 数；−1、−2 是模组自己带的天赋）、解锁阶段、等级、潜能、名称、升级描述 `upgrade`（upgradeDescription）、`rangeId`、blackboard、`hidden`、`modes`（validModeIndices，没有为 null）。描述都是原文。
+3. **部件** `parts`：每个部件记录目标 `target`（`TRAIT`、`TRAIT_DATA_ONLY`、`DISPLAY`、`OVERWRITE_BATTLE_DATA`、`TALENT`、`TALENT_DATA_ONLY`，其他值报错）、是否属于召唤物 `token`（isToken）、只在哪种游戏模式和地图标签下有效（`gameTag`、`mapTag`，没有限制为 null）。部件的特性候选 `trait` 记：解锁阶段、等级、潜能、追加描述 `add`（additionalDescription）、替换描述 `override`（overrideDescripton，数据里就这样拼）、`rangeId`、blackboard（写法同干员-4）。部件的天赋候选 `talents` 记：`index`（talentIndex：显示在第几个天赋上，从 0 数；−1、−2 是模组自己带的天赋）、`prefab`（prefabKey：它是哪一个天赋，同干员-4，没有为 null）、解锁阶段、等级、潜能、名称、升级描述 `upgrade`（upgradeDescription）、`rangeId`、blackboard、`hidden`、`modes`（validModeIndices，没有为 null）。描述都是原文。
 
 这里只记录数据，模组怎样改变干员由使用方决定。`DISPLAY` 部件只有展示用的特性说明，`TRAIT` 和 `TRAIT_DATA_ONLY` 覆盖特性数据，`TALENT` 和 `TALENT_DATA_ONLY` 增加或覆盖天赋数据，`OVERWRITE_BATTLE_DATA` 的 blackboard 全是文本条目；这些含义是按目标名字做的推断，没有逐一核对。阿米娅的转职形态（char_1001_amiya2、char_1037_amiya3）不在 character_table 的干员里，它们的模组不记录。
 
@@ -71,9 +71,13 @@ blackboard 里的数值条目记作 `{ 键: 值 }`；带 `valueStr` 的条目是
 练度可以带一个模组：`module` 是干员模组列表（干员-5）里的序号（从 0 数，−1 或不写表示不带），`moduleLevel` 是模组等级 1–3（超过模组的等级数时取最后一级，不写为 1）。模组要在它的解锁精英化阶段和等级之后才能带，否则报错。
 
 - **属性**：模组这一级的属性加成 `stats` 和潜能一样加到原始属性上（在潜能之后）。
-- **天赋**：这一级里目标为 `TALENT` 或 `TALENT_DATA_ONLY`、不属于召唤物、对所有模式和地图有效（`gameTag`、`mapTag` 为 null）的部件，按顺序取其中已解锁的天赋候选（解锁条件同干员-3）；`index` 不小于 0 的候选替换第 `index` 个天赋的候选，描述用它的升级描述 `upgrade`，再按干员-6 取常驻部分。同一个天赋有几个这样的候选时，最后一个起作用。`index` 小于 0 的是模组的隐藏天赋：它们的 blackboard 按顺序合并，交给分支特性（职业-7）读取（如解放者的 `init_atk`）。
+- **天赋**：这一级里目标为 `TALENT` 或 `TALENT_DATA_ONLY`、不属于召唤物、对所有模式和地图有效（`gameTag`、`mapTag` 为 null）的部件，按顺序取其中已解锁的天赋候选（解锁条件同干员-3），分两遍：
+  1. **升级**：`prefab` 是干员某个天赋（它的任一候选）的 `prefab` 的候选，升级那个天赋（不看 `index`）：天赋的 blackboard 换成候选的，描述换成升级描述 `upgrade`（为空时保留原来的）；天赋原来不隐藏的仍不隐藏。同一个天赋有几个这样的候选时，最后一个起作用。
+  2. **追加**：`prefab` 不是干员任何天赋的、不隐藏、`index` 不小于 0 的候选，追加在第 `index` 个天赋上：描述换成升级描述（为空时保留原来的），候选 blackboard 里天赋没有的键加进来，天赋已有的键保留天赋的值（同名的键是模组给自身的额外加成，如推进之王「自身攻击力和防御力额外+6%」、星熊「自身防御力额外提升4%」，还没有实现）。
+  
+  之后再按干员-6 取常驻部分。**模组自己的数据**：`index` 小于 0 的候选和隐藏的候选，它们的 blackboard 按顺序合并，交给分支特性（职业-7）读取（如解放者 LIB-X 的 `init_atk`，杰西卡 MAR-Y「范围内存在地面敌人时攻击速度+8」的 `attack_speed`）；它们不改天赋（第一遍匹配上的隐藏候选照样升级它的天赋，如埃癸斯的隐藏天赋）。
 - **特性**：这一级里目标为 `TRAIT` 或 `TRAIT_DATA_ONLY`、不属于召唤物、对所有模式和地图有效的部件，按顺序把其中已解锁的特性候选的 blackboard 盖在特性的 blackboard（干员-3）上：同名的键取模组的值，其余保留。追加、替换的特性说明只作展示。
-- **还没有实现**：模组特性部件改动的范围（`rangeId`；替身的范围除外，职业-16）、模组自己带的天赋（`index` 为负）、召唤物的属性加成、只在某些模式或地图有效的部件。
+- **还没有实现**：模组特性部件改动的范围（`rangeId`；替身的范围除外，职业-16）、模组自己的数据作为天赋生效（分支特性读取的除外）、召唤物的属性加成、只在某些模式或地图有效的部件。
 
 - 来源：[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「属性」定义：「信赖、潜能和模组提供数值也会在这一步计（算）入，使得原始属性变为原始属性+」；数据：uniequip_table 的 unlockEvolvePhase、unlockLevel，battle_equip_table 的 phases[]；天赋部件替换天赋的方式为推断 INF-0089
 

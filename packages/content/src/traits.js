@@ -98,9 +98,10 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   funnel: { dmgType: ARTS, trait: (bb) => ({ antiAir: true, funnel: { init: bb.init_atk_scale ?? 0.2, delta: bb.delta_atk_scale ?? 0.15, max: bb.max_atk_scale ?? 1.1 } }) },
   // stores up to times attacks of energy when it has no target, and sends them with its next attack (职业-12)
   mystic: { dmgType: ARTS, trait: (bb) => ({ store: bb.times ?? 3 }) },
-  // jumps among max_target enemies within 1.7 tiles, 85 % of the hit before; each hit 停顿 (职业-11)
+  // jumps among max_target enemies within 1.7 tiles, 85 % of the hit before (its module's attack@chain.atk_scale: 90 %, or
+  // no less); each hit 停顿 (职业-11)
   chain: { dmgType: ARTS, trait: (bb) => ({
-    chain: { max: bb['attack@max_target'] ?? bb['attack@chain.max_target'] ?? 3, scale: 0.85, radius: 1.7, cells: null },
+    chain: { max: bb['attack@max_target'] ?? bb['attack@chain.max_target'] ?? 3, scale: bb['attack@chain.atk_scale'] ?? 0.85, radius: 1.7, cells: null },
     hitStatus: { key: 'sluggish', seconds: bb['attack@sluggish'] ?? 0.5 },
   }) },
   // 医疗

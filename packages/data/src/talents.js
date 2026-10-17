@@ -51,7 +51,8 @@ export function unlockOf(o, p) {
 
 /**
  * One talent candidate of character_table (干员-4): unlock, name, description (null for a hidden talent), range id, the
- * blackboard, whether the talent is hidden, the token it belongs to.
+ * blackboard, whether the talent is hidden, the token it belongs to, the talent it is (prefabKey; a module's talent parts
+ * name it, 干员-7).
  * @param {unknown} raw @param {string} p
  */
 function candidateOf(raw, p) {
@@ -59,20 +60,22 @@ function candidateOf(raw, p) {
   return {
     ...unlockOf(o, p), name: optString(o.name, `${p}.name`), description: optString(o.description, `${p}.description`),
     rangeId: optString(o.rangeId, `${p}.rangeId`), ...boardsOf(o.blackboard, `${p}.blackboard`),
-    hidden: o.isHideTalent === true, token: optString(o.tokenKey, `${p}.tokenKey`),
+    hidden: o.isHideTalent === true, token: optString(o.tokenKey, `${p}.tokenKey`), prefab: optString(o.prefabKey, `${p}.prefabKey`),
   };
 }
 
 /**
- * A module part's talent candidate (干员-5): the talent index it adds to (−1, −2: a talent of its own), the unlock, the
- * name, the upgrade description, the range id, the blackboard, whether it is hidden, the modes it is valid in.
+ * A module part's talent candidate (干员-5): the talent index it adds to (−1, −2: a talent of its own), the talent it is
+ * (prefabKey), the unlock, the name, the upgrade description, the range id, the blackboard, whether it is hidden, the
+ * modes it is valid in.
  * @param {unknown} raw @param {string} p
  */
 export function partTalentOf(raw, p) {
   const o = asObject(raw, p), modes = o.validModeIndices;
   if (modes !== null && modes !== undefined) asArray(modes, `${p}.validModeIndices`).forEach((m, i) => asInt(m, `${p}.validModeIndices[${i}]`, 0, 9));
   return {
-    index: asInt(field(o, 'talentIndex', p), `${p}.talentIndex`, -9, 9), ...unlockOf(o, p), name: optString(o.name, `${p}.name`),
+    index: asInt(field(o, 'talentIndex', p), `${p}.talentIndex`, -9, 9), prefab: optString(o.prefabKey, `${p}.prefabKey`), ...unlockOf(o, p),
+    name: optString(o.name, `${p}.name`),
     upgrade: optString(o.upgradeDescription, `${p}.upgradeDescription`), rangeId: optString(o.rangeId, `${p}.rangeId`),
     ...boardsOf(o.blackboard, `${p}.blackboard`), hidden: o.isHideTalent === true, modes: modes ?? null,
   };

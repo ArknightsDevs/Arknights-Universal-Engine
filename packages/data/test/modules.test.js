@@ -37,7 +37,7 @@ const battle = {
       parts: [
         traitPart('DISPLAY', { additionalDescription: null, overrideDescripton: 'over' }),
         part('TALENT_DATA_ONLY', { isToken: true, validInGameTag: 'roguelike', addOrOverrideTalentDataBundle: { candidates: [partTalent({ requiredPotentialRank: 4, validModeIndices: [0, 1] })] } }),
-        part('TALENT', { addOrOverrideTalentDataBundle: { candidates: [partTalent({ talentIndex: -1, name: null, isHideTalent: true })] } }),
+        part('TALENT', { addOrOverrideTalentDataBundle: { candidates: [partTalent({ talentIndex: -1, name: null, isHideTalent: true, prefabKey: '10' })] } }),
       ],
     },
   ] },
@@ -47,14 +47,14 @@ const battle = {
 test('[干员-4] talents: candidates in order with unlock, texts verbatim, numbers and texts of the blackboard, hidden ones kept', () => {
   const raw = [
     { candidates: [cand(), cand({ requiredPotentialRank: 5, blackboard: [{ key: 'atk', value: 0.7, valueStr: null }, { key: 'range_id', value: 0, valueStr: 'x-1' }], rangeId: 'x-1' })] },
-    { candidates: [cand({ name: null, description: null, isHideTalent: true, tokenKey: 'token_a', blackboard: [] })] },
+    { candidates: [cand({ name: null, description: null, isHideTalent: true, tokenKey: 'token_a', blackboard: [], prefabKey: null })] },
     { candidates: null },
   ];
   const t = /** @type {any[][]} */ (talentsOf(raw, 'talents'));
   assert.deepEqual(t.map((c) => c.length), [2, 1, 0]);
-  assert.deepEqual(t[0][0], { phase: 1, level: 10, potential: 0, name: 'T', description: 'd<@ba.kw>x</>', rangeId: null, bb: { atk: 0.5 }, hidden: false, token: null });
+  assert.deepEqual(t[0][0], { phase: 1, level: 10, potential: 0, name: 'T', description: 'd<@ba.kw>x</>', rangeId: null, bb: { atk: 0.5 }, hidden: false, token: null, prefab: '1' });
   assert.deepEqual([t[0][1].potential, t[0][1].bb, t[0][1].text, t[0][1].rangeId], [5, { atk: 0.7 }, { range_id: 'x-1' }, 'x-1']);
-  assert.deepEqual([t[1][0].name, t[1][0].description, t[1][0].hidden, t[1][0].token, 'text' in t[1][0]], [null, null, true, 'token_a', false]);
+  assert.deepEqual([t[1][0].name, t[1][0].description, t[1][0].hidden, t[1][0].token, t[1][0].prefab, 'text' in t[1][0]], [null, null, true, 'token_a', null, false]);
   assert.deepEqual(talentsOf(null, 'talents'), []);
   assert.throws(() => talentsOf([{ candidates: [cand({ blackboard: [{ key: 'a', value: 1, valueStr: null }, { key: 'a', value: 2, valueStr: null }] })] }], 'talents'), /duplicate a/);
   assert.throws(() => talentsOf([{ candidates: [cand({ unlockCondition: { phase: 'PHASE_3', level: 1 } })] }], 'talents'), /PHASE_0…PHASE_2/);
@@ -79,9 +79,9 @@ test('[干员-5] a module level: attribute additions by engine name, token attri
   assert.deepEqual(l.parts.map((/** @type {any} */ p) => [p.target, p.token, p.gameTag]), [['DISPLAY', false, null], ['TALENT_DATA_ONLY', true, 'roguelike'], ['TALENT', false, null]]);
   assert.deepEqual([l.parts[0].trait[0].add, l.parts[0].trait[0].override], [null, 'over']);
   assert.deepEqual(l.parts[1].talents, [{
-    index: 0, phase: 1, level: 10, potential: 4, name: 'T', upgrade: 'up', rangeId: null, bb: { atk: 0.5 }, hidden: false, modes: [0, 1],
+    index: 0, prefab: '1', phase: 1, level: 10, potential: 4, name: 'T', upgrade: 'up', rangeId: null, bb: { atk: 0.5 }, hidden: false, modes: [0, 1],
   }]);
-  assert.deepEqual([l.parts[2].talents[0].index, l.parts[2].talents[0].name, l.parts[2].talents[0].hidden], [-1, null, true]);
+  assert.deepEqual([l.parts[2].talents[0].index, l.parts[2].talents[0].prefab, l.parts[2].talents[0].name, l.parts[2].talents[0].hidden], [-1, '10', null, true]);
 });
 
 test('[干员-5] an unknown attribute, target or another operator\'s module is an error', () => {

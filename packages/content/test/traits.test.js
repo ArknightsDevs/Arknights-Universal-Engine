@@ -113,6 +113,12 @@ test('[职业-7] [职业-11] zones and chains from the real data: 散射手, 疗
   assert.deepEqual([counted(reaper.zone), reaper.targets], [{ cells: 4, scale: 1.5, outside: false }, 'all']);
   assert.deepEqual([healer.heal, counted(healer.zone)], [true, { cells: 7, scale: 0.8, outside: true }]);
   assert.deepEqual([chain0.chain, chain2.chain.max, chain0.hitStatus], [{ max: 3, scale: 0.85, radius: 1.7, cells: null }, 4, { key: 'sluggish', seconds: 0.5 }]);
+  const moduled = async (/** @type {string} */ id) => {
+    const t = await loadTraining(id);
+    return /** @type {any} */ (traits.traitOfDef(operatorAt(t, { elite: 2, level: t.phases[2].maxLevel, potential: 1, trust: 0, skill: -1, skillLevel: 1, module: 0, moduleLevel: 1 })));
+  };
+  const [chainX, chainY] = await Promise.all([moduled('char_306_leizi'), moduled('char_4004_pudd')]);
+  assert.deepEqual([chainX.chain.scale, chainX.hitStatus.seconds, chainY.chain.scale], [0.9, 0.8, 1], 'CHA-X: 90 % a jump and a longer 停顿; CHA-Y: no less a jump');
   assert.deepEqual([chainHeal.heal, counted(chainHeal.chain)], [true, { max: 3, scale: 0.75, radius: 0, cells: 9 }]);
   assert.equal(incant.healOnHit, 0.5);
 });
