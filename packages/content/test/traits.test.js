@@ -188,3 +188,28 @@ test('[职业-7] [职业-17] the modules\' 倍率 by the target from the real da
   const plain = /** @type {any} */ (traits.traitOfDef(operatorAt(await loadTraining('char_263_skadi'), { elite: 2, level: 90, potential: 1, trust: 0, skill: -1, skillLevel: 1 })));
   assert.deepEqual([plain.vs, (await withModule('斯卡蒂', 'DRE-Y')).vs], [[], []], 'none without the module, nor with another');
 });
+
+test('[职业-7] [职业-18] the modules\' modifiers while a condition on the operator holds, from the real data', async () => {
+  const wh = async (/** @type {string} */ name, /** @type {string} */ type) => (await withModule(name, type)).whiles;
+  const one = (/** @type {string} */ when, /** @type {Record<string, number>} */ mods, /** @type {number | undefined} */ value = undefined) => [{ when, mods, ...(value !== undefined ? { value } : {}) }];
+  assert.deepEqual(await Promise.all([wh('推进之王', 'SOL-X'), wh('蛇屠箱', 'PRO-X'), wh('森蚺', 'HES-Y'), wh('史尔特尔', 'AFT-X'), wh('号角', 'FOR-Y')]), [
+    one('blocking', { atkPct: 0.08, defPct: 0.08 }), one('blocking', { defPct: 0.2 }), one('blocking', { atkPct: 0.15, defPct: 0.15 }),
+    one('notBlocking', { aspd: 8 }), one('notBlocking', { aspd: 10 }),
+  ]);
+  assert.deepEqual(await Promise.all([wh('山', 'FGT-Y'), wh('艾丝黛尔', 'CEN-Y'), wh('赫拉格', 'SBL-X'), wh('阿', 'GEE-X'), wh('新约能天使', 'GEE-X')]), [
+    one('hpAbove', { aspd: 10 }, 0.5), one('hpAbove', { physTakenMul: 0.8 }, 0.5), one('hpBelow', { physTakenMul: 0.75, artsTakenMul: 0.75 }, 0.5),
+    one('hpAbove', { spRecoveryFlat: 0.25 }, 0.8), one('hpAbove', { spRecoveryFlat: 0.25 }, 0.8),
+  ]);
+  assert.deepEqual(await Promise.all([wh('烈夏', 'LOR-Y'), wh('隐德来希', 'REA-Y'), wh('圣约送葬人', 'REA-Y'), wh('铃兰', 'DEC-X'), wh('杰西卡', 'MAR-Y'), wh('能天使', 'MAR-Y')]), [
+    one('enemies', { aspd: 12 }, 2), one('enemies', { aspd: 12 }, 2), one('enemies', { aspd: 12 }, 2), one('enemies', { spRecoveryFlat: 0.2 }, 1),
+    one('groundEnemies', { aspd: 8 }, 1), one('groundEnemies', { aspd: 8 }, 1),
+  ]);
+  assert.deepEqual(await Promise.all([wh('灵知', 'UMD-Y'), wh('妮芙', 'PRI-Y'), wh('卡夫卡', 'EXE-Y'), wh('泥岩', 'UNY-Y'), wh('海蒂', 'BAR-X')]), [
+    one('eliteEnemies', { spRecoveryFlat: 0.25 }), one('burstEnemies', { spRecoveryFlat: 0.2 }), one('alone4', { atkPct: 0.1 }),
+    one('alone8', { atkPct: 0.08, defPct: 0.08 }), one('allies', { atkPct: 0.08 }, 2),
+  ]);
+  assert.deepEqual(await Promise.all([wh('焰影苇草', 'INC-Y'), wh('纯烬艾雅法拉', 'WDM-Y'), wh('岳羽由加莉', 'RAN-X'), wh('黑键', 'MSC-Y')]), [
+    one('injuredAllies', { dmgDealtMul: 1.1 }), one('epAllies', { aspd: 8 }), one('skillAllies', { atkPct: 0.08 }), one('energy', { aspd: 30 }),
+  ]);
+  assert.deepEqual([(await withModule('推进之王', 'SOL-Y')).whiles, (await withModule('傀影', 'EXE-X')).whiles], [[], []], 'none for another module');
+});

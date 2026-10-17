@@ -114,4 +114,7 @@ test('[兼容-5] a kitted operator follows its kit’s trait: no aftershock besi
   assert.deepEqual([soul.trait?.summonBlocked, soul.trait?.summonBlockedScale], [true, 1], 'its kit multiplies its hits itself');
   const plain = { ...op, branch: 'sword', trait: { hits: 2 } };
   assert.equal(withKitTrait(plain, entry({}), lv), plain, 'nothing to follow: the record as it is');
+  const moduled = withKitTrait({ ...op, branch: 'executor', trait: { whiles: [{ when: 'alone4', mods: { atkPct: 0.1 } }], vs: [{ when: 'near', atk: 1.1 }], far: { min: 1, max: 4, dmg: 0.1 } } }, entry({}), lv);
+  assert.deepEqual([moduled.trait?.whiles, moduled.trait?.vs, moduled.trait?.far, moduled.trait?.crowd, moduled.trait?.packed], [[], [], null, null, null],
+    'a module\'s trait additions are its kit\'s (职业-17, 职业-18)');
 });

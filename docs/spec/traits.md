@@ -65,7 +65,7 @@
 
 ### 职业-7 官方分支
 
-`@aue/content` 用分支表把干员数据的分支和特性 blackboard 换成伤害类型和特性数据。表里是全部 72 个分支，特性用 职业-1…职业-5、职业-8…职业-15 的数据表达；模组追加的按目标倍率见 职业-17：
+`@aue/content` 用分支表把干员数据的分支和特性 blackboard 换成伤害类型和特性数据。表里是全部 72 个分支，特性用 职业-1…职业-5、职业-8…职业-15 的数据表达；模组追加的按目标倍率见 职业-17，条件增益见 职业-18：
 
 | 分支 | 特性数据 |
 |---|---|
@@ -262,6 +262,44 @@
 | PLX-Y | 阵法术师 | `crowd`：`step` = `damage_scale`，`cap` = `max_valid_stack_cnt`（模组自己的数据） |
 | HAM-X | 撼地者 | `packed`：`cnt`、`atk` = `atk_scale_e` |
 
-轰击术师 BLA-X 改大的攻击范围还没有实现（干员-7）。
+轰击术师 BLA-X 改大的攻击范围还没有实现（干员-7）。带 Stronghold 兼容 kit 的干员不带这些倍率，由 kit 自己实现它的模组（兼容-5）。
 
-- 来源：数据：battle_equip_table 各模组的特性部件与天赋部件（干员-5）及其描述：无畏者 DRE-X「攻击被阻挡的敌人时攻击力提升至115%」，速射手 MAR-X「攻击空中单位时攻击力提升至110%」，冲锋手 CHG-Y「攻击生命值低于40%的敌人时攻击力提升至115%」，攻城手 SIE-X「攻击重量较重（重量等级大于等于3）的敌人时，攻击力提升至115%」，重射手 ARC-Y「攻击正前方的敌人时攻击力提升至105%且无视其物理闪避」，回环射手 LPS-X「攻击周围8格的敌人时攻击力提升至110%」，本源术师 PRI-X「对处于元素爆发期间的敌人造成的伤害提升至110%」，裂空炮手 BRK-X「技能开启时降落，攻击造成群体物理伤害且攻击地面敌人时攻击力提升至110％」，医师 PHY-X、守护者 GUA-X「治疗生命值低于50%的友方单位时治疗量提升15%」，医师 PHY-Y「治疗地面单位时治疗量提升15%」，重剑手 CRU-Y「对被阻挡的敌人伤害提升至110%」，撼地者 HAM-X「溅射范围内有大于或等于3个敌人时，使当次攻击力提升至115%」；[PRTS「斯卡蒂」oldid=435147](https://prts.wiki/index.php?title=%E6%96%AF%E5%8D%A1%E8%92%82&oldid=435147) DRE-X「※于每次计算伤害时检查目标是否处于阻挡/被阻挡状态（阻挡有敌人的单位亦能触发此效果）；提升效果为攻击力倍率提升。」，[PRTS「W」oldid=435177](https://prts.wiki/index.php?title=W&oldid=435177) ART-X、[PRTS「煌」oldid=434964](https://prts.wiki/index.php?title=%E7%85%8C&oldid=434964) CEN-X 同样的备注；[PRTS「远牙」oldid=435270](https://prts.wiki/index.php?title=%E8%BF%9C%E7%89%99&oldid=435270) DEA-X「※目标距离自身1格或以上时应用加成，按距离线性提升，目标距离自身4格或以上时达到最大值」，[PRTS「伊芙利特」oldid=435239](https://prts.wiki/index.php?title=%E4%BC%8A%E8%8A%99%E5%88%A9%E7%89%B9&oldid=435239) BLA-X「※目标距离自身0格或以上时应用加成，按距离线性提升，目标距离自身4格或以上时达到最大值」，[PRTS「卡涅利安」oldid=434998](https://prts.wiki/index.php?title=%E5%8D%A1%E6%B6%85%E5%88%A9%E5%AE%89&oldid=434998) PLX-Y「※攻击范围内存在的每个敌人令自身造成的伤害提升3%，存在5个或以上敌人时达到最大值」；[PRTS「分支特性信息/data」oldid=427899](https://prts.wiki/index.php?title=%E5%88%86%E6%94%AF%E7%89%B9%E6%80%A7%E4%BF%A1%E6%81%AF/data&oldid=427899) 教官「攻击力提升效果为攻击力倍率提升」；判定的时刻、伤害的种类与攻击倍率、伤害倍率的分别为推断 INF-0227，几何与计数为推断 INF-0228；与 Stronghold 的差异见 DIF-0037
+- 来源：数据：battle_equip_table 各模组的特性部件与天赋部件（干员-5）及其描述：无畏者 DRE-X「攻击被阻挡的敌人时攻击力提升至115%」，速射手 MAR-X「攻击空中单位时攻击力提升至110%」，冲锋手 CHG-Y「攻击生命值低于40%的敌人时攻击力提升至115%」，攻城手 SIE-X「攻击重量较重（重量等级大于等于3）的敌人时，攻击力提升至115%」，重射手 ARC-Y「攻击正前方的敌人时攻击力提升至105%且无视其物理闪避」，回环射手 LPS-X「攻击周围8格的敌人时攻击力提升至110%」，本源术师 PRI-X「对处于元素爆发期间的敌人造成的伤害提升至110%」，裂空炮手 BRK-X「技能开启时降落，攻击造成群体物理伤害且攻击地面敌人时攻击力提升至110％」，医师 PHY-X、守护者 GUA-X「治疗生命值低于50%的友方单位时治疗量提升15%」，医师 PHY-Y「治疗地面单位时治疗量提升15%」，重剑手 CRU-Y「对被阻挡的敌人伤害提升至110%」，撼地者 HAM-X「溅射范围内有大于或等于3个敌人时，使当次攻击力提升至115%」；[PRTS「斯卡蒂」oldid=435147](https://prts.wiki/index.php?title=%E6%96%AF%E5%8D%A1%E8%92%82&oldid=435147) DRE-X「※于每次计算伤害时检查目标是否处于阻挡/被阻挡状态（阻挡有敌人的单位亦能触发此效果）；提升效果为攻击力倍率提升。」，[PRTS「W」oldid=435177](https://prts.wiki/index.php?title=W&oldid=435177) ART-X、[PRTS「煌」oldid=434964](https://prts.wiki/index.php?title=%E7%85%8C&oldid=434964) CEN-X 同样的备注；[PRTS「远牙」oldid=435270](https://prts.wiki/index.php?title=%E8%BF%9C%E7%89%99&oldid=435270) DEA-X「※目标距离自身1格或以上时应用加成，按距离线性提升，目标距离自身4格或以上时达到最大值」，[PRTS「伊芙利特」oldid=435239](https://prts.wiki/index.php?title=%E4%BC%8A%E8%8A%99%E5%88%A9%E7%89%B9&oldid=435239) BLA-X「※目标距离自身0格或以上时应用加成，按距离线性提升，目标距离自身4格或以上时达到最大值」，[PRTS「卡涅利安」oldid=434998](https://prts.wiki/index.php?title=%E5%8D%A1%E6%B6%85%E5%88%A9%E5%AE%89&oldid=434998) PLX-Y「※攻击范围内存在的每个敌人令自身造成的伤害提升3%，存在5个或以上敌人时达到最大值」；[PRTS「分支特性信息/data」oldid=427899](https://prts.wiki/index.php?title=%E5%88%86%E6%94%AF%E7%89%B9%E6%80%A7%E4%BF%A1%E6%81%AF/data&oldid=427899) 教官「攻击力提升效果为攻击力倍率提升」；判定的时刻、伤害的种类与攻击倍率、伤害倍率的分别为推断 INF-0227，几何与计数为推断 INF-0228
+
+### 职业-18 模组追加的条件增益
+
+带模组时，分支特性还可以带一组条件增益 `whiles`（由 `@aue/content` 从模组的特性数据或模组自己的数据里取，干员-7）：每项是条件 `when`（有的带数 `value`）和一组修饰器 `mods`。每个干员回合开始时（帧-1 第 7 步，在 职业-10 的阻挡时免疫之后、技能之前），条件成立时干员带一个键为 `while:<序号>` 的 Buff，带这些修饰器；不成立时去掉它。条件：
+
+- `blocking`：阻挡着至少一个有生命的敌人；`notBlocking`：一个也没有；
+- `hpAbove`、`hpBelow`：生命高于、低于最大生命值的 `value`（等于时都不成立）；
+- 干员**自己的攻击范围**（不按技能改变的范围，技能-8；随朝向转动、按攻击距离拉伸）里在场、有生命、没有消失的单位：`enemies` 至少 `value` 个敌方单位，`groundEnemies` 至少 `value` 个不飞行的，`eliteEnemies` 有精英或领袖敌人，`burstEnemies` 有处于元素爆发的敌人；`allies` 至少 `value` 名别的干员（召唤物不算），`injuredAllies` 有生命未满的友方单位（干员自己和召唤物也算），`epAllies` 有元素值低于上限的友方单位，`skillAllies` 有别的干员的技能在运行；
+- `alone4`、`alone8`：干员所在格相邻的 4 格、周围的 8 格上没有别的干员（召唤物不算）；
+- `energy`：干员储存着攻击能量（职业-12）。
+
+| 模组 | 分支 | 条件 | 修饰器 |
+|---|---|---|---|
+| SOL-X | 尖兵 | blocking | 攻击力、防御力直接乘算 + 特性 `atk`、`def` |
+| PRO-X | 铁卫 | blocking | 防御力直接乘算 + `def` |
+| HES-Y | 决战者 | blocking | 攻击力、防御力直接乘算 + `atk`、`def` |
+| AFT-X | 术战者 | notBlocking | 攻击速度 + `attack_speed` |
+| FOR-Y | 要塞 | notBlocking | 攻击速度 + `attack_speed`（模组自己的数据） |
+| FGT-Y | 斗士 | hpAbove `hp_ratio`（没有时 0.5） | 攻击速度 + `attack_speed` |
+| CEN-Y | 强攻手 | hpAbove `hp_ratio` | 受到物理伤害倍率 ×(1 − `damage_resistance`) |
+| SBL-X | 武者 | hpBelow `hp_ratio` | 庇护：受到物理、法术伤害倍率 ×(1 − `damage_resistance`)（模组自己的数据） |
+| GEE-X | 怪杰 | hpAbove 0.8 | 技力自然回复速度 + `sp_recovery_per_sec`（模组自己的数据；新约能天使的在特性 `angel2_tr[e].` 键里） |
+| LOR-Y、REA-Y | 领主、收割者 | enemies `cnt`（没有时 2） | 攻击速度 + `attack_speed`（特性的，或模组自己的数据） |
+| DEC-X | 凝滞师 | enemies 1 | 技力自然回复速度 + `sp_recovery_per_sec`（模组自己的数据） |
+| MAR-Y | 速射手 | groundEnemies `cnt`（没有时 1） | 攻击速度 + `attack_speed`（特性带 `cnt` 时特性的，否则模组自己的数据） |
+| UMD-Y | 削弱者 | eliteEnemies | 技力自然回复速度 + `sp_recovery_per_sec` |
+| PRI-Y | 本源术师 | burstEnemies | 技力自然回复速度 + `sp_recovery_per_sec`（模组自己的数据） |
+| BAR-X | 吟游者 | allies `cnt` | 攻击力直接乘算 + `atk`（模组自己的数据） |
+| INC-Y | 咒愈师 | injuredAllies | 伤害倍率 × `damage_scale`（模组自己的数据） |
+| WDM-Y | 行医 | epAllies | 攻击速度 + `attack_speed` |
+| RAN-X | 游击手 | skillAllies | 攻击力直接乘算 + `atk` |
+| EXE-Y（及 Misery 的 EXE-X） | 处决者 | alone4 | 攻击力直接乘算 + `atk` |
+| UNY-Y | 不屈者 | alone8 | 攻击力、防御力直接乘算 + `atk`、`def` |
+| MSC-Y | 秘术师 | energy | 攻击速度 + `attack_speed`（模组自己的数据） |
+
+数值与修饰器的换算同技能（技能-5）。带 Stronghold 兼容 kit 的干员不带这些增益，由 kit 自己实现它的模组（兼容-5）。还没有实现的：本源铁卫 PRP-X「阻挡敌人时，自身造成的元素损伤提升15%」（自身造成的元素损伤没有倍率）、炼金师 ALC-X「场上存在炼金单元时」（炼金单元不是单位）、要塞 FOR-Y 的「不阻挡敌人时优先远程群体物理攻击」。
+
+- 来源：数据：battle_equip_table 各模组的特性部件与天赋部件（干员-5）及其描述：尖兵 SOL-X「阻挡敌人时攻击力和防御力各+8％」，铁卫 PRO-X「阻挡敌人时防御力+20%」，决战者 HES-Y「阻挡敌人时恢复技力回复速度且攻击力+15%，防御力+15%」，术战者 AFT-X「未阻挡敌人时攻击速度+8」，要塞 FOR-Y「不阻挡敌人时优先远程群体物理攻击且攻击速度+10」，斗士 FGT-Y「生命值高于50%时攻击速度+10」，强攻手 CEN-Y「生命值高于50%时受到的物理伤害降低20%」，武者 SBL-X「生命值低于50%时，获得25%的庇护」，怪杰 GEE-X「生命值高于80%时，技力自然回复速度+0.25/秒」，领主 LOR-Y、收割者 REA-Y「攻击范围内存在2名及以上敌人时攻击速度+12」，凝滞师 DEC-X「攻击范围内存在敌人时技力自然恢复速度+0.2/秒」，速射手 MAR-Y「范围内存在地面敌人时攻击速度+8」，削弱者 UMD-Y「攻击范围内存在精英或领袖敌人时技力自然恢复速度+0.25/秒」，本源术师 PRI-Y「攻击范围内存在元素损伤爆发的敌人时，技力自然恢复速度+0.2/秒」，吟游者 BAR-X「攻击范围内存在2名及以上其他干员时，攻击力+8%（不受技能影响）」，咒愈师 INC-Y「攻击范围内存在已受伤的友方干员时，自身造成的伤害提升至110%」，行医 WDM-Y「攻击范围内存在受到元素损伤的友方单位时，攻击速度+8」，游击手 RAN-X「攻击范围内有干员处于技能持续期间时，自身攻击力+8%」，处决者 EXE-Y「周围四格没有友方干员时攻击力+10%」，不屈者 UNY-Y「周围8格没有友方干员时攻击力和防御力+8%」，秘术师 MSC-Y「拥有已储存的攻击能量时，攻击速度+30」；[PRTS「烈夏」oldid=440685](https://prts.wiki/index.php?title=%E7%83%88%E5%A4%8F&oldid=440685) LOR-Y「※每隔0.1秒依初始攻击范围判断敌人数量（格子判定）生效/失效」；[PRTS「海蒂」oldid=434940](https://prts.wiki/index.php?title=%E6%B5%B7%E8%92%82&oldid=434940) BAR-X「※模组提供的“特性追加”实际上为额外的隐藏天赋」；[PRTS「焰影苇草」oldid=435227](https://prts.wiki/index.php?title=%E7%84%B0%E5%BD%B1%E8%8B%87%E8%8D%89&oldid=435227) INC-Y：为攻击范围内所有友方单位施加受伤检测、「加成效果为于焰影苇草输出伤害时提升伤害倍率，可对任何来源于焰影苇草的伤害生效」；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 庇护「受到的物理和法术伤害降低相应比例（同名效果取最高）」；每帧判断、自己的攻击范围、计数的单位为推断 INF-0229

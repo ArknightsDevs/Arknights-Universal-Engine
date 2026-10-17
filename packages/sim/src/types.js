@@ -208,7 +208,19 @@
  *   most `cap` of them (职业-17)
  * @property {{ cnt: number, atk: number } | null} packed an attack whose splash reaches at least `cnt` enemies, the target's
  *   included, hits at `atk` × its 倍率 (职业-17)
+ * @property {WhileMods[]} whiles modifiers it has while a condition on it holds (职业-18)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
+ */
+/**
+ * A trait's modifiers while a condition on the operator holds (职业-18): it blocks an enemy (`blocking`) or none
+ * (`notBlocking`); its HP is above or below `value` of its maximum (`hpAbove`, `hpBelow`); at least `value` enemies are in
+ * its own attack range (`enemies`), or ground ones (`groundEnemies`), or an elite or leader is (`eliteEnemies`), or one in
+ * an element burst (`burstEnemies`); at least `value` other operators are in it (`allies`), or a wounded friendly unit
+ * (`injuredAllies`), or one with element damage (`epAllies`), or another operator whose skill runs (`skillAllies`); no
+ * other operator stands on the 4 tiles next to it (`alone4`) or the 8 around it (`alone8`); it holds stored attack energy
+ * (`energy`).
+ * @typedef {{ when: 'blocking' | 'notBlocking' | 'hpAbove' | 'hpBelow' | 'enemies' | 'groundEnemies' | 'eliteEnemies' | 'burstEnemies'
+ *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy', value?: number, mods: Record<string, number> }} WhileMods
  */
 /**
  * A trait's 倍率 against a target (职业-17): × `atk` on a hit's attack 倍率 (before the target's 防御), × `dmg` on its 伤害倍率,

@@ -13,6 +13,7 @@ import { enforceCapacity } from './blocking.js';
 import { blockingImmunity } from './upkeep.js';
 import { zoneScale, chainOf, woundedInRange } from './chain.js';
 import { vsDamage, vsHeal } from './vs.js';
+import { traitWhiles } from './whiles.js';
 import { reachKeys } from './reach.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
 import { foeTargets, foeAttack, foeHit, isFoeOf } from './foes.js';
@@ -456,6 +457,7 @@ export function operatorsAttack(w, c) {
     if (op.kind !== KIND.OPERATOR || op.hp <= 0) continue;
     enforceCapacity(w, c, op);
     blockingImmunity(w, op, traitOf(c, op).immuneBlocking);
+    traitWhiles(w, c, op);
     tickSkill(w, c, op);
     skillIdle(op, traitOf(c, op));
     if (!statsOf(op).disabled) operatorAttack(w, c, op);
