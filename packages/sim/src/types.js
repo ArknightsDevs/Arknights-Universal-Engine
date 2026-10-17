@@ -201,7 +201,24 @@
  * @property {boolean} trapTiles its summons cannot be deployed on a tile a ground enemy stands on (职业-14)
  * @property {Doll | null} doll brought to 0 HP in its own form it switches (`switch` seconds) to its 替身, which fights
  *   `duration` seconds with attack and maximum HP + `atk`, `maxHp` (直接乘算), then switches back (职业-15)
+ * @property {VsScale[]} vs its hits' attack 倍率 or 伤害倍率, or its heals' 倍率, against a target as `when` says (职业-17)
+ * @property {{ min: number, max: number, dmg: number } | null} far its hits' 伤害倍率 by the distance to the target: 1 up to
+ *   `min` tiles, 1 + `dmg` at `max` and on (职业-17)
+ * @property {{ step: number, cap: number } | null} crowd its hits' 伤害倍率: + `step` for each enemy in its attack range, at
+ *   most `cap` of them (职业-17)
+ * @property {{ cnt: number, atk: number } | null} packed an attack whose splash reaches at least `cnt` enemies, the target's
+ *   included, hits at `atk` × its 倍率 (职业-17)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
+ */
+/**
+ * A trait's 倍率 against a target (职业-17): × `atk` on a hit's attack 倍率 (before the target's 防御), × `dmg` on its 伤害倍率,
+ * × `heal` on a heal, while the target is blocked or blocks a unit (`blocked`), flies (`flying`), is on the ground while
+ * the operator's skill runs (`skillGround`), has less than `value` of its maximum HP (`hpBelow`), has a 重量等级 of at least
+ * `value` (`heavy`), stands on the line of tiles straight in front of the operator (`front`), on its tile or the 8 around
+ * (`near`), is in an element burst (`burst`), stands on a ground tile (`onGround`); `noDodge`: such a physical hit cannot
+ * be dodged.
+ * @typedef {{ when: 'blocked' | 'flying' | 'skillGround' | 'hpBelow' | 'heavy' | 'front' | 'near' | 'burst' | 'onGround',
+ *   atk?: number, dmg?: number, heal?: number, value?: number, noDodge?: boolean }} VsScale
  */
 /**
  * A chain (职业-11): at most `max` targets in all, each jump at `scale` × the one before; a damage chain jumps to the

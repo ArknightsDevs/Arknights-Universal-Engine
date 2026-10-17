@@ -13,6 +13,7 @@ import { launch } from './swing.js';
 import { gainSp } from './sp.js';
 import { draw } from './rng.js';
 import { heal } from './damage.js';
+import { vsHeal } from './vs.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Buff} Buff @typedef {import('./skills.js').AttackMods} AttackMods */
@@ -84,7 +85,7 @@ export function deployTalents(w, c, op) {
     if (t.sp && op.skill) gainSp(op.skill, t.sp[1] - t.sp[0] > 1 ? t.sp[0] + Math.floor(draw(w) * (t.sp[1] - t.sp[0])) : t.sp[0]);
     if (t.heal) {
       const amount = 'value' in t.heal ? t.heal.value : t.heal.scale * statsOf(op).atk;
-      for (const u of w.units) if (u.kind === KIND.OPERATOR && u.hp > 0) w.events.push({ type: 'heal', id: op.id, target: u.id, amount: heal(w, op, u, amount) });
+      for (const u of w.units) if (u.kind === KIND.OPERATOR && u.hp > 0) w.events.push({ type: 'heal', id: op.id, target: u.id, amount: heal(w, op, u, amount * vsHeal(w, c, op, u)) });
     }
     if (t.shield) addBuff(op, makeBuff({ key: 'deployShield', src: op.id, shieldHits: t.shield }));
   }

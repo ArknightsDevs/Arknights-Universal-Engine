@@ -12,6 +12,7 @@ import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
 import { blockingImmunity } from './upkeep.js';
 import { zoneScale, chainOf, woundedInRange } from './chain.js';
+import { vsDamage, vsHeal } from './vs.js';
 import { reachKeys } from './reach.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
 import { foeTargets, foeAttack, foeHit, isFoeOf } from './foes.js';
@@ -74,7 +75,7 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * aftershock (职业-8) and chain (职业-11); whether the skill makes it, and which of its hits this is (钩子-3).
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
  *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null,
- *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number }} Load
+ *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number } }} Load
  */
 
 /**
@@ -105,13 +106,23 @@ function hitTarget(w, c, src, t, load) {
 }
 
 /**
- * One hit of an attack on a target (伤害-7, 元素-2, 职业-5): the damage, what it sets off, a kill credited, the 元素损伤
- * it carries, the status it gives, the trait's hit. Returns the HP taken.
+ * A hit's damage on a target (damageOf), an operator's by its trait's 倍率 for the target (职业-17).
+ * @param {World} w @param {Content} c @param {Unit | null} op @param {Unit} t @param {Load} load
+ */
+function hitDamage(w, c, op, t, load) {
+  const dmg = damageOf(load, t);
+  if (op) vsDamage(w, c, op, t, dmg);
+  return dmg;
+}
+
+/**
+ * One hit of an attack on a target (伤害-7, 元素-2, 职业-5, 职业-17): the damage, what it sets off, a kill credited, the
+ * 元素损伤 it carries, the status it gives, the trait's hit. Returns the HP taken.
  * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {Load} load
  */
 function oneHit(w, c, src, t, load) {
   const el = /** @type {import('./elements.js').Element | ''} */ (load.element), op = src && src.kind === KIND.OPERATOR ? src : null;
-  const alive = t.hp > 0, dmg = damageOf(load, t), dealt = dealDamage(w, src, t, dmg, c);
+  const alive = t.hp > 0, dmg = hitDamage(w, c, op, t, load), dealt = dealDamage(w, src, t, dmg, c);
   if (op) traitDealt(w, c, op, t, { dmg, taken: dealt });
   if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
   if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
@@ -137,7 +148,7 @@ function afterDamage(w, c, h) {
  */
 function healForDamage(w, c, op, dealt) {
   const share = traitOf(c, op).healOnHit, to = share > 0 ? woundedInRange(w, c, op) : null;
-  if (to) w.events.push({ type: 'heal', id: op.id, target: to.id, amount: heal(w, op, to, dealt * share) });
+  if (to) w.events.push({ type: 'heal', id: op.id, target: to.id, amount: heal(w, op, to, dealt * share * vsHeal(w, c, op, to)) });
 }
 
 /** The attack of an attacker, with an attack bonus for this attack only (敌能-11). @param {Unit} a @param {number} [pct] */
@@ -176,7 +187,10 @@ function areaOf(w, a, t, area) {
 function loadFor(w, c, a, t, load) {
   if (a.kind !== KIND.OPERATOR) return load;
   const tr = traitOf(c, a);
-  return { ...load, amount: load.amount * traitScale(w, c, a, t) * funnelScale(c, a, t), splash: tr.skillSplash && inSkill(a) ? tr.skillSplash : tr.splash, aftershock: tr.aftershock, chain: tr.chain };
+  return {
+    ...load, amount: load.amount * traitScale(w, c, a, t) * funnelScale(c, a, t), splash: tr.skillSplash && inSkill(a) ? tr.skillSplash : tr.splash, aftershock: tr.aftershock, chain: tr.chain,
+    ...(tr.packed ? { packed: tr.packed } : {}),
+  };
 }
 
 /**
@@ -201,16 +215,18 @@ function splashOf(w, t, s) {
 }
 
 /**
- * An attack reaching its target (攻击-2, 攻击-3, 职业-8): the target takes the hits; with a splash every other enemy
- * around it takes them at the splash's share; an aftershock repeats both at its share of the amount.
+ * An attack reaching its target (攻击-2, 攻击-3, 职业-8, 职业-17): the target takes the hits; with a splash every other
+ * enemy around it takes them at the splash's share; an aftershock repeats both at its share of the amount. An attack
+ * whose splash reaches enough enemies, the target's included, hits at the trait's 倍率 for that.
  * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {Load} load
  */
 export function impact(w, c, src, t, load) {
   const s = load.splash, around = s ? splashOf(w, t, s) : [];
+  const amount = load.packed && around.length + 1 >= load.packed.cnt ? load.amount * load.packed.atk : load.amount;
   for (const k of load.aftershock ? [1, load.aftershock] : [1]) {
     const shock = k === 1 ? {} : { hit: /** @type {const} */ ('aftershock') };
-    if (t.hp > 0) hitTarget(w, c, src, t, { ...load, amount: load.amount * k, ...shock });
-    for (const u of around) if (u.hp > 0) hitTarget(w, c, src, u, { ...load, amount: load.amount * k * (s?.scale ?? 1), hit: 'splash', ...shock });
+    if (t.hp > 0) hitTarget(w, c, src, t, { ...load, amount: amount * k, ...shock });
+    for (const u of around) if (u.hp > 0) hitTarget(w, c, src, u, { ...load, amount: amount * k * (s?.scale ?? 1), hit: 'splash', ...shock });
   }
   if (load.chain) jumpHits(w, c, src, t, load);
 }
@@ -239,7 +255,7 @@ function heals(w, c, a, t, how) {
   let amount = how.load.amount;
   for (const u of [t, ...how.jumps]) {
     for (let k = 0; k < how.load.times; k++) {
-      w.events.push({ type: 'heal', id: a.id, target: u.id, amount: heal(w, a, u, amount) });
+      w.events.push({ type: 'heal', id: a.id, target: u.id, amount: heal(w, a, u, amount * vsHeal(w, c, a, u)) });
       if (ep > 0 && !statsOf(u).flags.healFree) restoreEp(u, amount * ep);
     }
     amount *= how.load.chain?.scale ?? 1;

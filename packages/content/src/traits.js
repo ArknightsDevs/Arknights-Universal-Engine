@@ -22,8 +22,20 @@ const cellsOf = (id) => /** @type {Record<string, { row: number, col: number }[]
  * 傀儡师's battle skeletons (Start_B, Start_2, Doll_SwitchIn, Doll_SwitchOut, SwitchOut …) lasts 1 s.
  */
 const DOLL_SWITCH = 1;
-/** The normal attack's maximum targets is the 阻挡数. @type {Branch} */
-const blockTargets = { trait: () => ({ targets: 'blockCnt' }) };
+/**
+ * The trait's 倍率 against a target as `when` says (职业-17), when its module gives one: × `scale` on the hit's attack
+ * 倍率 (`atk`), its 伤害倍率 (`dmg`) or a heal (`heal`).
+ * @param {import('@aue/sim').VsScale['when']} when @param {'atk' | 'dmg' | 'heal'} kind @param {number | undefined} scale
+ * @param {Partial<import('@aue/sim').VsScale>} [more] @returns {{ vs?: import('@aue/sim').VsScale[] }}
+ */
+const vsWhen = (when, kind, scale, more = {}) => (scale ? { vs: [{ when, [kind]: scale, ...more }] } : {});
+/**
+ * The 伤害倍率 by the distance to the target its module gives (职业-17): min_dist to max_dist, up to + damage_scale.
+ * @param {Readonly<Record<string, number>>} bb @returns {Partial<TraitDef>}
+ */
+const farOf = (bb) => (bb.max_dist !== undefined && bb.damage_scale ? { far: { min: bb.min_dist ?? 0, max: bb.max_dist, dmg: bb.damage_scale } } : {});
+/** The normal attack's maximum targets is the 阻挡数; its module's 倍率 against a blocked enemy (职业-17). @param {'atk' | 'dmg'} kind @param {string} key @returns {Branch} */
+const blockTargets = (kind, key) => ({ trait: (bb) => ({ targets: 'blockCnt', ...vsWhen('blocked', kind, bb[key]) }) });
 
 /** The covered branches, by subProfessionId (职业-7). A branch not here uses its position's defaults. */
 export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
@@ -31,13 +43,15 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   pioneer: {},
   agent: { trait: () => ({ antiAir: true, blockedFirst: false }) },
   bearer: {},
-  charger: { trait: (bb) => ({ killCost: bb.cost ?? 1, refund: 1 }) },
+  // CHG-Y: × atk_scale against an enemy below hp_ratio of its HP (the module's own data; 职业-17)
+  charger: { trait: (bb, own) => ({ killCost: bb.cost ?? 1, refund: 1, ...(own?.hp_ratio ? vsWhen('hpBelow', 'atk', own.atk_scale, { value: own.hp_ratio }) : {}) }) },
   // its 战术点 is a summon (召唤-11); × atk_scale against the enemies its own summons block (职业-14)
   tactician: { trait: (bb) => ({ summonBlockedScale: bb.atk_scale ?? 1.5 }) },
   // the support of the operators in the deck is its skills' and talents' (职业-7)
   counsellor: {},
   // 近卫
-  fearless: {},
+  // DRE-X: × atk_scale against a blocked enemy (职业-17)
+  fearless: { trait: (bb) => vsWhen('blocked', 'atk', bb.atk_scale) },
   fighter: {},
   artsfghter: { dmgType: ARTS },
   sword: { trait: () => ({ hits: 2 }) },
@@ -45,12 +59,18 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   instructor: { trait: (bb) => ({ unblockedScale: bb.atk_scale ?? 1.2 }) },
   lord: { trait: (bb) => ({ antiAir: true, unblockedScale: bb.atk_scale ?? 0.8 }) },
   // the other enemies around the target take the share of the hit (职业-8)
-  hammer: { trait: (bb) => ({ splash: { radius: bb['attack@ability_range_radius'] ?? 1, scale: bb['attack@atk_scale_2'] ?? 0.5, ground: false } }) },
-  centurion: blockTargets,
+  // HAM-X: × atk_scale_e for an attack whose splash reaches cnt enemies (职业-17)
+  hammer: { trait: (bb) => ({
+    splash: { radius: bb['attack@ability_range_radius'] ?? 1, scale: bb['attack@atk_scale_2'] ?? 0.5, ground: false },
+    ...(bb.atk_scale_e && bb.cnt ? { packed: { cnt: bb.cnt, atk: bb.atk_scale_e } } : {}),
+  }) },
+  // CEN-X: × atk_scale against a blocked enemy (职业-17)
+  centurion: blockTargets('atk', 'atk_scale'),
   // no ally heals them; they heal themselves for the enemies their attacks reach (职业-9)
   musha: { trait: (bb) => ({ flags: { noAllyHeal: true }, selfHeal: bb.value ?? 0, selfHealOn: 'damage' }) },
   reaper: { trait: (bb) => ({ flags: { noAllyHeal: true }, filter: 'ALL', targets: 'all', selfHeal: bb.value ?? 0, selfHealMax: 'blockCnt' }) },
-  crusher: blockTargets,
+  // CRU-Y: 伤害倍率 × damage_scale against a blocked enemy (职业-17)
+  crusher: blockTargets('dmg', 'damage_scale'),
   primguard: {},
   // the 应变 that spends cost is its skills' (职业-7)
   mercenary: {},
@@ -58,7 +78,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   librator: { trait: (bb, hidden) => ({ attackInSkill: true, idleMods: { blockCntMul: 0 }, charge: { atk: bb.atk ?? 2, steps: bb.max_stack_cnt ?? 40, init: hidden?.init_atk ?? 0 } }) },
   // 重装
   protector: {},
-  guardian: {},
+  // GUA-X: its heals × heal_scale on one below hp_ratio of its HP (职业-17)
+  guardian: { trait: (bb) => (bb.hp_ratio ? vsWhen('hpBelow', 'heal', bb.heal_scale, { value: bb.hp_ratio }) : {}) },
   primprotector: {},
   shotprotector: { trait: () => ({ antiAir: true }) },
   unyield: { trait: () => ({ flags: { noAllyHeal: true } }) },
@@ -66,34 +87,50 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   duelist: { trait: () => ({ flags: { noSp: true }, immuneBlocking: ['noSp'] }) },
   artsprotector: { trait: () => ({ skillArts: true }) },
   // 狙击
-  fastshot: { trait: () => ({ secondary: 'FLY_FIRST' }) },
-  closerange: {},
-  longrange: { trait: () => ({ filter: 'DEF_ASC' }) },
-  siegesniper: { trait: () => ({ filter: 'MASS_DES' }) },
-  aoesniper: { trait: () => ({ splash: { radius: 1, scale: 1, ground: false } }) },
+  // MAR-X: × atk_scale against a flying enemy (职业-17)
+  fastshot: { trait: (bb) => ({ secondary: 'FLY_FIRST', ...vsWhen('flying', 'atk', bb.atk_scale) }) },
+  // ARC-Y: × atk_scale against an enemy straight in front, its physical dodge ignored (the trait's, or the module's own data; 职业-17)
+  closerange: { trait: (bb, own) => vsWhen('front', 'atk', bb.atk_scale ?? own?.atk_scale, { noDodge: true }) },
+  // DEA-X: 伤害倍率 by the distance (职业-17)
+  longrange: { trait: (bb) => ({ filter: 'DEF_ASC', ...farOf(bb) }) },
+  // SIE-X: × atk_scale against an enemy of 重量等级 value or more (the module's own data); SIE-Y: 伤害倍率 by the distance (职业-17)
+  siegesniper: { trait: (bb, own) => ({ filter: 'MASS_DES', ...(own?.value ? vsWhen('heavy', 'atk', own.atk_scale, { value: own.value }) : {}), ...farOf(bb) }) },
+  // ART-X: × atk_scale against a blocked enemy (职业-17)
+  aoesniper: { trait: (bb) => ({ splash: { radius: 1, scale: 1, ground: false }, ...vsWhen('blocked', 'atk', bb.atk_scale) }) },
   bombarder: { trait: (bb) => ({ antiAir: false, splash: { radius: 0.9, scale: 1, ground: true }, aftershock: bb['attack@append_atk_scale'] ?? 0.5 }) },
   // melee on what it blocks or what stands on its tile, ranged with a 1.0 splash on the others in its range (职业-12)
-  fortress: { trait: () => ({ fortress: 1 }) },
+  // FOR-X: × atk_scale against a blocked enemy (职业-17)
+  fortress: { trait: (bb) => ({ fortress: 1, ...vsWhen('blocked', 'atk', bb.atk_scale) }) },
   // air too; blocks 2 flying enemies once it took off (职业-12)
   skywalker: { trait: () => ({ antiAir: true, liftoffBlock: 2 }) },
   // air too, the blocked first; up in the air (起飞) while its skill does not run, attacking only flying enemies and those it
   // blocks; its skill's attacks splash 1.1 (职业-12)
-  skybreaker: { trait: () => ({ antiAir: true, blockedFirst: true, idleFlags: { liftoff: true }, idleAirOnly: true, skillSplash: { radius: 1.1, scale: 1, ground: false } }) },
+  // BRK-X: while its skill runs, × atk_scale against a ground enemy (the module's own data; 职业-17)
+  skybreaker: { trait: (_bb, own) => ({
+    antiAir: true, blockedFirst: true, idleFlags: { liftoff: true }, idleAirOnly: true, skillSplash: { radius: 1.1, scale: 1, ground: false }, ...vsWhen('skillGround', 'atk', own?.atk_scale),
+  }) },
   // its attacks throw boomerangs, out at 15 and back at 3.75 tiles a second; it attacks again once it caught them all (职业-12)
-  loopshooter: { trait: () => ({ boomerang: { out: 15, back: 3.75 } }) },
+  // LPS-X: × atk_scale against an enemy on the 8 tiles around (the module's own data; 职业-17)
+  loopshooter: { trait: (_bb, own) => ({ boomerang: { out: 15, back: 3.75 }, ...vsWhen('near', 'atk', own?.atk_scale) }) },
   // value bullets at atk_scale, reloaded one at a time (职业-12)
   hunter: { trait: (bb) => ({ bullets: { max: bb.value ?? 8, scale: bb.atk_scale ?? 1.2 } }) },
   // every enemy in range; 倍率 × atk_scale for those in its own and the three tiles before it (range 1-3, 职业-11)
   reaperrange: { trait: (bb) => ({ filter: 'ALL', targets: 'all', zone: { cells: cellsOf('1-3'), scale: bb.atk_scale ?? 1.5, outside: false } }) },
   // 术师
   corecaster: { dmgType: ARTS },
-  blastcaster: { dmgType: ARTS, trait: () => ({ filter: 'ALL', targets: 'all' }) },
-  // attacks only while its skill runs, every enemy in range, air ones too; DEF × (1 + def) and RES + magic_resistance while it does not (职业-12)
-  phalanx: { dmgType: ARTS, trait: (bb) => ({ antiAir: true, filter: 'ALL', targets: 'all', attackInSkill: true, idleMods: { defPct: bb.def ?? 2, resFlat: bb.magic_resistance ?? 20 } }) },
+  // BLA-X: 伤害倍率 by the distance (职业-17)
+  blastcaster: { dmgType: ARTS, trait: (bb) => ({ filter: 'ALL', targets: 'all', ...farOf(bb) }) },
+  // attacks only while its skill runs, every enemy in range, air ones too; DEF × (1 + def) and RES + magic_resistance while it does not (职业-12);
+  // PLX-Y: 伤害倍率 + damage_scale for each enemy in its range, at most max_valid_stack_cnt (the module's own data; 职业-17)
+  phalanx: { dmgType: ARTS, trait: (bb, own) => ({
+    antiAir: true, filter: 'ALL', targets: 'all', attackInSkill: true, idleMods: { defPct: bb.def ?? 2, resFlat: bb.magic_resistance ?? 20 },
+    ...(own?.damage_scale && own.max_valid_stack_cnt ? { crowd: { step: own.damage_scale, cap: own.max_valid_stack_cnt } } : {}),
+  }) },
   splashcaster: { dmgType: ARTS, trait: () => ({ splash: { radius: 1.1, scale: 1, ground: false } }) },
   // arts; also the enemies its own summons block, × atk_scale against them (its module's; 职业-14)
   soulcaster: { dmgType: ARTS, trait: (bb) => ({ summonBlocked: true, summonBlockedScale: bb.atk_scale ?? 1 }) },
-  primcaster: { dmgType: ARTS },
+  // PRI-X: 伤害倍率 × damage_scale against an enemy in an element burst (职业-17)
+  primcaster: { dmgType: ARTS, trait: (bb) => vsWhen('burst', 'dmg', bb.damage_scale) },
   // arts, air too; init_atk_scale on a new target, delta_atk_scale more for each attack on the same, at most max_atk_scale (职业-12)
   funnel: { dmgType: ARTS, trait: (bb) => ({ antiAir: true, funnel: { init: bb.init_atk_scale ?? 0.2, delta: bb.delta_atk_scale ?? 0.15, max: bb.max_atk_scale ?? 1.1 } }) },
   // stores up to times attacks of energy when it has no target, and sends them with its next attack (职业-12)
@@ -105,7 +142,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
     hitStatus: { key: 'sluggish', seconds: bb['attack@sluggish'] ?? 0.5 },
   }) },
   // 医疗
-  physician: healer(1),
+  // PHY-X: heals × heal_scale on one below hp_ratio of its HP; PHY-Y (no hp_ratio): on one on a ground tile (职业-17)
+  physician: { trait: (bb) => ({ heal: true, targets: 1, ...vsWhen(bb.hp_ratio ? 'hpBelow' : 'onGround', 'heal', bb.heal_scale, bb.hp_ratio ? { value: bb.hp_ratio } : {}) }) },
   ringhealer: healer(3),
   watchman: healer(1),
   // heal_scale for a target outside range 2-3 (职业-11)

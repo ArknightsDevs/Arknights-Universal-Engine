@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { createWorld, step, traits, attrs } from '@aue/sim';
 import { tinyContent } from '@aue/testkit';
 import rangeTable from '../data/ranges.json' with { type: 'json' };
-import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, operatorAt } from '../src/index.js';
+import { BRANCHES, coveredBranch, withTrait, skeletonContent, loadTraining, operatorAt, ROSTER } from '../src/index.js';
 
 /** @type {Record<string, { name: string, profession: string, position: string[] }>} */
 const ALL = JSON.parse(readFileSync(new URL('fixtures/branches.json', import.meta.url), 'utf8')).branches;
@@ -158,4 +158,33 @@ test('[职业-7] [职业-15] 傀儡师 from the real data: a 20 s 替身, 1 s sw
   assert.deepEqual(traits.traitOfDef(await real('char_369_bena')).doll, { duration: 20, switch: 1, atk: 0, maxHp: 0, ...doll });
   const t = await loadTraining('char_369_bena'), y = traits.traitOfDef(operatorAt(t, { elite: 2, level: 60, potential: 1, trust: 0, skill: 0, skillLevel: 7, module: 0, moduleLevel: 1 }));
   assert.deepEqual(y.doll, { duration: 20, switch: 1, atk: 0, maxHp: 0.2, ...doll });
+});
+
+/** The trait of an operator (by name) at elite 2, max level, with its module of a type at level 1 (职业-7, 干员-7). @param {string} name @param {string} type */
+async function withModule(name, type) {
+  const id = /** @type {string} */ (Object.entries(ROSTER).find(([, r]) => r.name === name)?.[0]), t = await loadTraining(id);
+  const module = t.modules.findIndex((m) => m.type === type);
+  assert.ok(module >= 0, `${name} ${type}`);
+  return /** @type {any} */ (traits.traitOfDef(operatorAt(t, { elite: 2, level: t.phases[2].maxLevel, potential: 1, trust: 0, skill: -1, skillLevel: 1, module, moduleLevel: 1 })));
+}
+
+test('[职业-7] [职业-17] the modules\' 倍率 by the target from the real data: the trait\'s blackboard, or the module\'s own data', async () => {
+  const vs = async (/** @type {string} */ name, /** @type {string} */ type) => (await withModule(name, type)).vs;
+  assert.deepEqual(await Promise.all([vs('W', 'ART-X'), vs('斯卡蒂', 'DRE-X'), vs('煌', 'CEN-X'), vs('号角', 'FOR-X'), vs('赫德雷', 'CRU-Y')]), [
+    [{ when: 'blocked', atk: 1.1 }], [{ when: 'blocked', atk: 1.15 }], [{ when: 'blocked', atk: 1.1 }], [{ when: 'blocked', atk: 1.1 }], [{ when: 'blocked', dmg: 1.1 }],
+  ]);
+  assert.deepEqual(await Promise.all([vs('流星', 'MAR-X'), vs('苇草', 'CHG-Y'), vs('早露', 'SIE-X'), vs('鸿雪', 'ARC-Y'), vs('黑', 'ARC-Y'), vs('娜仁图亚', 'LPS-X')]), [
+    [{ when: 'flying', atk: 1.1 }], [{ when: 'hpBelow', atk: 1.15, value: 0.4 }], [{ when: 'heavy', atk: 1.15, value: 3 }],
+    [{ when: 'front', atk: 1.05, noDodge: true }], [{ when: 'front', atk: 1.05, noDodge: true }], [{ when: 'near', atk: 1.1 }],
+  ]);
+  assert.deepEqual(await Promise.all([vs('妮芙', 'PRI-X'), vs('埃癸斯', 'BRK-X'), vs('闪灵', 'PHY-X'), vs('闪灵', 'PHY-Y'), vs('塞雷娅', 'GUA-X')]), [
+    [{ when: 'burst', dmg: 1.1 }], [{ when: 'skillGround', atk: 1.1 }], [{ when: 'hpBelow', heal: 1.15, value: 0.5 }], [{ when: 'onGround', heal: 1.15 }],
+    [{ when: 'hpBelow', heal: 1.15, value: 0.5 }],
+  ]);
+  const [dea, sie, bla, plx, ham] = await Promise.all([withModule('远牙', 'DEA-X'), withModule('早露', 'SIE-Y'), withModule('伊芙利特', 'BLA-X'), withModule('卡涅利安', 'PLX-Y'), withModule('佩佩', 'HAM-X')]);
+  assert.deepEqual([dea.far, sie.far, bla.far, plx.crowd, ham.packed], [
+    { min: 1, max: 4.5, dmg: 0.15 }, { min: 1, max: 4.5, dmg: 0.12 }, { min: 0, max: 4, dmg: 0.1 }, { step: 0.03, cap: 5 }, { cnt: 3, atk: 1.15 },
+  ]);
+  const plain = /** @type {any} */ (traits.traitOfDef(operatorAt(await loadTraining('char_263_skadi'), { elite: 2, level: 90, potential: 1, trust: 0, skill: -1, skillLevel: 1 })));
+  assert.deepEqual([plain.vs, (await withModule('斯卡蒂', 'DRE-Y')).vs], [[], []], 'none without the module, nor with another');
 });

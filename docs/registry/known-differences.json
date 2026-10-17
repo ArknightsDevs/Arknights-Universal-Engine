@@ -286,5 +286,13 @@
     "stronghold": "server/sim/professions.js installLibrator：battle.every(1) 定时器，部署后整 1 秒起每秒升一级。两边的升级相差 1 帧，技能恰好在这 1 帧里开始时，带入技能的级数差一级（司霆惊蛰 S3）。",
     "reason": "PRTS「分支特性信息/data」oldid=427899 解放者只写「攻击力加成效果每1秒更新一次」，没有写起点；引擎让特性的周期效果与其他 Buff 的周期触发同一套规则。",
     "status": "有效"
+  },
+  {
+    "id": "DIF-0037",
+    "clause": "职业-17",
+    "ours": "带模组的干员按模组追加的特性对目标另有倍率（职业-17）：重射手 ARC-Y 对正前方的敌人攻击力提升至105%，阵法术师 PLX-Y 攻击范围内每个敌人伤害+3%（最多5个），本源术师 PRI-X 对处于元素爆发期间的敌人伤害提升至110%。",
+    "stronghold": "server/sim/professions.js：closerange、primcaster 的职业规则是空的 P({})，phalanx 只有不攻击、范围攻击与通常时的防御法抗；三个分支的模组追加特性都没有实现。对照里假敌人站在干员正前方的攻击范围内（黑、林），真言的技能使它元素爆发。",
+    "reason": "模组的特性数据（battle_equip_table：ARC-Y atk_scale 1.05，PLX-Y 自带数据 damage_scale 0.03、max_valid_stack_cnt 5，PRI-X damage_scale 1.1）与 PRTS 的模组说明（卡涅利安 PLX-Y「攻击范围内存在的每个敌人令自身造成的伤害提升3%，存在5个或以上敌人时达到最大值」）。",
+    "status": "有效"
   }
 ]

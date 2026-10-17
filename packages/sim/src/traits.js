@@ -8,6 +8,7 @@ import { makeBuff, addBuff, removeBuff } from './buffs.js';
 import { inflict } from './status.js';
 import { dealDamage, heal } from './damage.js';
 import { dealEp } from './elements.js';
+import { vsDamage, vsHeal } from './vs.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').TraitDef} TraitDef @typedef {import('./types.js').OperatorDef} OperatorDef */
@@ -23,7 +24,7 @@ export const defaultTrait = (position) => ({
   heal: false, hits: 1, mods: {}, flags: {}, killCost: 0, refund: 0.5, hitStatus: null, splash: null, aftershock: 0, unblockedScale: 1, selfHeal: 0, selfHealMax: Infinity, selfHealOn: 'attack',
   rangedTiles: false, skillArts: false, immuneBlocking: [], hpDrain: 0, costDrain: null, zone: null, chain: null, healOnHit: 0,
   attackInSkill: false, idleMods: {}, idleFlags: {}, idleAirOnly: false, skillSplash: null, liftoffBlock: 0, fortress: 0, charge: null, skillHeal: 0, bullets: null, store: 0, epHeal: 0, funnel: null, boomerang: null, noAttack: false, free: false, regenAura: 0,
-  summonBlocked: false, summonBlockedScale: 1, trapTiles: false, doll: null, bb: {},
+  summonBlocked: false, summonBlockedScale: 1, trapTiles: false, doll: null, vs: [], far: null, crowd: null, packed: null, bb: {},
 });
 
 /**
@@ -149,7 +150,7 @@ export function actorContext(w, c, op, bb) {
     applyStatus: (t, key, o) => { inflict(w, t, key, { ...o, src: op }); },
     dealDamage: (t, dmg) => creditedDamage(w, c, op, t, dmg),
     dealEp: (t, el, amount) => dealEp(w, t, el, amount, op),
-    heal: (t, amount) => heal(w, op, t, amount),
+    heal: (t, amount) => heal(w, op, t, amount * vsHeal(w, c, op, t)),
     gainCost: (n) => { gainCost(w, c, op.owner, n); },
   };
 }
@@ -226,6 +227,7 @@ export function traitKill(w, c, op, target) {
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target @param {import('./damage.js').Damage} dmg
  */
 export function creditedDamage(w, c, op, target, dmg) {
+  vsDamage(w, c, op, target, dmg);
   const alive = target.hp > 0, taken = dealDamage(w, op, target, dmg, c);
   traitDealt(w, c, op, target, { dmg, taken });
   if (alive && target.hp <= 0) traitKill(w, c, op, target);

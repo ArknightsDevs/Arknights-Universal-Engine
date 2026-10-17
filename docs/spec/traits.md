@@ -65,7 +65,7 @@
 
 ### 职业-7 官方分支
 
-`@aue/content` 用分支表把干员数据的分支和特性 blackboard 换成伤害类型和特性数据。表里是全部 72 个分支，特性用 职业-1…职业-5、职业-8…职业-15 的数据表达：
+`@aue/content` 用分支表把干员数据的分支和特性 blackboard 换成伤害类型和特性数据。表里是全部 72 个分支，特性用 职业-1…职业-5、职业-8…职业-15 的数据表达；模组追加的按目标倍率见 职业-17：
 
 | 分支 | 特性数据 |
 |---|---|
@@ -226,3 +226,42 @@
 数据里有替身范围的：风丸、维荻（x-4）、双月（x-1）、若叶睦（1-1）在特性上；贝娜、归溟幽灵鲨（x-4）在天赋上。结城理的特性有范围编号，但 blackboard 没有这个键，不算。
 
 - 来源：数据：character_table 的 trait.candidates[]（rangeId、blackboard `talent_override_rangeid_flag`）、talents[].candidates[]（rangeId、blackboard）；[PRTS「风丸」oldid=358106](https://prts.wiki/index.php?title=%E9%A3%8E%E4%B8%B8&oldid=358106)特性备注「※<替身>状态下可对空，由技能产生的召唤物不可对空」；[PRTS「贝娜」oldid=392038](https://prts.wiki/index.php?title=%E8%B4%9D%E5%A8%9C&oldid=392038)「※<替身>形态下，普通攻击可对空」；[PRTS「双月」oldid=401113](https://prts.wiki/index.php?title=%E5%8F%8C%E6%9C%88&oldid=401113)「※<替身>形态普通攻击可对空。」；[PRTS「归溟幽灵鲨」oldid=361755](https://prts.wiki/index.php?title=%E5%BD%92%E6%BA%9F%E5%B9%BD%E7%81%B5%E9%B2%A8&oldid=361755)特性备注「<替身>不进行普通攻击」，天赋备注「伤害与减速不可对空」；范围的取法与生效的阶段为推断 INF-0196，没有备注的替身（维荻）也能对空为推断 INF-0197，光环的时机与对象为推断 INF-0198
+
+### 职业-17 模组追加的按目标倍率
+
+带模组时，分支特性还可以带下面几项（由 `@aue/content` 从模组的特性数据或模组自己的数据里取，干员-7）。它们在干员的伤害开始结算之前（伤害-7 之前，`hit` 事件看到的已是乘过的量）、治疗结算之前（伤害-11）对目标逐个判断：
+
+- **按目标的倍率**（`vs`：条件 `when`、攻击倍率 `atk`、伤害倍率 `dmg`、治疗倍率 `heal`）：条件对这次的目标成立时，`atk` 乘在这次伤害的量上（在防御、法抗之前），`dmg` 乘在这次伤害的 `mul` 上（在防御、法抗之后），`heal` 乘在治疗量上。条件：
+  - `blocked`：目标被任一单位阻挡着，或它阻挡着单位；
+  - `flying`：目标是飞行单位；`skillGround`：干员的技能运行中，且目标不是飞行单位；
+  - `hpBelow`：目标的生命低于最大生命值的 `value`；`heavy`：目标的重量等级不低于 `value`；
+  - `front`：目标所在格在干员朝向的正前方那一条直线上；`near`：目标在干员所在格或周围 8 格（切比雪夫距离 1 以内）；
+  - `burst`：目标处于元素爆发（元素-3）；`onGround`：目标站在地面格（不是高台）上。
+  
+  `noDodge` 为是时，条件成立的物理伤害不可闪避（伤害-8）。几项同时成立时相乘。
+- **按距离的伤害倍率**（`far`：`min`、`max`、`dmg`）：干员与目标位置之间的直线距离不超过 `min` 时为 1，从 `min` 到 `max` 按距离线性升到 1 + `dmg`，`max` 及以上为 1 + `dmg`。
+- **按范围内敌人数的伤害倍率**（`crowd`：`step`、`cap`）：1 + `step` × min(`cap`, 干员攻击范围内现在的敌人数)；只数在场、有生命、没有消失的敌方单位，飞行的也算。
+- **一次攻击的倍率**（`packed`：`cnt`、`atk`）：攻击打到目标时，它的溅射（职业-8）波及的敌人数加上目标本身不少于 `cnt`，这次攻击对目标和溅射目标的各下伤害（含余震）的量都乘 `atk`。
+
+这些倍率只看干员自己造成的伤害与治疗：攻击的每一下（含溅射、跳跃、余震）、技能和天赋的伤害与治疗（行为上下文，技能-6）、部署天赋的治疗都算；无来源的伤害（伤害-7）、生命流失、元素伤害不算，召唤物和其他单位造成的不算。
+
+| 模组 | 分支 | 数据 |
+|---|---|---|
+| DRE-X、ART-X、CEN-X、FOR-X | 无畏者、炮手、强攻手、要塞 | `vs` blocked，`atk` = 特性 `atk_scale` |
+| CRU-Y | 重剑手 | `vs` blocked，`dmg` = 特性 `damage_scale` |
+| MAR-X | 速射手 | `vs` flying，`atk` = 特性 `atk_scale` |
+| CHG-Y | 冲锋手 | `vs` hpBelow，`value` = `hp_ratio`，`atk` = `atk_scale`（模组自己的数据） |
+| SIE-X | 攻城手 | `vs` heavy，`value` = `value`，`atk` = `atk_scale`（模组自己的数据） |
+| ARC-Y | 重射手 | `vs` front，`atk` = 特性 `atk_scale`（没有时取模组自己的数据，黑），`noDodge` |
+| LPS-X | 回环射手 | `vs` near，`atk` = `atk_scale`（模组自己的数据） |
+| PRI-X | 本源术师 | `vs` burst，`dmg` = 特性 `damage_scale` |
+| BRK-X | 裂空炮手 | `vs` skillGround，`atk` = `atk_scale`（模组自己的数据） |
+| PHY-X、GUA-X | 医师、守护者 | `vs` hpBelow，`value` = 特性 `hp_ratio`，`heal` = `heal_scale` |
+| PHY-Y | 医师 | `vs` onGround，`heal` = 特性 `heal_scale`（没有 `hp_ratio`） |
+| DEA-X、SIE-Y、BLA-X | 神射手、攻城手、轰击术师 | `far`：`min_dist`（没有时 0）、`max_dist`、`damage_scale` |
+| PLX-Y | 阵法术师 | `crowd`：`step` = `damage_scale`，`cap` = `max_valid_stack_cnt`（模组自己的数据） |
+| HAM-X | 撼地者 | `packed`：`cnt`、`atk` = `atk_scale_e` |
+
+轰击术师 BLA-X 改大的攻击范围还没有实现（干员-7）。
+
+- 来源：数据：battle_equip_table 各模组的特性部件与天赋部件（干员-5）及其描述：无畏者 DRE-X「攻击被阻挡的敌人时攻击力提升至115%」，速射手 MAR-X「攻击空中单位时攻击力提升至110%」，冲锋手 CHG-Y「攻击生命值低于40%的敌人时攻击力提升至115%」，攻城手 SIE-X「攻击重量较重（重量等级大于等于3）的敌人时，攻击力提升至115%」，重射手 ARC-Y「攻击正前方的敌人时攻击力提升至105%且无视其物理闪避」，回环射手 LPS-X「攻击周围8格的敌人时攻击力提升至110%」，本源术师 PRI-X「对处于元素爆发期间的敌人造成的伤害提升至110%」，裂空炮手 BRK-X「技能开启时降落，攻击造成群体物理伤害且攻击地面敌人时攻击力提升至110％」，医师 PHY-X、守护者 GUA-X「治疗生命值低于50%的友方单位时治疗量提升15%」，医师 PHY-Y「治疗地面单位时治疗量提升15%」，重剑手 CRU-Y「对被阻挡的敌人伤害提升至110%」，撼地者 HAM-X「溅射范围内有大于或等于3个敌人时，使当次攻击力提升至115%」；[PRTS「斯卡蒂」oldid=435147](https://prts.wiki/index.php?title=%E6%96%AF%E5%8D%A1%E8%92%82&oldid=435147) DRE-X「※于每次计算伤害时检查目标是否处于阻挡/被阻挡状态（阻挡有敌人的单位亦能触发此效果）；提升效果为攻击力倍率提升。」，[PRTS「W」oldid=435177](https://prts.wiki/index.php?title=W&oldid=435177) ART-X、[PRTS「煌」oldid=434964](https://prts.wiki/index.php?title=%E7%85%8C&oldid=434964) CEN-X 同样的备注；[PRTS「远牙」oldid=435270](https://prts.wiki/index.php?title=%E8%BF%9C%E7%89%99&oldid=435270) DEA-X「※目标距离自身1格或以上时应用加成，按距离线性提升，目标距离自身4格或以上时达到最大值」，[PRTS「伊芙利特」oldid=435239](https://prts.wiki/index.php?title=%E4%BC%8A%E8%8A%99%E5%88%A9%E7%89%B9&oldid=435239) BLA-X「※目标距离自身0格或以上时应用加成，按距离线性提升，目标距离自身4格或以上时达到最大值」，[PRTS「卡涅利安」oldid=434998](https://prts.wiki/index.php?title=%E5%8D%A1%E6%B6%85%E5%88%A9%E5%AE%89&oldid=434998) PLX-Y「※攻击范围内存在的每个敌人令自身造成的伤害提升3%，存在5个或以上敌人时达到最大值」；[PRTS「分支特性信息/data」oldid=427899](https://prts.wiki/index.php?title=%E5%88%86%E6%94%AF%E7%89%B9%E6%80%A7%E4%BF%A1%E6%81%AF/data&oldid=427899) 教官「攻击力提升效果为攻击力倍率提升」；判定的时刻、伤害的种类与攻击倍率、伤害倍率的分别为推断 INF-0227，几何与计数为推断 INF-0228；与 Stronghold 的差异见 DIF-0037
