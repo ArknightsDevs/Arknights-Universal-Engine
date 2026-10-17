@@ -81,9 +81,12 @@ export function createBattleEmotes(ui, o) {
     screen: scr,
     /** The sending cool-down (s, from the pack: 5) and whether the button rests now (faded, its taps doing nothing). @param {boolean} on */
     rest(on) {
+      const was = resting, show = h.show?.animationName ? refNode(root, h.show.animationWrapper) : null;
       resting = on;
       if (on) close();
       button.alpha = on ? h.inactive ?? 0.4 : h.active ?? 1;
+      // back from the cool-down the button comes in with its clip (界面-40)
+      if (was && !on && show) void scr.anim.play(show, h.show.animationName);
     },
     /** The sending cool-down in seconds (the pack's, else 5). */
     cooldown: Number(h.cd ?? 5),

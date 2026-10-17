@@ -30,10 +30,11 @@ const FRAME_MS = 1000 / 30, RECONNECT_MS = 1000;
  *   summons: Record<string, import('./cards.js').SummonStatus>, revive: number, ask: number, askCd: number }} PlayerStatus
  */
 /**
- * 堡垒守御's state the page shows (守御-1, 守御-2, 守御-4): the phase, its wave, the frame it ends at, the waves defended,
+ * 堡垒守御's state the page shows (守御-1, 守御-2, 守御-4): the phase, its wave, the frame the wave's defence began and the
+ * frame the phase ends at, the waves defended,
  * the stamps they earn, the damage to the last wave, each seat's 「休整完毕」 and builder cards held, the wave's enemies and
  * those gone; each facility's level by unit id (守御-3).
- * @typedef {{ phase: string, wave: number, until: number, defended: number, stamps: number, damage: number, ready: boolean[], pools: Record<string, number>[], total: number,
+ * @typedef {{ phase: string, wave: number, start: number, until: number, defended: number, stamps: number, damage: number, ready: boolean[], pools: Record<string, number>[], total: number,
  *   out: number, levels: Record<number, number> }} FortressStatus
  */
 /**
@@ -48,7 +49,7 @@ const fortressOf = (w) => {
   const f = w.fortress;
   if (!f) return undefined;
   const levels = Object.fromEntries(w.units.flatMap((u) => (u.fac ? [[u.id, u.fac.level]] : [])));
-  return { phase: f.phase, wave: f.round, until: f.until, defended: f.defended, stamps: fortress.fortressStamps(f.defended), damage: f.damage, ready: [...f.ready], pools: f.pools.map((p) => ({ ...p })), total: f.total, out: f.out, levels };
+  return { phase: f.phase, wave: f.round, start: f.start, until: f.until, defended: f.defended, stamps: fortress.fortressStamps(f.defended), damage: f.damage, ready: [...f.ready], pools: f.pools.map((p) => ({ ...p })), total: f.total, out: f.out, levels };
 };
 
 /** @param {import('@aue/sim').World} w @param {import('@aue/sim').Content} c @returns {Status} */

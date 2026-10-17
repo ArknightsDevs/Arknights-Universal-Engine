@@ -149,6 +149,12 @@ export function refNode(s, ref) {
 }
 
 /**
+ * The first clip of a node's own animation (界面-5: the clips its animation component holds), or null — what a
+ * controller names by the node alone plays. @param {UiNode | null | undefined} s
+ */
+export const ownClip = (s) => /** @type {string | null} */ (s?.n.comps.anim?.clips?.[0] ?? null);
+
+/**
  * Builds a node and its subtree (界面-9: a graphic is drawn only when its material's shader is one the engine knows; a
  * mask graphic hidden by its Mask, stencil and raycast-only graphics are not drawn).
  * @param {PackNode} n @param {UiNode | null} parent @param {string} path @param {Owner} scr
