@@ -7,6 +7,7 @@ import { tinyContent } from '@aue/testkit';
 import { DIR } from '@aue/schema';
 import { createPlacing, INDICATOR, SHADOW, toThree, tileWorld } from '../src/index.js';
 import { tinyModel } from './model.js';
+import { GRAPHIC } from '../src/units.js';
 
 const level = tinyContent().level;
 const textures = () => new Map(['ui:shadow', 'ui:directionRing', 'ui:directionArrow'].map((k) => [k, new THREE.Texture()]));
@@ -21,7 +22,7 @@ test('[渲染-14] the operator placed stands on its tile, idle, with its shadow;
   p.set({ key: 'guard', col: 1, row: 2, h: 1, dir: DIR.RIGHT, ring: false });
   const at = toThree(tileWorld(level, 1, 2, 1)), fig = p.object.children[2], [front, back] = /** @type {THREE.Mesh[]} */ (fig.children);
   assert.equal(p.shows(), true);
-  assert.ok(near(fig.position.toArray(), at), 'its feet on the tile');
+  assert.ok(near(fig.position.toArray(), [at[0], at[1] + GRAPHIC.up, at[2] + GRAPHIC.south]), 'on the tile, where the original puts its graphic');
   const shadow = /** @type {THREE.Group} */ (p.object.children[0]).children[0];
   assert.ok(near(shadow.position.toArray(), [at[0], at[1], at[2] + SHADOW.south]), 'its shadow south of its feet');
   const indicator = p.object.children[1];

@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { tinyContent } from '@aue/testkit';
 import { ANIM, DIR } from '@aue/schema';
 import { unitTextureKey, SHADOW, INDICATOR, toThree, tileWorld } from '../src/index.js';
-import { createUnits, ENEMY_GRAPHIC, HOVER } from '../src/units.js';
+import { createUnits, GRAPHIC, HOVER } from '../src/units.js';
 import { tinyModel } from './model.js';
 
 const level = tinyContent().level;
@@ -49,13 +49,16 @@ test('[渲染-6] shadows: a dying figure keeps its shadow until it is removed', 
   u.dispose();
 });
 
-test('[渲染-2] the figure of an enemy stands where its prefab puts its graphic: south of and above its feet; an operator at its feet', () => {
-  const u = createUnits(textures(['ui:shadow']), new Map([['slime', { front: tinyModel() }], ['guard', { front: tinyModel() }]]));
-  u.update(view(1, [{ id: 1, kind: 1, x: 1, y: 1, z: 0 }, { id: 2, kind: 0, x: 1, y: 1, z: 0 }]), { 1: 'slime', 2: 'guard' }, level, 0);
-  const [enemy, op] = /** @type {THREE.Group[]} */ (u.object.children), [se] = /** @type {THREE.Mesh[]} */ (u.shadows.children);
-  const d = enemy.position.clone().sub(op.position);
-  assert.ok(Math.abs(d.x) < 1e-12 && Math.abs(d.y - ENEMY_GRAPHIC.up) < 1e-12 && Math.abs(d.z - ENEMY_GRAPHIC.south) < 1e-12, '0.2 south, 0.06 up');
-  assert.ok(Math.abs(se.position.z - (op.position.z + SHADOW.south)) < 1e-12 && Math.abs(se.position.y - op.position.y) < 1e-12, 'the shadow from the feet');
+test('[渲染-2] the figure of an operator or an enemy stands south of and above its feet, on its shadow; a device at its feet', () => {
+  const u = createUnits(textures(['ui:shadow']), new Map([['slime', { front: tinyModel() }], ['guard', { front: tinyModel() }], ['post', { front: tinyModel() }]]));
+  u.update(view(1, [{ id: 1, kind: 1, x: 1, y: 1, z: 0 }, { id: 2, kind: 0, x: 1, y: 1, z: 0 }, { id: 3, kind: 2, owner: -1, x: 1, y: 1, z: 0 }]),
+    { 1: 'slime', 2: 'guard', 3: 'post' }, level, 0);
+  const [enemy, op, device] = /** @type {THREE.Group[]} */ (u.object.children), [se] = /** @type {THREE.Mesh[]} */ (u.shadows.children);
+  for (const f of [enemy, op]) {
+    const d = f.position.clone().sub(device.position);
+    assert.ok(Math.abs(d.x) < 1e-12 && Math.abs(d.y - GRAPHIC.up) < 1e-12 && Math.abs(d.z - GRAPHIC.south) < 1e-12, '0.2 south, 0.06 up');
+  }
+  assert.ok(Math.abs(se.position.z - (device.position.z + SHADOW.south)) < 1e-12 && Math.abs(se.position.y - device.position.y) < 1e-12, 'the shadow from the feet');
   u.dispose();
 });
 
@@ -63,12 +66,12 @@ test('[渲染-21] a flying enemy is drawn in the air over its shadow on the grou
   const u = createUnits(textures(['ui:shadow', unitTextureKey(1, 'bat')]), new Map([['drone', { front: tinyModel() }]]), new Set(), new Map(), new Set(['drone', 'bat']));
   u.update(view(1, [{ id: 1, kind: 1, x: 1, y: 1, z: 0 }, { id: 2, kind: 1, x: 2, y: 1, z: 0 }]), { 1: 'drone', 2: 'bat' }, level, 0);
   const [drone, bat] = /** @type {THREE.Object3D[]} */ (u.object.children), [sd, sb] = /** @type {THREE.Mesh[]} */ (u.shadows.children);
-  assert.ok(Math.abs(drone.position.y - sd.position.y - ENEMY_GRAPHIC.up - HOVER) < 1e-12, 'a figure: its graphic, lifted');
+  assert.ok(Math.abs(drone.position.y - sd.position.y - GRAPHIC.up - HOVER) < 1e-12, 'a figure: its graphic, lifted');
   assert.ok(Math.abs(bat.position.y - sb.position.y - HOVER) < 1e-12, 'a card too');
   assert.deepEqual([u.lift(1), u.lift(2), u.lift(3)], [HOVER, HOVER, 0]);
   const high = { ...level, tiles: level.tiles.map((/** @type {any[]} */ r, /** @type {number} */ y) => r.map((t, x) => (x === 1 && y === 1 ? { ...t, height: 'HIGHLAND' } : t))) };
   u.update(view(2, [{ id: 1, kind: 1, x: 1, y: 1, z: 1 }]), {}, high, 0);
-  assert.ok(Math.abs(drone.position.y - ENEMY_GRAPHIC.up - HOVER) < 1e-12, 'a constant altitude over the ground, whatever level it started on');
+  assert.ok(Math.abs(drone.position.y - GRAPHIC.up - HOVER) < 1e-12, 'a constant altitude over the ground, whatever level it started on');
   assert.ok(sd.position.y > 0.3, 'its shadow on the high tile under it');
   u.dispose();
 });

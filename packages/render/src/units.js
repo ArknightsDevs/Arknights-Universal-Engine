@@ -3,7 +3,7 @@
 // at its feet; a device with none of them is a block in its side's colour (渲染-16); any other unit with neither is not drawn. Figures, cards and blocks are depth-tested against
 // the terrain without writing depth (ADR 0027). A figure whose unit died stays to play its die clip. Every figure, card
 // and block has a shadow (渲染-6) for as long as it is drawn; an operator, while it is not dying, its direction indicator
-// (渲染-22). An enemy's figure stands where its prefab puts its graphic,
+// (渲染-22). An operator's or an enemy's figure stands where the original puts its graphic,
 // a little south of and above its feet (渲染-2); a flying enemy is drawn in the air over its shadow (渲染-21).
 import * as THREE from 'three';
 import { KIND } from '@aue/schema';
@@ -15,8 +15,8 @@ import { BAR } from './overlays.js';
 import { createMeshDrawer } from './devicemesh.js';
 
 const CARD = 0.8;
-/** Where an enemy's figure stands from its feet (渲染-2): its battle prefab's graphic, this far south and up, in tiles. */
-export const ENEMY_GRAPHIC = Object.freeze({ south: 0.2, up: 0.06 });
+/** Where an operator's or an enemy's figure stands from its feet (渲染-2): its graphic, this far south and up, in tiles. */
+export const GRAPHIC = Object.freeze({ south: 0.2, up: 0.06 });
 /** How high over the ground a flying enemy is drawn, in tiles (渲染-21). */
 export const HOVER = 1.4;
 /** A device block (渲染-16): its footprint and height in tiles; its sides are this much of its top's colour. */
@@ -50,12 +50,12 @@ function newCard(map) {
 }
 
 /**
- * Puts a unit's figure, card or block at its feet: an enemy's figure where its prefab puts its graphic (渲染-2), lifted
+ * Puts a unit's figure, card or block at its feet: an operator's or an enemy's figure where the original puts its graphic (渲染-2), lifted
  * by `up` (a flyer's hover, 渲染-21).
  * @param {THREE.Object3D} o @param {[number, number, number]} at @param {number} kind the unit's kind for a figure, else −1 @param {number} up
  */
 function placeAt(o, at, kind, up) {
-  const g = kind === KIND.ENEMY ? ENEMY_GRAPHIC : { south: 0, up: 0 };
+  const g = kind === KIND.ENEMY || kind === KIND.OPERATOR ? GRAPHIC : { south: 0, up: 0 };
   o.position.set(at[0], at[1] + g.up + up, at[2] + g.south);
 }
 
@@ -116,7 +116,7 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
   const lift = (id) => (flyers.has(keys.get(id) ?? '') ? HOVER : 0);
 
   /**
-   * A unit at its place: a device's mesh (渲染-20), else its figure (an enemy's where its prefab puts it, 渲染-2), else
+   * A unit at its place: a device's mesh (渲染-20), else its figure (an operator's or an enemy's offset, 渲染-2), else
    * its card or block, made on first sight; a flyer in the air (渲染-21), its shadow on the ground.
    * @param {import('@aue/schema').ViewUnit} u @param {{ at: [number, number, number], ground: [number, number, number] }} p @param {number} frame
    */

@@ -1,5 +1,5 @@
 // The operator being placed (docs/spec/render.md 渲染-14): while the player deploys one, its figure stands on the tile
-// it would go to, idle, facing the chosen way, with its shadow; while the facing is chosen, the direction indicator
+// it would go to (where the original puts its graphic, 渲染-2), idle, facing the chosen way, with its shadow; while the facing is chosen, the direction indicator
 // lies at its feet — a ring, and on it an arrow pointing the facing. The indicator is drawn after the shadows and
 // before the units, depth-tested against the terrain without writing depth (ADR 0027).
 import * as THREE from 'three';
@@ -9,6 +9,7 @@ import { FPS, newFigure, poseFigure } from './figure.js';
 import { operatorFacing } from './roles.js';
 import { createShadows } from './shadows.js';
 import { createIndicators } from './indicators.js';
+import { GRAPHIC } from './units.js';
 
 /**
  * The operator being placed: its model's content key, the tile (column, row, height level), its facing (DIR) and
@@ -57,7 +58,7 @@ export function createPlacing(textures, models, field) {
       const at = /** @type {[number, number, number]} */ (toThree(tileWorld(field, p.col, p.row, p.h)));
       const facing = operatorFacing(p.dir, { back: !!f.sides.back, backDies: false, dying: false });
       Object.assign(f, { side: facing.side, flip: facing.flip });
-      f.group.position.set(...at);
+      f.group.position.set(at[0], at[1] + GRAPHIC.up, at[2] + GRAPHIC.south);
       shadows.place(0, at);
       if (p.ring) indicator.place(0, at, p.dir); else indicator.drop(0);
     },
