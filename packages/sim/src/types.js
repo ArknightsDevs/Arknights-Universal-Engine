@@ -20,6 +20,11 @@
 /** A fragment (波次-1, 波次-2). @typedef {{ preDelay: number, actions: WaveAction[] }} Fragment */
 /** A wave (波次-1…波次-3); `maxWait` is maxTimeWaitingForNextWave, −1 for none. @typedef {{ preDelay: number, postDelay: number, maxWait: number, fragments: Fragment[] }} Wave */
 /**
+ * A level's own cards (关卡-7): its operator cards with their training, its token cards with their count, alias and
+ * whether they are hidden at first (波次-9).
+ * @typedef {{ operators: { key: string, build: import('@aue/schema').Build }[], tokens: { key: string, alias: string, count: number, hidden: boolean }[] }} LevelCards
+ */
+/**
  * A predefined unit (波次-6): its tile and facing when the data gives them; a predefined operator's training (波次-7).
  * @typedef {{ alias: string, key: string, hidden: boolean, row?: number, col?: number, dir?: string, build?: import('@aue/schema').Build }} Predefine
  */
@@ -45,7 +50,7 @@
  * A level: its map, options, routes, waves (波次-1), the hidden groups enabled (波次-4), its predefined units (波次-6) and
  * its co-op stages (合作-6).
  * @typedef {import('./level.js').LevelMap & { id: string, code?: string, name?: string, options: LevelOptions, routes: Route[], waves: Wave[],
- *   hiddenGroups?: string[], predefines?: Predefine[], stages?: Stage[], view?: number[], works?: { dealt: number, taken: number } }} Level
+ *   hiddenGroups?: string[], predefines?: Predefine[], stages?: Stage[], view?: number[], works?: { dealt: number, taken: number }, cards?: LevelCards }} Level
  */
 
 /** @typedef {'phys' | 'arts' | 'true' | 'elemental'} DamageType */

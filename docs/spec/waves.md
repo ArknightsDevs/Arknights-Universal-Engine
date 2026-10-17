@@ -77,6 +77,12 @@
 
 - 来源：数据：level_act1multi_tr01 的波次动作 `actionType: STORY`；[PRTS「IG-TR-1 规则教学-常规项目」oldid=430163](https://prts.wiki/index.php?oldid=430163)「关卡内剧情」
 
+### 波次-9 起初隐藏的关卡装置卡
+
+关卡自带的装置卡起初隐藏时（关卡-7），卡组里这种装置的卡（平台按它编进卡组的，例如专项带来的装置卡，符文-6）在它的别名生效（`ACTIVATE`，波次-6）之前不显示、不能部署；生效之后照常。
+
+- 来源：数据：level_act1multi_tr01 的 `tokenCards`（`trap_201_muulco`，`hidden: true`）与第三波的 `ACTIVATE trap_201_muulco`（紧接着的剧情 training_multi_v3_01-01_g 才教部署它）
+
 ### 结束-1 战斗结束
 
 - **胜利**：有比赛阶段的关卡（合作-6），最后一个阶段结算通过；其他关卡，关卡有波次，并且所有波次已完成（波次-3）。

@@ -33,6 +33,14 @@ test('[界面-23] [召唤-4] [召唤-8] the summon cards: shown with their owner
   assert.deepEqual(operatorCards(w, c, 0).cards.guard, { cost: 5, ready: 0 });
 });
 
+test('[波次-9] the cards held back: a hidden level token card until its alias comes into effect', () => {
+  const h = /** @type {any} */ ({ ...c, level: { ...c.level, cards: { operators: [], tokens: [{ key: 'sniper', alias: 'cheer', count: 1, hidden: true }] } } });
+  const w = createWorld(h, { seed: 1, players: 1 });
+  assert.deepEqual(operatorCards(w, h, 0).hidden, ['sniper']);
+  w.predefined.push('cheer');
+  assert.deepEqual(operatorCards(w, h, 0).hidden, []);
+});
+
 test('[召唤-4] [渲染-8] a summon that may only stand in its owner\'s range: its marks are the free tiles the owner reaches now', () => {
   const w = createWorld(c, { seed: 1, players: 1 });
   assert.deepEqual(deployableKeys(w, c, 'wolf', 0), [], 'no owner: nowhere');

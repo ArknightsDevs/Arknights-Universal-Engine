@@ -27,14 +27,19 @@ test('[同步-14] with seat 1 absent the battle begins once seat 0 is ready', ()
   assert.equal(both.begun, false, 'without an absent seat it still waits for both');
 });
 
-test('[同步-14] a pause of the only seat played takes hold at once; the absent seat answers a cost request yes', () => {
+test('[同步-14] a pause and a resume of the only seat played take hold at once; the absent seat answers a cost request yes', () => {
   const { host } = hostWithAbsent();
   host.ready(0, 0);
-  host.pause(0, 100);
+  host.tick(1000);
+  const before = host.sealed;
+  host.pause(0, 1000);
   assert.deepEqual([host.held, host.asker], [true, -1]);
-  host.resume(0, 200);
-  host.tick(2000);
-  assert.equal(host.held, false);
+  host.tick(3000);
+  assert.equal(host.sealed, before, 'held: no frame sealed');
+  host.resume(0, 3000);
+  assert.deepEqual([host.held, host.resumeAt], [false, null], 'no wait before it runs again');
+  host.tick(4000);
+  assert.ok(host.sealed - before >= 29 && host.sealed - before <= 31, 'a second of battle after the resume');
   host.command(0, host.sealed + 1, { type: 'ask' });
   const f = host.sealed + 1, cmds = host.frameCommands(f);
   assert.deepEqual(cmds.filter(([s]) => s === 1), [[1, { type: 'answer', accept: 1 }]]);

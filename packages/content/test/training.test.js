@@ -3,7 +3,7 @@
 // intermission; its stories are told in the order of PRTS's 关卡内剧情; its own cards give the fixed lineup (关卡-7).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createWorld, step, predefinedKey } from '@aue/sim';
+import { createWorld, step, predefinedKey, deployProblem, deck as decks } from '@aue/sim';
 import { LEVELS, matchContent } from '../src/index.js';
 
 const lv = LEVELS['act1multi_tr01'];
@@ -36,4 +36,26 @@ test('[波次-7] [波次-8] IG-TR-1 headless: the partner\'s operators for the l
   assert.deepEqual(stories, ['a', 'b', 'c', 'e', 'f', 'd', 'g']);
   assert.deepEqual(deploys, [['char_122_beagle#pre', 1, '4,5'], ['char_282_catap#pre', 1, '4,7'], ['char_120_hibisc#pre', 1, '3,7'], ['char_002_amiya#pre', 1, '3,6'], ['char_122_beagle#pre', 1, '4,5']], 'each at its tile');
   assert.ok(w.result >= 0, 'the battle ends');
+});
+
+/** 基础专项's runes: its attack and its device card (符文-6). @type {import('../src/runes.js').SeatRune[]} */
+const BASIC = [{ key: 'char_attribute_mul', professions: 639, board: [['atk', 1.1]] },
+  { key: 'insert_token_card', professions: 384, board: [['token_key', 'trap_201_muulco'], ['level', 1], ['skill', 0], ['count', 1], ['skill_level', 1]] }];
+
+test('[波次-9] 赛场啦啦队\'s card is held back until the third wave activates it: not shown, not deployed; then as any card', async () => {
+  const deck = lv.level.cards.operators.map((/** @type {any} */ x) => ({ id: x.key, build: x.build }));
+  const c = await matchContent({ level: 'act1multi_tr01', difficulty: 'NORMAL', seed: 7, decks: [deck, []], runes: [BASIC, []] });
+  const w = createWorld(c, { seed: 7, players: 2 }), card = 'trap_201_muulco#0';
+  assert.ok(c.decks?.[0].includes(card));
+  const put = /** @type {any} */ ({ type: 'deploy', op: card, row: 3, col: 3, dir: 1 });
+  assert.equal(deployProblem(w, c, 0, put), 'card held back');
+  assert.equal(decks.cardHidden(w, c, card), true);
+  let shown = -1;
+  for (let f = 0; f < 30 * 120 && shown < 0; f++) {
+    step(w, c, []);
+    if (w.events.some((e) => e.type === 'predefine' && e.key === 'trap_201_muulco')) shown = w.frame;
+  }
+  assert.ok(shown > 30 * 40, 'in the third wave');
+  assert.equal(decks.cardHidden(w, c, card), false);
+  assert.notEqual(deployProblem(w, c, 0, put), 'card held back');
 });

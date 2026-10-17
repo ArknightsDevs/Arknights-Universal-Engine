@@ -7,7 +7,7 @@ import { onDeploy, commandSkill } from './skills.js';
 import { traitDeploy, traitOfDef, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
 import { carriedDeploy } from './carried.js';
-import { cardOf, deployCost, deployLimit, withdraw } from './deck.js';
+import { cardOf, cardHidden, deployCost, deployLimit, withdraw } from './deck.js';
 import { occupying, summonProblem, deploySummon, supplySummons, inOwnerRange, trapRefused } from './summons.js';
 import { isDown, askCost, answerCost } from './coop.js';
 import { emit } from './bus.js';
@@ -38,17 +38,26 @@ export const fitsTile = (c, key, row, col) => Object.hasOwn(c.operators, key) &&
 const free = (d) => traitOfDef(d).free === true;
 
 /**
- * Why a deploy is refused, or null (spec 部署-1…部署-3, 召唤-4, 职业-14): a summon's by its card, an operator's by its own.
+ * Why a deploy is refused, or null (spec 部署-1…部署-3, 召唤-4, 职业-14, 波次-9): a summon's by its card, an operator's by its
+ * own; a card held back is not deployed.
  * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd @returns {string | null}
  */
 export function deployProblem(w, c, seat, cmd) {
   const d = Object.hasOwn(c.operators, cmd.op) ? c.operators[cmd.op] : null, p = w.players[seat];
   if (!d || !p) return 'unknown operator or seat';
-  if (c.decks && !c.decks[seat]?.includes(d.summon ? d.summoner ?? '' : cmd.op)) return 'not in the deck';
+  const card = cardProblem(w, c, seat, cmd, d);
+  if (card) return card;
   if (isDown(p)) return 'player down';
   return d.summon ? summonProblem(w, c, seat, cmd.op) ?? limitProblem(w, c, seat, d) ?? placeProblem(w, c, seat, cmd, d.cost) ?? rangeProblem(w, c, seat, cmd)
     ?? trapProblem(w, c, seat, cmd) : operatorProblem(w, c, seat, cmd);
 }
+
+/**
+ * A card not in the seat's deck — a summon's owner's (部署-1) — or held back (波次-9).
+ * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd @param {import('./types.js').OperatorDef} d
+ */
+const cardProblem = (w, c, seat, cmd, d) => (c.decks && !c.decks[seat]?.includes(d.summon ? d.summoner ?? '' : cmd.op) ? 'not in the deck'
+  : cardHidden(w, c, cmd.op) ? 'card held back' : null);
 
 /**
  * A summon that may only stand in its owner's attack range (召唤-4), on a tile outside it.

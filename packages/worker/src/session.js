@@ -24,8 +24,9 @@ const FRAME_MS = 1000 / 30, RECONNECT_MS = 1000;
  * What the battle UI shows of a player besides the view (费用-1, 部署-3, 合作-4, 合作-5): the frames until its next cost
  * point, the operators it has on the field and how many more it may deploy (部署-2), each card of its deck — the cost
  * to deploy it now (再部署惩罚 included) and the frame it may be deployed again from —, its summon cards (召唤-4, 界面-23),
- * the frames until it comes back when down (−1), the frames left of its open cost request (−1) and until it may ask again.
- * @typedef {{ costTimer: number, deployed: string[], slots: number, cards: Record<string, { cost: number, ready: number }>,
+ * the frames until it comes back when down (−1), the frames left of its open cost request (−1) and until it may ask again;
+ * the cards held back (波次-9).
+ * @typedef {{ costTimer: number, deployed: string[], slots: number, cards: Record<string, { cost: number, ready: number }>, hidden: string[],
  *   summons: Record<string, import('./cards.js').SummonStatus>, revive: number, ask: number, askCd: number }} PlayerStatus
  */
 /**

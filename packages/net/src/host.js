@@ -105,6 +105,9 @@ export class LockstepHost {
   /** Whether a seat is one nobody plays (同步-14). @param {number} seat */
   absent(seat) { return this.o.absent?.includes(seat) ?? false; }
 
+  /** Whether a seat plays alone: every other seat absent (同步-14). @param {number} seat */
+  alone(seat) { return Array.from({ length: this.o.seats }, (_, s) => s).every((s) => s === seat || this.absent(s)); }
+
   /**
    * A seat's page has loaded the battle: once every seat's has — but for the absent ones (同步-14) —, the battle begins
    * (同步-11). @param {number} seat @param {number} now
@@ -145,8 +148,7 @@ export class LockstepHost {
    */
   pause(seat, now) {
     if (this.held || this.asker >= 0) return;
-    const alone = Array.from({ length: this.o.seats }, (_, s) => s).every((s) => s === seat || this.absent(s));
-    if (alone) { this.rebase(now); this.held = true; }
+    if (this.alone(seat)) { this.rebase(now); this.held = true; }
     else { this.asker = seat; this.askedAt = now; }
     this.broadcastControl();
   }
@@ -159,10 +161,10 @@ export class LockstepHost {
     this.broadcastControl();
   }
 
-  /** Any seat resumes a pause (同步-8): after RESUME_MS the clock runs again. @param {number} _seat @param {number} now */
-  resume(_seat, now) {
+  /** Any seat resumes a pause (同步-8): after RESUME_MS the clock runs again — at once for a seat alone (同步-14). @param {number} seat @param {number} now */
+  resume(seat, now) {
     if (!this.held || this.resumeAt !== null) return;
-    this.resumeAt = now + RESUME_MS;
+    if (this.alone(seat)) { this.held = false; this.clock = { ms: now, battle: this.clock.battle }; } else this.resumeAt = now + RESUME_MS;
     this.broadcastControl();
   }
 

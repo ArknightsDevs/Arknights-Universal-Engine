@@ -21,9 +21,10 @@ import { refNode } from '../node.js';
  */
 /**
  * The deck's state: the frame and frames a second, the cost the player has, each card's cost now and the frame it may
- * be deployed again from, the operators on the field, how many more the player may deploy, the summon cards.
+ * be deployed again from, the operators on the field, how many more the player may deploy, the summon cards, the cards
+ * held back (the engine's 波次-9).
  * @typedef {{ frame: number, fps: number, cost: number, cards: Record<string, { cost: number, ready: number }>, deployed: string[], slots: number,
- *   summons?: Record<string, SummonCardState> }} DeckState
+ *   summons?: Record<string, SummonCardState>, hidden?: string[] }} DeckState
  */
 
 /**
@@ -37,13 +38,13 @@ function countdown(d, s, ready) {
 }
 
 /**
- * The cards shown (界面-10, 界面-23): the deck's operators not on the field and the summon cards shown, in the deck's
- * order; an operator's usable when not waiting, its cost is paid and a deploy slot is left; a summon's when not waiting,
+ * The cards shown (界面-10, 界面-23): the deck's operators not on the field nor held back and the summon cards shown, in
+ * the deck's order; an operator's usable when not waiting, its cost is paid and a deploy slot is left; a summon's when not waiting,
  * a copy is held, fewer are on the field than may be, its cost is paid and — when it takes a place — a slot is left.
  * @param {DeckCard[]} deck @param {DeckState} s @returns {CardView[]}
  */
 export function cardViews(deck, s) {
-  return deck.filter((d) => (d.summon ? !!s.summons?.[d.id]?.shown : !s.deployed.includes(d.id))).map((d) => {
+  return deck.filter((d) => (d.summon ? !!s.summons?.[d.id]?.shown : !s.deployed.includes(d.id) && !s.hidden?.includes(d.id))).map((d) => {
     if (d.summon) {
       const m = /** @type {SummonCardState} */ (s.summons?.[d.id]), t = countdown(d, s, m.ready);
       return { id: d.id, cost: m.cost, ...t, count: m.held, usable: !t.waiting && m.held > 0 && !m.full && m.cost <= s.cost && (!m.occupy || s.slots > 0) };
