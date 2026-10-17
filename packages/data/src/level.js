@@ -125,6 +125,28 @@ function withTasks(stages, missions) {
   });
 }
 
+/**
+ * The enemies of a level with those their abilities bring (关卡-1, 敌能-22): every enemy key a talent's or skill's
+ * blackboard names (a split, a summon, a rebirth as another), and theirs in turn; sorted by key.
+ * @param {string[]} keys @param {(key: string) => Record<string, any>} make @returns {Record<string, Record<string, any>>}
+ */
+export function withSummoned(keys, make) {
+  /** @type {Record<string, Record<string, any>>} */
+  const out = {};
+  const queue = [...keys];
+  while (queue.length > 0) {
+    const k = /** @type {string} */ (queue.shift());
+    if (Object.hasOwn(out, k)) continue;
+    out[k] = make(k);
+    queue.push(...summonedBy(out[k]));
+  }
+  return Object.fromEntries(Object.keys(out).toSorted().map((k) => [k, out[k]]));
+}
+
+/** The enemy keys an enemy's abilities name (敌能-22). @param {Record<string, any>} e @returns {string[]} */
+export const summonedBy = (e) => [...Object.values(e.talents ?? {}), ...(e.skills ?? []).map((/** @type {any} */ s) => s.bb)]
+  .flatMap((bb) => Object.values(bb)).filter((v) => typeof v === 'string' && /^enemy_\w+$/.test(v));
+
 /** The global buff that makes a level 堡垒守御 (守御-1). */
 const FORTRESS_BUFF = 'cooperate_fortress_global_buff';
 
@@ -174,6 +196,7 @@ export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage
     return [asString(field(o, 'id', `level.enemyDbRefs[${i}]`), `level.enemyDbRefs[${i}].id`), o];
   }));
   const shared = sharedEnemies(runes);
+  const enemies = withSummoned(keys, (k) => ({ ...enemyOf(enemyDb, k, refs.get(k)), ...damageTypeOf(handbook, k), ...(shared.has(k) ? { shared: true } : {}) }));
   return {
     source: { repo: 'Kengxxiao/ArknightsGameData', commit, server: 'zh_CN', ...(view ? { view: view.source } : {}) },
     level: { id, ...stageNames(stage), width, height, options: extractOptions(field(lv, 'options', 'level')), tiles, ...(blockEdges.length > 0 ? { blockEdges } : {}),
@@ -181,7 +204,7 @@ export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage
       ...fortressField(lv.globalBuffs),
       ...(view ? { view: viewOf(view.vector) } : {}), ...(typeof lv.bgmEvent === 'string' && lv.bgmEvent ? { bgm: lv.bgmEvent } : {}) },
     difficulties,
-    enemies: Object.fromEntries(keys.map((k) => [k, { ...enemyOf(enemyDb, k, refs.get(k)), ...damageTypeOf(handbook, k), ...(shared.has(k) ? { shared: true } : {}) }])),
+    enemies,
     ...(charTable ? { devices: devicesOf(charTable, lv.predefines) } : {}),
   };
 }

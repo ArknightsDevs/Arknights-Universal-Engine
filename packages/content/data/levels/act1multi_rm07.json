@@ -13670,7 +13670,7 @@
       ],
       "talents": {
         "deathrattle": {
-          "enemy_key": 0,
+          "enemy_key": "enemy_1138_tumor",
           "cnt": 2,
           "offset_bound": 0.2,
           "delay": 0.2
@@ -13697,7 +13697,7 @@
       ],
       "talents": {
         "deathrattle": {
-          "enemy_key": 0,
+          "enemy_key": "enemy_1137_plasm",
           "cnt": 4,
           "offset_bound": 0.2,
           "delay": 0.2
@@ -13710,7 +13710,7 @@
           "initCooldown": 5,
           "sp": 0,
           "bb": {
-            "enemy_key": 0,
+            "enemy_key": "enemy_1137_plasm",
             "cnt": 1
           }
         }
@@ -13735,7 +13735,7 @@
       ],
       "talents": {
         "deathrattle": {
-          "enemy_key": 0,
+          "enemy_key": "enemy_1138_tumor",
           "cnt": 4,
           "offset_bound": 0.2,
           "delay": 0.2
@@ -13748,7 +13748,7 @@
           "initCooldown": 5,
           "sp": 0,
           "bb": {
-            "enemy_key": 0,
+            "enemy_key": "enemy_1138_tumor",
             "cnt": 1
           }
         }
@@ -13775,7 +13775,7 @@
       "talents": {
         "createGhost": {
           "taunt_level": -1,
-          "enemy_key": 0
+          "enemy_key": "enemy_1139_hologc"
         },
         "storm": {
           "prob": 0.4
@@ -13802,7 +13802,7 @@
       "talents": {
         "createGhost": {
           "taunt_level": -1,
-          "enemy_key": 0
+          "enemy_key": "enemy_1139_hologc_2"
         },
         "storm": {
           "prob": 0.4
@@ -13854,6 +13854,52 @@
       "talents": {
         "atkSpeedDown": {
           "attack_speed": -0.8
+        }
+      }
+    },
+    "enemy_1139_hologc": {
+      "name": "全息影像",
+      "maxHp": 3000,
+      "atk": 250,
+      "def": 0,
+      "res": 0,
+      "moveSpeed": 1.3,
+      "baseAttackTime": 2,
+      "rangeRadius": 1.5,
+      "applyWay": "RANGED",
+      "motion": "WALK",
+      "massLevel": 1,
+      "levelType": "NORMAL",
+      "lifePointReduce": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "storm": {
+          "prob": 0.4
+        }
+      }
+    },
+    "enemy_1139_hologc_2": {
+      "name": "全息幻影MK2",
+      "maxHp": 4000,
+      "atk": 350,
+      "def": 0,
+      "res": 0,
+      "moveSpeed": 1.3,
+      "baseAttackTime": 2,
+      "rangeRadius": 1.5,
+      "applyWay": "RANGED",
+      "motion": "WALK",
+      "massLevel": 1,
+      "levelType": "NORMAL",
+      "lifePointReduce": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "storm": {
+          "prob": 0.4
         }
       }
     },
@@ -14075,7 +14121,7 @@
       ],
       "talents": {
         "deathrattle": {
-          "enemy_key": 0,
+          "enemy_key": "enemy_1221_dzomg",
           "delay": 1
         },
         "aura": {
@@ -14103,7 +14149,7 @@
       ],
       "talents": {
         "deathrattle": {
-          "enemy_key": 0,
+          "enemy_key": "enemy_1221_dzomg_2",
           "delay": 1
         },
         "aura": {

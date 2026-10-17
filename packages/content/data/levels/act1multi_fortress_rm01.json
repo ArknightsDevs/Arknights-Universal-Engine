@@ -19312,7 +19312,7 @@
       ],
       "talents": {
         "loot": {
-          "token_key": 0,
+          "token_key": "trap_018_bomb",
           "cnt": 1
         }
       }
@@ -19593,7 +19593,7 @@
           "initCooldown": 1,
           "sp": 0,
           "bb": {
-            "branch_id": 0
+            "branch_id": "faust_ballis"
           }
         }
       ]

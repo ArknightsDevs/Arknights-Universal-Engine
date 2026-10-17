@@ -16514,7 +16514,7 @@
           "initCooldown": 15,
           "sp": 0,
           "bb": {
-            "branch_id": 0
+            "branch_id": "faust_ballis"
           }
         }
       ]

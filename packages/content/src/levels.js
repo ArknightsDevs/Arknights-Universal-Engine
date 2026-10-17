@@ -55,10 +55,20 @@ function replacedSpawns(level, replace) {
   return { waves, branches: Object.fromEntries(Object.entries(level.branches).map(([k, fs]) => [k, /** @type {any[]} */ (fs).map(replaced)])) };
 }
 
-/** The enemies a level's waves and branches spawn (关卡-2, 守御-6). @param {any[]} waves @param {Record<string, any[]> | undefined} branches */
-function spawnedKeys(waves, branches) {
+/**
+ * The enemies a level's waves and branches spawn (关卡-2, 守御-6), and those their abilities bring in turn (a split, a
+ * summon, a rebirth as another: an enemy key in a blackboard, 敌能-22).
+ * @param {any[]} waves @param {Record<string, any[]> | undefined} branches @param {Record<string, any>} enemies the level's records
+ */
+function spawnedKeys(waves, branches, enemies) {
   const frags = [...waves.flatMap((/** @type {any} */ w) => w.fragments), ...Object.values(branches ?? {}).flat()];
-  return new Set(frags.flatMap((/** @type {any} */ f) => f.actions.filter((/** @type {any} */ a) => a.type === 'SPAWN').map((/** @type {any} */ a) => a.key)));
+  const used = new Set(frags.flatMap((/** @type {any} */ f) => f.actions.filter((/** @type {any} */ a) => a.type === 'SPAWN').map((/** @type {any} */ a) => a.key)));
+  for (const k of used) {
+    const e = enemies[k];
+    const named = e ? [...Object.values(e.talents ?? {}), ...(e.skills ?? []).map((/** @type {any} */ x) => x.bb)].flatMap((bb) => Object.values(bb)) : [];
+    for (const v of named) if (typeof v === 'string' && Object.hasOwn(enemies, v)) used.add(v);
+  }
+  return used;
 }
 
 /**
@@ -89,7 +99,7 @@ export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
   if (!d) throw new RangeError(`level ${id}: no difficulty ${difficulty}`);
   if (d.unsupported.length > 0) throw new RangeError(`level ${id} at ${difficulty}: runes not supported yet: ${d.unsupported.join(', ')}`);
   const { waves, branches } = replacedSpawns(raw.level, d.replace);
-  const used = spawnedKeys(waves, branches), missing = uncoveredAbilities(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([, e]) => /** @type {EnemyDef} */ (e)));
+  const used = spawnedKeys(waves, branches, raw.enemies), missing = uncoveredAbilities(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([, e]) => /** @type {EnemyDef} */ (e)));
   if (missing.length > 0 && !TESTING.includes(id)) throw new RangeError(`level ${id} at ${difficulty}: enemy abilities not supported yet: ${missing.join(', ')}`);
   // a carried unit's card (符文-6) is no device on the field: carried.js makes it
   const dev = profiledDevices(Object.fromEntries(Object.entries(raw.devices ?? {}).filter(([k]) => !Object.hasOwn(CARRIED, k))));

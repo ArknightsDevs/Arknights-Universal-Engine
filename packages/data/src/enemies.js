@@ -80,28 +80,35 @@ function readEnemy(data, key, dp) {
 }
 
 /**
+ * A blackboard entry's value (敌能-1): its text when it has one (an enemy key, a buff name), else its number.
+ * @param {Record<string, unknown>} o @param {string} p @returns {number | string}
+ */
+const bbValue = (o, p) => (typeof o.valueStr === 'string' && o.valueStr !== '' ? o.valueStr : asNumber(o.value, `${p}.value`, -1e9, 1e9));
+
+/**
  * An enemy's talents and skills (敌能-1): the talent blackboard grouped by the part of each key before its first `.`;
- * the skills with their cooldowns, SP cost and blackboards.
+ * the skills with their cooldowns, SP cost (up to 99999: 9999 is a skill never charged) and blackboards; an entry with a
+ * text keeps the text.
  * @param {Record<string, unknown>} data @param {string} dp
- * @returns {{ talents?: Record<string, Record<string, number>>, skills?: { key: string, cooldown: number, initCooldown: number, sp: number, bb: Record<string, number> }[] }}
+ * @returns {{ talents?: Record<string, Record<string, number | string>>, skills?: { key: string, cooldown: number, initCooldown: number, sp: number, bb: Record<string, number | string> }[] }}
  */
 function abilitiesOf(data, dp) {
-  /** @type {Record<string, Record<string, number>>} */
+  /** @type {Record<string, Record<string, number | string>>} */
   const talents = {};
   (Array.isArray(data.talentBlackboard) ? data.talentBlackboard : []).forEach((t, i) => {
     const o = asObject(t, `${dp}.talentBlackboard[${i}]`), k = asString(o.key, `${dp}.talentBlackboard[${i}].key`);
     const dot = k.indexOf('.'), name = dot < 0 ? k : k.slice(0, dot), field_ = dot < 0 ? '' : k.slice(dot + 1);
-    (talents[name] ??= {})[field_] = asNumber(o.value, `${dp}.talentBlackboard[${i}].value`, -1e9, 1e9);
+    (talents[name] ??= {})[field_] = bbValue(o, `${dp}.talentBlackboard[${i}]`);
   });
   const skills = (Array.isArray(data.skills) ? data.skills : []).map((s, i) => {
     const sp = `${dp}.skills[${i}]`, o = asObject(s, sp);
     const bb = Object.fromEntries((Array.isArray(o.blackboard) ? o.blackboard : []).map((b, j) => {
       const e = asObject(b, `${sp}.blackboard[${j}]`);
-      return [asString(e.key, `${sp}.blackboard[${j}].key`), asNumber(e.value, `${sp}.blackboard[${j}].value`, -1e9, 1e9)];
+      return [asString(e.key, `${sp}.blackboard[${j}].key`), bbValue(e, `${sp}.blackboard[${j}]`)];
     }));
     return {
       key: asString(field(o, 'prefabKey', sp), `${sp}.prefabKey`), cooldown: asNumber(field(o, 'cooldown', sp), `${sp}.cooldown`, -1, 1e6),
-      initCooldown: asNumber(field(o, 'initCooldown', sp), `${sp}.initCooldown`, -1, 1e6), sp: asInt(o.spCost ?? 0, `${sp}.spCost`, 0, 1000), bb,
+      initCooldown: asNumber(field(o, 'initCooldown', sp), `${sp}.initCooldown`, -1, 1e6), sp: asInt(o.spCost ?? 0, `${sp}.spCost`, 0, 99999), bb,
     };
   });
   return { ...(Object.keys(talents).length > 0 ? { talents } : {}), ...(skills.length > 0 ? { skills } : {}) };
