@@ -64,7 +64,8 @@ function part(ui, ref, frame) {
 
 /**
  * The selector's drag handle (界面-13): its thumb moved by a ground offset in tiles (east, north) — on the perspective
- * canvas, `k` tiles a reference pixel — held within its reach, half its area's width; back at the centre for null.
+ * canvas, `k` tiles a reference pixel, the selector scaled under it — held within its reach, half its area's width;
+ * back at the centre for null.
  * Without the pack's joystick data, nothing.
  * @param {Screen} dir the selector @param {Record<string, any> | undefined} j the pack's joystick data @param {number} k
  * @returns {(off: number[] | null) => void}
@@ -72,9 +73,12 @@ function part(ui, ref, frame) {
 function thumbOf(dir, j, k) {
   const thumb = j ? refNode(dir.root, j.thumb) : null, area = j ? refNode(dir.root, j.area) : null, reach = (area?.rt.size[0] ?? 0) / 2;
   if (area) area.active = !!thumb;
+  // the canvas pixels a pixel of the area: the scales between the selector's root and the area
+  let up = 1;
+  for (let n = area?.parent ?? null; n; n = n === dir.root ? null : n.parent) up *= n.rt.scale[0];
   return (off) => {
     if (!thumb) return;
-    const p = off ? [off[0] / k, off[1] / k] : [0, 0], len = Math.hypot(p[0], p[1]), f = len > reach ? reach / len : 1;
+    const p = off ? [off[0] / k / up, off[1] / k / up] : [0, 0], len = Math.hypot(p[0], p[1]), f = len > reach ? reach / len : 1;
     thumb.rt.pos = [p[0] * f, p[1] * f];
   };
 }

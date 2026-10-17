@@ -300,8 +300,8 @@ test('[界面-13] the direction selector: shown on a point, the pointed arrow li
   const thumb = node(s.one('joystick/Thumb'));
   assert.deepEqual(thumb.rt.pos, [0, 0], 'at the centre');
   d.drag([0.337, -0.1685]);
-  assert.ok(Math.abs(thumb.rt.pos[0] - 100) < 1e-9 && Math.abs(thumb.rt.pos[1] + 50) < 1e-9, 'moved by the drag on the ground (0.00337 tiles a pixel)');
-  d.drag([2.022, 2.696]);
+  assert.ok(Math.abs(thumb.rt.pos[0] - 40) < 1e-9 && Math.abs(thumb.rt.pos[1] + 20) < 1e-9, 'moved by the drag on the ground (0.00337 tiles a canvas pixel, the selector at 2.5×)');
+  d.drag([5.055, 6.74]);
   assert.ok(Math.abs(Math.hypot(...thumb.rt.pos) - 213) < 1e-9 && Math.abs(thumb.rt.pos[0] / thumb.rt.pos[1] - 0.75) < 1e-9, 'held within half its area');
   d.drag(null);
   assert.deepEqual(thumb.rt.pos, [0, 0], 'back at the centre');
