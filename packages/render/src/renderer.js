@@ -34,6 +34,8 @@ import { spineModel } from './spine.js';
  *   textures
  * @property {import('./fx/player.js').FxPack | null} [effects] the units' attack effects (渲染-10…渲染-12); none without
  * @property {Record<string, number>} [skills] each operator's skill (1-based) by its key, for its skill's own effects
+ * @property {number} [seat] the seat of the player watching (0 by default): their partner's co-op goals take the partner's
+ *   marker (渲染-12)
  * @property {number} [pixelScale] the player's 清晰度 (渲染-15): the canvas's pixel ratio is the device's times this (default 1)
  * @property {boolean} [attackEffects] whether the attacks' effects are drawn (渲染-15; default true)
  * @property {Map<string, import('./devicemesh.js').DeviceMeshModel>} [deviceMeshes] devices' mesh models by content key (渲染-20)
@@ -96,7 +98,7 @@ export function createBattleRenderer(o) {
   const terrain = o.kit ? createKitTerrain(o.level, o.kit, terrainTextures(o), patch) : createTerrain(o.level, o.textures, patch);
   const units = createUnits(o.textures, o.models, o.foeDevices, o.deviceMeshes, o.flyers), field = { ...o.level, highland: o.kit?.kit.highland };
   const range = createRange(field, o.textures.get('ui:range')), marks = createTileMarks(field, o.textures.get('ui:range')), clock = battleClock();
-  const effects = o.effects ? createEffects(o.effects, field, { skills: o.skills }) : null, placing = createPlacing(o.textures, o.models ?? new Map(), field);
+  const effects = o.effects ? createEffects(o.effects, field, { skills: o.skills, seat: o.seat ?? 0 }) : null, placing = createPlacing(o.textures, o.models ?? new Map(), field);
   scene.add(terrain.object, range.object, marks.object, units.shadows, units.indicators, placing.object, units.object, ...(effects ? [effects.object] : []));
   const overlays = createOverlays(o.bars === false ? new Map() : o.textures, o.leaders, o.foeDevices), ray = new THREE.Raycaster();
 

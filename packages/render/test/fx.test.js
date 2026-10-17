@@ -168,3 +168,22 @@ test('[渲染-12] markers on the start and end tiles, a skill\'s own hit, deploy
   fx.dispose();
 });
 
+test('[渲染-12] co-op goals by the viewer: their own goal and one of no single side take the first co-op marker, the partner\'s the second', () => {
+  const lasting = { d: 0.5, ps: [sys({ loop: true, rate: C(5), bursts: [] })], tr: [] };
+  const data = { by: {}, named: { tile_end_coop_1: 'blue', tile_end_coop_2: 'teal' }, fx: { blue: lasting, teal: { ...lasting } } };
+  const end = (/** @type {string | undefined} */ goal) => ({ key: 'tile_end_cooperate', height: 'LOWLAND', ...(goal ? { goal } : {}) });
+  const level = { width: 3, height: 1, tiles: [[end('A'), end('B'), end(undefined)]] };
+  const seen = (/** @type {number | undefined} */ seat) => {
+    const fx = createEffects({ data, textures: new Map() }, level, seat === undefined ? {} : { seat });
+    const kinds = fx.live.map((i) => (i.e === data.fx.blue ? 'blue' : 'teal'));
+    fx.dispose();
+    return kinds;
+  };
+  assert.deepEqual(seen(0), ['blue', 'teal', 'blue'], 'seat 0: goal A its own');
+  assert.deepEqual(seen(1), ['teal', 'blue', 'blue'], 'seat 1: goal B its own');
+  assert.deepEqual(seen(undefined), ['blue', 'teal', 'blue'], 'no seat given: seat 0');
+  const only = createEffects({ data: { ...data, named: { tile_end_coop_1: 'blue' } }, textures: new Map() }, level, { seat: 0 });
+  assert.equal(only.live.filter((i) => i.e === data.fx.blue).length, 3, 'a pack without the second marker: the first');
+  only.dispose();
+});
+

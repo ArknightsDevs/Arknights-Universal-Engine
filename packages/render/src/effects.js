@@ -24,7 +24,7 @@ const LIFT = /** @type {Record<number, number>} */ ({ 2: FX.chest, 4: FX.head })
 /**
  * @typedef {import('./fx/player.js').FxPack} FxPack
  * @typedef {{ feet: number[], facing: number, dir: number[], kind: number, running: boolean, seen: number }} Place
- * @typedef {{ width: number, height: number, highland?: number, tiles?: { key: string, height: string }[][] }} FxLevel
+ * @typedef {{ width: number, height: number, highland?: number, tiles?: { key: string, height: string, goal?: string }[][] }} FxLevel
  */
 /** How an effect is turned: the unit's facing (±1) and a direction on the ground. @typedef {{ facing: number, dir: number[] }} Way */
 
@@ -42,11 +42,19 @@ function rootFor(e, o, way) {
 }
 /** @typedef {{ inst: FxInstance, src: number, target: number, pos: number[], d0: number, h0: number, arc: number, speed: number, t: number, T: number }} Flight */
 
-/** The marker effect of a start or end tile (渲染-12), or null: co-op end tiles take the first co-op end marker. @param {string} key @param {Record<string, string>} named */
-function markerOf(key, named) {
-  if (key.startsWith('tile_start')) return named.tile_start ?? null;
-  if (key === 'tile_end_cooperate') return named.tile_end_coop_1 ?? named.tile_end ?? null;
-  return key.startsWith('tile_end') ? named.tile_end ?? null : null;
+/** The seat a co-op goal belongs to (the engine's 合作-1): side A seat 0, side B seat 1; −1 for one of no single seat. @param {string | undefined} goal */
+const goalSeat = (goal) => (goal === 'A' ? 0 : goal === 'B' ? 1 : -1);
+
+/**
+ * The marker effect of a start or end tile (渲染-12), or null: a co-op goal of the viewer's partner takes the second co-op
+ * end marker, the others the first.
+ * @param {{ key: string, goal?: string }} t @param {Record<string, string>} named @param {number} seat the viewer's
+ */
+function markerOf(t, named, seat) {
+  if (t.key.startsWith('tile_start')) return named.tile_start ?? null;
+  if (t.key !== 'tile_end_cooperate') return t.key.startsWith('tile_end') ? named.tile_end ?? null : null;
+  const own = goalSeat(t.goal), mate = own >= 0 && own !== seat ? named.tile_end_coop_2 : undefined;
+  return mate ?? named.tile_end_coop_1 ?? named.tile_end ?? null;
 }
 
 const NOWHERE = Object.freeze({ facing: 1, dir: [1, 0, 0] });
@@ -61,9 +69,12 @@ export function cameraAxes(camera) {
 
 
 class Effects {
-  /** @param {FxPack} pack @param {FxLevel} level @param {{ skills?: Record<string, number> }} [o] each operator's skill (1-based) by its key */
+  /**
+   * @param {FxPack} pack @param {FxLevel} level
+   * @param {{ skills?: Record<string, number>, seat?: number }} [o] each operator's skill (1-based) by its key; the viewer's seat (0 by default)
+   */
   constructor(pack, level, o = {}) {
-    this.pack = pack; this.level = level; this.object = new THREE.Group(); this.skills = o.skills ?? {};
+    this.pack = pack; this.level = level; this.object = new THREE.Group(); this.skills = o.skills ?? {}; this.seat = o.seat ?? 0;
     /** @type {Record<string, string>} effects by role */ this.named = pack.data.named ?? {};
     /** @type {Map<string, { inst: FxInstance, id: number, lift: number }>} a unit's status effects by `id:bit` */ this.statuses = new Map();
     this.leads = new Map(Object.keys(pack.data.fx).map((k) => [k, effectLead(pack.data.fx[k])]));
@@ -81,7 +92,7 @@ class Effects {
   /** The start and end tiles' marker effects, lasting, drawn before the units (after the range, before the shadows). */
   markers() {
     (this.level.tiles ?? []).forEach((cols, row) => cols.forEach((t, col) => {
-      const n = markerOf(t.key, this.named);
+      const n = markerOf(t, this.named, this.seat);
       if (n) this.play(n, toThree(tileWorld(this.level, col, row, t.height === 'HIGHLAND' ? 1 : 0)), NOWHERE, 'loop', MARKER_ORDER);
     }));
   }
@@ -240,7 +251,7 @@ class Effects {
 
 /**
  * The effects system for a level. @param {FxPack} pack @param {FxLevel} level
- * @param {{ skills?: Record<string, number> }} [o] each operator's skill (1-based) by its content key
+ * @param {{ skills?: Record<string, number>, seat?: number }} [o] each operator's skill (1-based) by its content key; the viewer's seat
  */
 export const createEffects = (pack, level, o) => new Effects(pack, level, o);
 
