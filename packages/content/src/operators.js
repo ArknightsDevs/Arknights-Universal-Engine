@@ -188,7 +188,7 @@ function talentFields(t, b, mod) {
  * or module not unlocked yet.
  * @param {Training} t @param {Build} b @returns {OperatorDef}
  */
-export const operatorAt = (t, b) => recordAt(t, b, moduleAt(t, b));
+export const operatorAt = (t, b) => recordAt(t, b, moduleAt(t, b), (b.module ?? -1) >= 0 ? t.modules[/** @type {number} */ (b.module)]?.type : undefined);
 
 /**
  * The blackboard of a module level's own talents (干员-7): its unlocked talent candidates (not a token's, valid in every
@@ -214,9 +214,10 @@ function moduleRangeAt(b, mod) {
 /**
  * A training's record (operatorAt) with the module level given: the operator's own, or what its owner's module gives a
  * summon (召唤-2).
- * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @returns {OperatorDef}
+ * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @param {string} [type] the module's type, for the branch trait (职业-7)
+ * @returns {OperatorDef}
  */
-export function recordAt(t, b, mod) {
+export function recordAt(t, b, mod, type) {
   const phase = t.phases[b.elite];
   if (!phase) throw new RangeError(`${t.name}: no elite phase ${b.elite}`);
   const slot = b.skill >= 0 ? t.skills[b.skill] : undefined;
@@ -224,7 +225,7 @@ export function recordAt(t, b, mod) {
   const s = statsAt(t, b, mod), level = slot ? slot.levels[clamp(b.skillLevel, 1, slot.levels.length) - 1] : null;
   const { cost, respawn, fields } = talentFields(t, b, mod), traitBb = traitAt(t, b);
   const rec = withTrait({
-    name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: moduleRangeAt(b, mod) ?? phase.range, traitBb, hiddenBb: hiddenAt(b, mod),
+    name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: moduleRangeAt(b, mod) ?? phase.range, traitBb, hiddenBb: hiddenAt(b, mod), ...(mod && type ? { moduleType: type } : {}),
     maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: Math.max(0, s.cost + cost), blockCnt: s.blockCnt, baseAttackTime: s.baseAttackTime,
     respawnTime: Math.max(0, s.respawnTime + respawn), aspd: s.aspd, tauntLevel: s.tauntLevel, massLevel: s.massLevel,
     ...fields, ...(slot && level ? { skill: skillDefOf(slot.id, level) } : {}),

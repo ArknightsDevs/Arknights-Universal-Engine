@@ -9,7 +9,7 @@ import rangeTable from '../data/ranges.json' with { type: 'json' };
 /**
  * A covered branch: its normal attack's damage type, and its trait as data, made from the trait's blackboard and its
  * module's hidden talents' (干员-7).
- * @typedef {{ dmgType?: 'phys' | 'arts', trait?: (bb: Readonly<Record<string, number>>, hidden?: Readonly<Record<string, number>>) => Partial<TraitDef> }} Branch
+ * @typedef {{ dmgType?: 'phys' | 'arts', trait?: (bb: Readonly<Record<string, number>>, hidden?: Readonly<Record<string, number>>, type?: string) => Partial<TraitDef> }} Branch
  */
 
 const ARTS = /** @type {const} */ ('arts');
@@ -25,7 +25,7 @@ const DOLL_SWITCH = 1;
 /**
  * The trait's 倍率 against a target as `when` says (职业-17), when its module gives one: × `scale` on the hit's attack
  * 倍率 (`atk`), its 伤害倍率 (`dmg`) or a heal (`heal`).
- * @param {import('@aue/sim').VsScale['when']} when @param {'atk' | 'dmg' | 'heal'} kind @param {number | undefined} scale
+ * @param {import('@aue/sim').VsScale['when']} when @param {'atk' | 'dmg' | 'heal' | 'ep'} kind @param {number | undefined} scale
  * @param {Partial<import('@aue/sim').VsScale>} [more] @returns {{ vs?: import('@aue/sim').VsScale[] }}
  */
 const vsWhen = (when, kind, scale, more = {}) => (scale ? { vs: [{ when, [kind]: scale, ...more }] } : {});
@@ -66,7 +66,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // CHG-Y: × atk_scale against an enemy below hp_ratio of its HP (the module's own data; 职业-17)
   charger: { trait: (bb, own) => ({ killCost: bb.cost ?? 1, refund: 1, ...(own?.hp_ratio ? vsWhen('hpBelow', 'atk', own.atk_scale, { value: own.hp_ratio }) : {}) }) },
   // its 战术点 is a summon (召唤-11); × atk_scale against the enemies its own summons block (职业-14)
-  tactician: { trait: (bb) => ({ summonBlockedScale: bb.atk_scale ?? 1.5 }) },
+  // TAC-Y: the enemies its summons block 嘲讽等级 +1 (职业-20)
+  tactician: { trait: (bb, _own, type) => ({ summonBlockedScale: bb.atk_scale ?? 1.5, ...(type === 'TAC-Y' ? { auras: [{ to: 'summonBlocked', mods: { taunt: 1 } }] } : {}) }) },
   // the support of the operators in the deck is its skills' and talents' (职业-7)
   counsellor: {},
   // 近卫
@@ -75,14 +76,24 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // FGT-X: physical dodge prob; FGT-Y: attack speed + attack_speed while its HP is above hp_ratio (0.5) (职业-18)
   fighter: { trait: (bb) => joinWhiles(whileOf('always', { dodgePhys: bb.prob }), whileOf('hpAbove', { aspd: bb.attack_speed }, bb.hp_ratio ?? 0.5)) },
   // AFT-X: attack speed + attack_speed while it blocks none (职业-18)
-  artsfghter: { dmgType: ARTS, trait: (bb) => whileOf('notBlocking', { aspd: bb.attack_speed }) },
+  // AFT-D: elemental damage of ep_damage_ratio of its attack on a target in a 灼燃 burst; AFT-Y: the enemies it blocks 法术脆弱
+  // damage_scale (职业-20)
+  artsfghter: { dmgType: ARTS, trait: (bb, _own, type) => ({
+    ...whileOf('notBlocking', { aspd: bb.attack_speed }), ...(type === 'AFT-D' && bb.ep_damage_ratio ? { burstHit: { el: 'FIRE', scale: bb.ep_damage_ratio } } : {}),
+    ...(type === 'AFT-Y' && bb.damage_scale ? { auras: [{ to: 'blocked', mods: { artsTakenMul: bb.damage_scale } }] } : {}),
+  }) },
   // SWO-X: its skill's damage × damage_scale (职业-17); SWO-Y: def_penetrate_fixed of the target's defence ignored (职业-18)
   sword: { trait: (bb) => ({ hits: 2, ...vsWhen('skill', 'dmg', bb.damage_scale), ...whileOf('always', { defIgnoreFlat: bb.def_penetrate_fixed }) }) },
   // the attack's 倍率 against an enemy it does not block (职业-8)
   // INS-Y: also on ranged tiles (the module's own data buildable_type 2; 职业-19)
   instructor: { trait: (bb, own) => ({ unblockedScale: bb.atk_scale ?? 1.2, ...(own?.buildable_type === 2 ? { rangedTiles: true } : {}) }) },
   // LOR-Y: attack speed + attack_speed while cnt (2) enemies are in its range (the trait's, or the module's own data; 职业-18)
-  lord: { trait: (bb, own) => ({ antiAir: true, unblockedScale: bb.atk_scale ?? 0.8, ...whileOf('enemies', { aspd: bb.attack_speed ?? own?.attack_speed }, own?.cnt ?? 2) }) },
+  // LOR-X: arts damage of atk_scale_m of its attack on each hit; LOR-D: 神经损伤 of ep_damage_ratio of its damage (职业-20)
+  lord: { trait: (bb, own, type) => ({
+    antiAir: true, unblockedScale: bb.atk_scale ?? 0.8, ...whileOf('enemies', { aspd: bb.attack_speed ?? own?.attack_speed }, own?.cnt ?? 2),
+    ...(type === 'LOR-X' ? { extraArts: bb.atk_scale_m ?? own?.magic_atk_scale ?? 0.1 } : {}),
+    ...(type === 'LOR-D' ? { epRider: { el: 'SANITY', ratio: bb.ep_damage_ratio ?? own?.ep_damage_ratio ?? 0.1, arts: false } } : {}),
+  }) },
   // the other enemies around the target take the share of the hit (职业-8)
   // HAM-X: × atk_scale_e for an attack whose splash reaches cnt enemies (职业-17)
   hammer: { trait: (bb) => ({
@@ -117,9 +128,13 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   protector: { trait: (bb) => whileOf('blocking', { defPct: bb.def }) },
   // GUA-X: its heals × heal_scale on one below hp_ratio of its HP (职业-17); GUA-Y: damage taken − damage_resistance (职业-18)
   guardian: { trait: (bb) => ({ ...(bb.hp_ratio ? vsWhen('hpBelow', 'heal', bb.heal_scale, { value: bb.hp_ratio }) : {}), ...whileOf('always', { dmgTakenMul: taken(bb.damage_resistance) }) }) },
-  primprotector: {},
+  // PRP-X: 元素损伤 it deals × ep_damage_scale while it blocks (职业-18)
+  primprotector: { trait: (bb) => whileOf('blocking', { epDealtMul: bb.ep_damage_scale }) },
   // SPT-Y: 攻击距离 + ability_range_forward_extend (职业-19)
-  shotprotector: { trait: (bb) => ({ antiAir: true, ...whileOf('always', { rangeExtend: bb.ability_range_forward_extend }) }) },
+  // SPT-X: the enemies in its range lose 隐匿 (职业-20)
+  shotprotector: { trait: (bb, _own, type) => ({
+    antiAir: true, ...whileOf('always', { rangeExtend: bb.ability_range_forward_extend }), ...(type === 'SPT-X' ? { auras: [{ to: 'range', flags: { 'immune:stealth': true } }] } : {}),
+  }) },
   // UNY-X: damage from a unit it blocks × damage_scale; UNY-Y: attack and defence + atk, def while no other operator stands on
   // the 8 tiles around (职业-18)
   unyield: { trait: (bb) => ({
@@ -131,7 +146,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
     ...(bb.sp_recover_ratio === undefined ? { flags: { noSp: true }, immuneBlocking: ['noSp'] } : {}),
     ...joinWhiles(whileOf('notBlocking', { spRecoveryMul: bb.sp_recover_ratio === undefined ? undefined : 1 + bb.sp_recover_ratio }), whileOf('blocking', { atkPct: bb.atk, defPct: bb.def })),
   }) },
-  artsprotector: { trait: () => ({ skillArts: true }) },
+  // AST-X: arts damage of atk_scale of its attack on each hit of its attack, and on each attacker (职业-20)
+  artsprotector: { trait: (bb) => ({ skillArts: true, ...(bb.atk_scale ? { extraArts: bb.atk_scale, counterArts: bb.atk_scale } : {}) }) },
   // 狙击
   // MAR-X: × atk_scale against a flying enemy (职业-17)
   fastshot: { trait: (bb, own) => ({
@@ -142,7 +158,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // ARC-Y: × atk_scale against an enemy straight in front, its physical dodge ignored (the trait's, or the module's own data; 职业-17)
   closerange: { trait: (bb, own) => vsWhen('front', 'atk', bb.atk_scale ?? own?.atk_scale, { noDodge: true }) },
   // DEA-X: 伤害倍率 by the distance (职业-17)
-  longrange: { trait: (bb) => ({ filter: 'DEF_ASC', ...farOf(bb) }) },
+  // DEA-Y: SP + sp for a hit on a target it does not bring down (职业-20)
+  longrange: { trait: (bb, _own, type) => ({ filter: 'DEF_ASC', ...farOf(bb), ...(type === 'DEA-Y' && bb.sp ? { spOn: { on: 'survives', sp: bb.sp } } : {}) }) },
   // SIE-X: × atk_scale against an enemy of 重量等级 value or more (the module's own data); SIE-Y: 伤害倍率 by the distance (职业-17)
   siegesniper: { trait: (bb, own) => ({ filter: 'MASS_DES', ...(own?.value ? vsWhen('heavy', 'atk', own.atk_scale, { value: own.value }) : {}), ...farOf(bb) }) },
   // ART-X: × atk_scale against a blocked enemy (职业-17); ART-Y: def_penetrate_fixed of the target's defence ignored (职业-18)
@@ -162,16 +179,27 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   }) },
   // its attacks throw boomerangs, out at 15 and back at 3.75 tiles a second; it attacks again once it caught them all (职业-12)
   // LPS-X: × atk_scale against an enemy on the 8 tiles around (the module's own data; 职业-17)
-  loopshooter: { trait: (_bb, own) => ({ boomerang: { out: 15, back: 3.75 }, ...vsWhen('near', 'atk', own?.atk_scale) }) },
+  // LPS-Y: SP + sp for every come_back_cnt boomerangs caught (职业-20)
+  loopshooter: { trait: (bb, own) => ({
+    boomerang: { out: 15, back: 3.75 }, ...vsWhen('near', 'atk', own?.atk_scale), ...(bb.come_back_cnt ? { spOn: { on: 'catch', sp: bb.sp ?? 1, every: bb.come_back_cnt } } : {}),
+  }) },
   // value bullets at atk_scale, reloaded one at a time (职业-12)
   hunter: { trait: (bb) => ({ bullets: { max: bb.value ?? 8, scale: bb.atk_scale ?? 1.2 } }) },
   // every enemy in range; 倍率 × atk_scale for those in its own and the three tiles before it (range 1-3, 职业-11)
   reaperrange: { trait: (bb) => ({ filter: 'ALL', targets: 'all', zone: { cells: cellsOf('1-3'), scale: bb.atk_scale ?? 1.5, outside: false } }) },
   // 术师
   // CCR-X: magic_resist_penetrate_fixed of the target's 法术抗性 ignored (职业-18)
-  corecaster: { dmgType: ARTS, trait: (bb) => whileOf('always', { resIgnoreFlat: bb.magic_resist_penetrate_fixed }) },
+  // CCR-Y: SP + sp for a normal attack's hit on an elite or leader; CCR-D: 凋亡损伤 of ep_damage_ratio of its arts damage (the
+  // module's own data; 职业-20)
+  corecaster: { dmgType: ARTS, trait: (bb, own, type) => ({
+    ...whileOf('always', { resIgnoreFlat: bb.magic_resist_penetrate_fixed }), ...(type === 'CCR-Y' ? { spOn: { on: 'elite', sp: bb.sp ?? own?.sp ?? 1 } } : {}),
+    ...(type === 'CCR-D' && own?.ep_damage_ratio ? { epRider: { el: 'DARK', ratio: own.ep_damage_ratio, arts: true } } : {}),
+  }) },
   // BLA-X: 伤害倍率 by the distance (职业-17)
-  blastcaster: { dmgType: ARTS, trait: (bb) => ({ filter: 'ALL', targets: 'all', ...farOf(bb) }) },
+  // BLA-D: 灼燃损伤 of ep_damage_ratio of its arts damage (职业-20)
+  blastcaster: { dmgType: ARTS, trait: (bb, _own, type) => ({
+    filter: 'ALL', targets: 'all', ...farOf(bb), ...(type === 'BLA-D' && bb.ep_damage_ratio ? { epRider: { el: 'FIRE', ratio: bb.ep_damage_ratio, arts: true } } : {}),
+  }) },
   // attacks only while its skill runs, every enemy in range, air ones too; DEF × (1 + def) and RES + magic_resistance while it does not (职业-12);
   // PLX-Y: 伤害倍率 + damage_scale for each enemy in its range, at most max_valid_stack_cnt (the module's own data; 职业-17)
   phalanx: { dmgType: ARTS, trait: (bb, own) => ({
@@ -188,7 +216,10 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   funnel: { dmgType: ARTS, trait: (bb) => ({ antiAir: true, funnel: { init: bb.init_atk_scale ?? 0.2, delta: bb.delta_atk_scale ?? 0.15, max: bb.max_atk_scale ?? 1.1 } }) },
   // stores up to times attacks of energy when it has no target, and sends them with its next attack (职业-12)
   // MSC-Y: attack speed + attack_speed while it holds stored energy (the module's own data; 职业-18)
-  mystic: { dmgType: ARTS, trait: (bb, own) => ({ store: bb.times ?? 3, ...whileOf('energy', { aspd: own?.attack_speed }) }) },
+  // MSC-D: 凋亡损伤 of ep_damage_ratio of its arts damage (the module's own data; 职业-20)
+  mystic: { dmgType: ARTS, trait: (bb, own, type) => ({
+    store: bb.times ?? 3, ...whileOf('energy', { aspd: own?.attack_speed }), ...(type === 'MSC-D' && own?.ep_damage_ratio ? { epRider: { el: 'DARK', ratio: own.ep_damage_ratio, arts: true } } : {}),
+  }) },
   // jumps among max_target enemies within 1.7 tiles, 85 % of the hit before (its module's attack@chain.atk_scale: 90 %, or
   // no less); each hit 停顿 (职业-11)
   chain: { dmgType: ARTS, trait: (bb) => ({
@@ -229,8 +260,16 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   blessing: { dmgType: ARTS, trait: (bb) => ({ skillHeal: bb.heal_scale ?? 0.75, ...(bb['attack@max_target'] ? { targets: bb['attack@max_target'] } : {}) }) },
   summoner: { dmgType: ARTS },
   // UMD-Y: SP recovery + sp_recovery_per_sec while an elite or leader is in its range (the trait's, or the module's own data; 职业-18)
-  underminer: { dmgType: ARTS, trait: (bb, own) => whileOf('eliteEnemies', { spRecoveryFlat: bb.sp_recovery_per_sec ?? own?.sp_recovery_per_sec }) },
-  ritualist: { dmgType: ARTS },
+  // UMD-X: each hit 虚弱 −atk for duration seconds (职业-20)
+  underminer: { dmgType: ARTS, trait: (bb, own) => ({
+    ...whileOf('eliteEnemies', { spRecoveryFlat: bb.sp_recovery_per_sec ?? own?.sp_recovery_per_sec }),
+    ...(bb.atk && bb.duration ? { hitStatus: { key: 'weaken', seconds: bb.duration, value: -bb.atk } } : {}),
+  }) },
+  // RIT-X: 元素损伤 on an elite or leader × ep_damage_scale (职业-17); RIT-Y: the enemies in its range 元素脆弱 damage_scale (the
+  // module's own data; 职业-20)
+  ritualist: { dmgType: ARTS, trait: (bb, own, type) => ({
+    ...vsWhen('elite', 'ep', bb.ep_damage_scale), ...(type === 'RIT-Y' && own?.damage_scale ? { auras: [{ to: 'range', mods: { elementalTakenMul: own.damage_scale } }] } : {}),
+  }) },
   // its support devices are summons (召唤-4); 触发型效果 are its skills' (职业-7)
   craftsman: {},
   // RAN-X: attack + atk while another operator in its range has its skill running (职业-18)
@@ -246,12 +285,19 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // TRP-D: itself on melee tiles too (the module's own data buildable_type 3; 职业-19)
   traper: { trait: (_bb, own) => ({ trapTiles: true, ...(own?.buildable_type === 3 ? { meleeTiles: true } : {}) }) },
   // every enemy in range; half of the physical and arts hits dodged (blackboard prob)
-  stalker: { trait: (bb) => ({ filter: 'ALL', targets: 'all', blockedFirst: false, mods: { dodgePhys: bb.prob ?? 0.5, dodgeArts: bb.prob ?? 0.5 } }) },
+  // AMB-X: the enemies in its range move − move_speed (直接乘算; the module's own data; 职业-20)
+  stalker: { trait: (bb, own, type) => ({
+    filter: 'ALL', targets: 'all', blockedFirst: false, mods: { dodgePhys: bb.prob ?? 0.5, dodgeArts: bb.prob ?? 0.5 },
+    ...(type === 'AMB-X' && own?.move_speed ? { auras: [{ to: 'range', mods: { movePct: own.move_speed } }] } : {}),
+  }) },
   // melee, but may stand on ranged tiles too (职业-10)
   pusher: { trait: () => ({ targets: 'blockCnt', rangedTiles: true }) },
   hookmaster: { trait: () => ({ antiAir: true, rangedTiles: true }) },
   // no refund; the blackboard's cost (negative) every interval seconds on the field, or it retreats (职业-10)
-  merchant: { trait: (bb) => ({ refund: 0, costDrain: { every: bb.interval ?? 3, cost: -(bb.cost ?? -3) } }) },
+  // MER-Y: attack + atk for each upkeep payment, at most max_stack_cnt (the module's own data; 职业-20)
+  merchant: { trait: (bb, own, type) => ({
+    refund: 0, costDrain: { every: bb.interval ?? 3, cost: -(bb.cost ?? -3) }, ...(type === 'MER-Y' && own?.atk ? { payStack: { atk: own.atk, max: own.max_stack_cnt ?? 5 } } : {}),
+  }) },
   // GEE-X: SP recovery + sp_recovery_per_sec while its HP is above 80 % (the module's own data, or 新约能天使's trait keys; 职业-18)
   geek: { trait: (bb, own) => ({
     hpDrain: bb.hp_ratio ?? 0.01, ...whileOf('hpAbove', { spRecoveryFlat: own?.sp_recovery_per_sec ?? bb['angel2_tr[e].sp_recovery_per_sec'] }, bb['angel2_tr[e].hp_ratio'] ?? 0.8),
@@ -263,12 +309,13 @@ export const coveredBranch = (branch) => Object.hasOwn(BRANCHES, branch);
 
 /**
  * An operator record with its branch's trait (职业-7): the damage type and the trait data from the branch table and the
- * trait's blackboard (`traitBb`) and its module's hidden talents' (`hiddenBb`, 干员-7); an uncovered branch adds nothing.
- * @param {OperatorDef & { traitBb?: Record<string, number>, hiddenBb?: Record<string, number> }} op @returns {OperatorDef}
+ * trait's blackboard (`traitBb`), its module's hidden talents' (`hiddenBb`, 干员-7) and its module's type (`moduleType`,
+ * such as `SPT-X`); an uncovered branch adds nothing.
+ * @param {OperatorDef & { traitBb?: Record<string, number>, hiddenBb?: Record<string, number>, moduleType?: string }} op @returns {OperatorDef}
  */
 export function withTrait(op) {
-  const { traitBb = {}, hiddenBb = {}, ...rest } = op;
+  const { traitBb = {}, hiddenBb = {}, moduleType, ...rest } = op;
   const b = op.branch && coveredBranch(op.branch) ? BRANCHES[op.branch] : null;
   if (!b) return rest;
-  return { ...rest, ...(b.dmgType ? { dmgType: b.dmgType } : {}), trait: { ...b.trait?.(traitBb, hiddenBb), bb: { ...traitBb } } };
+  return { ...rest, ...(b.dmgType ? { dmgType: b.dmgType } : {}), trait: { ...b.trait?.(traitBb, hiddenBb, moduleType), bb: { ...traitBb } } };
 }

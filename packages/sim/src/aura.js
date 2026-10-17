@@ -8,14 +8,17 @@ import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune } from './buffs.js';
 import { inKeys, hostile } from './targeting.js';
 import { reachKeys } from './reach.js';
-import { traitOf, dollNow } from './traits.js';
+import { traitOf, dollNow, summonHeld } from './traits.js';
 import { statMods } from './skills.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
-/** What an aura gives one unit: its source, its strength (to see a change) and its modifiers. @typedef {{ src: number, value: number, mods: Record<string, number> }} Want */
+/**
+ * What an aura gives one unit: its source, its strength (to see a change), its modifiers and flags.
+ * @typedef {{ src: number, value: number, mods: Record<string, number>, flags?: Record<string, boolean> }} Want
+ */
 
 /** Whether a buff is an aura's. @param {{ key: string }} b */
-const isAura = (b) => b.key.startsWith('aura:') || b.key.startsWith('field:') || b.key.startsWith('range:') || b.key.startsWith('doll:');
+const isAura = (b) => b.key.startsWith('aura:') || b.key.startsWith('field:') || b.key.startsWith('range:') || b.key.startsWith('doll:') || b.key.startsWith('mod:');
 
 /**
  * An aura's share of its source's attack now (职业-13): its skill's `attack@atk_to_hp_recovery_ratio` (or the same key
@@ -85,6 +88,21 @@ function dollAura(c, src, units, want) {
 }
 
 /**
+ * The auras a module adds to an operator's trait (职业-20): the enemies (not neutral) it blocks, those its own summons
+ * block, or those with a tile in its attack range, each with the aura's modifiers and flags — a buff `mod:<its id>:<n>`.
+ * @param {World} w @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
+ */
+function moduleAuras(w, c, src, units, want) {
+  const list = traitOf(c, src).auras;
+  if (list.length === 0) return;
+  const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src), bySummon = summonHeld(w, src);
+  const holds = { blocked: (/** @type {Unit} */ u) => u.blockedBy === src.id, summonBlocked: bySummon, range: (/** @type {Unit} */ u) => inKeys(u, keys, grid) };
+  list.forEach((a, i) => {
+    for (const u of units) if (hostile(u) && holds[a.to](u)) want.get(u)?.set(`mod:${src.id}:${i}`, { src: src.id, value: 0, mods: a.mods ?? {}, ...(a.flags ? { flags: a.flags } : {}) });
+  });
+}
+
+/**
  * A device's modifiers for every enemy on the field, neutral units aside (装置-4): one buff per device, so the devices'
  * modifiers stack.
  * @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
@@ -96,8 +114,8 @@ function deviceAura(c, src, units, want) {
 }
 
 /**
- * Every aura this frame, before the operators' turns (职业-13, 职业-16, 部署-5, 部署-6, 装置-4): each operator on the
- * field gives its regen aura, its on-field team talents, its in-range talents and its 替身's slow as buffs, each device
+ * Every aura this frame, before the operators' turns (职业-13, 职业-16, 职业-20, 部署-5, 部署-6, 装置-4): each operator on
+ * the field gives its regen aura, its on-field team talents, its in-range talents, its 替身's slow and its module's auras as buffs, each device
  * its modifiers for the enemies; a unit out of an aura's reach, or whose source left, loses its buff.
  * @param {World} w @param {Content} c
  */
@@ -110,6 +128,7 @@ export function auras(w, c) {
     fieldTalents(c, src, ops, want);
     rangeTalents(c, src, units, want);
     dollAura(c, src, units, want);
+    moduleAuras(w, c, src, units, want);
   }
   for (const src of units) if (src.kind === KIND.DEVICE) deviceAura(c, src, units, want);
   for (const u of w.units) sync(u, want.get(u) ?? new Map());
@@ -123,7 +142,7 @@ function sync(u, want) {
   for (const b of u.buffs.filter((x) => isAura(x) && !want.has(x.key))) removeBuff(u, b);
   for (const [key, x] of want) {
     const b = u.buffs.find((y) => y.key === key);
-    if (!b) addBuff(u, makeBuff({ key, src: x.src, value: x.value, mods: x.mods }));
+    if (!b) addBuff(u, makeBuff({ key, src: x.src, value: x.value, mods: x.mods, ...(x.flags ? { flags: x.flags } : {}) }));
     else if (b.value !== x.value) retune(u, b, x.value, x.mods);
   }
 }

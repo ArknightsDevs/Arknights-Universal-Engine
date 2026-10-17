@@ -243,3 +243,24 @@ test('[职业-7] [职业-19] [干员-7] the modules\' ranges, targets and tiles,
   const [rin, bls, spt, ins, trp] = await Promise.all([tr('夜莺', 'RIN-Y'), tr('淬羽赫默', 'BLS-Y'), tr('信仰搅拌机', 'SPT-Y'), tr('杜宾', 'INS-Y'), tr('艾拉', 'TRP-D')]);
   assert.deepEqual([rin.targets, bls.targets, spt.whiles, ins.rangedTiles, trp.meleeTiles], [4, 2, [{ when: 'always', mods: { rangeExtend: 1 } }], true, true]);
 });
+
+test('[职业-7] [职业-20] the modules\' riders, SP, auras and 元素损伤, from the real data', async () => {
+  const [silver, sharp, thorns, cuirass, gnosis] = await Promise.all([withModule('银灰', 'LOR-X'), withModule('领主·Sharp', 'LOR-X'), withModule('棘刺', 'LOR-D'), withModule('坚雷', 'AST-X'), withModule('灵知', 'UMD-X')]);
+  assert.deepEqual([silver.extraArts, sharp.extraArts, thorns.epRider, cuirass.extraArts, cuirass.counterArts, gnosis.hitStatus], [
+    0.1, 0.1, { el: 'SANITY', ratio: 0.1, arts: false }, 0.1, 0.1, { key: 'weaken', seconds: 2, value: 0.1 },
+  ]);
+  const [ifrit, logos, ebenholz, viviana, cast] = await Promise.all([withModule('伊芙利特', 'BLA-D'), withModule('逻各斯', 'CCR-D'), withModule('黑键', 'MSC-D'), withModule('薇薇安娜', 'AFT-D'), withModule('铸铁', 'AFT-Y')]);
+  assert.deepEqual([ifrit.epRider, logos.epRider, ebenholz.epRider, viviana.burstHit, cast.auras], [
+    { el: 'FIRE', ratio: 0.08, arts: true }, { el: 'DARK', ratio: 0.08, arts: true }, { el: 'DARK', ratio: 0.08, arts: true }, { el: 'FIRE', scale: 0.15 },
+    [{ to: 'blocked', mods: { artsTakenMul: 1.1 } }],
+  ]);
+  const [snow, keeper, narant] = await Promise.all([withModule('雪绒', 'CCR-Y'), withModule('守林人', 'DEA-Y'), withModule('娜仁图亚', 'LPS-Y')]);
+  assert.deepEqual([snow.spOn, keeper.spOn, narant.spOn], [{ on: 'elite', sp: 1 }, { on: 'survives', sp: 1 }, { on: 'catch', sp: 1, every: 5 }]);
+  const [heart, valarqvin, mizuki, jessica, muelsyse, yu, lee] = await Promise.all([withModule('塑心', 'RIT-Y'), withModule('凛视', 'RIT-X'), withModule('水月', 'AMB-X'),
+    withModule('涤火杰西卡', 'SPT-X'), withModule('缪尔赛思', 'TAC-Y'), withModule('余', 'PRP-X'), withModule('老鲤', 'MER-Y')]);
+  assert.deepEqual([heart.auras, valarqvin.vs, mizuki.auras, jessica.auras, muelsyse.auras], [
+    [{ to: 'range', mods: { elementalTakenMul: 1.1 } }], [{ when: 'elite', ep: 1.18 }], [{ to: 'range', mods: { movePct: -0.2 } }],
+    [{ to: 'range', flags: { 'immune:stealth': true } }], [{ to: 'summonBlocked', mods: { taunt: 1 } }],
+  ]);
+  assert.deepEqual([yu.whiles, lee.payStack], [[{ when: 'blocking', mods: { epDealtMul: 1.15 } }], { atk: 0.04, max: 5 }]);
+});

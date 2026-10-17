@@ -8,7 +8,8 @@ import { makeBuff, addBuff, removeBuff } from './buffs.js';
 import { inflict } from './status.js';
 import { dealDamage, heal } from './damage.js';
 import { dealEp } from './elements.js';
-import { vsDamage, vsHeal } from './vs.js';
+import { vsDamage, vsHeal, vsEp } from './vs.js';
+import { afterOwnHit } from './riders.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').TraitDef} TraitDef @typedef {import('./types.js').OperatorDef} OperatorDef */
@@ -24,7 +25,7 @@ export const defaultTrait = (position) => ({
   heal: false, hits: 1, mods: {}, flags: {}, killCost: 0, refund: 0.5, hitStatus: null, splash: null, aftershock: 0, unblockedScale: 1, selfHeal: 0, selfHealMax: Infinity, selfHealOn: 'attack',
   rangedTiles: false, meleeTiles: false, skillArts: false, immuneBlocking: [], hpDrain: 0, costDrain: null, zone: null, chain: null, healOnHit: 0,
   attackInSkill: false, idleMods: {}, idleFlags: {}, idleAirOnly: false, skillSplash: null, liftoffBlock: 0, fortress: 0, charge: null, skillHeal: 0, bullets: null, store: 0, epHeal: 0, funnel: null, boomerang: null, noAttack: false, free: false, regenAura: 0,
-  summonBlocked: false, summonBlockedScale: 1, trapTiles: false, doll: null, vs: [], far: null, crowd: null, packed: null, whiles: [], bb: {},
+  summonBlocked: false, summonBlockedScale: 1, trapTiles: false, doll: null, vs: [], far: null, crowd: null, packed: null, whiles: [], extraArts: 0, counterArts: 0, epRider: null, burstHit: null, spOn: null, payStack: null, auras: [], bb: {},
 });
 
 /**
@@ -149,7 +150,7 @@ export function actorContext(w, c, op, bb) {
     removeBuff: (t, key) => { removeBuff(t, key); },
     applyStatus: (t, key, o) => { inflict(w, t, key, { ...o, src: op }); },
     dealDamage: (t, dmg) => creditedDamage(w, c, op, t, dmg),
-    dealEp: (t, el, amount) => dealEp(w, t, el, amount, op),
+    dealEp: (t, el, amount) => dealEp(w, t, el, amount * vsEp(w, c, op, t), op),
     heal: (t, amount) => heal(w, op, t, amount * vsHeal(w, c, op, t)),
     gainCost: (n) => { gainCost(w, c, op.owner, n); },
   };
@@ -206,7 +207,7 @@ export function traitDeploy(w, c, op) {
  */
 export function traitHit(w, c, op, target) {
   const t = traitOf(c, op);
-  if (t.hitStatus && target.hp > 0) inflict(w, target, t.hitStatus.key, { seconds: t.hitStatus.seconds, src: op });
+  if (t.hitStatus && target.hp > 0) inflict(w, target, t.hitStatus.key, { seconds: t.hitStatus.seconds, src: op, ...(t.hitStatus.value !== undefined ? { value: t.hitStatus.value } : {}) });
   behaviorOf(c, op)?.hit?.(contextOf(w, c, op), target);
 }
 
@@ -231,6 +232,7 @@ export function creditedDamage(w, c, op, target, dmg) {
   const alive = target.hp > 0, taken = dealDamage(w, op, target, dmg, c);
   traitDealt(w, c, op, target, { dmg, taken });
   if (alive && target.hp <= 0) traitKill(w, c, op, target);
+  afterOwnHit(w, c, op, target, { dmg, taken });
   return taken;
 }
 

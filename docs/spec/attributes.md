@@ -24,7 +24,7 @@
 - **范围**：只计入生效的 Buff（状态-2）。伤判类修饰器（受到伤害倍率、闪避）不在这里汇总，而是在结算时逐个处理（伤害-8）。
 - **键名**：每项属性的四类修饰器的键名见下表，沿用 Stronghold 内容接口的名字。没有对应名字的属性，四个键是 `<前缀>Flat`、`<前缀>Pct`、`<前缀>Final`、`<前缀>Mul`。
   - 表外以 `Mul` 结尾的键按最终乘算相乘，其余的键相加。
-  - 其中这几个乘区由伤害和治疗读取（伤害-7、伤害-11）：伤害倍率 `dmgDealtMul`、`physDealtMul`、`artsDealtMul`，治疗倍率 `healingDealtMul`，受到治疗倍率 `healingTakenMul`；元素损伤读取受到元素损伤倍率 `epTakenMul`（元素-2）；攻击读取攻击力倍率乘区 `atkScaleMul`（伤害-6）。
+  - 其中这几个乘区由伤害和治疗读取（伤害-7、伤害-11）：伤害倍率 `dmgDealtMul`、`physDealtMul`、`artsDealtMul`，治疗倍率 `healingDealtMul`，受到治疗倍率 `healingTakenMul`；元素损伤读取受到元素损伤倍率 `epTakenMul`（元素-2），干员造成的元素损伤再乘它的元素损伤倍率 `epDealtMul`（职业-17）；攻击读取攻击力倍率乘区 `atkScaleMul`（伤害-6）。
 
 | 属性 | 基础字段 | 直接加算 | 直接乘算 | 最终加算 | 最终乘算 |
 |---|---|---|---|---|---|

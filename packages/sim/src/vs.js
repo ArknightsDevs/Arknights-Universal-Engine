@@ -45,6 +45,7 @@ const WHEN = Object.freeze({
   burst: (_w, _op, t) => bursting(t),
   onGround: (_w, _op, t) => t.z === 0,
   skill: (_w, _op, _t, _v, dmg) => !!dmg?.isSkill,
+  elite: (_w, _op, t) => t.base.levelType === 'ELITE' || t.base.levelType === 'BOSS',
 });
 
 /**
@@ -88,6 +89,18 @@ export function vsDamage(w, c, op, t, dmg) {
   for (const v of tr.vs) if ((v.atk || v.dmg) && holds(w, op, t, v, dmg)) scaleHit(dmg, v);
   if (tr.far) dmg.mul = (dmg.mul ?? 1) * farMul(op, t, tr.far);
   if (tr.crowd) dmg.mul = (dmg.mul ?? 1) * (1 + tr.crowd.step * Math.min(tr.crowd.cap, crowdOf(w, c, op)));
+}
+
+/**
+ * The 元素损伤 an operator deals a target, by its 元素损伤倍率 (`epDealtMul`, 职业-18) and its trait's 倍率 for the target
+ * (`ep`, 职业-17); 1 for a source that is not an operator.
+ * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t
+ */
+export function vsEp(w, c, src, t) {
+  if (!src || src.kind !== KIND.OPERATOR) return 1;
+  let k = statsOf(src).epDealtMul;
+  for (const v of traitOf(c, src).vs) if (v.ep && holds(w, src, t, v)) k *= v.ep;
+  return k;
 }
 
 /**

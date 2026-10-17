@@ -154,7 +154,8 @@
  * @property {Record<string, boolean>} flags lasting flags while deployed
  * @property {number} killCost cost gained when its attack or skill kills an enemy
  * @property {number} refund the share of the paid cost a retreat returns (返还倍率)
- * @property {{ key: import('./status.js').StatusKey, seconds: number } | null} hitStatus a status each hit gives the target
+ * @property {{ key: import('./status.js').StatusKey, seconds: number, value?: number } | null} hitStatus a status each hit gives the target
+ *   (with its strength, 状态-5)
  * @property {Splash | null} splash its attack also hits the enemies around the target (职业-8)
  * @property {number} aftershock its attack hits once more at this share of its 倍率 (0: no aftershock; 职业-8)
  * @property {number} unblockedScale its attack's 倍率 against an enemy it does not block is multiplied by this (职业-8)
@@ -210,7 +211,22 @@
  * @property {{ cnt: number, atk: number } | null} packed an attack whose splash reaches at least `cnt` enemies, the target's
  *   included, hits at `atk` × its 倍率 (职业-17)
  * @property {WhileMods[]} whiles modifiers it has while a condition on it holds (职业-18)
+ * @property {number} extraArts each hit of its attack also deals arts damage of this share of its attack (职业-20)
+ * @property {number} counterArts each hit of an enemy's attack on it deals the attacker arts damage of this share of its attack (职业-20)
+ * @property {{ el: import('./elements.js').Element, ratio: number, arts: boolean } | null} epRider its damage (arts damage only, `arts`) also deals 元素损伤 of
+ *   `el` of `ratio` of the HP it took (职业-20)
+ * @property {{ el: import('./elements.js').Element, scale: number } | null} burstHit its damage on a target in a burst of `el` also deals elemental damage of
+ *   `scale` of its attack (职业-20)
+ * @property {{ on: 'elite' | 'survives' | 'catch', sp: number, every?: number } | null} spOn SP for a hit of its attack on an elite or
+ *   leader, on a target it did not bring down, or every `every` boomerangs caught (职业-20)
+ * @property {{ atk: number, max: number } | null} payStack each upkeep payment, attack + `atk` (直接乘算), at most `max` steps (职业-20)
+ * @property {ModuleAura[]} auras modifiers or flags it gives other units while they are so (职业-20)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
+ */
+/**
+ * Modifiers or flags an operator's trait gives other units (职业-20): the enemies it blocks (`blocked`), those its own
+ * summons block (`summonBlocked`), those with a tile in its attack range (`range`) — a buff on each while they are so.
+ * @typedef {{ to: 'blocked' | 'summonBlocked' | 'range', mods?: Record<string, number>, flags?: Record<string, boolean> }} ModuleAura
  */
 /**
  * A trait's modifiers while a condition on the operator holds (职业-18): it blocks an enemy (`blocking`) or none
@@ -229,9 +245,9 @@
  * the operator's skill runs (`skillGround`), has less than `value` of its maximum HP (`hpBelow`), has a 重量等级 of at least
  * `value` (`heavy`), stands on the line of tiles straight in front of the operator (`front`), on its tile or the 8 around
  * (`near`), is in an element burst (`burst`), stands on a ground tile (`onGround`), or the hit is the skill's (`skill`);
- * `noDodge`: such a physical hit cannot be dodged.
- * @typedef {{ when: 'blocked' | 'flying' | 'skillGround' | 'hpBelow' | 'heavy' | 'front' | 'near' | 'burst' | 'onGround' | 'skill',
- *   atk?: number, dmg?: number, heal?: number, value?: number, noDodge?: boolean }} VsScale
+ * `noDodge`: such a physical hit cannot be dodged; × `ep` on the 元素损伤 it deals the target, an elite or leader (`elite`).
+ * @typedef {{ when: 'blocked' | 'flying' | 'skillGround' | 'hpBelow' | 'heavy' | 'front' | 'near' | 'burst' | 'onGround' | 'skill' | 'elite',
+ *   atk?: number, dmg?: number, heal?: number, ep?: number, value?: number, noDodge?: boolean }} VsScale
  */
 /**
  * A chain (职业-11): at most `max` targets in all, each jump at `scale` × the one before; a damage chain jumps to the

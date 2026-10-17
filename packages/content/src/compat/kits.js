@@ -37,11 +37,17 @@ function kitTraitOf(entry, level) {
 const KIT_OWNED = Object.freeze({ soulcaster: { summonBlockedScale: 1 } });
 
 /**
- * What a module adds to the trait (职业-17, 职业-18), none: a kit carries its operator's modules itself, their trait
+ * What a module adds to the trait (职业-17, 职业-18, 职业-20), none: a kit carries its operator's modules itself, their trait
  * additions too (兼容-5).
  * @type {Readonly<Partial<import('@aue/sim').TraitDef>>}
  */
-const NO_MODULE_ADDITIONS = Object.freeze({ vs: [], far: null, crowd: null, packed: null, whiles: [] });
+const NO_MODULE_ADDITIONS = Object.freeze({
+  vs: [], far: null, crowd: null, packed: null, whiles: [], extraArts: 0, counterArts: 0, epRider: null, burstHit: null, spOn: null, payStack: null, auras: [],
+});
+
+/** Whether a trait has some of what modules add (NO_MODULE_ADDITIONS). @param {import('@aue/sim').TraitDef} t */
+const moduleAdded = (t) => t.vs.length > 0 || t.whiles.length > 0 || t.auras.length > 0 || t.extraArts > 0 || t.counterArts > 0
+  || !!(t.far || t.crowd || t.packed || t.epRider || t.burstHit || t.spOn || t.payStack);
 
 /**
  * An operator's record under its kit's trait (兼容-5): where the kit's `trait` takes the place of a part of the
@@ -53,7 +59,7 @@ const NO_MODULE_ADDITIONS = Object.freeze({ vs: [], far: null, crowd: null, pack
  * @returns {import('@aue/sim').OperatorDef}
  */
 export function withKitTrait(op, entry, level) {
-  const kt = kitTraitOf(entry, level), t = traits.traitOfDef(op), added = t.vs.length > 0 || t.whiles.length > 0 || !!(t.far || t.crowd || t.packed);
+  const kt = kitTraitOf(entry, level), t = traits.traitOfDef(op), added = moduleAdded(t);
   const over = /** @type {Partial<import('@aue/sim').TraitDef>} */ ({ ...(op.branch && Object.hasOwn(KIT_OWNED, op.branch) ? KIT_OWNED[op.branch] : {}), ...(added ? NO_MODULE_ADDITIONS : {}) });
   if (typeof kt?.afterHit === 'function' && t.aftershock > 0) over.aftershock = 0;
   if (Number(kt?.splashRadius) > 0) over.splash = { scale: 1, ground: false, ...t.splash, radius: Number(kt.splashRadius) };

@@ -12,8 +12,9 @@ import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
 import { blockingImmunity } from './upkeep.js';
 import { zoneScale, chainOf, woundedInRange } from './chain.js';
-import { vsDamage, vsHeal } from './vs.js';
+import { vsDamage, vsHeal, vsEp } from './vs.js';
 import { traitWhiles } from './whiles.js';
+import { afterOwnHit, attacked, hitSp, caughtSp } from './riders.js';
 import { reachKeys } from './reach.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
 import { foeTargets, foeAttack, foeHit, isFoeOf } from './foes.js';
@@ -75,7 +76,7 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * What an attack carries to one target: its damage type and amount, hits, 元素损伤, and an operator's splash and
  * aftershock (职业-8) and chain (职业-11); whether the skill makes it, and which of its hits this is (钩子-3).
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
- *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null,
+ *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number, value?: number } | null,
  *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number } }} Load
  */
 
@@ -117,8 +118,27 @@ function hitDamage(w, c, op, t, load) {
 }
 
 /**
- * One hit of an attack on a target (伤害-7, 元素-2, 职业-5, 职业-17): the damage, what it sets off, a kill credited, the
- * 元素损伤 it carries, the status it gives, the trait's hit. Returns the HP taken.
+ * The options of a hit's status (状态-5): its seconds, its source, its strength when it has one.
+ * @param {{ seconds: number, value?: number }} h @param {Unit | null} src
+ */
+const statusOf = (h, src) => ({ seconds: h.seconds, src, ...(h.value !== undefined ? { value: h.value } : {}) });
+
+/**
+ * What rides on a hit of an attack, after the rest of it (职业-20): on an operator's, its trait's riders and the SP for
+ * it on its main target; on an operator an enemy's attack hit, its trait's reply.
+ * @param {World} w @param {Content} c @param {{ src: Unit | null, t: Unit, load: Load }} h @param {import('./damage.js').Damage} dmg @param {number} dealt
+ */
+function ridesOn(w, c, h, dmg, dealt) {
+  const { src, t, load } = h;
+  if (src && src.kind === KIND.OPERATOR) {
+    afterOwnHit(w, c, src, t, { dmg, taken: dealt });
+    if (!load.hit) hitSp(c, src, t);
+  } else if (src && t.kind === KIND.OPERATOR) attacked(w, c, t, src, dmg);
+}
+
+/**
+ * One hit of an attack on a target (伤害-7, 元素-2, 职业-5, 职业-17, 职业-20): the damage, what it sets off, a kill
+ * credited, the 元素损伤 it carries, the status it gives, the trait's hit, what rides on it. Returns the HP taken.
  * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {Load} load
  */
 function oneHit(w, c, src, t, load) {
@@ -127,9 +147,10 @@ function oneHit(w, c, src, t, load) {
   if (op) traitDealt(w, c, op, t, { dmg, taken: dealt });
   if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
   if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
-  if (el && load.ep > 0) dealEp(w, t, el, load.ep, src);
-  if (load.hitStatus && alive && t.hp > 0) inflict(w, t, load.hitStatus.key, { seconds: load.hitStatus.seconds, src });
+  if (el && load.ep > 0) dealEp(w, t, el, load.ep * vsEp(w, c, src, t), src);
+  if (load.hitStatus && alive && t.hp > 0) inflict(w, t, load.hitStatus.key, statusOf(load.hitStatus, src));
   if (op && alive) traitHit(w, c, op, t);
+  ridesOn(w, c, { src, t, load }, dmg, dealt);
   return dealt;
 }
 
@@ -476,7 +497,10 @@ export function shotsFly(w, c) {
     const src = w.units.find((u) => u.id === s.src && u.hp > 0) ?? null;
     impact(w, c, src, t, { ...s, ranged: true });
     return !!(s.back && src && hasHook(w, 'boomerangHit') && emit(w, 'boomerangHit', { unit: src, target: t, x: s.sx, y: s.sy, isSkill: !!s.skill, shot: s, hold: false }).hold);
-  }, (s, thrower) => { emit(w, 'boomerangCaught', { unit: thrower, x: s.sx, y: s.sy, isSkill: !!s.skill }); });
+  }, (s, thrower) => {
+    caughtSp(c, thrower);
+    emit(w, 'boomerangCaught', { unit: thrower, x: s.sx, y: s.sy, isSkill: !!s.skill });
+  });
 }
 
 /**
