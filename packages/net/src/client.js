@@ -1,7 +1,7 @@
 // The client side of lockstep (spec 同步-3…同步-5, 同步-7, 同步-8): plays sealed frames only, stamps its commands
 // INPUT_DELAY frames ahead, reports its state hash, restores the server's snapshot on welcome and on resync — or, for
-// content with a world setup, replays the sealed commands from frame 0 —, and passes on the speed and pause controls.
-// It runs in the worker; `send` is its transport.
+// content with a world setup, replays the sealed commands from frame 0 —, and passes on the speed and pause controls and
+// the seats' signals (同步-13). It runs in the worker; `send` is its transport.
 import { createWorld, step, stateHash, restoreSnapshot } from '@aue/sim';
 import { INPUT_DELAY, HASH_EVERY } from './constants.js';
 import { framesThisTick } from './pacing.js';
@@ -15,6 +15,7 @@ import { framesThisTick } from './pacing.js';
  * @property {(msg: ClientMessage) => void} send
  * @property {(w: World, events: Record<string, string | number>[]) => void} [onFrame] after every played frame
  * @property {(c: ControlMessage) => void} [onControl] when the speed or pause state changes
+ * @property {(seat: number, s: import('@aue/schema').Signal) => void} [onSignal] a seat's signal (同步-13)
  */
 
 export class LockstepClient {
@@ -43,6 +44,7 @@ export class LockstepClient {
     if (msg.t === 'restamp') this.stats.restamps++;
     if (msg.t === 'error') this.stats.errors++;
     if (msg.t === 'control') { this.control = msg; this.o.onControl?.(msg); }
+    if (msg.t === 'signal') this.o.onSignal?.(msg.seat, msg.s);
   }
 
   /**
@@ -123,4 +125,7 @@ export class LockstepClient {
 
   /** The page has loaded the battle (同步-11). */
   ready() { this.o.send({ t: 'ready' }); }
+
+  /** A signal to the seats (同步-13). @param {import('@aue/schema').Signal} s */
+  signal(s) { this.o.send({ t: 'signal', s }); }
 }

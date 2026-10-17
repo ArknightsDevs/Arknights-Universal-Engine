@@ -1,9 +1,9 @@
-// The server side of lockstep (spec 同步-3, 同步-5…同步-8): the clock, sealing frames, relaying commands, the arbiter's
-// own simulation, desync recovery, the speed and pause controls. Transport-agnostic: messages come in through the
+// The server side of lockstep (spec 同步-3, 同步-5…同步-8, 同步-13): the clock, sealing frames, relaying commands, the
+// arbiter's own simulation, desync recovery, the speed and pause controls, the seats' signals. Transport-agnostic: messages come in through the
 // methods (already validated with clientMessageProblem) and go out through `send`.
 import { PROTOCOL_VERSION } from '@aue/schema';
 import { createWorld, step, stateHash, takeSnapshot, contentHash } from '@aue/sim';
-import { MAX_AHEAD, HASH_HISTORY, HASH_EVERY, framesAt, PAUSE_ASK_MS, RESUME_MS } from './constants.js';
+import { MAX_AHEAD, HASH_HISTORY, HASH_EVERY, framesAt, PAUSE_ASK_MS, RESUME_MS, SIGNAL_RATE } from './constants.js';
 
 /** @typedef {import('@aue/schema').Command} Command @typedef {import('@aue/schema').ServerMessage} ServerMessage */
 /** @typedef {import('@aue/schema').Match} Match */
@@ -12,9 +12,11 @@ import { MAX_AHEAD, HASH_HISTORY, HASH_EVERY, framesAt, PAUSE_ASK_MS, RESUME_MS 
  * The host's options: the content and the match settings it was made from (同步-9; none when the clients know the
  * content otherwise), the seats, the seed, the transport, the desync report; `hashEvery`, the frames between the
  * arbiter's kept hashes, a divisor of HASH_EVERY — the clients report every HASH_EVERY frames (同步-5), so by default
- * it hashes only those; 1 keeps every frame's (tests).
+ * it hashes only those; 1 keeps every frame's (tests); `signals`, the mode's rule for the seats' signals (同步-13): only
+ * those it lets through are passed on.
  * @typedef {{ content: import('@aue/sim').Content, seats: number, seed: number, send: (seat: number, msg: ServerMessage) => void,
- *   onDesync?: (d: Desync) => void, match?: Match | null, hashEvery?: number }} HostOptions
+ *   onDesync?: (d: Desync) => void, match?: Match | null, hashEvery?: number,
+ *   signals?: (seat: number, s: import('@aue/schema').Signal, now: number) => boolean }} HostOptions
  */
 
 export class LockstepHost {
@@ -56,6 +58,9 @@ export class LockstepHost {
     this.askedAt = 0;
     /** @type {number | null} */
     this.resumeAt = null;
+    /** each seat's signal allowance and when it was last counted (同步-13) */
+    /** @type {Map<number, { n: number, at: number }>} */
+    this.allowance = new Map();
   }
 
   /**
@@ -163,6 +168,22 @@ export class LockstepHost {
       this.broadcastControl();
     }
     if (this.asker >= 0 && now - this.askedAt >= PAUSE_ASK_MS) { this.asker = -1; this.broadcastControl(); }
+  }
+
+  /**
+   * A seat's signal (同步-13): once the battle has begun and until it ends, passed on with the seat to every connected
+   * seat — at most SIGNAL_RATE a second from a seat, and only what the mode's rule lets through.
+   * @param {number} seat @param {import('@aue/schema').Signal} s @param {number} now
+   */
+  signal(seat, s, now) {
+    if (!this.begun || this.world.result >= 0) return;
+    const a = this.allowance.get(seat) ?? { n: SIGNAL_RATE, at: now };
+    a.n = Math.min(SIGNAL_RATE, a.n + ((now - a.at) / 1000) * SIGNAL_RATE);
+    a.at = now;
+    this.allowance.set(seat, a);
+    if (a.n < 1 || (this.o.signals && !this.o.signals(seat, s, now))) return;
+    a.n -= 1;
+    for (const to of this.connected) this.o.send(to, { t: 'signal', seat, s });
   }
 
   /** A seat's state hash after `frame` frames (同步-5). @param {number} seat @param {number} frame @param {number} hash */

@@ -44,7 +44,7 @@ function rig() {
           if (m.t === 'ready') { host.ready(0, t.now()); return; }
           if (m.t === 'hello') host.hello(0, t.now()); else if (m.t === 'cmd') host.command(0, m.at, m.cmd); else if (m.t === 'hash') host.hash(0, m.frame, m.hash);
           else if (m.t === 'speed') host.speed(0, m.on, t.now()); else if (m.t === 'pause') host.pause(0, t.now());
-          else if (m.t === 'pauseReply') host.pauseReply(0, m.accept, t.now()); else host.resume(0, t.now());
+          else if (m.t === 'pauseReply') host.pauseReply(0, m.accept, t.now()); else if (m.t === 'signal') host.signal(0, m.s, t.now()); else host.resume(0, t.now());
         } };
       const s = sock;
       t.later(() => s.onopen?.(), 1);
@@ -99,6 +99,15 @@ test('[渲染-8] [渲染-9] marks: from the session\'s world and seat — deploy
   assert.deepEqual(r.session.marks({ op: 'guard', dir: 0, tile: { row: 1, col: 1 } }).range, null, 'a taken tile previews nothing');
   assert.ok(!r.session.marks({ op: 'guard' }).deployable.includes(7), 'nor is it deployable');
   assert.deepEqual(r.session.marks({ tile: { row: 2, col: 0 } }), { type: 'marks', deployable: [], range: null }, 'no own operator there');
+});
+
+test('[同步-13] a signal from the page goes to the server and comes back to the page with its seat', () => {
+  const r = rig();
+  r.session.start({ url: 'ws://x', seat: 0, key: 'k0' });
+  r.t.run(10, () => {});
+  r.session.signal({ kind: 'emote', id: 'multiv3_battle_thanks', theme: 'emoticon_basic' });
+  assert.ok(r.sent.includes('signal'));
+  assert.deepEqual(r.posts.filter((m) => m.type === 'signal'), [{ type: 'signal', seat: 0, s: { kind: 'emote', id: 'multiv3_battle_thanks', theme: 'emoticon_basic' } }]);
 });
 
 test('a closed socket reconnects and the session resumes from the server snapshot', () => {

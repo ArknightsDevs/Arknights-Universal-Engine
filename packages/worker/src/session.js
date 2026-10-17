@@ -78,8 +78,12 @@ export class BattleSession {
     return new LockstepClient({
       content, send: (m) => this.socket?.send(JSON.stringify(m)), onFrame: (_w, ev) => { this.events.push(...ev); },
       onControl: (c) => this.io.post({ type: 'control', fast: c.fast, held: c.held, asker: c.asker, resuming: c.resuming }),
+      onSignal: (seat, s) => this.io.post({ type: 'signal', seat, s }),
     });
   }
+
+  /** A signal from the page to the seats (同步-13). @param {import('@aue/schema').Signal} s */
+  signal(s) { this.client.signal(s); }
 
   /** The page has loaded the battle (同步-11): the server is told, and again after a reconnect. */
   ready() {

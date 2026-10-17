@@ -4,8 +4,10 @@
 //   { type: 'speed', on } | { type: 'pause' } | { type: 'pauseReply', accept } | { type: 'resume' }   the controls
 //   { type: 'debug' }                   reply with { type: 'debug', frame, hash, sealed, stats }
 //   { type: 'marks', op, dir, tile }    reply with { type: 'marks', deployable, range } (render spec 渲染-8, 渲染-9)
+//   { type: 'signal', s }               a signal to the seats (同步-13; validated before it is sent)
 //   { type: 'stop' }
-import { commandProblem } from '@aue/schema';
+// To the page, besides frames and replies: { type: 'signal', seat, s } for a seat's signal.
+import { commandProblem, signalProblem } from '@aue/schema';
 import { skeletonContent, matchContent, loadKits } from '@aue/content';
 import { BattleSession } from './session.js';
 
@@ -50,6 +52,7 @@ const HANDLERS = {
     session.start({ url: String(m.url), seat: Number(m.seat), key: String(m.key) });
   },
   command: (m) => { if (!commandProblem(m.cmd)) session.command(m.cmd); },
+  signal: (m) => { if (!signalProblem(m.s)) session.signal(m.s); },
   speed: (m) => session.control({ type: 'speed', on: m.on === true }),
   pauseReply: (m) => session.control({ type: 'pauseReply', accept: m.accept === true }),
   pause: () => session.control({ type: 'pause' }),
