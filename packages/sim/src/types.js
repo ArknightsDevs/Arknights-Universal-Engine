@@ -163,6 +163,7 @@
  * @property {'attack' | 'damage'} selfHealOn when it heals itself: for the enemies an attack reaches, or for every hit it
  * deals (职业-9)
  * @property {boolean} rangedTiles a melee operator may also be deployed on ranged tiles (部署-1, 职业-10)
+ * @property {boolean} meleeTiles a ranged operator may also be deployed on melee tiles (部署-1, 职业-19)
  * @property {boolean} skillArts its attacks started while its skill runs deal arts damage (职业-10)
  * @property {string[]} immuneBlocking the flags it is immune to while it blocks an enemy (职业-10)
  * @property {number} hpDrain the share of its maximum HP it loses each second, never the last point (职业-10)

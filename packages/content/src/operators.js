@@ -6,6 +6,7 @@ import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
 import { unlockedAt, talentsAt, alwaysOnBb, teamPart, rangePart, critPart, timedPart, deployPart } from './talents.js';
 import { dollOf } from './doll.js';
+import rangeTable from '../data/ranges.json' with { type: 'json' };
 
 /** @typedef {import('@aue/sim').OperatorDef} OperatorDef */
 /**
@@ -199,6 +200,18 @@ export const operatorAt = (t, b) => recordAt(t, b, moduleAt(t, b));
 const hiddenAt = (b, mod) => Object.assign({}, ...moduleTalents(b, mod).filter((c) => c.index < 0 || c.hidden).map((c) => c.bb));
 
 /**
+ * The attack range a module level gives its operator (干员-7): the last of its own talents' unlocked candidates (index
+ * −1, −2; not a token's, valid in every mode and map) with a range id and no blackboard — the range of a part that only
+ * shows 「攻击范围扩大」 (夜莺 RIN-X y-3) —, as offsets (干员-8); null when none has one. A candidate with numbers and a range
+ * id is a talent's area, not the attack range (推进之王 SOL-Y x-5).
+ * @param {Build} b @param {ModuleLevel | null} mod @returns {{ row: number, col: number }[] | null}
+ */
+function moduleRangeAt(b, mod) {
+  const id = moduleTalents(b, mod).filter((c) => c.index < 0 && c.rangeId && Object.keys(c.bb).length === 0).at(-1)?.rangeId;
+  return id ? /** @type {Record<string, { row: number, col: number }[]>} */ (rangeTable.ranges)[id] ?? null : null;
+}
+
+/**
  * A training's record (operatorAt) with the module level given: the operator's own, or what its owner's module gives a
  * summon (召唤-2).
  * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @returns {OperatorDef}
@@ -211,7 +224,7 @@ export function recordAt(t, b, mod) {
   const s = statsAt(t, b, mod), level = slot ? slot.levels[clamp(b.skillLevel, 1, slot.levels.length) - 1] : null;
   const { cost, respawn, fields } = talentFields(t, b, mod), traitBb = traitAt(t, b);
   const rec = withTrait({
-    name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: phase.range, traitBb, hiddenBb: hiddenAt(b, mod),
+    name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: moduleRangeAt(b, mod) ?? phase.range, traitBb, hiddenBb: hiddenAt(b, mod),
     maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: Math.max(0, s.cost + cost), blockCnt: s.blockCnt, baseAttackTime: s.baseAttackTime,
     respawnTime: Math.max(0, s.respawnTime + respawn), aspd: s.aspd, tauntLevel: s.tauntLevel, massLevel: s.massLevel,
     ...fields, ...(slot && level ? { skill: skillDefOf(slot.id, level) } : {}),

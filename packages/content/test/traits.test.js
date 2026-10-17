@@ -228,3 +228,18 @@ test('[职业-7] [职业-17] [职业-18] the modules\' lasting modifiers, a skil
   assert.deepEqual([x.flags, x.immuneBlocking, x.whiles], [{}, [], [{ when: 'notBlocking', mods: { spRecoveryMul: 1 + -0.8 } }]], 'HES-X: no 阻回, SP slower while it blocks none');
   assert.deepEqual(y.whiles.map((/** @type {any} */ v) => v.when), ['notBlocking', 'blocking']);
 });
+
+test('[职业-7] [职业-19] [干员-7] the modules\' ranges, targets and tiles, from the real data', async () => {
+  const at = async (/** @type {string} */ name, /** @type {string} */ type, lv = 1) => {
+    const id = /** @type {string} */ (Object.entries(ROSTER).find(([, r]) => r.name === name)?.[0]), t = await loadTraining(id);
+    const b = { elite: 2, level: t.phases[2].maxLevel, potential: 1, trust: 0, skill: -1, skillLevel: 1 };
+    return { plain: operatorAt(t, b), mod: operatorAt(t, { ...b, module: t.modules.findIndex((m) => m.type === type), moduleLevel: lv }) };
+  };
+  const cells = (/** @type {string} */ id) => /** @type {any} */ (rangeTable.ranges)[id];
+  const [nightingale, tecno, mostima, siege] = await Promise.all([at('夜莺', 'RIN-X'), at('特克诺', 'SOC-Y'), at('莫斯提马', 'SPC-X'), at('推进之王', 'SOL-Y', 3)]);
+  assert.deepEqual([nightingale.mod.range, tecno.mod.range, mostima.mod.range], [cells('y-3'), cells('3-18'), cells('3-1')], '「攻击范围扩大」');
+  assert.deepEqual(siege.mod.range, siege.plain.range, '推进之王 SOL-Y\'s x-5 is 粉碎\'s area, not its attack range');
+  const tr = async (/** @type {string} */ name, /** @type {string} */ type) => /** @type {any} */ (traits.traitOfDef((await at(name, type)).mod));
+  const [rin, bls, spt, ins, trp] = await Promise.all([tr('夜莺', 'RIN-Y'), tr('淬羽赫默', 'BLS-Y'), tr('信仰搅拌机', 'SPT-Y'), tr('杜宾', 'INS-Y'), tr('艾拉', 'TRP-D')]);
+  assert.deepEqual([rin.targets, bls.targets, spt.whiles, ins.rangedTiles, trp.meleeTiles], [4, 2, [{ when: 'always', mods: { rangeExtend: 1 } }], true, true]);
+});

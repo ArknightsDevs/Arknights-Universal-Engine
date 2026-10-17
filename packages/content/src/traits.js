@@ -79,7 +79,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // SWO-X: its skill's damage × damage_scale (职业-17); SWO-Y: def_penetrate_fixed of the target's defence ignored (职业-18)
   sword: { trait: (bb) => ({ hits: 2, ...vsWhen('skill', 'dmg', bb.damage_scale), ...whileOf('always', { defIgnoreFlat: bb.def_penetrate_fixed }) }) },
   // the attack's 倍率 against an enemy it does not block (职业-8)
-  instructor: { trait: (bb) => ({ unblockedScale: bb.atk_scale ?? 1.2 }) },
+  // INS-Y: also on ranged tiles (the module's own data buildable_type 2; 职业-19)
+  instructor: { trait: (bb, own) => ({ unblockedScale: bb.atk_scale ?? 1.2, ...(own?.buildable_type === 2 ? { rangedTiles: true } : {}) }) },
   // LOR-Y: attack speed + attack_speed while cnt (2) enemies are in its range (the trait's, or the module's own data; 职业-18)
   lord: { trait: (bb, own) => ({ antiAir: true, unblockedScale: bb.atk_scale ?? 0.8, ...whileOf('enemies', { aspd: bb.attack_speed ?? own?.attack_speed }, own?.cnt ?? 2) }) },
   // the other enemies around the target take the share of the hit (职业-8)
@@ -117,7 +118,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // GUA-X: its heals × heal_scale on one below hp_ratio of its HP (职业-17); GUA-Y: damage taken − damage_resistance (职业-18)
   guardian: { trait: (bb) => ({ ...(bb.hp_ratio ? vsWhen('hpBelow', 'heal', bb.heal_scale, { value: bb.hp_ratio }) : {}), ...whileOf('always', { dmgTakenMul: taken(bb.damage_resistance) }) }) },
   primprotector: {},
-  shotprotector: { trait: () => ({ antiAir: true }) },
+  // SPT-Y: 攻击距离 + ability_range_forward_extend (职业-19)
+  shotprotector: { trait: (bb) => ({ antiAir: true, ...whileOf('always', { rangeExtend: bb.ability_range_forward_extend }) }) },
   // UNY-X: damage from a unit it blocks × damage_scale; UNY-Y: attack and defence + atk, def while no other operator stands on
   // the 8 tiles around (职业-18)
   unyield: { trait: (bb) => ({
@@ -196,7 +198,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // 医疗
   // PHY-X: heals × heal_scale on one below hp_ratio of its HP; PHY-Y (no hp_ratio): on one on a ground tile (职业-17)
   physician: { trait: (bb) => ({ heal: true, targets: 1, ...vsWhen(bb.hp_ratio ? 'hpBelow' : 'onGround', 'heal', bb.heal_scale, bb.hp_ratio ? { value: bb.hp_ratio } : {}) }) },
-  ringhealer: healer(3),
+  // RIN-Y: heals attack@max_target (4) (the module's own data; 职业-19)
+  ringhealer: { trait: (_bb, own) => ({ heal: true, targets: own?.['attack@max_target'] ?? 3 }) },
   watchman: healer(1),
   // heal_scale for a target outside range 2-3 (职业-11)
   // WAH-X: 抵抗 (one_minus_status_resistance) and 嘲讽等级 + taunt_level (职业-18)
@@ -222,7 +225,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
     ...(own?.cnt ? whileOf('allies', { atkPct: own.atk }, own.cnt) : {}),
   }) },
   // arts; while its skill runs, its attacks heal at heal_scale (职业-12)
-  blessing: { dmgType: ARTS, trait: (bb) => ({ skillHeal: bb.heal_scale ?? 0.75 }) },
+  // BLS-Y: attacks and heals attack@max_target (2) (职业-19)
+  blessing: { dmgType: ARTS, trait: (bb) => ({ skillHeal: bb.heal_scale ?? 0.75, ...(bb['attack@max_target'] ? { targets: bb['attack@max_target'] } : {}) }) },
   summoner: { dmgType: ARTS },
   // UMD-Y: SP recovery + sp_recovery_per_sec while an elite or leader is in its range (the trait's, or the module's own data; 职业-18)
   underminer: { dmgType: ARTS, trait: (bb, own) => whileOf('eliteEnemies', { spRecoveryFlat: bb.sp_recovery_per_sec ?? own?.sp_recovery_per_sec }) },
@@ -239,7 +243,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // at 0 HP in its own form, a switch to its 替身 for duration seconds, attack and HP + atk, max_hp; switches take 1 s (职业-15)
   dollkeeper: { trait: (bb) => ({ doll: { duration: bb.duration ?? 20, switch: DOLL_SWITCH, atk: bb.atk ?? 0, maxHp: bb.max_hp ?? 0 } }) },
   // its summons (traps) not on a tile a ground enemy stands on (职业-14)
-  traper: { trait: () => ({ trapTiles: true }) },
+  // TRP-D: itself on melee tiles too (the module's own data buildable_type 3; 职业-19)
+  traper: { trait: (_bb, own) => ({ trapTiles: true, ...(own?.buildable_type === 3 ? { meleeTiles: true } : {}) }) },
   // every enemy in range; half of the physical and arts hits dodged (blackboard prob)
   stalker: { trait: (bb) => ({ filter: 'ALL', targets: 'all', blockedFirst: false, mods: { dodgePhys: bb.prob ?? 0.5, dodgeArts: bb.prob ?? 0.5 } }) },
   // melee, but may stand on ranged tiles too (职业-10)
