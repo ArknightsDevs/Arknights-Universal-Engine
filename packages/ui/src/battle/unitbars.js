@@ -2,7 +2,7 @@
 // the canvas under its feet — an operator its HP bar and, with a skill, its SP bar (the cast bar while the skill
 // runs) on their background plate; an enemy its HP bar (a leader its own); a unit with an element value below its
 // maximum the element dial of its 当前损伤元素; an operator of this seat whose skill can start by hand or be stopped the
-// skill mark at the HUD's popup point. The bars are the pack's prefabs placed by its grid; their parts (the slider, the
+// skill mark, the pack's mark panel at its feet (its marks stand above the panel's centre). The bars are the pack's prefabs placed by its grid; their parts (the slider, the
 // slider trailing it, the dial's images) come from the pack's `hud.units.bars`, the mark's from `hud.units.skillMark`.
 import { refNode } from '../node.js';
 import { setSlider } from '../screen.js';
@@ -96,18 +96,17 @@ function fill(scr, u, h, b) {
 }
 
 /**
- * The skill mark (界面-19): the pack's mark panel at the HUD's popup point showing only the part for the mark — the
- * ready mark, or the stop mark — made again when the mark changes, removed without one.
+ * The skill mark (界面-19): the pack's mark panel at the unit's feet showing only the part for the mark — the ready
+ * mark, or the stop mark — made again when the mark changes, removed without one.
  * @param {Screen} scr @param {Record<string, any>} u @param {Hud} h @param {UnitBar} b
  */
 function showMark(scr, u, h, b) {
-  const want = b.kind === 'char' && b.mark && u.skillMark && u.popup && scr.ctx.pack.screens['unit.skillMark'] ? b.mark : '';
+  const want = b.kind === 'char' && b.mark && u.skillMark && scr.ctx.pack.screens['unit.skillMark'] ? b.mark : '';
   if (want === h.markName) return;
   if (h.mark) { scr.remove(h.mark); h.mark = null; }
   h.markName = want;
-  const at = want ? refNode(h.root, u.popup) : null;
-  if (!at) return;
-  h.mark = scr.instantiate(at, 'unit.skillMark');
+  if (!want) return;
+  h.mark = scr.instantiate(h.root, 'unit.skillMark');
   for (const [part, ref] of Object.entries(u.skillMark)) {
     const n = part === 'count' ? null : refNode(h.mark, ref);
     if (n) n.active = part === want;

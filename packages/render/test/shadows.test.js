@@ -66,5 +66,9 @@ test('[渲染-21] a flying enemy is drawn in the air over its shadow on the grou
   assert.ok(Math.abs(drone.position.y - sd.position.y - ENEMY_GRAPHIC.up - HOVER) < 1e-12, 'a figure: its graphic, lifted');
   assert.ok(Math.abs(bat.position.y - sb.position.y - HOVER) < 1e-12, 'a card too');
   assert.deepEqual([u.lift(1), u.lift(2), u.lift(3)], [HOVER, HOVER, 0]);
+  const high = { ...level, tiles: level.tiles.map((/** @type {any[]} */ r, /** @type {number} */ y) => r.map((t, x) => (x === 1 && y === 1 ? { ...t, height: 'HIGHLAND' } : t))) };
+  u.update(view(2, [{ id: 1, kind: 1, x: 1, y: 1, z: 1 }]), {}, high, 0);
+  assert.ok(Math.abs(drone.position.y - ENEMY_GRAPHIC.up - HOVER) < 1e-12, 'a constant altitude over the ground, whatever level it started on');
+  assert.ok(sd.position.y > 0.3, 'its shadow on the high tile under it');
   u.dispose();
 });

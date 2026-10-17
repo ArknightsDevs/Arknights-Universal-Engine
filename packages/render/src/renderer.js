@@ -54,7 +54,7 @@ const terrainTextures = (o) => (o.effects?.data.named?.tile_start ? new Map([...
 /**
  * Where things land on the canvas, in its CSS pixels (渲染-13): `screenOf` a point of the field — tile coordinates
  * (fractions allowed) and a height level (0 ground, 1 high ground); `barsAt` where a unit's bars hang — under its feet,
- * a flyer's in the air (渲染-21).
+ * a flyer's in the air over the ground's level (渲染-21).
  * @param {THREE.Camera} camera @param {{ width: number, height: number, highland?: number }} field @param {HTMLCanvasElement} canvas
  * @param {(id: number) => number} lift how high over its feet a unit is drawn
  */
@@ -64,7 +64,7 @@ function canvasPoints(camera, field, canvas, lift) {
     /** @param {number} col @param {number} row @param {number} heightLevel */
     screenOf: (col, row, heightLevel) => on(tileWorld(field, col, row, heightLevel)),
     /** @param {import('@aue/schema').ViewUnit} u */
-    barsAt: (u) => on(tileWorld(field, u.x, u.y, u.z + lift(u.id) / (field.highland ?? STEP_HEIGHT))),
+    barsAt: (u) => { const up = lift(u.id); return on(tileWorld(field, u.x, u.y, up > 0 ? up / (field.highland ?? STEP_HEIGHT) : u.z)); },
   };
 }
 

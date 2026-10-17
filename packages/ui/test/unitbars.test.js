@@ -117,11 +117,11 @@ test('[界面-20] the element dial: the share, the element colour, the operator 
   assert.equal(at(e, '@ep_slider/ep_break_spread').active, false);
 });
 
-test('[界面-19] the skill mark at the popup point: only the part for the mark, its ring pulsing; made again when it changes, gone without one', () => {
+test('[界面-19] the skill mark at the feet: only the part for the mark, its ring pulsing; made again when it changes, gone without one', () => {
   const { ui, scr, bars } = setup();
   bars.update([{ ...CHAR, mark: 'ready' }, { id: 2, at: [0, 0], kind: 'enemy', hp: 1, sp: null, el: null, mark: 'ready' }], [1920, 1080]);
   const c = /** @type {any} */ (bars.huds.get(1)), mark = c.mark, part = (/** @type {string} */ r) => /** @type {any} */ (refNode(mark, r));
-  assert.equal(mark.parent.n.name, 'popup', 'under the popup point');
+  assert.equal(mark.parent, c.root, 'at the feet');
   assert.equal(/** @type {any} */ (bars.huds.get(2)).mark, null, 'an enemy none');
   assert.deepEqual([part('@manual_skill_ready').active, part('@manual_skill_suspendable').active, part('@auto_skill_ready').active], [true, false, false]);
   ui.tick(0.25);

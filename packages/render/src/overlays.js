@@ -77,7 +77,8 @@ export function createOverlays(textures, leaders = new Set(), foeDevices = new S
         const x = units.get(u.id) ?? { at: new THREE.Vector3(), bars: [], sprites: [], run: 0 };
         units.set(u.id, x);
         x.run = u.skill === SKILL_STATE.RUNNING ? Math.max(x.run, u.skillLeft) : 0;
-        x.at.set(...toThree(tileWorld(level, u.x, u.y, u.z))).y += lift(u.id);
+        const up = lift(u.id);
+        x.at.set(...toThree(tileWorld(level, u.x, u.y, up > 0 ? 0 : u.z))).y += up;
         const key = keys.get(u.id) ?? '';
         x.bars = barsOf(u, leaders.has(key), x.run, foeDevices.has(key));
         ensure(x, x.bars.length);

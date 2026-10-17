@@ -16,7 +16,7 @@ const CARD = 0.8;
 /** Where an enemy's figure stands from its feet (渲染-2): its battle prefab's graphic, this far south and up, in tiles. */
 export const ENEMY_GRAPHIC = Object.freeze({ south: 0.2, up: 0.06 });
 /** How high over the ground a flying enemy is drawn, in tiles (渲染-21). */
-export const HOVER = 1.25;
+export const HOVER = 1.4;
 /** A device block (渲染-16): its footprint and height in tiles; its sides are this much of its top's colour. */
 export const BLOCK = Object.freeze({ size: 0.7, height: 0.35, shade: 0.7 });
 
@@ -55,6 +55,20 @@ function newCard(map) {
 function placeAt(o, at, kind, up) {
   const g = kind === KIND.ENEMY ? ENEMY_GRAPHIC : { south: 0, up: 0 };
   o.position.set(at[0], at[1] + g.up + up, at[2] + g.south);
+}
+
+/**
+ * Where a unit stands and where its shadow lies, in three.js coordinates: at its feet; a flyer (渲染-21) at a constant
+ * altitude over the ground's level, its shadow on the tile under it.
+ * @param {{ width: number, height: number, highland?: number, tiles?: { height?: string }[][] }} level
+ * @param {import('@aue/schema').ViewUnit} u @param {boolean} flying
+ * @returns {{ at: [number, number, number], ground: [number, number, number] }}
+ */
+function placeOf(level, u, flying) {
+  const at = /** @type {[number, number, number]} */ (toThree(tileWorld(level, u.x, u.y, flying ? 0 : u.z)));
+  if (!flying) return { at, ground: at };
+  const under = level.tiles?.[Math.round(u.y)]?.[Math.round(u.x)]?.height === 'HIGHLAND' ? 1 : 0;
+  return { at, ground: /** @type {[number, number, number]} */ (toThree(tileWorld(level, u.x, u.y, under))) };
 }
 
 /** @param {Figure} f */
@@ -97,13 +111,13 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
   /**
    * A unit at its place: a device's mesh (渲染-20), else its figure (an enemy's where its prefab puts it, 渲染-2), else
    * its card or block, made on first sight; a flyer in the air (渲染-21), its shadow on the ground.
-   * @param {import('@aue/schema').ViewUnit} u @param {[number, number, number]} at @param {number} frame
+   * @param {import('@aue/schema').ViewUnit} u @param {{ at: [number, number, number], ground: [number, number, number] }} p @param {number} frame
    */
-  const draw = (u, at, frame) => {
+  const draw = (u, { at, ground }, frame) => {
     if (mesh.draw(u, u.kind === KIND.DEVICE && !figures.has(u.id) && !cards.has(u.id), at)) return;
     const f = figures.get(u.id) ?? (cards.has(u.id) ? null : figure(u, frame)), s = f ? null : cards.get(u.id) ?? card(u);
     if (f) follow(f, u, frame);
-    if (f || s) { placeAt(f ? f.group : /** @type {THREE.Object3D} */ (s), at, f ? u.kind : -1, lift(u.id)); shadows.place(u.id, at); }
+    if (f || s) { placeAt(f ? f.group : /** @type {THREE.Object3D} */ (s), at, f ? u.kind : -1, lift(u.id)); shadows.place(u.id, ground); }
   };
 
   /**
@@ -131,7 +145,7 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
       for (const [id, key] of Object.entries(newKeys)) keys.set(Number(id), key);
       Object.assign(clock, { frame: view.frame, at: now });
       const seen = new Set();
-      for (const u of view.units) { seen.add(u.id); draw(u, toThree(tileWorld(level, u.x, u.y, u.z)), view.frame); }
+      for (const u of view.units) { seen.add(u.id); draw(u, placeOf(level, u, lift(u.id) > 0), view.frame); }
       for (const e of events) if (e.type === 'attack') { const f = figures.get(Number(e.id)); if (f && !f.dying) attacked(f, Number(e.wind), view.frame); }
       prune(seen, new Set(events.filter((e) => e.type === 'death').map((e) => Number(e.id))), view.frame);
     },
