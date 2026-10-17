@@ -29,7 +29,7 @@ const battle = N('UI', {}, [
   N('perspective_root', { canvas: {} }, [
     N('dir', {}, [N('arrows', {}, ['up', 'right', 'down', 'left'].map((d) => N(d, img(), [N('fill', img())]))),
       N('cancel', {}, [N('btn_cancel', img()), N('btn_drag_back', img())]), N('joystick', img())], R({ amin: [0, 0], amax: [1, 1], size: [0, 0], scale: [2.5, 2.5] })),
-    N('menu', {}, [N('withdraw', { button: { ...PRESS, target: '@perspective_root/menu/withdraw' }, ...img() }), N('skill', {}, [N('icon', img(null)),
+    N('menu', {}, [N('withdraw', { button: { ...PRESS, target: '@perspective_root/menu/withdraw' }, ...img() }), N('skill', {}, [N('icon', { button: { ...PRESS, colors: { ...PRESS.colors, disabled: [0.5, 0.5, 0.5, 1] }, target: '@perspective_root/menu/skill/icon' }, ...img(null) }),
       N('toNext', slider('@perspective_root/menu/skill/toNext/fill'), [N('fill', img('sprite/a', { type: 3, fillMethod: 1 }))]),
       N('casting', slider('@perspective_root/menu/skill/casting/fill'), [N('fill', img('sprite/a', { type: 3, fillMethod: 1 }))]),
       ...['ready', 'notReady', 'stop', 'auto', 'bullet'].map((k) => N(k, img()))])], R({ size: [560, 560], pos: [0, 551], scale: [2, 2] })),
@@ -322,6 +322,14 @@ test('[界面-14] the operator menu: retreat and the skill button by the skill\'
   m.show((e, n) => [e, n], { icon: '/s.webp', manual: false, state: 'running', share: 0.25, stoppable: true });
   assert.deepEqual(['casting', 'stop', 'auto', 'ready'].map((k) => at(`skill/${k}`).active), [true, true, true, false]);
   assert.equal(at('casting/fill').fill, 0.25);
+  m.show((e, n) => [e, n], { icon: '/s.webp', manual: true, state: 'ready', share: 1, blocked: true });
+  assert.equal(at('skill/ready').active, false, 'kept from starting it: no ready mark');
+  assert.deepEqual(at('skill/icon').tint, [0.5, 0.5, 0.5, 1], 'the disabled colour');
+  ui.tick(0);
+  /** @type {any} */ (s.one('skill/icon')).el.fire('click');
+  assert.deepEqual(got, [], 'and no answer');
+  m.show((e, n) => [e, n], { icon: '/s.webp', manual: true, state: 'ready', share: 1 });
+  assert.equal(at('skill/icon').tint, null, 'free again: as it is');
   m.show((e, n) => [e, n], null);
   assert.equal(at('skill').active, false, 'no skill: no button');
   m.show((e, n) => [e, n], { icon: null, manual: true, state: 'ready', share: 1 });

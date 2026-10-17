@@ -1,19 +1,22 @@
 // A unit's figure over time (docs/spec/render.md 渲染-3, 渲染-4): which side of its model shows and mirrored or not,
 // and which clip plays — the deploy clip first, each attack from its start at the pace that lands its OnAttack on the
-// hit frame, idle once an attack is over, the die clip after the unit dies.
+// hit frame, idle once an attack is over, the die clip after the unit dies; a model with forms (A_…, B_…) takes its next
+// form's clips after its first attack.
 import * as THREE from 'three';
 import { KIND } from '@aue/schema';
 import { createFigure } from './spine.js';
-import { animationRoles, roleOf, operatorFacing, enemyFacing } from './roles.js';
+import { formRoles, roleOf, operatorFacing, enemyFacing } from './roles.js';
 
 /** Simulation frames per second (the engine's 时间-1). */
 export const FPS = 30;
 
 /**
- * A unit drawn as a figure: its figures and roles by side, the side showing and the mirroring, the role playing, the
- * frame it began and its pace, the role the view last gave, the x it was last at, and whether it is dying.
+ * A unit drawn as a figure: its figures, its roles (of its form) and its forms' roles by side, the side showing and the
+ * mirroring, the role playing (and the clip of an attack playing), the frame it began and its pace, the role the view
+ * last gave, the x it was last at, and whether it is dying.
  * @typedef {{ group: THREE.Group, sides: Record<string, ReturnType<typeof createFigure>>, roles: Record<string, import('./roles.js').Roles>,
- *   side: string, flip: boolean, role: string, since: number, rate: number, view: string, x: number, dying: boolean }} Figure
+ *   forms: Record<string, import('./roles.js').Roles[]>, side: string, flip: boolean, role: string, clip: string, since: number, rate: number,
+ *   view: string, x: number, dying: boolean }} Figure
  */
 
 /**
@@ -25,20 +28,21 @@ export const FPS = 30;
 export function newFigure(m, u, frame) {
   if (!m?.front) return null;
   /** @type {Figure} */
-  const f = { group: new THREE.Group(), sides: {}, roles: {}, side: 'front', flip: false, role: '', since: frame, rate: 1, view: 'idle', x: u.x, dying: false };
+  const f = { group: new THREE.Group(), sides: {}, roles: {}, forms: {}, side: 'front', flip: false, role: '', clip: '', since: frame, rate: 1, view: 'idle', x: u.x, dying: false };
   for (const side of /** @type {const} */ (['front', 'back'])) {
     const model = m[side];
     if (!model) continue;
     f.sides[side] = createFigure(model);
-    f.roles[side] = animationRoles(f.sides[side].animations);
+    f.forms[side] = formRoles(f.sides[side].animations);
+    f.roles[side] = f.forms[side][0];
     f.group.add(f.sides[side].object);
   }
   if (u.kind === KIND.OPERATOR && f.roles.front.start) f.role = 'start';
   return f;
 }
 
-/** @param {Figure} f @param {string} role @param {number} frame @param {number} rate */
-const play = (f, role, frame, rate) => { f.role = role; f.since = frame; f.rate = rate; };
+/** @param {Figure} f @param {string} role @param {number} frame @param {number} rate @param {string} [clip] an attack's clip */
+const play = (f, role, frame, rate, clip = '') => { f.role = role; f.since = frame; f.rate = rate; f.clip = clip; };
 
 /**
  * A figure following its unit's view (渲染-3, 渲染-4): moving or idle starts that role; a deploy or attack clip plays
@@ -57,12 +61,14 @@ export function follow(f, u, frame) {
 
 /**
  * An attack starting (渲染-3): the attack clip from its start, paced so its first OnAttack falls `wind` frames later;
- * at its own pace without a wind-up or an OnAttack.
+ * at its own pace without a wind-up or an OnAttack. A model in its first form of several takes the next form's clips
+ * from then on (the attack itself plays the first form's).
  * @param {Figure} f @param {number} wind @param {number} frame
  */
 export function attacked(f, wind, frame) {
   const fig = f.sides[f.side], name = f.roles[f.side].attack, hit = fig.hit(name);
-  play(f, 'attack', frame, wind > 0 && hit > 0 ? (hit * FPS) / wind : 1);
+  play(f, 'attack', frame, wind > 0 && hit > 0 ? (hit * FPS) / wind : 1, name);
+  for (const [side, forms] of Object.entries(f.forms)) if (forms.length > 1 && f.roles[side] === forms[0]) f.roles[side] = forms[1];
 }
 
 /**
@@ -90,7 +96,7 @@ export function clipAt(f, frame) {
   const fig = f.sides[f.side], roles = f.roles[f.side], t = ((frame - f.since) / FPS) * f.rate;
   const of = (/** @type {string} */ role) => roles[/** @type {'idle'} */ (role)] ?? roles.idle;
   if (f.role === 'start' || f.role === 'attack') {
-    const name = of(f.role), d = fig.duration(name);
+    const name = (f.role === 'attack' && f.clip) || of(f.role), d = fig.duration(name);
     if (t < d) return { name, time: t, loop: false };
     return { name: of(f.role === 'start' ? f.view : 'idle'), time: t - d, loop: true };
   }

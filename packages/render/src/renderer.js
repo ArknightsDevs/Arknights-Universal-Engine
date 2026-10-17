@@ -3,7 +3,7 @@
 // bars) over it with the depth cleared (ADR 0027). The page owns the loop: it calls update() with each render state
 // from the worker and render() once per animation frame.
 import * as THREE from 'three';
-import { applyPose, DEFAULT_VIEW, screenOf, tileWorld } from './camera.js';
+import { applyPose, DEFAULT_VIEW, STEP_HEIGHT, screenOf, tileWorld } from './camera.js';
 import { createTerrain } from './terrain.js';
 import { createKitTerrain } from './kit.js';
 import { createHighlight } from './highlight.js';
@@ -36,6 +36,7 @@ import { spineModel } from './spine.js';
  * @property {number} [pixelScale] the player's 清晰度 (渲染-15): the canvas's pixel ratio is the device's times this (default 1)
  * @property {boolean} [attackEffects] whether the attacks' effects are drawn (渲染-15; default true)
  * @property {Map<string, import('./devicemesh.js').DeviceMeshModel>} [deviceMeshes] devices' mesh models by content key (渲染-20)
+ * @property {Set<string>} [flyers] content keys of the flying enemies, drawn in the air (渲染-21)
  */
 
 /** The events that set off attack effects (渲染-10, 渲染-11); the player may turn them off (渲染-15). */
@@ -49,6 +50,23 @@ export const pixelRatioOf = (device, scale) => (device || 1) * Math.min(2, Math.
 
 /** The textures without the start and end tiles' markers when the effects draw them (渲染-12). @param {RendererOptions} o */
 const terrainTextures = (o) => (o.effects?.data.named?.tile_start ? new Map([...o.textures].filter(([k]) => !/^tile:tile_(start|end)/.test(k))) : o.textures);
+
+/**
+ * Where things land on the canvas, in its CSS pixels (渲染-13): `screenOf` a point of the field — tile coordinates
+ * (fractions allowed) and a height level (0 ground, 1 high ground); `barsAt` where a unit's bars hang — under its feet,
+ * a flyer's in the air (渲染-21).
+ * @param {THREE.Camera} camera @param {{ width: number, height: number, highland?: number }} field @param {HTMLCanvasElement} canvas
+ * @param {(id: number) => number} lift how high over its feet a unit is drawn
+ */
+function canvasPoints(camera, field, canvas, lift) {
+  const on = (/** @type {[number, number, number]} */ p) => screenOf(camera, p, canvas.clientWidth, canvas.clientHeight);
+  return {
+    /** @param {number} col @param {number} row @param {number} heightLevel */
+    screenOf: (col, row, heightLevel) => on(tileWorld(field, col, row, heightLevel)),
+    /** @param {import('@aue/schema').ViewUnit} u */
+    barsAt: (u) => on(tileWorld(field, u.x, u.y, u.z + lift(u.id) / (field.highland ?? STEP_HEIGHT))),
+  };
+}
 
 /** Battle time from the frames the renderer is given: 30 a second, interpolated up to a frame past the last. */
 function battleClock() {
@@ -75,7 +93,7 @@ export function createBattleRenderer(o) {
   scene.background = new THREE.Color(0x404040);
   const highlight = createHighlight(o.level), patch = highlight.patch;
   const terrain = o.kit ? createKitTerrain(o.level, o.kit, terrainTextures(o), patch) : createTerrain(o.level, o.textures, patch);
-  const units = createUnits(o.textures, o.models, o.foeDevices, o.deviceMeshes), field = { ...o.level, highland: o.kit?.kit.highland };
+  const units = createUnits(o.textures, o.models, o.foeDevices, o.deviceMeshes, o.flyers), field = { ...o.level, highland: o.kit?.kit.highland };
   const range = createRange(field, o.textures.get('ui:range')), marks = createTileMarks(field, o.textures.get('ui:range')), clock = battleClock();
   const effects = o.effects ? createEffects(o.effects, field, { skills: o.skills }) : null, placing = createPlacing(o.textures, o.models ?? new Map(), field);
   scene.add(terrain.object, range.object, marks.object, units.shadows, placing.object, units.object, ...(effects ? [effects.object] : []));
@@ -103,7 +121,7 @@ export function createBattleRenderer(o) {
      */
     update(view, keys, events = []) {
       units.update(view, keys, field, performance.now(), events);
-      overlays.update(view, keys, field, units.shows);
+      overlays.update(view, keys, field, units.shows, units.lift);
       clock.seen(view.frame, performance.now());
       effects?.update(view, keys, attackFx ? events : events.filter((e) => !ATTACK_EVENTS.has(String(e.type))));
     },
@@ -128,12 +146,7 @@ export function createBattleRenderer(o) {
       renderer.clearDepth();
       renderer.render(overlays.scene, camera);
     },
-    /**
-     * Where a point of the field lands on the canvas, in its CSS pixels (渲染-13): tile coordinates (fractions allowed)
-     * and a height level (0 ground, 1 high ground).
-     * @param {number} col @param {number} row @param {number} heightLevel
-     */
-    screenOf: (col, row, heightLevel) => screenOf(camera, tileWorld(field, col, row, heightLevel), o.canvas.clientWidth, o.canvas.clientHeight),
+    ...canvasPoints(camera, field, o.canvas, units.lift),
     /** The tile under a point of the canvas, or null. @param {number} x @param {number} y client coordinates */
     pick(x, y) {
       const r = o.canvas.getBoundingClientRect();

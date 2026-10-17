@@ -21,7 +21,11 @@ const EL = (/** @type {number} */ i) => ({ color: [i / 10, 0, 0, 1], icon: `spri
 const screens = {
   battle: N('UI', {}, [N('panel_hud')]),
   unit: N('hud_unit', {}, [N('plugins', { grid: GRID, csf: [0, 2] }, [N('SliderGroupA'), N('SliderGroupB'), N('normalPlugin', { le: { ignore: 1, min: [-1, -1], pref: [-1, -1], flex: [-1, -1] } })],
-    R({ size: [100, 0] }))]),
+    R({ size: [100, 0] })), N('popup', {}, [], R({ pos: [0, 150], size: [1, 1] }))]),
+  'unit.skillMark': N('char_skill_mark_panel', {}, [
+    N('manual_skill_ready', { ...img({ color: [1, 0.85, 0, 1] }), tweens: [{ kind: 'size', from: [47, 47], to: [100, 100], startFrom: 1, time: 0.5, ease: 6, loop: -1, auto: 1 },
+      { kind: 'color', from: [1, 0.85, 0, 1], to: [1, 0.85, 0, 0], startFrom: 1, time: 0.5, ease: 6, loop: -1, auto: 1 }] }, [N('mark_skill_ready', img())]),
+    N('manual_skill_suspendable', img(), [N('mark_skill_ready', img())]), N('auto_skill_ready', img(), [N('text_skill_cnt')])]),
   'bar.charHp': N('char_hp_slider', {}, [bar('hp_slider', 'hp_slider', [bar('slider_back', 'hp_slider/slider_back')])]),
   'bar.enemyHp': N('enemy_hp_slider', {}, [bar('hp_slider', 'hp_slider', [bar('slider_back', 'hp_slider/slider_back')])]),
   'bar.bossHp': N('enemy_boss_hp_slider', {}, [N('hp_slider', slider('@hp_slider/fill_area/fill'), [
@@ -35,7 +39,8 @@ const screens = {
   'bar.enemyEp': N('enemy_ep_slider', {}, [bar('ep_slider', 'ep_slider', [N('ep_center_color', img()), N('ep_break_spread', img())], true)]),
 };
 const units = {
-  plugins: '@plugins', groupA: '@plugins/SliderGroupA', groupB: '@plugins/SliderGroupB', normal: '@plugins/normalPlugin',
+  plugins: '@plugins', groupA: '@plugins/SliderGroupA', groupB: '@plugins/SliderGroupB', normal: '@plugins/normalPlugin', popup: '@popup',
+  skillMark: { ready: '@manual_skill_ready', stop: '@manual_skill_suspendable', auto: '@auto_skill_ready', count: '@auto_skill_ready/text_skill_cnt' },
   bars: {
     'bar.charHp': { slider: '@hp_slider', back: '@hp_slider/slider_back', end: 0 }, 'bar.enemyHp': { slider: '@hp_slider', back: '@hp_slider/slider_back', end: 0 },
     'bar.bossHp': { slider: '@hp_slider', back: '@hp_slider/fill_area/fill/slider_back', end: 1 },
@@ -110,4 +115,29 @@ test('[界面-20] the element dial: the share, the element colour, the operator 
   bars.update([{ ...CHAR, el: null }, { id: 2, at: [0, 0], kind: 'enemy', hp: 1, sp: null, el: { element: 2, share: 0.5, burst: false } }], [1920, 1080]);
   assert.equal(c.ep, null, 'every value full: no dial');
   assert.equal(at(e, '@ep_slider/ep_break_spread').active, false);
+});
+
+test('[界面-19] the skill mark at the popup point: only the part for the mark, its ring pulsing; made again when it changes, gone without one', () => {
+  const { ui, scr, bars } = setup();
+  bars.update([{ ...CHAR, mark: 'ready' }, { id: 2, at: [0, 0], kind: 'enemy', hp: 1, sp: null, el: null, mark: 'ready' }], [1920, 1080]);
+  const c = /** @type {any} */ (bars.huds.get(1)), mark = c.mark, part = (/** @type {string} */ r) => /** @type {any} */ (refNode(mark, r));
+  assert.equal(mark.parent.n.name, 'popup', 'under the popup point');
+  assert.equal(/** @type {any} */ (bars.huds.get(2)).mark, null, 'an enemy none');
+  assert.deepEqual([part('@manual_skill_ready').active, part('@manual_skill_suspendable').active, part('@auto_skill_ready').active], [true, false, false]);
+  ui.tick(0.25);
+  const ring = part('@manual_skill_ready'), u = 1 - 0.5 * 0.5;
+  assert.ok(Math.abs(ring.rt.size[0] - (47 + 53 * u)) < 1e-6, 'growing, eased out');
+  assert.ok(Math.abs(ring.color[3] - (1 - u)) < 1e-6, 'fading');
+  bars.update([{ ...CHAR, mark: 'ready' }], [1920, 1080]);
+  assert.equal(c.mark, mark, 'the same mark: kept');
+  bars.update([{ ...CHAR, mark: 'stop' }], [1920, 1080]);
+  assert.notEqual(c.mark, mark);
+  assert.deepEqual([refNode(c.mark, '@manual_skill_ready')?.active, refNode(c.mark, '@manual_skill_suspendable')?.active], [false, true]);
+  bars.update([{ ...CHAR, mark: null }], [1920, 1080]);
+  assert.equal(c.mark, null);
+  assert.equal(count(scr, 'char_skill_mark_panel'), 0);
+  assert.equal(ring.gone, true);
+  const tickers = /** @type {Set<any>} */ (scr.ctx.tickers), before = tickers.size;
+  ui.tick(0.1);
+  assert.ok(before > 0 && tickers.size < before, 'the removed mark: its tweens stop');
 });

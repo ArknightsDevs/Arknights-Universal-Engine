@@ -43,6 +43,9 @@ const selectableOf = (s) => s.n.comps.button ?? s.n.comps.toggle ?? s.parent?.n.
 /** The prefab a pack reference names ('screen:<key>' or a key). @param {string | null | undefined} ref */
 const screenKey = (ref) => (ref ? (ref.startsWith('screen:') ? ref.slice(7) : ref) : null);
 
+/** A node's tweens that start by themselves (界面-33): its one tween and its others. @param {Record<string, any>} c its components */
+const autoTweens = (c) => [c.tween, ...(c.tweens ?? [])].filter((tw) => tw?.auto);
+
 export class Screen {
   /**
    * @param {Ctx} ctx @param {Animator} anim @param {string} name the prefab @param {OpenOptions} [o] `at`: the path of
@@ -78,7 +81,7 @@ export class Screen {
     for (const s of nodes) {
       const c = s.n.comps;
       if (c.scroll) attachScroll(s);
-      if (c.tween?.auto) startTween(s, c.tween);
+      for (const tw of autoTweens(c)) startTween(s, tw);
       const nest = c.mark ?? c.inst;
       const key = screenKey(nest?.screen);
       if (!nest || !key || !this.ctx.pack.screens[key] || depth >= NEST) continue;
@@ -176,7 +179,7 @@ export class Screen {
     /** @param {boolean} on */
     const set = (on) => {
       owner.pressed = on && usable(owner);
-      if (this.ctx.rays) buttonLook(owner); else setTint(target, owner.pressed ? sel.colors.pressed : null);
+      if (this.ctx.rays || owner.look != null) buttonLook(owner); else setTint(target, owner.pressed ? sel.colors.pressed : null);
     };
     s.el.addEventListener('pointerdown', () => set(true));
     for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) s.el.addEventListener(ev, () => set(false));

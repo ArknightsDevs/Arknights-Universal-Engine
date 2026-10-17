@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { tinyContent } from '@aue/testkit';
 import { ANIM, DIR } from '@aue/schema';
-import { figureArrays, blendFactors, animationRoles, roleOf, operatorFacing, enemyFacing, SKELETON_SCALE, createFigure } from '../src/index.js';
+import { figureArrays, blendFactors, animationRoles, formRoles, roleOf, operatorFacing, enemyFacing, SKELETON_SCALE, createFigure } from '../src/index.js';
 import { createUnits } from '../src/units.js';
 import { tinyModel } from './model.js';
 
@@ -38,6 +38,9 @@ test('[渲染-3] animation roles by name, falling back to idle; the role of what
   assert.equal(animationRoles(['idle_grey', 'Skill_Idle']).idle, 'idle_grey');
   assert.equal(animationRoles(['Pose']).attack, 'Pose');
   assert.deepEqual([ANIM.IDLE, ANIM.MOVE, ANIM.ATTACK, ANIM.DIE].map(roleOf), ['idle', 'move', 'attack', 'die']);
+  assert.deepEqual(formRoles(['B_Idle', 'A_Attack', 'A_Default', 'A_Die', 'A_Idle', 'A_Move', 'B_Attack', 'B_Die', 'B_Move']), [
+    { idle: 'A_Idle', move: 'A_Move', attack: 'A_Attack', die: 'A_Die', start: null }, { idle: 'B_Idle', move: 'B_Move', attack: 'B_Attack', die: 'B_Die', start: null }]);
+  assert.equal(formRoles(['A_Idle', 'Move_Loop', 'B_Die']).length, 1, 'not every name in a form: one form');
 });
 
 test('[渲染-4] facing: operators use the back facing up and mirror facing left; enemies mirror after moving left', () => {

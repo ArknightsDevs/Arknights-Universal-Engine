@@ -7,7 +7,7 @@ export { RANGE } from './range.js';
 export { FX, createEffects, loadEffectPack, cameraAxes } from './effects.js';
 export { effectLead, rootAt, rootAlong } from './fx/player.js';
 export { createFigure, figureArrays, blendFactors, spineModel, SKELETON_SCALE } from './spine.js';
-export { animationRoles, roleOf, operatorFacing, enemyFacing } from './roles.js';
+export { animationRoles, formRoles, roleOf, operatorFacing, enemyFacing } from './roles.js';
 export { barsOf, BAR } from './overlays.js';
 export { cameraPose, applyPose, toThree, tileWorld, screenOf, adapt, DEFAULT_VIEW, FOV, STEP_HEIGHT } from './camera.js';
 export { tileKeys } from './terrain.js';

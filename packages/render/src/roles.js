@@ -28,6 +28,22 @@ export function animationRoles(names) {
 }
 
 /**
+ * The animations of a model by role for each of its forms (渲染-3): a model whose animations come in sets named by a
+ * letter (A_Idle, A_Attack …, B_Idle …) has one form a letter, in letter order, each found among its own set as above;
+ * any other model has one form.
+ * @param {string[]} names @returns {Roles[]}
+ */
+export function formRoles(names) {
+  const letters = [...new Set(names.map((n) => /^([A-Z])_/.exec(n)?.[1] ?? ''))].sort();
+  if (letters.length < 2 || letters.includes('')) return [animationRoles(names)];
+  return letters.map((l) => {
+    const r = animationRoles(names.filter((n) => n.startsWith(`${l}_`)).map((n) => n.slice(2)));
+    const own = (/** @type {string | null} */ n) => (n ? `${l}_${n}` : n);
+    return { idle: own(r.idle) ?? '', move: own(r.move) ?? '', attack: own(r.attack) ?? '', die: own(r.die), start: own(r.start) };
+  });
+}
+
+/**
  * The die animation: Die, else the first ending in Die that is not an attack, else the first with die in its name.
  * @param {(n: string) => string | null} find @param {(re: RegExp, ok?: (n: string) => boolean) => string | null} like
  */

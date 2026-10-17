@@ -32,6 +32,8 @@ export const ELEMENT = Object.freeze({ NONE: 0, SANITY: 1, WATER: 2, FIRE: 3, DA
 export const STATUS_BIT = Object.freeze({
   stun: 1, freeze: 2, sleep: 4, cold: 8, silence: 16, sluggish: 32, fragile: 64, weaken: 128, fear: 256, levitate: 512, root: 1024, invincible: 2048,
 });
+/** The shown statuses that keep an operator from starting its skill (技能-3; 界面-14): stunned, frozen, asleep, levitated, silenced. */
+export const NO_SKILL = STATUS_BIT.stun | STATUS_BIT.freeze | STATUS_BIT.sleep | STATUS_BIT.levitate | STATUS_BIT.silence;
 
 /** @typedef {{ life: number, cost: number }} ViewPlayer */
 /**

@@ -2,7 +2,8 @@
 // with a mesh model that mesh at its level (渲染-20), else a card with the operator's avatar or the enemy's icon standing
 // at its feet; a device with none of them is a block in its side's colour (渲染-16); any other unit with neither is not drawn. Figures, cards and blocks are depth-tested against
 // the terrain without writing depth (ADR 0027). A figure whose unit died stays to play its die clip. Every figure, card
-// and block has a shadow (渲染-6) for as long as it is drawn.
+// and block has a shadow (渲染-6) for as long as it is drawn. An enemy's figure stands where its prefab puts its graphic,
+// a little south of and above its feet (渲染-2); a flying enemy is drawn in the air over its shadow (渲染-21).
 import * as THREE from 'three';
 import { KIND } from '@aue/schema';
 import { toThree, tileWorld } from './camera.js';
@@ -12,6 +13,10 @@ import { BAR } from './overlays.js';
 import { createMeshDrawer } from './devicemesh.js';
 
 const CARD = 0.8;
+/** Where an enemy's figure stands from its feet (渲染-2): its battle prefab's graphic, this far south and up, in tiles. */
+export const ENEMY_GRAPHIC = Object.freeze({ south: 0.2, up: 0.06 });
+/** How high over the ground a flying enemy is drawn, in tiles (渲染-21). */
+export const HOVER = 1.25;
 /** A device block (渲染-16): its footprint and height in tiles; its sides are this much of its top's colour. */
 export const BLOCK = Object.freeze({ size: 0.7, height: 0.35, shade: 0.7 });
 
@@ -42,6 +47,16 @@ function newCard(map) {
   return s;
 }
 
+/**
+ * Puts a unit's figure, card or block at its feet: an enemy's figure where its prefab puts its graphic (渲染-2), lifted
+ * by `up` (a flyer's hover, 渲染-21).
+ * @param {THREE.Object3D} o @param {[number, number, number]} at @param {number} kind the unit's kind for a figure, else −1 @param {number} up
+ */
+function placeAt(o, at, kind, up) {
+  const g = kind === KIND.ENEMY ? ENEMY_GRAPHIC : { south: 0, up: 0 };
+  o.position.set(at[0], at[1] + g.up + up, at[2] + g.south);
+}
+
 /** @param {Figure} f */
 const disposeFigure = (f) => { for (const x of Object.values(f.sides)) x.dispose(); };
 
@@ -50,8 +65,9 @@ const disposeFigure = (f) => { for (const x of Object.values(f.sides)) x.dispose
  * @param {Map<string, THREE.Texture>} textures @param {Models} [models] by content key (operators by character id)
  * @param {Set<string>} [foeDevices] content keys of the devices on the enemies' side (装置-3)
  * @param {Map<string, import('./devicemesh.js').DeviceMeshModel>} [meshes] devices' mesh models by content key (渲染-20)
+ * @param {Set<string>} [flyers] content keys of the flying enemies (渲染-21)
  */
-export function createUnits(textures, models = new Map(), foeDevices = new Set(), meshes = new Map()) {
+export function createUnits(textures, models = new Map(), foeDevices = new Set(), meshes = new Map(), flyers = new Set()) {
   const group = new THREE.Group(), shadows = createShadows(textures.get('ui:shadow'));
   /** @type {Map<number, THREE.Sprite | THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>>} cards and blocks */
   const cards = new Map();
@@ -71,22 +87,23 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
   /** @param {import('@aue/schema').ViewUnit} u @param {number} frame */
   const figure = (u, frame) => {
     const f = newFigure(models.get(keys.get(u.id) ?? ''), u, frame);
-    if (!f) return null;
-    group.add(f.group);
-    figures.set(u.id, f);
+    if (f) { group.add(f.group); figures.set(u.id, f); }
     return f;
   };
 
+  /** How high over its feet a unit is drawn (渲染-21): a flying enemy's hover, else 0. @param {number} id */
+  const lift = (id) => (flyers.has(keys.get(id) ?? '') ? HOVER : 0);
+
   /**
-   * A unit at its place: a device's mesh (渲染-20), else its figure, else its card or block, made on first sight.
+   * A unit at its place: a device's mesh (渲染-20), else its figure (an enemy's where its prefab puts it, 渲染-2), else
+   * its card or block, made on first sight; a flyer in the air (渲染-21), its shadow on the ground.
    * @param {import('@aue/schema').ViewUnit} u @param {[number, number, number]} at @param {number} frame
    */
   const draw = (u, at, frame) => {
     if (mesh.draw(u, u.kind === KIND.DEVICE && !figures.has(u.id) && !cards.has(u.id), at)) return;
-    const f = figures.get(u.id) ?? (cards.has(u.id) ? null : figure(u, frame));
-    if (f) { follow(f, u, frame); f.group.position.set(...at); shadows.place(u.id, at); return; }
-    const s = cards.get(u.id) ?? card(u);
-    if (s) { s.position.set(...at); shadows.place(u.id, at); }
+    const f = figures.get(u.id) ?? (cards.has(u.id) ? null : figure(u, frame)), s = f ? null : cards.get(u.id) ?? card(u);
+    if (f) follow(f, u, frame);
+    if (f || s) { placeAt(f ? f.group : /** @type {THREE.Object3D} */ (s), at, f ? u.kind : -1, lift(u.id)); shadows.place(u.id, at); }
   };
 
   /**
@@ -125,6 +142,7 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
     },
     /** The facilities' levels (守御-3) by unit id; those not given are at 0. @param {Record<string, number>} by */
     setLevels: mesh.setLevels,
+    lift,
     count: () => cards.size + figures.size + mesh.placed.size,
     /** Whether a unit is drawn (as a living figure, a mesh or a card). @param {number} id */
     shows: (id) => cards.has(id) || mesh.placed.has(id) || (figures.has(id) && !figures.get(id)?.dying),

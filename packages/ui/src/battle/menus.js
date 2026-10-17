@@ -9,8 +9,9 @@ import { groundTransform } from '../persp.js';
 /** A point of the field on the page: a ground offset (tiles east, north) from the point to page pixels. @typedef {(east: number, north: number) => number[]} ToPage */
 /**
  * An operator's skill as the menu shows it: its icon (a URL; none: no skill button), whether it starts by hand, its
- * state — gathering SP (the share gathered), ready, running (the share of its time left) —, whether it may be stopped.
- * @typedef {{ icon: string | null, manual: boolean, state: 'charging' | 'ready' | 'running', share: number, stoppable?: boolean }} MenuSkill
+ * state — gathering SP (the share gathered), ready, running (the share of its time left) —, whether it may be stopped,
+ * whether a status keeps its operator from starting it now (stunned, frozen, asleep, silenced …).
+ * @typedef {{ icon: string | null, manual: boolean, state: 'charging' | 'ready' | 'running', share: number, stoppable?: boolean, blocked?: boolean }} MenuSkill
  */
 
 /** The facings in the order of the selector's arrows: up, right, down, left (schema DIR: right 0, up 1, left 2, down 3). */
@@ -91,12 +92,22 @@ export function createFieldMenus(ui, hud, on) {
   };
 }
 
+/**
+ * The skill button's icon, and its state: disabled while a status keeps the operator from its skill (界面-14).
+ * @param {Screen} scr @param {UiNode | null} icon @param {UiNode | null} btn @param {MenuSkill} s
+ */
+function showIcon(scr, icon, btn, s) {
+  if (icon) { icon.picture = s.icon; icon.paintKey = ''; }
+  if (btn) scr.state('', s.blocked ? 2 : 0, btn);
+}
+
 /** @param {Screen} scr @param {string} ref @param {() => void} fn */
 function tapRef(scr, ref, fn) { const n = refNode(scr.root, ref); if (n) scr.tap('', fn, n); }
 
 /**
  * The skill button (界面-14): its icon; the SP gathered filling it while charging; the ready mark when it can start by
- * hand; the time left while it runs, and the stop mark when it may be stopped; nothing without a skill or an icon.
+ * hand; the time left while it runs, and the stop mark when it may be stopped; in its disabled colour, not taking taps
+ * and without the ready mark while a status keeps the operator from starting it; nothing without a skill or an icon.
  * @param {Screen} scr @param {Record<string, any>} m @param {MenuSkill | null} s
  */
 function showSkill(scr, m, s) {
@@ -105,14 +116,13 @@ function showSkill(scr, m, s) {
   panel.active = !!s?.icon;
   if (!s?.icon) return;
   const at = (/** @type {string} */ key) => refNode(scr.root, m[key]);
-  const icon = at('icon');
-  if (icon) { icon.picture = s.icon; icon.paintKey = ''; }
+  showIcon(scr, at('icon'), at('skill'), s);
   for (const key of ['readyNotFull', 'bullet', 'retrigger', 'amount', 'progress', 'range']) { const n = at(key); if (n) n.active = false; }
   const set = (/** @type {string} */ key, /** @type {boolean} */ v) => { const n = at(key); if (n) n.active = v; };
   set('toNext', s.state === 'charging');
   set('casting', s.state === 'running');
   set('notReady', s.state === 'charging');
-  set('ready', s.state === 'ready' && s.manual);
+  set('ready', s.state === 'ready' && s.manual && !s.blocked);
   set('stop', s.state === 'running' && !!s.stoppable);
   set('auto', !s.manual);
   const toNext = at('toNext'), casting = at('casting');
