@@ -2,7 +2,7 @@
 // state posted to the main thread after each frame time. Everything that touches the platform comes in through `io`,
 // so the session runs the same in a Worker and in a Node test.
 import { serverMessageProblem, PROTOCOL_VERSION } from '@aue/schema';
-import { toView, stateHash, contentHash } from '@aue/sim';
+import { toView, stateHash, contentHash, fortress } from '@aue/sim';
 import { LockstepClient } from '@aue/net';
 import { marksFor } from './marks.js';
 import { operatorCards, summonCards } from './cards.js';
@@ -31,10 +31,10 @@ const FRAME_MS = 1000 / 30, RECONNECT_MS = 1000;
  */
 /**
  * 堡垒守御's state the page shows (守御-1, 守御-2, 守御-4): the phase, its wave, the frame it ends at, the waves defended,
- * the damage to the last wave, each seat's 「休整完毕」 and builder cards held, the wave's enemies and those gone; each
- * facility's level by unit id (守御-3).
- * @typedef {{ phase: string, wave: number, until: number, defended: number, damage: number, ready: boolean[], pools: Record<string, number>[], total: number, out: number,
- *   levels: Record<number, number> }} FortressStatus
+ * the stamps they earn, the damage to the last wave, each seat's 「休整完毕」 and builder cards held, the wave's enemies and
+ * those gone; each facility's level by unit id (守御-3).
+ * @typedef {{ phase: string, wave: number, until: number, defended: number, stamps: number, damage: number, ready: boolean[], pools: Record<string, number>[], total: number,
+ *   out: number, levels: Record<number, number> }} FortressStatus
  */
 /**
  * The match's state the page shows besides the view (合作-6, 波次-2, 结束-1): the current wave, the current stage, the
@@ -48,7 +48,7 @@ const fortressOf = (w) => {
   const f = w.fortress;
   if (!f) return undefined;
   const levels = Object.fromEntries(w.units.flatMap((u) => (u.fac ? [[u.id, u.fac.level]] : [])));
-  return { phase: f.phase, wave: f.round, until: f.until, defended: f.defended, damage: f.damage, ready: [...f.ready], pools: f.pools.map((p) => ({ ...p })), total: f.total, out: f.out, levels };
+  return { phase: f.phase, wave: f.round, until: f.until, defended: f.defended, stamps: fortress.fortressStamps(f.defended), damage: f.damage, ready: [...f.ready], pools: f.pools.map((p) => ({ ...p })), total: f.total, out: f.out, levels };
 };
 
 /** @param {import('@aue/sim').World} w @param {import('@aue/sim').Content} c @returns {Status} */
