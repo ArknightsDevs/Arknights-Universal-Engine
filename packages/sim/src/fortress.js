@@ -65,25 +65,20 @@ export function fortressHooks(w, c) {
 }
 
 /**
- * The guards of a defence (守御-6): the branches of the rubble piles on the field, each action at its frame — fragments
- * one after another, as a wave's (波次-2). @param {World} w @param {Content} c @returns {FortressState['guards']}
+ * The guards of a defence (守御-6): for each rubble pile's branch, its batch of the wave — the wave's place among its
+ * batches, the last for a later wave —, each spawn at its frame. @param {World} w @param {Content} c @param {number} wave
+ * @returns {FortressState['guards']}
  */
-function guardsOf(w, c) {
+function guardsOf(w, c, wave) {
   const names = [...new Set(w.units.flatMap((u) => (u.kind === KIND.DEVICE && c.devices?.[u.key]?.rubble ? [/** @type {any} */ (c.devices[u.key].rubble).branch] : [])))];
   /** @type {FortressState['guards']} */
   const out = [];
   for (const name of names) {
-    let t = w.frame;
-    for (const frag of c.level.branches?.[name] ?? []) {
-      const start = t + secondsToFrames(frag.preDelay);
-      t = start;
-      for (const a of frag.actions.filter((x) => x.type === 'SPAWN')) {
-        for (let k = 0; k < a.count; k++) {
-          const at = start + secondsToFrames(a.preDelay + k * a.interval);
-          out.push({ at, key: a.key, route: a.route });
-          t = Math.max(t, at);
-        }
-      }
+    const batches = c.level.branches?.[name] ?? [], frag = batches[Math.min(wave, batches.length - 1)];
+    if (!frag) continue;
+    const start = w.frame + secondsToFrames(frag.preDelay);
+    for (const a of frag.actions.filter((x) => x.type === 'SPAWN')) {
+      for (let k = 0; k < a.count; k++) out.push({ at: start + secondsToFrames(a.preDelay + k * a.interval), key: a.key, route: a.route });
     }
   }
   return out;
@@ -97,7 +92,7 @@ export function defendStart(w, c, wave, total) {
   const f = w.fortress;
   if (!f) return;
   const o = /** @type {NonNullable<Content['level']['fortress']>} */ (c.level.fortress), last = wave === c.level.waves.length - 1;
-  Object.assign(f, { phase: 'defend', round: wave, start: w.frame, until: w.frame + secondsToFrames(last ? o.waveLast : o.wave), fell: false, freed: false, guards: guardsOf(w, c),
+  Object.assign(f, { phase: 'defend', round: wave, start: w.frame, until: w.frame + secondsToFrames(last ? o.waveLast : o.wave), fell: false, freed: false, guards: guardsOf(w, c, wave),
     total, out: 0 });
   w.events.push({ type: 'fortress', wave, phase: FORTRESS_PHASE.defend, until: f.until });
 }

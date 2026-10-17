@@ -192,20 +192,21 @@ export function tickBuilders(w, c, giveBack) {
 export const nextToFacility = (w, c, row, col) => facilities(w, c).some(({ u }) => /** @type {any} */ (u.fac).level < TOP && Math.abs(u.x - col) + Math.abs(u.y - row) === 1);
 
 /**
- * The rubble pile this frame (守御-6): from `first` seconds into the defence, every `every` seconds, with no enemy in its
- * range, every seat gets an advanced builder, once a defence. @param {World} w @param {Content} c @param {(seat: number) => void} free
+ * The rubble pile this frame (守御-6): the enemies in its range at a taunt level 1 lower; from `first` seconds into the
+ * defence, every `every` seconds, with no enemy in its range, every seat gets an advanced builder, once a defence.
+ * @param {World} w @param {Content} c @param {(seat: number) => void} free
  */
 export function tickRubble(w, c, free) {
-  const f = /** @type {NonNullable<World['fortress']>} */ (w.fortress);
+  const f = /** @type {NonNullable<World['fortress']>} */ (w.fortress), grid = { rows: c.level.height, cols: c.level.width };
+  const piles = w.units.flatMap((u) => { const r = u.kind === KIND.DEVICE ? c.devices?.[u.key]?.rubble : null; return r ? [{ r, keys: rangeKeys(grid, u, r.cells) }] : []; });
+  if (piles.length === 0) return;
+  const inRange = (/** @type {Unit} */ e, /** @type {Set<number>} */ keys) => e.kind === KIND.ENEMY && e.hp > 0 && keys.has(Math.round(e.y) * c.level.width + Math.round(e.x));
+  for (const e of w.units) if (e.kind === KIND.ENEMY) syncBuff(e, 'rubble:taunt', piles.some((p) => inRange(e, p.keys)) ? { taunt: -1 } : {});
   if (f.phase !== 'defend' || f.freed) return;
-  const since = w.frame - f.start, grid = { rows: c.level.height, cols: c.level.width };
-  for (const u of w.units) {
-    const r = u.kind === KIND.DEVICE ? c.devices?.[u.key]?.rubble : null;
-    if (!r) continue;
+  const since = w.frame - f.start;
+  for (const { r, keys } of piles) {
     const first = secondsToFrames(r.first), every = secondsToFrames(r.every);
-    if (since < first || (since - first) % every !== 0) continue;
-    const keys = rangeKeys(grid, u, r.cells);
-    if (w.units.some((e) => e.kind === KIND.ENEMY && e.hp > 0 && keys.has(Math.round(e.y) * c.level.width + Math.round(e.x)))) continue;
+    if (since < first || (since - first) % every !== 0 || w.units.some((e) => inRange(e, keys))) continue;
     f.freed = true;
     w.players.forEach((_, seat) => free(seat));
     return;

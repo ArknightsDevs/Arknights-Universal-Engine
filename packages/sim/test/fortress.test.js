@@ -265,19 +265,24 @@ test('[守御-5] a 混凝土路障 at level 3 blasts the ground enemies within 1
 test('[守御-6] the rubble pile\'s guards come at each defence; from 5 s, every 2 s, with none in its range every seat gets an advanced builder, once', () => {
   const c = /** @type {any} */ (fortress().c);
   c.level.waves = [0, 1].map(() => oneWave([spawnAt(19, 'slime')]));
-  c.level.branches = { guards: [{ preDelay: 0, actions: [spawnAt(0, 'slime')] }] };
+  c.level.branches = { guards: [{ preDelay: 0, actions: [spawnAt(0, 'slime')] }, { preDelay: 0, actions: [spawnAt(0, 'slime', { count: 2, interval: 0.5 })] }] };
   c.level.predefines.push({ alias: 'pile#1', key: 'pile', hidden: false, row: 1, col: 1, dir: 'UP' });
   const cross = [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: -1 }, { row: 1, col: 0 }, { row: -1, col: 0 }];
   c.devices.pile = device({ blockCnt: 0, rubble: { range: 'x', cells: cross, branch: 'guards', first: 5, every: 2 } });
   const w = /** @type {FWorld} */ (createWorld(c, { seed: 1, players: 2 })), pile = /** @type {any} */ (w.units.find((u) => u.key === 'pile'));
   assert.equal(statsOf(pile).flags.untargetable, true);
-  const ev = run(w, c, 1);
-  assert.deepEqual(ev.filter((e) => e.type === 'spawn').map((e) => e.at), [0], 'the guard at the defence\'s start');
+  const ev = run(w, c, 45);
+  assert.deepEqual(ev.filter((e) => e.type === 'spawn').map((e) => e.at), [0], 'the first batch, one guard, at the defence\'s start');
+  const guard = /** @type {any} */ (w.units.find((u) => u.kind === KIND.ENEMY));
+  assert.equal(statsOf(guard).taunt, -1, 'in its range (on the road beside it): taunt level 1 lower');
   let at = -1;
   for (let i = 0; i < 600 && at < 0; i++) { step(w, c); if (w.fortress.pools[0]['worker2#0'] > 0) at = w.frame - 1; }
   assert.ok(at > 150 && (at - 150) % 60 === 0, `freed at a check after the guard left its range: ${at}`);
   run(w, c, 300);
   assert.deepEqual(w.fortress.pools.map((p, seat) => p[`worker2#${seat}`]), [1, 1], 'one each, once a defence');
+  for (let i = 0; i < 2000 && w.fortress.round < 1; i++) step(w, c, w.fortress.phase === 'rest' ? [[0, { type: 'rest' }], [1, { type: 'rest' }]] : []);
+  const second = w.units.filter((u) => u.kind === KIND.ENEMY && u.wave < 0 && u.born >= w.fortress.start).length;
+  assert.equal(w.fortress.guards.length + second, 2, 'the second defence: the second batch, two guards');
 });
 
 test('[守御-1] [守御-3] snapshots: the progress is state; a restored world gets its hooks back and goes on alike', () => {

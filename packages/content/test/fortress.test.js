@@ -86,6 +86,6 @@ test('[守御-1] [守御-2] [守御-4] IG-DF-1 plays out headless the same way t
   const a = play(), b = play();
   assert.equal(a.hash, b.hash);
   assert.deepEqual(a.seen.slice(0, 4), [[0, FORTRESS_PHASE.defend], [1, FORTRESS_PHASE.rest], [1, FORTRESS_PHASE.defend], [2, FORTRESS_PHASE.rest]]);
-  assert.ok(facilities.facilities(a.w, c).some(({ u }) => (u.fac?.level ?? 0) >= 2), 'builders raised a facility');
+  assert.ok(facilities.facilities(a.w, c).some(({ u }) => (u.fac?.top ?? 0) >= 1), 'builders raised a facility');
   assert.ok(a.w.fortress.defended >= 2);
 });

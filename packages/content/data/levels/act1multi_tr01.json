@@ -1000,15 +1000,40 @@
       },
       {
         "start": {
-          "row": 0,
-          "col": 0
+          "row": 2,
+          "col": 1
         },
         "end": {
-          "row": 0,
-          "col": 0
+          "row": 2,
+          "col": 8
         },
-        "checkpoints": [],
-        "motion": "E_NUM",
+        "checkpoints": [
+          {
+            "type": "DISAPPEAR",
+            "row": -1,
+            "col": 1,
+            "time": 0,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "WAIT_FOR_SECONDS",
+            "row": -1,
+            "col": 1,
+            "time": 1,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "APPEAR_AT_POS",
+            "row": 7,
+            "col": 8,
+            "time": 0,
+            "dx": 0,
+            "dy": 0
+          }
+        ],
+        "motion": "WALK",
         "allowDiagonal": true,
         "spawnOffset": {
           "x": 0,
@@ -1017,15 +1042,40 @@
       },
       {
         "start": {
-          "row": 0,
-          "col": 0
+          "row": 2,
+          "col": 8
         },
         "end": {
-          "row": 0,
-          "col": 0
+          "row": 2,
+          "col": 1
         },
-        "checkpoints": [],
-        "motion": "E_NUM",
+        "checkpoints": [
+          {
+            "type": "DISAPPEAR",
+            "row": -1,
+            "col": 1,
+            "time": 0,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "WAIT_FOR_SECONDS",
+            "row": -1,
+            "col": 1,
+            "time": 1,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "APPEAR_AT_POS",
+            "row": 7,
+            "col": 1,
+            "time": 0,
+            "dx": 0,
+            "dy": 0
+          }
+        ],
+        "motion": "WALK",
         "allowDiagonal": true,
         "spawnOffset": {
           "x": 0,

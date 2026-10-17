@@ -68,21 +68,23 @@ export function difficultyOf(runesRaw, difficulty) {
 }
 
 /**
- * The level's routes, kept in data order, and the map from a data route index to the content's.
- * @param {unknown} routesRaw
+ * The level's routes in first-use order, and the maps from a data route index — of its routes, or of its extra routes
+ * (a branch's, 守御-6) — to the content's. @param {unknown} routesRaw @param {unknown} extraRaw level.extraRoutes
  */
-function routeTable(routesRaw) {
-  const all = asArray(routesRaw, 'level.routes');
-  /** @type {Map<number, number>} */
+function routeTable(routesRaw, extraRaw) {
+  const all = asArray(routesRaw, 'level.routes'), extra = asArray(extraRaw ?? [], 'level.extraRoutes');
+  /** @type {Map<string, number>} */
   const renumber = new Map();
   /** @type {import('./skeleton-world.js').Route[]} */
   const routes = [];
-  const routeOf = (/** @type {number} */ index) => {
-    if (index >= all.length || all[index] === null) throw new Error(`a spawn uses route ${index}, which does not exist`);
-    if (!renumber.has(index)) { renumber.set(index, routes.length); routes.push(readRoute(all[index], `level.routes[${index}]`)); }
-    return /** @type {number} */ (renumber.get(index));
+  /** The route a spawn names, among the level's routes or its extra ones (a branch's, 守御-6), numbered in first-use order. @param {unknown[]} list @param {string} name @param {number} index */
+  const use = (list, name, index) => {
+    if (index >= list.length || list[index] === null) throw new Error(`a spawn uses ${name} ${index}, which does not exist`);
+    const k = `${name}:${index}`;
+    if (!renumber.has(k)) { renumber.set(k, routes.length); routes.push(readRoute(list[index], `level.${name}[${index}]`)); }
+    return /** @type {number} */ (renumber.get(k));
   };
-  return { routes, routeOf };
+  return { routes, routeOf: (/** @type {number} */ i) => use(all, 'routes', i), extraOf: (/** @type {number} */ i) => use(extra, 'extraRoutes', i) };
 }
 
 /**
@@ -160,8 +162,9 @@ function cardsField(raw) {
 export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage, missions, charTable }) {
   const lv = asObject(level, 'level');
   const { width, height, tiles } = extractTiles(field(lv, 'mapData', 'level')), blockEdges = extractEdges(lv.mapData);
-  const { routes, routeOf } = routeTable(field(lv, 'routes', 'level'));
-  const waves = extractWaves(field(lv, 'waves', 'level'), routeOf), branches = branchesOf(lv.branches, routeOf);
+  const { routes, routeOf, extraOf } = routeTable(field(lv, 'routes', 'level'), lv.extraRoutes);
+  // a branch's spawns name the level's extra routes (守御-6)
+  const waves = extractWaves(field(lv, 'waves', 'level'), routeOf), branches = branchesOf(lv.branches, extraOf);
   const runes = lv.runes ?? null, difficulties = { NORMAL: difficultyOf(runes, 'NORMAL'), FOUR_STAR: difficultyOf(runes, 'FOUR_STAR') };
   const frags = [...waves.flatMap((w) => w.fragments), ...Object.values(branches).flat()];
   const spawned = frags.flatMap((f) => f.actions.filter((a) => a.type === 'SPAWN').map((a) => a.key));
