@@ -6,6 +6,7 @@ import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, retune } from './buffs.js';
 import { dealEp } from './elements.js';
 import { gainSp } from './sp.js';
+import { setHp } from './damage.js';
 import { traitOf, creditedDamage } from './traits.js';
 import { vsEp } from './vs.js';
 
@@ -67,6 +68,20 @@ export function caughtSp(c, op) {
   const left = n >= (s.every ?? 1) ? 0 : n;
   if (b) retune(op, b, left, {});
   else addBuff(op, makeBuff({ key: 'catches', src: op.id, value: left }));
+}
+
+/**
+ * An operator at 0 HP this frame keeps its place once a deployment (职业-22): with its trait's second life, a buff
+ * `secondLife` with the life's modifiers, then its HP set to the life's share of its maximum (after them). Whether it
+ * stays. @param {World} w @param {Content} c @param {Unit} u
+ */
+export function secondLifeFatal(w, c, u) {
+  const s = u.kind === KIND.OPERATOR ? traitOf(c, u).secondLife : null;
+  if (!s || u.buffs.some((b) => b.key === 'secondLife')) return false;
+  addBuff(u, makeBuff({ key: 'secondLife', src: u.id, mods: { ...s.mods } }));
+  setHp(u, statsOf(u).maxHp * s.hp);
+  w.events.push({ type: 'heal', id: u.id, target: u.id, amount: u.hp });
+  return true;
 }
 
 /**

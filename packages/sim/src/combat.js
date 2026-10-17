@@ -77,7 +77,7 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * aftershock (职业-8) and chain (职业-11); whether the skill makes it, and which of its hits this is (钩子-3).
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
  *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number, value?: number } | null,
- *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number } }} Load
+ *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number }, aftershocks?: number }} Load
  */
 
 /**
@@ -211,6 +211,7 @@ function loadFor(w, c, a, t, load) {
   const tr = traitOf(c, a);
   return {
     ...load, amount: load.amount * traitScale(w, c, a, t) * funnelScale(c, a, t), splash: tr.skillSplash && inSkill(a) ? tr.skillSplash : tr.splash, aftershock: tr.aftershock, chain: tr.chain,
+    ...(tr.aftershocks !== 1 ? { aftershocks: tr.aftershocks } : {}),
     ...(tr.packed ? { packed: tr.packed } : {}),
   };
 }
@@ -245,7 +246,7 @@ function splashOf(w, t, s) {
 export function impact(w, c, src, t, load) {
   const s = load.splash, around = s ? splashOf(w, t, s) : [];
   const amount = load.packed && around.length + 1 >= load.packed.cnt ? load.amount * load.packed.atk : load.amount;
-  for (const k of load.aftershock ? [1, load.aftershock] : [1]) {
+  for (const k of load.aftershock ? [1, ...Array.from({ length: load.aftershocks ?? 1 }, () => /** @type {number} */ (load.aftershock))] : [1]) {
     const shock = k === 1 ? {} : { hit: /** @type {const} */ ('aftershock') };
     if (t.hp > 0) hitTarget(w, c, src, t, { ...load, amount: amount * k, ...shock });
     for (const u of around) if (u.hp > 0) hitTarget(w, c, src, u, { ...load, amount: amount * k * (s?.scale ?? 1), hit: 'splash', ...shock });

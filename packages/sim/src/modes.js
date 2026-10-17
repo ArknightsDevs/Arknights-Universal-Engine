@@ -114,7 +114,7 @@ export function skillIdle(op, t) {
 export function holdFrames(w, c, op, target) {
   const t = traitOf(c, op), bullets = held(op, 'bullets'), energy = held(op, 'energy');
   if (t.bullets && bullets && bullets.value < t.bullets.max && (bullets.value === 0 || !target)) {
-    retune(op, bullets, bullets.value + 1, {});
+    retune(op, bullets, Math.min(t.bullets.max, bullets.value + 1 + (bullets.value === 0 ? t.bullets.extra ?? 0 : 0)), {});
     return Math.max(1, secondsToFrames(op.base.bat));
   }
   const own = target ? undefined : traitAsk(w, c, op, 'store');

@@ -186,7 +186,8 @@
  *   `steps`, each `atk` ÷ `steps` attack (直接乘算), from the steps of `init` attack at deployment; back to 0 after the
  *   skill ran (职业-12)
  * @property {number} skillHeal while its skill runs, its normal attacks heal at this 倍率 (职业-12)
- * @property {{ max: number, scale: number } | null} bullets each attack spends a bullet at this 倍率; it reloads one at a time (职业-12)
+ * @property {{ max: number, scale: number, extra?: number } | null} bullets each attack spends a bullet at this 倍率; it reloads one at
+ *   a time, `extra` more when it has none (职业-12, 职业-22)
  * @property {number} store the most attack energy it stores when it has no target (0: none; 职业-12)
  * @property {number} epHeal its heals also restore each element value by this share of the heal (职业-12)
  * @property {{ out: number, back: number } | null} boomerang its attack throws boomerangs that come back, at these speeds
@@ -227,6 +228,9 @@
  * @property {number} freeSummons this many of its summons on the field take no place in the deploy limit (部署-2, 职业-21)
  * @property {{ prob: number, scale: number } | null} summonBoost a summon deployed from its card deals × `scale` damage at the
  *   chance `prob` (职业-21)
+ * @property {number} aftershocks how many aftershocks its attack has when it has one (职业-8, 职业-22)
+ * @property {{ hp: number, mods: Record<string, number> } | null} secondLife brought to 0 HP, once a deployment it stays with these
+ *   modifiers and `hp` of its maximum HP (职业-22)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
  */
 /**

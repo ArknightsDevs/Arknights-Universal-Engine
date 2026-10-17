@@ -45,12 +45,12 @@ const KIT_OWNED = Object.freeze({ soulcaster: { summonBlockedScale: 1 } });
  */
 const NO_MODULE_ADDITIONS = Object.freeze({
   vs: [], far: null, crowd: null, packed: null, whiles: [], extraArts: 0, counterArts: 0, epRider: null, burstHit: null, spOn: null, payStack: null, auras: [],
-  summonBoost: null,
+  summonBoost: null, secondLife: null,
 });
 
 /** Whether a trait has some of what modules add (NO_MODULE_ADDITIONS). @param {import('@aue/sim').TraitDef} t */
 const moduleAdded = (t) => t.vs.length > 0 || t.whiles.length > 0 || t.auras.length > 0 || t.extraArts > 0 || t.counterArts > 0
-  || !!(t.far || t.crowd || t.packed || t.epRider || t.burstHit || t.spOn || t.payStack || t.summonBoost);
+  || !!(t.far || t.crowd || t.packed || t.epRider || t.burstHit || t.spOn || t.payStack || t.summonBoost || t.secondLife);
 
 /**
  * An operator's record under its kit's trait (兼容-5): where the kit's `trait` takes the place of a part of the

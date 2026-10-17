@@ -276,3 +276,11 @@ test('[职业-7] [职业-21] the modules\' card, refund, summons and skill-time 
     [{ to: 'frontAlly', skill: true, mods: { blockCnt: 1 } }], [{ when: 'inSkill', mods: {}, flags: { camou: true } }], [{ to: 'summons', mods: { blockedTakenMul: 0.85 } }],
   ]);
 });
+
+test('[职业-7] [职业-22] the modules\' second lives, aftershocks, bullets and 阵法术师\'s skill-time guard, from the real data', async () => {
+  const [skadi, hellagur, rosmontis, hunter, lin] = await Promise.all([withModule('斯卡蒂', 'DRE-Y'), withModule('赫拉格', 'SBL-Y'), withModule('迷迭香', 'BOM-X'),
+    withModule('冰酿', 'HUN-X'), withModule('林', 'PLX-X')]);
+  assert.deepEqual([skadi.secondLife, hellagur.secondLife, rosmontis.aftershocks, hunter.bullets.extra, lin.whiles], [
+    { hp: 1, mods: { hpMul: 1 - 0.6, aspd: 30 } }, { hp: 0.3, mods: {} }, 2, 1, [{ when: 'inSkill', mods: { defPct: 1, resFlat: 10 } }],
+  ]);
+});

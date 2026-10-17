@@ -30,6 +30,7 @@ import { emit, hasHook, runTimers } from './bus.js';
 import { fallIntoHoles } from './holes.js';
 import { tacticalFatal, tacticalBehaviors } from './tactical.js';
 import { dollFatal, dollBehaviors } from './doll.js';
+import { secondLifeFatal } from './riders.js';
 import { newFortress, setUpFortress, fortressHooks, tickFortress } from './fortress.js';
 import { fieldContent } from './facilities.js';
 
@@ -98,7 +99,7 @@ function removeDead(w, c) {
  * @param {World} w @param {Content} c @param {Unit} u @param {boolean} atGoal
  */
 const stays = (w, c, u, atGoal) => u.hp > 0 || (u.kind === KIND.ENEMY && !atGoal && foeFatal(w, c, u))
-  || (u.ab['@devoured'] === undefined && (tacticalFatal(w, c, u) || dollFatal(w, c, u)));
+  || (u.ab['@devoured'] === undefined && (tacticalFatal(w, c, u) || dollFatal(w, c, u) || secondLifeFatal(w, c, u)));
 
 /**
  * The unit whose hit this frame brought `u` to 0 HP — the last hit on it this frame —, while it is on the field; null

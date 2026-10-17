@@ -130,3 +130,24 @@ test('[职业-20] [状态-5] a hit status with its strength: 虚弱', () => {
   hits();
   assert.equal(statsOf(t).atk, 90);
 });
+
+test('[职业-22] brought to 0 HP, it stays once a deployment: the life\'s modifiers, then its share of the maximum HP', () => {
+  const { w, c, op } = arena({ secondLife: { hp: 1, mods: { hpMul: 0.4, aspd: 30 } } });
+  const max = statsOf(op).maxHp;
+  op.hp = 0;
+  step(w, c, []);
+  assert.deepEqual([w.units.includes(op), op.hp, statsOf(op).maxHp, statsOf(op).aspd], [true, max * 0.4, max * 0.4, 130]);
+  op.hp = 0;
+  step(w, c, []);
+  assert.equal(w.units.includes(op), false, 'once');
+});
+
+test('[职业-22] two aftershocks; an empty reload loads more', () => {
+  const two = arena({ splash: { radius: 0.5, scale: 1, ground: true }, aftershock: 0.5, aftershocks: 2 });
+  two.foe(1, 2);
+  assert.deepEqual(two.hits(), [50, 25, 25]);
+  const hunter = arena({ bullets: { max: 8, scale: 1, extra: 1 } }), b = /** @type {any} */ (hunter.op.buffs.find((x) => x.key === 'bullets'));
+  b.value = 0;
+  for (let i = 0; i < 40 && b.value === 0; i++) step(hunter.w, hunter.c, []);
+  assert.equal(b.value, 2);
+});
