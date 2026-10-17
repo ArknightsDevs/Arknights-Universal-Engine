@@ -54,6 +54,7 @@ const WHEN = Object.freeze({
   alone4: (w, _c, op) => !crowded(w, op, 4),
   alone8: (w, _c, op) => !crowded(w, op, 8),
   energy: (_w, _c, op) => (op.buffs.find((b) => b.key === 'energy')?.value ?? 0) > 0,
+  always: () => true,
 });
 
 /**

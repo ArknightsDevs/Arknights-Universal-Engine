@@ -218,18 +218,18 @@
  * an element burst (`burstEnemies`); at least `value` other operators are in it (`allies`), or a wounded friendly unit
  * (`injuredAllies`), or one with element damage (`epAllies`), or another operator whose skill runs (`skillAllies`); no
  * other operator stands on the 4 tiles next to it (`alone4`) or the 8 around it (`alone8`); it holds stored attack energy
- * (`energy`).
+ * (`energy`); always (`always`).
  * @typedef {{ when: 'blocking' | 'notBlocking' | 'hpAbove' | 'hpBelow' | 'enemies' | 'groundEnemies' | 'eliteEnemies' | 'burstEnemies'
- *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy', value?: number, mods: Record<string, number> }} WhileMods
+ *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always', value?: number, mods: Record<string, number> }} WhileMods
  */
 /**
  * A trait's 倍率 against a target (职业-17): × `atk` on a hit's attack 倍率 (before the target's 防御), × `dmg` on its 伤害倍率,
  * × `heal` on a heal, while the target is blocked or blocks a unit (`blocked`), flies (`flying`), is on the ground while
  * the operator's skill runs (`skillGround`), has less than `value` of its maximum HP (`hpBelow`), has a 重量等级 of at least
  * `value` (`heavy`), stands on the line of tiles straight in front of the operator (`front`), on its tile or the 8 around
- * (`near`), is in an element burst (`burst`), stands on a ground tile (`onGround`); `noDodge`: such a physical hit cannot
- * be dodged.
- * @typedef {{ when: 'blocked' | 'flying' | 'skillGround' | 'hpBelow' | 'heavy' | 'front' | 'near' | 'burst' | 'onGround',
+ * (`near`), is in an element burst (`burst`), stands on a ground tile (`onGround`), or the hit is the skill's (`skill`);
+ * `noDodge`: such a physical hit cannot be dodged.
+ * @typedef {{ when: 'blocked' | 'flying' | 'skillGround' | 'hpBelow' | 'heavy' | 'front' | 'near' | 'burst' | 'onGround' | 'skill',
  *   atk?: number, dmg?: number, heal?: number, value?: number, noDodge?: boolean }} VsScale
  */
 /**

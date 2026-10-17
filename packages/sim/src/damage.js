@@ -83,6 +83,12 @@ export function takenMul(b, type) {
   return b.stacks === 1 ? f : powi(f, b.stacks);
 }
 
+/**
+ * A buff's 受到伤害倍率 for a hit from a unit the target blocks (职业-18: 不屈者 UNY-X), its stacks' power; 1 for any
+ * other hit. @param {Unit} u @param {Buff} b @param {Unit | null} src
+ */
+const blockedMul = (u, b, src) => (b.mods.blockedTakenMul !== undefined && src && src.blockedBy === u.id ? powi(b.mods.blockedTakenMul, b.stacks) : 1);
+
 /** Whether a shield or barrier of the buff absorbs this type. @param {Buff} b @param {DamageType} type */
 const absorbs = (b, type) => b.shieldType === '' || b.shieldType === type;
 
@@ -103,16 +109,17 @@ export function setShield(u, b, amount) {
 
 /**
  * One buff's 伤判 effects on a hit, in a fixed order within the buff: dodge, taken multipliers, shield, barrier
- * (伤害-8). Returns the damage left — 0 ends the step, −1 when the hit is dodged.
- * @param {World} w @param {Unit} u @param {Buff} b @param {number} amount @param {Damage} dmg
+ * (伤害-8); a hit from a unit it blocks also takes its 受到伤害倍率 for that. Returns the damage left — 0 ends the step,
+ * −1 when the hit is dodged.
+ * @param {World} w @param {Unit} u @param {Buff} b @param {number} amount @param {{ dmg: Damage, src: Unit | null }} hit
  */
-function judge(w, u, b, amount, dmg) {
+function judge(w, u, b, amount, { dmg, src }) {
   const p = dmg.type === 'phys' ? b.mods.dodgePhys : dmg.type === 'arts' ? b.mods.dodgeArts : undefined;
   if (p !== undefined && p > 0 && (dmg.canDodge ?? true)) {
     const miss = 1 - powi(1 - clamp01(p), b.stacks);
     if (draw(w) < miss) return -1;
   }
-  let left = amount * takenMul(b, dmg.type);
+  let left = amount * takenMul(b, dmg.type) * blockedMul(u, b, src);
   if (b.shieldHits > 0 && absorbs(b, dmg.type)) {
     b.shieldHits--;
     dropIfSpent(u, b);
@@ -136,7 +143,7 @@ export function takeDamage(w, u, amount, dmg, src = null) {
   const order = activeBuffs(u.buffs).map((b, i) => ({ b, i })).sort((x, y) => y.b.prio - x.b.prio || x.i - y.i);
   let left = amount;
   for (const { b } of order) {
-    left = judge(w, u, b, left, dmg);
+    left = judge(w, u, b, left, { dmg, src });
     if (left < 0) emit(w, 'dodge', { source: src, target: u, dmg });
     if (!(left > 0)) return 0;
   }

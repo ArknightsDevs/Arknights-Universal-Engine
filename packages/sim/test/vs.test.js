@@ -126,3 +126,10 @@ test('[职业-17] heals by the one healed: below an HP share, on a ground tile; 
   op.hp = statsOf(op).maxHp; op.z = 1;
   assert.deepEqual([vsHeal(w, c, op, op), vsHeal(w, c, enemy, op), vsHeal(w, c, null, op)], [1, 1, 1]);
 });
+
+test('[职业-17] a hit of its skill: the hit is the skill\'s; never a heal', () => {
+  const { w, c, foe } = arena({ vs: [{ when: 'skill', dmg: 1.1 }] });
+  const op = guardAt(w, c), t = foe(1, 2);
+  assert.deepEqual([scaled(w, c, op, t, /** @type {any} */ ({ type: 'phys', amount: 100, isSkill: true })), scaled(w, c, op, t)], [[100, 1.1], [100, 1]]);
+  assert.equal(vsHeal(w, c, op, op), 1);
+});

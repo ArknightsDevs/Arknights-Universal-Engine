@@ -44,17 +44,24 @@ function whileOf(when, mods, value) {
   const given = /** @type {Record<string, number>} */ (Object.fromEntries(Object.entries(mods).filter(([, v]) => v !== undefined && v !== 0)));
   return Object.keys(given).length ? { whiles: [{ when, ...(value !== undefined ? { value } : {}), mods: given }] } : {};
 }
+/**
+ * Several conditions' modifiers in one trait (职业-18): those given, in order. @param {...{ whiles?: import('@aue/sim').WhileMods[] }} parts
+ * @returns {{ whiles?: import('@aue/sim').WhileMods[] }}
+ */
+function joinWhiles(...parts) {
+  const all = parts.flatMap((p) => p.whiles ?? []);
+  return all.length ? { whiles: all } : {};
+}
 /** The share of damage taken that a reduction (庇护) of `r` leaves (职业-18). @param {number | undefined} r */
 const taken = (r) => (r ? 1 - r : undefined);
-/** The normal attack's maximum targets is the 阻挡数; its module's 倍率 against a blocked enemy (职业-17). @param {'atk' | 'dmg'} kind @param {string} key @returns {Branch} */
-const blockTargets = (kind, key) => ({ trait: (bb) => ({ targets: 'blockCnt', ...vsWhen('blocked', kind, bb[key]) }) });
 
 /** The covered branches, by subProfessionId (职业-7). A branch not here uses its position's defaults. */
 export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // 先锋
   // SOL-X: attack and defence + atk, def while it blocks (职业-18)
   pioneer: { trait: (bb) => whileOf('blocking', { atkPct: bb.atk, defPct: bb.def }) },
-  agent: { trait: () => ({ antiAir: true, blockedFirst: false }) },
+  // AGE-X: 嘲讽等级 + taunt_level (职业-18)
+  agent: { trait: (bb) => ({ antiAir: true, blockedFirst: false, ...whileOf('always', { taunt: bb.taunt_level }) }) },
   bearer: {},
   // CHG-Y: × atk_scale against an enemy below hp_ratio of its HP (the module's own data; 职业-17)
   charger: { trait: (bb, own) => ({ killCost: bb.cost ?? 1, refund: 1, ...(own?.hp_ratio ? vsWhen('hpBelow', 'atk', own.atk_scale, { value: own.hp_ratio }) : {}) }) },
@@ -65,11 +72,12 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // 近卫
   // DRE-X: × atk_scale against a blocked enemy (职业-17)
   fearless: { trait: (bb) => vsWhen('blocked', 'atk', bb.atk_scale) },
-  // FGT-Y: attack speed + attack_speed while its HP is above hp_ratio (0.5) (职业-18)
-  fighter: { trait: (bb) => whileOf('hpAbove', { aspd: bb.attack_speed }, bb.hp_ratio ?? 0.5) },
+  // FGT-X: physical dodge prob; FGT-Y: attack speed + attack_speed while its HP is above hp_ratio (0.5) (职业-18)
+  fighter: { trait: (bb) => joinWhiles(whileOf('always', { dodgePhys: bb.prob }), whileOf('hpAbove', { aspd: bb.attack_speed }, bb.hp_ratio ?? 0.5)) },
   // AFT-X: attack speed + attack_speed while it blocks none (职业-18)
   artsfghter: { dmgType: ARTS, trait: (bb) => whileOf('notBlocking', { aspd: bb.attack_speed }) },
-  sword: { trait: () => ({ hits: 2 }) },
+  // SWO-X: its skill's damage × damage_scale (职业-17); SWO-Y: def_penetrate_fixed of the target's defence ignored (职业-18)
+  sword: { trait: (bb) => ({ hits: 2, ...vsWhen('skill', 'dmg', bb.damage_scale), ...whileOf('always', { defIgnoreFlat: bb.def_penetrate_fixed }) }) },
   // the attack's 倍率 against an enemy it does not block (职业-8)
   instructor: { trait: (bb) => ({ unblockedScale: bb.atk_scale ?? 1.2 }) },
   // LOR-Y: attack speed + attack_speed while cnt (2) enemies are in its range (the trait's, or the module's own data; 职业-18)
@@ -96,8 +104,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
     flags: { noAllyHeal: true }, filter: 'ALL', targets: 'all', selfHeal: bb.value ?? 0, selfHealMax: 'blockCnt',
     ...whileOf('enemies', { aspd: bb.attack_speed ?? own?.attack_speed }, bb.cnt ?? own?.['trigger_cnt[equip]'] ?? 2),
   }) },
-  // CRU-Y: 伤害倍率 × damage_scale against a blocked enemy (职业-17)
-  crusher: blockTargets('dmg', 'damage_scale'),
+  // CRU-Y: 伤害倍率 × damage_scale against a blocked enemy (职业-17); CRU-X: heals it takes × heal_scale (职业-18)
+  crusher: { trait: (bb) => ({ targets: 'blockCnt', ...vsWhen('blocked', 'dmg', bb.damage_scale), ...whileOf('always', { healingTakenMul: bb.heal_scale }) }) },
   primguard: {},
   // the 应变 that spends cost is its skills' (职业-7)
   mercenary: {},
@@ -106,14 +114,21 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // 重装
   // PRO-X: defence + def while it blocks (职业-18)
   protector: { trait: (bb) => whileOf('blocking', { defPct: bb.def }) },
-  // GUA-X: its heals × heal_scale on one below hp_ratio of its HP (职业-17)
-  guardian: { trait: (bb) => (bb.hp_ratio ? vsWhen('hpBelow', 'heal', bb.heal_scale, { value: bb.hp_ratio }) : {}) },
+  // GUA-X: its heals × heal_scale on one below hp_ratio of its HP (职业-17); GUA-Y: damage taken − damage_resistance (职业-18)
+  guardian: { trait: (bb) => ({ ...(bb.hp_ratio ? vsWhen('hpBelow', 'heal', bb.heal_scale, { value: bb.hp_ratio }) : {}), ...whileOf('always', { dmgTakenMul: taken(bb.damage_resistance) }) }) },
   primprotector: {},
   shotprotector: { trait: () => ({ antiAir: true }) },
-  // UNY-Y: attack and defence + atk, def while no other operator stands on the 8 tiles around (职业-18)
-  unyield: { trait: (bb) => ({ flags: { noAllyHeal: true }, ...whileOf('alone8', { atkPct: bb.atk, defPct: bb.def }) }) },
-  // 阻回 always, but not while it blocks (职业-10); HES-Y: attack and defence + atk, def while it blocks (职业-18)
-  duelist: { trait: (bb) => ({ flags: { noSp: true }, immuneBlocking: ['noSp'], ...whileOf('blocking', { atkPct: bb.atk, defPct: bb.def }) }) },
+  // UNY-X: damage from a unit it blocks × damage_scale; UNY-Y: attack and defence + atk, def while no other operator stands on
+  // the 8 tiles around (职业-18)
+  unyield: { trait: (bb) => ({
+    flags: { noAllyHeal: true }, ...joinWhiles(whileOf('always', { blockedTakenMul: bb.damage_scale }), whileOf('alone8', { atkPct: bb.atk, defPct: bb.def })),
+  }) },
+  // 阻回 always, but not while it blocks (职业-10); HES-X, HES-Y: no 阻回, but SP recovery × (1 + sp_recover_ratio) while it blocks
+  // none; HES-Y: attack and defence + atk, def while it blocks (职业-18)
+  duelist: { trait: (bb) => ({
+    ...(bb.sp_recover_ratio === undefined ? { flags: { noSp: true }, immuneBlocking: ['noSp'] } : {}),
+    ...joinWhiles(whileOf('notBlocking', { spRecoveryMul: bb.sp_recover_ratio === undefined ? undefined : 1 + bb.sp_recover_ratio }), whileOf('blocking', { atkPct: bb.atk, defPct: bb.def })),
+  }) },
   artsprotector: { trait: () => ({ skillArts: true }) },
   // 狙击
   // MAR-X: × atk_scale against a flying enemy (职业-17)
@@ -128,8 +143,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   longrange: { trait: (bb) => ({ filter: 'DEF_ASC', ...farOf(bb) }) },
   // SIE-X: × atk_scale against an enemy of 重量等级 value or more (the module's own data); SIE-Y: 伤害倍率 by the distance (职业-17)
   siegesniper: { trait: (bb, own) => ({ filter: 'MASS_DES', ...(own?.value ? vsWhen('heavy', 'atk', own.atk_scale, { value: own.value }) : {}), ...farOf(bb) }) },
-  // ART-X: × atk_scale against a blocked enemy (职业-17)
-  aoesniper: { trait: (bb) => ({ splash: { radius: 1, scale: 1, ground: false }, ...vsWhen('blocked', 'atk', bb.atk_scale) }) },
+  // ART-X: × atk_scale against a blocked enemy (职业-17); ART-Y: def_penetrate_fixed of the target's defence ignored (职业-18)
+  aoesniper: { trait: (bb) => ({ splash: { radius: 1, scale: 1, ground: false }, ...vsWhen('blocked', 'atk', bb.atk_scale), ...whileOf('always', { defIgnoreFlat: bb.def_penetrate_fixed }) }) },
   bombarder: { trait: (bb) => ({ antiAir: false, splash: { radius: 0.9, scale: 1, ground: true }, aftershock: bb['attack@append_atk_scale'] ?? 0.5 }) },
   // melee on what it blocks or what stands on its tile, ranged with a 1.0 splash on the others in its range (职业-12)
   // FOR-X: × atk_scale against a blocked enemy (职业-17)
@@ -151,7 +166,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // every enemy in range; 倍率 × atk_scale for those in its own and the three tiles before it (range 1-3, 职业-11)
   reaperrange: { trait: (bb) => ({ filter: 'ALL', targets: 'all', zone: { cells: cellsOf('1-3'), scale: bb.atk_scale ?? 1.5, outside: false } }) },
   // 术师
-  corecaster: { dmgType: ARTS },
+  // CCR-X: magic_resist_penetrate_fixed of the target's 法术抗性 ignored (职业-18)
+  corecaster: { dmgType: ARTS, trait: (bb) => whileOf('always', { resIgnoreFlat: bb.magic_resist_penetrate_fixed }) },
   // BLA-X: 伤害倍率 by the distance (职业-17)
   blastcaster: { dmgType: ARTS, trait: (bb) => ({ filter: 'ALL', targets: 'all', ...farOf(bb) }) },
   // attacks only while its skill runs, every enemy in range, air ones too; DEF × (1 + def) and RES + magic_resistance while it does not (职业-12);
@@ -183,7 +199,11 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   ringhealer: healer(3),
   watchman: healer(1),
   // heal_scale for a target outside range 2-3 (职业-11)
-  healer: { trait: (bb) => ({ heal: true, targets: 1, zone: { cells: cellsOf('2-3'), scale: bb.heal_scale ?? 0.8, outside: true } }) },
+  // WAH-X: 抵抗 (one_minus_status_resistance) and 嘲讽等级 + taunt_level (职业-18)
+  healer: { trait: (bb) => ({
+    heal: true, targets: 1, zone: { cells: cellsOf('2-3'), scale: bb.heal_scale ?? 0.8, outside: true },
+    ...whileOf('always', { taunt: bb.taunt_level, statusResMul: bb.one_minus_status_resistance === undefined ? undefined : 1 + bb.one_minus_status_resistance }),
+  }) },
   // jumps among max_target operators in the 3 × 3 around each, 75 % of the heal before (职业-11)
   chainhealer: { trait: (bb) => ({ heal: true, targets: 1, chain: { max: bb['attack@chain.max_target'] ?? 3, scale: bb['attack@chain.atk_scale'] ?? 0.75, radius: 0, cells: cellsOf('x-4') } }) },
   // its heals also restore element values by ep_heal_ratio of them (职业-12)

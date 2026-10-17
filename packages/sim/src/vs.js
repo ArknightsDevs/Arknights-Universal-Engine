@@ -30,8 +30,9 @@ function nearBy(op, t) {
 }
 
 /**
- * The target conditions (职业-17), each asked of the operator and the target as the hit or the heal is worked out.
- * @type {Readonly<Record<VsScale['when'], (w: World, op: Unit, t: Unit, value: number) => boolean>>}
+ * The target conditions (职业-17), each asked of the operator and the target as the hit (when there is one) or the heal
+ * is worked out.
+ * @type {Readonly<Record<VsScale['when'], (w: World, op: Unit, t: Unit, value: number, dmg?: Damage) => boolean>>}
  */
 const WHEN = Object.freeze({
   blocked: (w, _op, t) => inBlock(w, t),
@@ -43,10 +44,14 @@ const WHEN = Object.freeze({
   near: (_w, op, t) => nearBy(op, t),
   burst: (_w, _op, t) => bursting(t),
   onGround: (_w, _op, t) => t.z === 0,
+  skill: (_w, _op, _t, _v, dmg) => !!dmg?.isSkill,
 });
 
-/** Whether a 倍率's condition holds for the target. @param {World} w @param {Unit} op @param {Unit} t @param {VsScale} v */
-const holds = (w, op, t, v) => WHEN[v.when](w, op, t, v.value ?? 0);
+/**
+ * Whether a 倍率's condition holds for the target (and the hit). @param {World} w @param {Unit} op @param {Unit} t @param {VsScale} v
+ * @param {Damage} [dmg]
+ */
+const holds = (w, op, t, v, dmg) => WHEN[v.when](w, op, t, v.value ?? 0, dmg);
 
 /**
  * The 伤害倍率 by the distance to the target (职业-17): 1 up to `min` tiles, rising in a line to 1 + `dmg` at `max` and on.
@@ -80,7 +85,7 @@ function scaleHit(dmg, v) {
 export function vsDamage(w, c, op, t, dmg) {
   if (op.kind !== KIND.OPERATOR || dmg.sourceless || dmg.hpLoss || dmg.type === 'elemental') return;
   const tr = traitOf(c, op);
-  for (const v of tr.vs) if ((v.atk || v.dmg) && holds(w, op, t, v)) scaleHit(dmg, v);
+  for (const v of tr.vs) if ((v.atk || v.dmg) && holds(w, op, t, v, dmg)) scaleHit(dmg, v);
   if (tr.far) dmg.mul = (dmg.mul ?? 1) * farMul(op, t, tr.far);
   if (tr.crowd) dmg.mul = (dmg.mul ?? 1) * (1 + tr.crowd.step * Math.min(tr.crowd.cap, crowdOf(w, c, op)));
 }

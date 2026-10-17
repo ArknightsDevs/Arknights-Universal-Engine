@@ -9,6 +9,7 @@ import { applyStatus } from '../src/status.js';
 import { statsOf } from '../src/attrs.js';
 import { addBuff, makeBuff } from '../src/buffs.js';
 import { dealEp } from '../src/elements.js';
+import { dealDamage } from '../src/damage.js';
 import { traitWhiles } from '../src/whiles.js';
 
 /** @typedef {import('../src/types.js').Unit} Unit */
@@ -116,4 +117,25 @@ test('[职业-18] no other operator on the 4 tiles next to it, or the 8 around i
   assert.deepEqual(on(), [], 'one next to it');
   addBuff(op, makeBuff({ key: 'energy', value: 1 }));
   assert.deepEqual(on(), [2]);
+});
+
+test('[职业-18] always: the buff from its first turn on', () => {
+  const { op, on } = arena([{ when: 'always', mods: { taunt: -1 } }]);
+  assert.deepEqual([on(), statsOf(op).taunt], [[0], -1]);
+});
+
+test('[职业-18] [伤害-8] a 受到伤害倍率 for hits from a unit it blocks: those, not the others; its stacks\' power', () => {
+  const { w, c, op, foe } = arena([]);
+  addBuff(op, makeBuff({ key: 'unyield', mods: { blockedTakenMul: 0.8 } }));
+  const held = foe(1, 1), free = foe(1, 2);
+  held.blockedBy = op.id; free.blockedBy = -1;
+  const hp = () => op.hp, start = hp();
+  dealDamage(w, held, op, { type: 'true', amount: 100 }, c);
+  const afterHeld = hp();
+  dealDamage(w, free, op, { type: 'true', amount: 100 }, c);
+  assert.deepEqual([start - afterHeld, afterHeld - hp()], [80, 100]);
+  addBuff(op, makeBuff({ key: 'twice', mods: { blockedTakenMul: 0.5 }, stacks: 2 }));
+  const before = hp();
+  dealDamage(w, held, op, { type: 'true', amount: 100 }, c);
+  assert.equal(before - hp(), 100 * 0.8 * 0.25);
 });

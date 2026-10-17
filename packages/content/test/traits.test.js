@@ -192,7 +192,7 @@ test('[职业-7] [职业-17] the modules\' 倍率 by the target from the real da
 test('[职业-7] [职业-18] the modules\' modifiers while a condition on the operator holds, from the real data', async () => {
   const wh = async (/** @type {string} */ name, /** @type {string} */ type) => (await withModule(name, type)).whiles;
   const one = (/** @type {string} */ when, /** @type {Record<string, number>} */ mods, /** @type {number | undefined} */ value = undefined) => [{ when, mods, ...(value !== undefined ? { value } : {}) }];
-  assert.deepEqual(await Promise.all([wh('推进之王', 'SOL-X'), wh('蛇屠箱', 'PRO-X'), wh('森蚺', 'HES-Y'), wh('史尔特尔', 'AFT-X'), wh('号角', 'FOR-Y')]), [
+  assert.deepEqual(await Promise.all([wh('推进之王', 'SOL-X'), wh('蛇屠箱', 'PRO-X'), wh('森蚺', 'HES-Y').then((l) => l.filter((/** @type {any} */ v) => v.when === 'blocking')), wh('史尔特尔', 'AFT-X'), wh('号角', 'FOR-Y')]), [
     one('blocking', { atkPct: 0.08, defPct: 0.08 }), one('blocking', { defPct: 0.2 }), one('blocking', { atkPct: 0.15, defPct: 0.15 }),
     one('notBlocking', { aspd: 8 }), one('notBlocking', { aspd: 10 }),
   ]);
@@ -212,4 +212,19 @@ test('[职业-7] [职业-18] the modules\' modifiers while a condition on the op
     one('injuredAllies', { dmgDealtMul: 1.1 }), one('epAllies', { aspd: 8 }), one('skillAllies', { atkPct: 0.08 }), one('energy', { aspd: 30 }),
   ]);
   assert.deepEqual([(await withModule('推进之王', 'SOL-Y')).whiles, (await withModule('傀影', 'EXE-X')).whiles], [[], []], 'none for another module');
+});
+
+test('[职业-7] [职业-17] [职业-18] the modules\' lasting modifiers, a skill\'s damage and 决战者\'s SP, from the real data', async () => {
+  const wh = async (/** @type {string} */ name, /** @type {string} */ type) => (await withModule(name, type)).whiles;
+  const always = (/** @type {Record<string, number>} */ mods) => [{ when: 'always', mods }];
+  assert.deepEqual(await Promise.all([wh('寻澜', 'AGE-X'), wh('杰克', 'FGT-X'), wh('瑕光', 'GUA-Y'), wh('石英', 'CRU-X'), wh('锡兰', 'WAH-X')]), [
+    always({ taunt: -1 }), always({ dodgePhys: 0.15 }), always({ dmgTakenMul: 0.85 }), always({ healingTakenMul: 1.2 }), always({ taunt: -1, statusResMul: 0.5 }),
+  ]);
+  assert.deepEqual(await Promise.all([wh('W', 'ART-Y'), wh('刻刀', 'SWO-Y'), wh('艾雅法拉', 'CCR-X'), wh('泥岩', 'UNY-X')]), [
+    always({ defIgnoreFlat: 100 }), always({ defIgnoreFlat: 70 }), always({ resIgnoreFlat: 10 }), always({ blockedTakenMul: 0.85 }),
+  ]);
+  assert.deepEqual((await withModule('陈', 'SWO-X')).vs, [{ when: 'skill', dmg: 1.1 }]);
+  const [x, y] = await Promise.all([withModule('森蚺', 'HES-X'), withModule('森蚺', 'HES-Y')]);
+  assert.deepEqual([x.flags, x.immuneBlocking, x.whiles], [{}, [], [{ when: 'notBlocking', mods: { spRecoveryMul: 1 + -0.8 } }]], 'HES-X: no 阻回, SP slower while it blocks none');
+  assert.deepEqual(y.whiles.map((/** @type {any} */ v) => v.when), ['notBlocking', 'blocking']);
 });
