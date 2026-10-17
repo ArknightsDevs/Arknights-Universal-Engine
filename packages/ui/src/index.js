@@ -16,7 +16,7 @@ export { shaded, noiseOffset, warpUv, fadeAlpha } from './shade.js';
 export { createBattleHud, costView, costFlash, flashColor, speedSprite } from './battle/hud.js';
 export { createCards, cardViews, cardWidth, waitText, placeSummons } from './battle/cards.js';
 export { createCoopTop, coopSpeedSprite, reviveText } from './battle/coop.js';
-export { createFieldMenus, dragFacing, ARROW_DIRS } from './battle/menus.js';
+export { createFieldMenus, dragFacing, groundOffset, ARROW_DIRS } from './battle/menus.js';
 export { homography, matrix3d, mapPoint, groundTransform } from './persp.js';
 /** @typedef {import('./node.js').UiPack} UiPack */
 /** @typedef {import('./battle/hud.js').HudState} HudState */

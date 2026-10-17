@@ -3,37 +3,18 @@
 // lies at its feet — a ring, and on it an arrow pointing the facing. The indicator is drawn after the shadows and
 // before the units, depth-tested against the terrain without writing depth (ADR 0027).
 import * as THREE from 'three';
-import { DIR, KIND } from '@aue/schema';
+import { KIND } from '@aue/schema';
 import { toThree, tileWorld } from './camera.js';
 import { FPS, newFigure, poseFigure } from './figure.js';
 import { operatorFacing } from './roles.js';
 import { createShadows } from './shadows.js';
-
-/**
- * The direction indicator (渲染-14): the ring's and the arrow's size in tiles (their textures are square), how far
- * from the feet the arrow's centre lies, their colours (r, g, b, a).
- */
-export const INDICATOR = Object.freeze({ size: 0.704, out: 0.333, ring: Object.freeze([1, 1, 1, 0.502]), arrow: Object.freeze([1, 0.6, 0, 1]) });
-
-/** The turn about the up axis that points east to a facing. @type {Record<number, number>} */
-const TURN = { [DIR.RIGHT]: 0, [DIR.UP]: Math.PI / 2, [DIR.LEFT]: Math.PI, [DIR.DOWN]: -Math.PI / 2 };
+import { createIndicators } from './indicators.js';
 
 /**
  * The operator being placed: its model's content key, the tile (column, row, height level), its facing (DIR) and
  * whether the direction indicator shows.
  * @typedef {{ key: string, col: number, row: number, h: number, dir: number, ring: boolean }} Placing
  */
-
-/** A flat square on the ground drawn with a texture in a colour. @param {THREE.Texture | undefined} map @param {readonly number[]} c @param {number} order */
-function flat(map, c, order) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(INDICATOR.size, INDICATOR.size).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({
-    map, color: new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace), transparent: true, opacity: c[3], depthWrite: false,
-    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4,
-  }));
-  m.renderOrder = order;
-  m.visible = false;
-  return m;
-}
 
 /**
  * The placing system: `set` shows an operator being placed (null for none); `pose` animates it.
@@ -42,9 +23,8 @@ function flat(map, c, order) {
  */
 export function createPlacing(textures, models, field) {
   const group = new THREE.Group(), shadows = createShadows(textures.get('ui:shadow'));
-  const ringMap = textures.get('ui:directionRing'), arrowMap = textures.get('ui:directionArrow');
-  const ring = flat(ringMap, INDICATOR.ring, -0.9), arrow = flat(arrowMap, INDICATOR.arrow, -0.8);
-  group.add(shadows.object, ring, arrow);
+  const indicator = createIndicators(textures.get('ui:directionRing'), textures.get('ui:directionArrow'));
+  group.add(shadows.object, indicator.object);
   /** @type {{ key: string, f: import('./figure.js').Figure } | null} */
   let shown = null, start = 0;
 
@@ -52,7 +32,7 @@ export function createPlacing(textures, models, field) {
     if (shown) { group.remove(shown.f.group); for (const x of Object.values(shown.f.sides)) x.dispose(); }
     shown = null;
     shadows.drop(0);
-    ring.visible = arrow.visible = false;
+    indicator.drop(0);
   };
 
   /** The figure of a model, idle from now. @param {string} key */
@@ -79,11 +59,7 @@ export function createPlacing(textures, models, field) {
       Object.assign(f, { side: facing.side, flip: facing.flip });
       f.group.position.set(...at);
       shadows.place(0, at);
-      const show = p.ring && !!ringMap && !!arrowMap, turn = TURN[p.dir] ?? 0;
-      ring.visible = arrow.visible = show;
-      ring.position.set(...at);
-      arrow.position.set(at[0] + INDICATOR.out * Math.cos(turn), at[1], at[2] - INDICATOR.out * Math.sin(turn));
-      arrow.rotation.set(0, turn, 0);
+      if (p.ring) indicator.place(0, at, p.dir); else indicator.drop(0);
     },
     /** Poses the figure for the moment `now`, facing the camera. @param {THREE.Camera} camera @param {number} [now] ms */
     pose(camera, now = performance.now()) {
@@ -91,6 +67,6 @@ export function createPlacing(textures, models, field) {
     },
     /** Whether an operator is being shown placed. */
     shows: () => shown !== null,
-    dispose() { drop(); shadows.dispose(); for (const m of [ring, arrow]) { m.geometry.dispose(); /** @type {THREE.Material} */ (m.material).dispose(); } },
+    dispose() { drop(); shadows.dispose(); indicator.dispose(); },
   };
 }

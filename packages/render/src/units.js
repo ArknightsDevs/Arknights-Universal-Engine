@@ -2,13 +2,15 @@
 // with a mesh model that mesh at its level (渲染-20), else a card with the operator's avatar or the enemy's icon standing
 // at its feet; a device with none of them is a block in its side's colour (渲染-16); any other unit with neither is not drawn. Figures, cards and blocks are depth-tested against
 // the terrain without writing depth (ADR 0027). A figure whose unit died stays to play its die clip. Every figure, card
-// and block has a shadow (渲染-6) for as long as it is drawn. An enemy's figure stands where its prefab puts its graphic,
+// and block has a shadow (渲染-6) for as long as it is drawn; an operator, while it is not dying, its direction indicator
+// (渲染-22). An enemy's figure stands where its prefab puts its graphic,
 // a little south of and above its feet (渲染-2); a flying enemy is drawn in the air over its shadow (渲染-21).
 import * as THREE from 'three';
 import { KIND } from '@aue/schema';
 import { toThree, tileWorld } from './camera.js';
 import { FPS, newFigure, follow, attacked, dies, deathOver, poseFigure } from './figure.js';
 import { createShadows } from './shadows.js';
+import { createIndicators } from './indicators.js';
 import { BAR } from './overlays.js';
 import { createMeshDrawer } from './devicemesh.js';
 
@@ -71,23 +73,32 @@ function placeOf(level, u, flying) {
   return { at, ground: /** @type {[number, number, number]} */ (toThree(tileWorld(level, u.x, u.y, under))) };
 }
 
+/**
+ * A drawn unit's marks on the ground: its shadow (渲染-6), an operator's direction indicator (渲染-22).
+ * @param {{ place: (id: number, at: [number, number, number]) => void }} shadows
+ * @param {{ place: (id: number, at: [number, number, number], dir: number) => void }} marks
+ * @param {import('@aue/schema').ViewUnit} u @param {[number, number, number]} ground
+ */
+function onGround(shadows, marks, u, ground) {
+  shadows.place(u.id, ground);
+  if (u.kind === KIND.OPERATOR) marks.place(u.id, ground, u.dir);
+}
+
 /** @param {Figure} f */
 const disposeFigure = (f) => { for (const x of Object.values(f.sides)) x.dispose(); };
 
 /**
- * The units system; its shadows are a separate object (drawn before every unit).
+ * The units system; its shadows and the operators' direction indicators are separate objects (drawn before every unit).
  * @param {Map<string, THREE.Texture>} textures @param {Models} [models] by content key (operators by character id)
  * @param {Set<string>} [foeDevices] content keys of the devices on the enemies' side (装置-3)
  * @param {Map<string, import('./devicemesh.js').DeviceMeshModel>} [meshes] devices' mesh models by content key (渲染-20)
  * @param {Set<string>} [flyers] content keys of the flying enemies (渲染-21)
  */
 export function createUnits(textures, models = new Map(), foeDevices = new Set(), meshes = new Map(), flyers = new Set()) {
-  const group = new THREE.Group(), shadows = createShadows(textures.get('ui:shadow'));
-  /** @type {Map<number, THREE.Sprite | THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>>} cards and blocks */
-  const cards = new Map();
+  const group = new THREE.Group(), shadows = createShadows(textures.get('ui:shadow')), marks = createIndicators(textures.get('ui:directionRing'), textures.get('ui:directionArrow'));
+  /** @type {Map<number, THREE.Sprite | THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>>} cards and blocks */ const cards = new Map();
   /** @type {Map<number, Figure>} */ const figures = new Map();
-  /** @type {Map<number, string>} unit id → content key, from the worker's frame messages */
-  const keys = new Map();
+  /** @type {Map<number, string>} unit id → content key, from the worker's frame messages */ const keys = new Map();
   const clock = { frame: 0, at: 0 }, mesh = createMeshDrawer(group, meshes, (id) => keys.get(id) ?? '');
 
   /** @param {import('@aue/schema').ViewUnit} u */
@@ -99,11 +110,7 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
   };
 
   /** @param {import('@aue/schema').ViewUnit} u @param {number} frame */
-  const figure = (u, frame) => {
-    const f = newFigure(models.get(keys.get(u.id) ?? ''), u, frame);
-    if (f) { group.add(f.group); figures.set(u.id, f); }
-    return f;
-  };
+  const figure = (u, frame) => { const f = newFigure(models.get(keys.get(u.id) ?? ''), u, frame); if (f) { group.add(f.group); figures.set(u.id, f); } return f; };
 
   /** How high over its feet a unit is drawn (渲染-21): a flying enemy's hover, else 0. @param {number} id */
   const lift = (id) => (flyers.has(keys.get(id) ?? '') ? HOVER : 0);
@@ -116,19 +123,18 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
   const draw = (u, { at, ground }, frame) => {
     if (mesh.draw(u, u.kind === KIND.DEVICE && !figures.has(u.id) && !cards.has(u.id), at)) return;
     const f = figures.get(u.id) ?? (cards.has(u.id) ? null : figure(u, frame)), s = f ? null : cards.get(u.id) ?? card(u);
+    if (!f && !s) return;
     if (f) follow(f, u, frame);
-    if (f || s) { placeAt(f ? f.group : /** @type {THREE.Object3D} */ (s), at, f ? u.kind : -1, lift(u.id)); shadows.place(u.id, ground); }
+    placeAt(f ? f.group : /** @type {THREE.Object3D} */ (s), at, f ? u.kind : -1, lift(u.id)); onGround(shadows, marks, u, ground);
   };
 
-  /**
-   * Units gone from the view: cards go; a figure that died plays its die clip and goes when it is over.
-   * @param {Set<number>} seen @param {Set<number>} died @param {number} frame
-   */
+  /** Units gone from the view: cards go; a figure that died plays its die clip and goes after. @param {Set<number>} seen @param {Set<number>} died @param {number} frame */
   const prune = (seen, died, frame) => {
-    for (const [id, s] of cards) if (!seen.has(id)) { group.remove(s); s.material.dispose(); cards.delete(id); shadows.drop(id); }
+    for (const [id, s] of cards) if (!seen.has(id)) { group.remove(s); s.material.dispose(); cards.delete(id); shadows.drop(id); marks.drop(id); }
     mesh.prune(seen);
     for (const [id, f] of figures) {
       if (seen.has(id)) continue;
+      marks.drop(id);
       if (f.dying ? !deathOver(f, frame) : died.has(id) && dies(f, frame)) continue;
       group.remove(f.group); disposeFigure(f); figures.delete(id); shadows.drop(id);
     }
@@ -137,6 +143,7 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
   return {
     object: group,
     shadows: shadows.object,
+    indicators: marks.object,
     /**
      * @param {import('@aue/schema').View} view @param {Record<string, string>} newKeys @param {{ width: number, height: number }} level
      * @param {number} [now] ms @param {Event[]} [events] the frame's presentation events
@@ -163,7 +170,7 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
     dispose() {
       for (const s of cards.values()) s.material.dispose();
       for (const f of figures.values()) disposeFigure(f);
-      cards.clear(); figures.clear(); mesh.placed.clear(); shadows.dispose();
+      cards.clear(); figures.clear(); mesh.placed.clear(); shadows.dispose(); marks.dispose();
     },
   };
 }

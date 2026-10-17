@@ -96,7 +96,7 @@ export function createBattleRenderer(o) {
   const units = createUnits(o.textures, o.models, o.foeDevices, o.deviceMeshes, o.flyers), field = { ...o.level, highland: o.kit?.kit.highland };
   const range = createRange(field, o.textures.get('ui:range')), marks = createTileMarks(field, o.textures.get('ui:range')), clock = battleClock();
   const effects = o.effects ? createEffects(o.effects, field, { skills: o.skills }) : null, placing = createPlacing(o.textures, o.models ?? new Map(), field);
-  scene.add(terrain.object, range.object, marks.object, units.shadows, placing.object, units.object, ...(effects ? [effects.object] : []));
+  scene.add(terrain.object, range.object, marks.object, units.shadows, units.indicators, placing.object, units.object, ...(effects ? [effects.object] : []));
   const overlays = createOverlays(o.bars === false ? new Map() : o.textures, o.leaders, o.foeDevices), ray = new THREE.Raycaster();
 
   let scale = o.pixelScale ?? 1, attackFx = o.attackEffects !== false;

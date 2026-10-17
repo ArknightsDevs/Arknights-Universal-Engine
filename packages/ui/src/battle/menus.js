@@ -34,6 +34,17 @@ export function dragFacing(drag, east, north, dead) {
   return best;
 }
 
+/**
+ * A drag on the page as a ground offset in tiles (east, north), for the drag handle (界面-13): the drag split along a
+ * tile east and a tile north of the selector's centre as they lie on the page; none when those two do not span the page.
+ * @param {number[]} drag @param {number[]} east @param {number[]} north @returns {number[]}
+ */
+export function groundOffset(drag, east, north) {
+  const det = east[0] * north[1] - east[1] * north[0];
+  if (Math.abs(det) < 1e-9) return [0, 0];
+  return [(drag[0] * north[1] - drag[1] * north[0]) / det, (east[0] * drag[1] - east[1] * drag[0]) / det];
+}
+
 /** The perspective canvas of the battle screen: its size and tiles a reference pixel. @param {import('../node.js').UiPack} pack */
 function canvasOf(pack) {
   const p = pack.screens.battle.children.find((c) => c.name === 'perspective_root');
@@ -52,8 +63,26 @@ function part(ui, ref, frame) {
 }
 
 /**
+ * The selector's drag handle (界面-13): its thumb moved by a ground offset in tiles (east, north) — on the perspective
+ * canvas, `k` tiles a reference pixel — held within its reach, half its area's width; back at the centre for null.
+ * Without the pack's joystick data, nothing.
+ * @param {Screen} dir the selector @param {Record<string, any> | undefined} j the pack's joystick data @param {number} k
+ * @returns {(off: number[] | null) => void}
+ */
+function thumbOf(dir, j, k) {
+  const thumb = j ? refNode(dir.root, j.thumb) : null, area = j ? refNode(dir.root, j.area) : null, reach = (area?.rt.size[0] ?? 0) / 2;
+  if (area) area.active = !!thumb;
+  return (off) => {
+    if (!thumb) return;
+    const p = off ? [off[0] / k, off[1] / k] : [0, 0], len = Math.hypot(p[0], p[1]), f = len > reach ? reach / len : 1;
+    thumb.rt.pos = [p[0] * f, p[1] * f];
+  };
+}
+
+/**
  * The menus on a UI. `direction.show(toPage)` puts the selector on a point; `direction.point(dir)` lights the arrow of a
- * facing (−1: none); `menu.show(toPage, skill)` puts the operator menu around an operator; `hide` takes them away.
+ * facing (−1: none); `direction.drag(off)` moves its drag handle by a ground offset in tiles (null: back to the centre);
+ * `menu.show(toPage, skill)` puts the operator menu around an operator; `hide` takes them away.
  * Taps: `on.cancel` (the selector's cancel button), `on.withdraw`, `on.skill`.
  * @param {ReturnType<typeof import('../ui.js').createUi>} ui @param {Record<string, any>} hud
  * @param {{ cancel: () => void, withdraw: () => void, skill: () => void }} on
@@ -62,8 +91,9 @@ export function createFieldMenus(ui, hud, on) {
   const { frame, k } = canvasOf(ui.ctx.pack), d = hud.direction, m = hud.menu;
   const dir = part(ui, d.root, frame), menu = part(ui, m.root, frame);
   menu.root.rt.pos = [0, 0];
-  for (const name of ['btn_drag_back', 'joystick']) dir.show(name, false);
+  dir.show('btn_drag_back', false);
   dir.show('btn_cancel', true);
+  const drag = thumbOf(dir, d.joystick, k);
   /** @param {Screen} scr @param {ToPage} toPage */
   const place = (scr, toPage) => { scr.wrap.style.transform = groundTransform(frame, k, toPage); scr.wrap.style.transformOrigin = '0 0'; };
   tapRef(dir, `${d.cancel}/btn_cancel`, on.cancel);
@@ -73,7 +103,8 @@ export function createFieldMenus(ui, hud, on) {
     direction: {
       screen: dir,
       /** @param {ToPage} toPage */
-      show(toPage) { place(dir, toPage); dir.root.active = true; },
+      show(toPage) { place(dir, toPage); dir.root.active = true; drag(null); },
+      drag,
       /** @param {number} facing schema DIR, −1 for none */
       point(facing) {
         d.arrows.forEach((/** @type {string} */ ref, /** @type {number} */ i) => {

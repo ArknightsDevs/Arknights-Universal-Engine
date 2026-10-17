@@ -4,8 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { tinyContent } from '@aue/testkit';
-import { ANIM } from '@aue/schema';
-import { unitTextureKey, SHADOW } from '../src/index.js';
+import { ANIM, DIR } from '@aue/schema';
+import { unitTextureKey, SHADOW, INDICATOR, toThree, tileWorld } from '../src/index.js';
 import { createUnits, ENEMY_GRAPHIC, HOVER } from '../src/units.js';
 import { tinyModel } from './model.js';
 
@@ -71,4 +71,23 @@ test('[渲染-21] a flying enemy is drawn in the air over its shadow on the grou
   assert.ok(Math.abs(drone.position.y - ENEMY_GRAPHIC.up - HOVER) < 1e-12, 'a constant altitude over the ground, whatever level it started on');
   assert.ok(sd.position.y > 0.3, 'its shadow on the high tile under it');
   u.dispose();
+});
+
+test('[渲染-22] every operator on the field has the direction indicator at its feet, pointing its facing; not an enemy, not while dying', () => {
+  const tex = textures(['ui:shadow', 'ui:directionRing', 'ui:directionArrow']);
+  const u = createUnits(tex, new Map([['guard', { front: tinyModel() }], ['slime', { front: tinyModel() }]]));
+  u.update(view(1, [{ id: 1, kind: 0, x: 1, y: 1, z: 0, dir: DIR.LEFT }, { id: 2, kind: 1, x: 2, y: 1, z: 0 }]), { 1: 'guard', 2: 'slime' }, level, 0);
+  const marks = /** @type {THREE.Mesh[]} */ (u.indicators.children), at = toThree(tileWorld(level, 1, 1, 0));
+  assert.equal(marks.length, 2, 'a ring and an arrow, for the operator only');
+  const [ring, arrow] = marks;
+  assert.ok(Math.abs(ring.position.x - at[0]) < 1e-12 && Math.abs(ring.position.z - at[2]) < 1e-12, 'the ring at its feet');
+  assert.ok(Math.abs(arrow.position.x - (at[0] - INDICATOR.out)) < 1e-12, 'the arrow out to the west, its facing');
+  u.update(view(2, [{ id: 2, kind: 1, x: 2, y: 1, z: 0 }]), {}, level, 0, [{ type: 'death', id: 1 }]);
+  assert.equal(u.indicators.children.length, 0, 'gone as it dies');
+  assert.equal(u.shadows.children.length, 2, 'its shadow kept while it plays its die clip');
+  u.dispose();
+  const bare = createUnits(textures(['ui:shadow']));
+  bare.update(view(1, [{ id: 1, kind: 0, x: 1, y: 1, z: 0 }]), { 1: 'guard' }, level, 0);
+  assert.equal(bare.indicators.children.length, 0, 'no textures: none');
+  bare.dispose();
 });
