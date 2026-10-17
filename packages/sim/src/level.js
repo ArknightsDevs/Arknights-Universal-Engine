@@ -2,7 +2,7 @@
 
 /**
  * A tile: `goal` is the side a goal tile belongs to — 'A', 'B', 'Shared', or '' (合作-1).
- * @typedef {{ key: string, height: string, buildable: string, passable: string, side: string, goal?: string }} Tile
+ * @typedef {{ key: string, height: string, buildable: string, passable: string, side: string, goal?: string, obstacle?: boolean }} Tile
  */
 /** A closed tile edge (地图-2). @typedef {{ row: number, col: number, dir: string, mask: string }} BlockEdge */
 /** @typedef {{ width: number, height: number, tiles: Tile[][], blockEdges?: BlockEdge[] }} LevelMap */

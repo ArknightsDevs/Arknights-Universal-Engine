@@ -1,12 +1,12 @@
 // The network messages, version 8 (ADR 0053; version 2 adds the skill command, version 3 the cost request and its answer,
 // and the speed and pause controls, version 4 the match settings in the welcome, version 5 the content hash in it,
 // version 6 the ready message: the page has loaded the battle, version 7 the replay in the welcome and the resync, version 8 the seats' runes
-// in the match settings, version 9 the signals between seats: 同步-13). Messages from browsers are untrusted: the server accepts one only when
+// in the match settings, version 9 the signals between seats: 同步-13, version 10 the 「休整完毕」 command: 守御-2). Messages from browsers are untrusted: the server accepts one only when
 // clientMessageProblem returns null — exact fields, integers in range, short ids, nothing else.
 import { isRecord, isInt, isId, keyProblem } from './checks.js';
 import { matchProblem } from './match.js';
 
-export const PROTOCOL_VERSION = 9;
+export const PROTOCOL_VERSION = 10;
 
 /** Largest frame number (about 9.5 hours at 30 frames per second). */
 export const MAX_FRAME = 1_000_000;
@@ -18,7 +18,8 @@ export const MAX_SEAT = 7;
 /** @typedef {{ type: 'skill', unit: number }} SkillCommand */
 /** @typedef {{ type: 'ask' }} AskCommand */
 /** @typedef {{ type: 'answer', accept: number }} AnswerCommand */
-/** @typedef {DeployCommand | RetreatCommand | SkillCommand | AskCommand | AnswerCommand} Command */
+/** @typedef {{ type: 'rest' }} RestCommand */
+/** @typedef {DeployCommand | RetreatCommand | SkillCommand | AskCommand | AnswerCommand | RestCommand} Command */
 
 /** @type {Record<string, (c: Record<string, unknown>) => string | null>} */
 const COMMANDS = {
@@ -30,6 +31,7 @@ const COMMANDS = {
   skill: (c) => keyProblem(c, ['type', 'unit']) ?? (!isInt(c.unit, 1, 0x7fffffff) ? 'skill.unit is not a unit id' : null),
   ask: (c) => keyProblem(c, ['type']),
   answer: (c) => keyProblem(c, ['type', 'accept']) ?? (!isInt(c.accept, 0, 1) ? 'answer.accept is not 0 or 1' : null),
+  rest: (c) => keyProblem(c, ['type']),
 };
 
 /** Most fields a signal has besides its kind (同步-13). */

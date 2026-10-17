@@ -7,8 +7,11 @@ import act1multiHard02 from '../data/levels/act1multi_hard-02.json' with { type:
 import act1multiRm07 from '../data/levels/act1multi_rm07.json' with { type: 'json' };
 import act2multiRm01 from '../data/levels/act2multi_rm01.json' with { type: 'json' };
 import act1multiTr01 from '../data/levels/act1multi_tr01.json' with { type: 'json' };
+import act1multiFortressRm01 from '../data/levels/act1multi_fortress_rm01.json' with { type: 'json' };
+import act1multiFortressHard01 from '../data/levels/act1multi_fortress_hard-01.json' with { type: 'json' };
 import { uncoveredAbilities } from './foes.js';
 import { profiledDevices } from './devices.js';
+import { CARRIED } from './carried.js';
 
 /** @typedef {'NORMAL' | 'FOUR_STAR'} Difficulty */
 /** @typedef {import('@aue/sim').EnemyDef} EnemyDef */
@@ -16,7 +19,7 @@ import { profiledDevices } from './devices.js';
 /** The extracted levels, by id. @type {Readonly<Record<string, any>>} */
 export const LEVELS = Object.freeze({
   act1multi_01: act1multi01, act1multi_02: act1multi02, act1multi_06: act1multi06, 'act1multi_hard-02': act1multiHard02, act1multi_rm07: act1multiRm07,
-  act2multi_rm01: act2multiRm01, act1multi_tr01: act1multiTr01,
+  act2multi_rm01: act2multiRm01, act1multi_tr01: act1multiTr01, act1multi_fortress_rm01: act1multiFortressRm01, 'act1multi_fortress_hard-01': act1multiFortressHard01,
 });
 
 /** enemy_attribute_mul's keys and the enemy fields they multiply, with each field's value when the enemy has none. */
@@ -42,9 +45,39 @@ function multiplied(key, e, muls) {
 }
 
 /**
+ * A level's waves and branches (守御-6) with a difficulty's replacements of the enemies they spawn (关卡-2).
+ * @param {any} level @param {Record<string, string>} replace @returns {{ waves: any[], branches?: Record<string, any[]> }}
+ */
+function replacedSpawns(level, replace) {
+  const replaced = (/** @type {any} */ f) => ({ ...f, actions: f.actions.map((/** @type {any} */ a) => (a.type === 'SPAWN' ? { ...a, key: replace[a.key] ?? a.key } : a)) });
+  const waves = level.waves.map((/** @type {any} */ w) => ({ ...w, fragments: w.fragments.map(replaced) }));
+  if (!level.branches) return { waves };
+  return { waves, branches: Object.fromEntries(Object.entries(level.branches).map(([k, fs]) => [k, /** @type {any[]} */ (fs).map(replaced)])) };
+}
+
+/** The enemies a level's waves and branches spawn (关卡-2, 守御-6). @param {any[]} waves @param {Record<string, any[]> | undefined} branches */
+function spawnedKeys(waves, branches) {
+  const frags = [...waves.flatMap((/** @type {any} */ w) => w.fragments), ...Object.values(branches ?? {}).flat()];
+  return new Set(frags.flatMap((/** @type {any} */ f) => f.actions.filter((/** @type {any} */ a) => a.type === 'SPAWN').map((/** @type {any} */ a) => a.key)));
+}
+
+/**
+ * A level's options at a difficulty (关卡-2): the life point, the max cost and the cost recovery its runes set.
+ * @param {any} options @param {{ lifePoint?: number, maxCost?: number, costScale?: number }} d
+ */
+function optionsAt(options, d) {
+  return { ...options, ...(d.lifePoint !== undefined ? { maxLifePoint: d.lifePoint } : {}), ...(d.maxCost !== undefined ? { maxCost: d.maxCost } : {}),
+    ...(d.costScale !== undefined ? { costIncreaseTime: options.costIncreaseTime * d.costScale } : {}) };
+}
+
+/** The levels being tested (关卡-8): they load with enemy abilities that have no behaviour yet, which do nothing there. */
+export const TESTING = Object.freeze(['act1multi_fortress_rm01', 'act1multi_fortress_hard-01']);
+
+/**
  * A level at a difficulty (关卡-2), as @aue/sim's level and enemies; `attack` adds each enemy's attack timing.
  * Throws for a level with runes not supported at that difficulty, whose enemies there have abilities with no
- * behaviour yet, or with devices not profiled yet (装置-3).
+ * behaviour yet — unless it is being tested: then the level names them (`uncovered`, 关卡-8) —, or with devices not
+ * profiled yet (装置-3).
  * @param {string} id @param {Difficulty} difficulty @param {(key: string) => object} [attack]
  * @param {Readonly<Record<string, any>>} [levels] the extracted levels to take it from (LEVELS)
  * @returns {{ level: import('@aue/sim').Content['level'], enemies: Record<string, EnemyDef>, blockAdd: number, devices: Record<string, import('@aue/sim').DeviceDef> }}
@@ -55,17 +88,15 @@ export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
   const d = raw.difficulties[difficulty];
   if (!d) throw new RangeError(`level ${id}: no difficulty ${difficulty}`);
   if (d.unsupported.length > 0) throw new RangeError(`level ${id} at ${difficulty}: runes not supported yet: ${d.unsupported.join(', ')}`);
-  const replace = (/** @type {string} */ k) => d.replace[k] ?? k;
-  const waves = raw.level.waves.map((/** @type {any} */ w) => ({
-    ...w, fragments: w.fragments.map((/** @type {any} */ f) => ({ ...f, actions: f.actions.map((/** @type {any} */ a) => (a.type === 'SPAWN' ? { ...a, key: replace(a.key) } : a)) })),
-  }));
-  const used = new Set(waves.flatMap((/** @type {any} */ w) => w.fragments.flatMap((/** @type {any} */ f) => f.actions.filter((/** @type {any} */ a) => a.type === 'SPAWN').map((/** @type {any} */ a) => a.key))));
-  const missing = uncoveredAbilities(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([, e]) => /** @type {EnemyDef} */ (e)));
-  if (missing.length > 0) throw new RangeError(`level ${id} at ${difficulty}: enemy abilities not supported yet: ${missing.join(', ')}`);
-  const dev = profiledDevices(raw.devices ?? {});
+  const { waves, branches } = replacedSpawns(raw.level, d.replace);
+  const used = spawnedKeys(waves, branches), missing = uncoveredAbilities(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([, e]) => /** @type {EnemyDef} */ (e)));
+  if (missing.length > 0 && !TESTING.includes(id)) throw new RangeError(`level ${id} at ${difficulty}: enemy abilities not supported yet: ${missing.join(', ')}`);
+  // a carried unit's card (符文-6) is no device on the field: carried.js makes it
+  const dev = profiledDevices(Object.fromEntries(Object.entries(raw.devices ?? {}).filter(([k]) => !Object.hasOwn(CARRIED, k))));
   if (dev.missing.length > 0) throw new RangeError(`level ${id}: devices not supported yet: ${dev.missing.join(', ')}`);
   return {
-    level: { ...raw.level, waves, hiddenGroups: d.hiddenGroups, ...(dev.works ? { works: dev.works } : {}), options: { ...raw.level.options, ...(d.lifePoint !== undefined ? { maxLifePoint: d.lifePoint } : {}), ...(d.maxCost !== undefined ? { maxCost: d.maxCost } : {}) } },
+    level: { ...raw.level, waves, ...(branches ? { branches } : {}), ...(missing.length > 0 ? { uncovered: missing } : {}), hiddenGroups: d.hiddenGroups, ...(dev.works ? { works: dev.works } : {}),
+      options: optionsAt(raw.level.options, d) },
     enemies: Object.fromEntries(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([k, e]) => [k, { ...multiplied(k, /** @type {EnemyDef} */ (e), d.enemyMul), ...attack(k) }])),
     blockAdd: d.blockAdd ?? 0,
     devices: dev.devices,

@@ -997,6 +997,40 @@
           "x": 0,
           "y": 0
         }
+      },
+      {
+        "start": {
+          "row": 0,
+          "col": 0
+        },
+        "end": {
+          "row": 0,
+          "col": 0
+        },
+        "checkpoints": [],
+        "motion": "E_NUM",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 0,
+          "col": 0
+        },
+        "end": {
+          "row": 0,
+          "col": 0
+        },
+        "checkpoints": [],
+        "motion": "E_NUM",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
       }
     ],
     "waves": [
@@ -1300,6 +1334,38 @@
         ]
       }
     ],
+    "branches": {
+      "e1": [
+        {
+          "preDelay": 0,
+          "actions": [
+            {
+              "type": "SPAWN",
+              "key": "enemy_1037_lunsbr",
+              "route": 15,
+              "count": 1,
+              "preDelay": 0,
+              "interval": 1
+            }
+          ]
+        }
+      ],
+      "e2": [
+        {
+          "preDelay": 0,
+          "actions": [
+            {
+              "type": "SPAWN",
+              "key": "enemy_1037_lunsbr",
+              "route": 16,
+              "count": 1,
+              "preDelay": 0,
+              "interval": 1
+            }
+          ]
+        }
+      ]
+    },
     "predefines": [
       {
         "alias": "char_122_beagle",
@@ -1551,7 +1617,38 @@
       "levelType": "ELITE",
       "lifePointReduce": 1,
       "shared": true
+    },
+    "enemy_1037_lunsbr": {
+      "name": "特战士兵",
+      "maxHp": 3200,
+      "atk": 350,
+      "def": 50,
+      "res": 0,
+      "moveSpeed": 1.1,
+      "baseAttackTime": 2,
+      "rangeRadius": 0,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 1,
+      "levelType": "NORMAL",
+      "lifePointReduce": 1
     }
   },
-  "devices": {}
+  "devices": {
+    "trap_201_muulco": {
+      "name": "赛场啦啦队",
+      "maxHp": 100,
+      "atk": 0,
+      "def": 0,
+      "res": 0,
+      "blockCnt": 0,
+      "baseAttackTime": 1,
+      "aspd": 100,
+      "tauntLevel": -1,
+      "massLevel": 0,
+      "talentBb": {},
+      "talents": [],
+      "cost": 5
+    }
+  }
 }

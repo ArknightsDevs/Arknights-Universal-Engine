@@ -1,5 +1,5 @@
-// Player commands (spec 部署-1…部署-3, 撤退-1). A command that breaks a rule is ignored, the same way on every peer:
-// the server relays commands without judging them, every simulation applies the same rules.
+// Player commands (spec 部署-1…部署-3, 撤退-1, 守御-2, 守御-4). A command that breaks a rule is ignored, the same way on
+// every peer: the server relays commands without judging them, every simulation applies the same rules.
 import { KIND } from '@aue/schema';
 import { tileAt, buildableFor } from './level.js';
 import { makeOperator } from './units.js';
@@ -13,6 +13,9 @@ import { isDown, askCost, answerCost } from './coop.js';
 import { emit } from './bus.js';
 import { statsOf } from './attrs.js';
 import { pointForm } from './tactical.js';
+import { makeBuff, addBuff } from './buffs.js';
+import { restReady, poolCount, usePool } from './fortress.js';
+import { nextToFacility, facilityOf } from './facilities.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -72,11 +75,13 @@ const rangeProblem = (w, c, seat, cmd) => (inOwnerRange(w, c, seat, cmd.op, cmd)
 const trapProblem = (w, c, seat, cmd) => (trapRefused(w, c, seat, cmd.op, cmd) ? 'an enemy on the tile' : null);
 
 /**
- * An operator's own reasons (部署-2, 部署-3): on the field already, the deploy limit, redeploying, then the place's.
+ * An operator's own reasons (部署-2, 部署-3): on the field already, the deploy limit, redeploying, then the place's; a
+ * builder's own (守御-4).
  * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd
  */
 function operatorProblem(w, c, seat, cmd) {
   const p = w.players[seat], d = c.operators[cmd.op];
+  if (d.builder) return builderProblem(w, c, seat, cmd);
   if (p.deployed.includes(cmd.op)) return 'already deployed';
   return limitProblem(w, c, seat, d) ?? (w.frame < cardOf(p, cmd.op).ready ? 'redeploying' : null) ?? placeProblem(w, c, seat, cmd, deployCost(c, p, cmd.op));
 }
@@ -87,8 +92,23 @@ function operatorProblem(w, c, seat, cmd) {
  */
 function limitProblem(w, c, seat, d) {
   const takes = d.summon ? d.summon.occupy === 1 : !free(d);
-  return takes && occupying(w, c, seat, free) >= deployLimit(c, seat) ? 'deploy limit reached' : null;
+  return takes && occupying(w, c, seat, free) >= deployLimit(c, seat, w) ? 'deploy limit reached' : null;
 }
+
+/**
+ * A builder's reasons (守御-4): only in a rest, while the seat holds one of its cards, next to a facility not at the
+ * highest level, then the place's at its record's cost.
+ * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd
+ */
+function builderProblem(w, c, seat, cmd) {
+  if (w.fortress?.phase !== 'rest') return 'builders only in a rest';
+  if (poolCount(w, seat, cmd.op) <= 0) return 'no builder card left';
+  if (!nextToFacility(w, c, cmd.row, cmd.col)) return 'not next to a facility';
+  return placeProblem(w, c, seat, cmd, c.operators[cmd.op].cost);
+}
+
+/** A unit that takes its tile from operators (部署-1): an operator, or a device but a built platform (守御-5). @param {Content} c @param {import('./types.js').Unit} u */
+const holdsTile = (c, u) => u.kind === KIND.OPERATOR || (u.kind === KIND.DEVICE && !(facilityOf(c, u)?.kind === 'platform' && (u.fac?.level ?? 0) > 0));
 
 /**
  * The cost and the tile (部署-1, 部署-2): the cost of now, a tile the record may stand on, no operator there.
@@ -97,7 +117,7 @@ function limitProblem(w, c, seat, d) {
 function placeProblem(w, c, seat, cmd, cost) {
   if (w.players[seat].cost < cost) return 'not enough cost';
   if (!fits(c, c.operators[cmd.op], cmd.row, cmd.col)) return 'tile not buildable for this operator';
-  if (w.units.some((u) => (u.kind === KIND.OPERATOR || u.kind === KIND.DEVICE) && u.x === cmd.col && u.y === cmd.row)) return 'tile occupied';
+  if (w.units.some((u) => holdsTile(c, u) && u.x === cmd.col && u.y === cmd.row)) return 'tile occupied';
   return null;
 }
 
@@ -111,10 +131,11 @@ function deploy(w, c, seat, cmd) {
     deploySummon(w, c, seat, cmd);
     return;
   }
-  const p = w.players[seat], paid = deployCost(c, p, cmd.op);
+  const p = w.players[seat], b = c.operators[cmd.op].builder, paid = b ? c.operators[cmd.op].cost : deployCost(c, p, cmd.op);
   const u = makeOperator(w, c, { key: cmd.op, owner: seat, row: cmd.row, col: cmd.col, dir: cmd.dir, paid });
   p.cost -= paid;
-  p.deployed.push(cmd.op);
+  // a builder is one of the seat's cards (守御-4): untargetable, it stays until its work is done
+  if (b) { usePool(w, seat, cmd.op); addBuff(u, makeBuff({ key: 'builder', flags: { untargetable: true, noRetreat: true } })); } else p.deployed.push(cmd.op);
   w.units.push(u);
   w.events.push({ type: 'deploy', id: u.id, key: u.key, owner: seat });
   arrive(w, c, u);
@@ -152,5 +173,6 @@ export function applyCommand(w, c, seat, cmd) {
   else if (cmd.type === 'skill') commandSkill(w, c, seat, cmd.unit);
   else if (cmd.type === 'ask') askCost(w, c, seat);
   else if (cmd.type === 'answer') answerCost(w, c, seat, cmd.accept === 1);
+  else if (cmd.type === 'rest') restReady(w, seat);
   else retreat(w, c, seat, cmd.unit);
 }

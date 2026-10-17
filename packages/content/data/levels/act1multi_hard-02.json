@@ -19035,7 +19035,15 @@
       "talentBb": {
         "ymdgct_damage_scale[up].damage_scale": 1.3,
         "ymdgct_damage_scale[down].damage_scale": 0.7
-      }
+      },
+      "talents": [
+        {
+          "ymdgct_damage_scale[up].damage_scale": 1.3,
+          "ymdgct_damage_scale[down].damage_scale": 0.7
+        },
+        {}
+      ],
+      "cost": 5
     },
     "trap_097_hstone": {
       "name": "城防路障",
@@ -19048,7 +19056,9 @@
       "aspd": 100,
       "tauntLevel": 0,
       "massLevel": 0,
-      "talentBb": {}
+      "talentBb": {},
+      "talents": [],
+      "cost": 5
     },
     "trap_096_gflag": {
       "name": "山海密语仪",
@@ -19064,7 +19074,14 @@
       "talentBb": {
         "move_speed": 1.15,
         "attack_speed": 25
-      }
+      },
+      "talents": [
+        {
+          "move_speed": 1.15,
+          "attack_speed": 25
+        }
+      ],
+      "cost": 5
     }
   }
 }

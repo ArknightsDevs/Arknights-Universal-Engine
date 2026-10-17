@@ -6,6 +6,7 @@ import { traitOfDef, gainCost } from './traits.js';
 import { releaseAll } from './blocking.js';
 import { emit } from './bus.js';
 import { summonLeft, dismissSummons } from './summons.js';
+import { facilitySum, respawnFactor } from './facilities.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Player} Player @typedef {import('./types.js').Card} Card */
@@ -27,8 +28,11 @@ export function cardHidden(w, c, key) {
   return t !== undefined && !w.predefined.includes(t.alias);
 }
 
-/** A seat's deploy limit (部署-2): the level's, changed by the seat's runes (符文-2), not below 0. @param {Content} c @param {number} seat */
-export const deployLimit = (c, seat) => Math.max(0, c.level.options.characterLimit + (c.level.options.characterLimitAdd?.[seat] ?? 0));
+/**
+ * A seat's deploy limit (部署-2): the level's, changed by the seat's runes (符文-2) and the built 临时休息舱 (守御-5), not
+ * below 0. @param {Content} c @param {number} seat @param {World} [w]
+ */
+export const deployLimit = (c, seat, w) => Math.max(0, c.level.options.characterLimit + (c.level.options.characterLimitAdd?.[seat] ?? 0) + (w ? facilitySum(w, c, 'lounge', 'value_char') : 0));
 
 /**
  * The cost to deploy an operator now (部署-3): its initial cost × (1 + 0.5 × 再部署惩罚), rounded down.
@@ -38,8 +42,8 @@ export const deployCost = (c, p, key) => Math.floor(c.operators[key].cost * (1 +
 
 /**
  * An operator leaves the field (部署-3, 撤退-1): a retreat returns ⌊min(paid × 返还倍率, initial cost)⌋ cost; either way
- * its card gains a penalty layer (at most 2) and it may be deployed again after its 再部署时间. A summon has its own
- * card (召唤-4).
+ * its card gains a penalty layer (at most 2) and it may be deployed again after its 再部署时间 — 20% shorter while a
+ * 临时休息舱 is at level 3, none for a retreat in a rest (守御-2, 守御-5). A summon has its own card (召唤-4).
  * @param {World} w @param {Content} c @param {Unit} u @param {boolean} retreated
  */
 export function leaveField(w, c, u, retreated) {
@@ -49,7 +53,8 @@ export function leaveField(w, c, u, retreated) {
   }
   const p = w.players[u.owner], d = c.operators[u.key], card = cardOf(p, u.key);
   if (retreated) gainCost(w, c, u.owner, Math.floor(Math.min(u.paid * traitOfDef(d).refund, d.cost)));
-  p.cards[u.key] = { penalty: Math.min(MAX_PENALTY, card.penalty + 1), ready: w.frame + secondsToFrames(d.respawnTime ?? DEFAULT_RESPAWN) };
+  const wait = retreated && w.fortress?.phase === 'rest' ? 0 : secondsToFrames((d.respawnTime ?? DEFAULT_RESPAWN) * respawnFactor(w, c));
+  p.cards[u.key] = { penalty: Math.min(MAX_PENALTY, card.penalty + 1), ready: w.frame + wait };
   p.deployed = p.deployed.filter((k) => k !== u.key);
 }
 

@@ -35,6 +35,7 @@ import { spineModel } from './spine.js';
  * @property {Record<string, number>} [skills] each operator's skill (1-based) by its key, for its skill's own effects
  * @property {number} [pixelScale] the player's 清晰度 (渲染-15): the canvas's pixel ratio is the device's times this (default 1)
  * @property {boolean} [attackEffects] whether the attacks' effects are drawn (渲染-15; default true)
+ * @property {Map<string, import('./devicemesh.js').DeviceMeshModel>} [deviceMeshes] devices' mesh models by content key (渲染-20)
  */
 
 /** The events that set off attack effects (渲染-10, 渲染-11); the player may turn them off (渲染-15). */
@@ -74,12 +75,11 @@ export function createBattleRenderer(o) {
   scene.background = new THREE.Color(0x404040);
   const highlight = createHighlight(o.level), patch = highlight.patch;
   const terrain = o.kit ? createKitTerrain(o.level, o.kit, terrainTextures(o), patch) : createTerrain(o.level, o.textures, patch);
-  const units = createUnits(o.textures, o.models, o.foeDevices), field = { ...o.level, highland: o.kit?.kit.highland };
+  const units = createUnits(o.textures, o.models, o.foeDevices, o.deviceMeshes), field = { ...o.level, highland: o.kit?.kit.highland };
   const range = createRange(field, o.textures.get('ui:range')), marks = createTileMarks(field, o.textures.get('ui:range')), clock = battleClock();
   const effects = o.effects ? createEffects(o.effects, field, { skills: o.skills }) : null, placing = createPlacing(o.textures, o.models ?? new Map(), field);
   scene.add(terrain.object, range.object, marks.object, units.shadows, placing.object, units.object, ...(effects ? [effects.object] : []));
-  const overlays = createOverlays(o.bars === false ? new Map() : o.textures, o.leaders, o.foeDevices);
-  const ray = new THREE.Raycaster();
+  const overlays = createOverlays(o.bars === false ? new Map() : o.textures, o.leaders, o.foeDevices), ray = new THREE.Raycaster();
 
   let scale = o.pixelScale ?? 1, attackFx = o.attackEffects !== false;
   const resize = () => {
@@ -107,6 +107,7 @@ export function createBattleRenderer(o) {
       clock.seen(view.frame, performance.now());
       effects?.update(view, keys, attackFx ? events : events.filter((e) => !ATTACK_EVENTS.has(String(e.type))));
     },
+    /** The facilities' levels by unit id (守御-3, 渲染-20); those not given are at 0. */ levels: units.setLevels,
     /** Highlights the tiles (keys row × width + col) the selected operator can be deployed on (渲染-8); null for none. @param {Iterable<number> | null} keys */
     highlight: (keys) => highlight.set(keys),
     /** Shows an attack range (渲染-9): tile keys, healing or not; null for none. @param {Iterable<number> | null} keys @param {boolean} [heal] */

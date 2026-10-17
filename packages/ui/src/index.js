@@ -34,6 +34,9 @@ export { createStates } from './battle/states.js';
 export { createUnitBars } from './battle/unitbars.js';
 export { createStart } from './battle/start.js';
 export { createBanner, bannerTitle } from './battle/banner.js';
+export { createResting, restText } from './battle/resting.js';
+/** @typedef {import('./battle/resting.js').Resting} Resting */
+/** @typedef {import('./battle/coop.js').FortressTask} FortressTask */
 /** @typedef {import('./battle/banner.js').StageStart} StageStart */
 /** @typedef {import('./battle/start.js').StageInfo} StageInfo */
 /** @typedef {import('./battle/unitbars.js').UnitBar} UnitBar */

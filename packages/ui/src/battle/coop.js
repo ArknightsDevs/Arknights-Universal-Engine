@@ -1,7 +1,7 @@
-// The co-op top bar (docs/spec/ui.md 界面-12, 界面-16, 界面-17): over the battle screen in a match of two, in place of its
-// own top bar — both players' lives (and the time until a down player comes back), the speed button with a light for
-// each side's 2× switch, the pause button, the pause request waiting for the mate; the stage's task; the mate's pause
-// request to answer.
+// The co-op top bar (docs/spec/ui.md 界面-12, 界面-16, 界面-17, 界面-39): over the battle screen in a match of two, in
+// place of its own top bar — both players' lives (and the time until a down player comes back), the speed button with a
+// light for each side's 2× switch, the pause button, the pause request waiting for the mate; the stage's task, or
+// 堡垒守御's wave; the mate's pause request to answer.
 import { refNode } from '../node.js';
 
 /** @typedef {import('../node.js').UiNode} UiNode */
@@ -16,9 +16,16 @@ import { refNode } from '../node.js';
  * @typedef {{ stage: number, objective: string, count: number, goal: number, advanced?: number, left: number }} Task
  */
 /**
+ * 堡垒守御's wave (界面-39): its number (1-based) of the level's waves, the enemies of it gone of those it spawns, the
+ * seconds left of its defence (or of the rest before it); the last wave instead its damage record.
+ * @typedef {{ wave: number, waves: number, out: number, total: number, left: number, last: boolean, damage: number }} FortressTask
+ */
+/**
  * What the co-op top bar shows: this seat and the mate, the speed the battle runs at, whether it is paused, the share
- * left of this seat's pause request and of the mate's (−1 for none), the stage's task (none before the first).
- * @typedef {{ me: Side, mate: Side, speed: number, paused: boolean, asking: number, confirm?: number, task?: Task | null }} CoopState
+ * left of this seat's pause request and of the mate's (−1 for none), the stage's task (none before the first), or
+ * 堡垒守御's wave and the rest panel's state (界面-39).
+ * @typedef {{ me: Side, mate: Side, speed: number, paused: boolean, asking: number, confirm?: number, task?: Task | null, fortress?: FortressTask | null,
+ *   resting?: import('./resting.js').Resting | null }} CoopState
  */
 
 /** The objectives the task panel has a line for. */
@@ -69,7 +76,8 @@ export function createCoopTop(ui, c, on) {
       const wait = refNode(root, `${c.pause}/slider_pause_waiting`);
       if (wait) { wait.active = s.asking >= 0; if (s.asking >= 0) scr.slider('', s.asking, wait); }
       if (confirm) { confirm.active = (s.confirm ?? -1) >= 0; if (confirm.active) scr.slider('slider_progress', s.confirm ?? 0, confirm); }
-      if (status) showTask(scr, status, s.task ?? null, c.timerWarn ?? TIMER_WARN);
+      if (status && s.fortress) showFortress(scr, status, s.fortress, c.timerWarn ?? TIMER_WARN);
+      else if (status) showTask(scr, status, s.task ?? null, c.timerWarn ?? TIMER_WARN);
     },
   };
 }
@@ -100,6 +108,33 @@ function showTask(scr, status, t, warn) {
   scr.show('text_timer', late, task);
   scr.show('text_timer_normal', !late, task);
   scr.text(late ? 'text_timer' : 'text_timer_normal', clockText(t.left), task);
+}
+
+/**
+ * 堡垒守御's wave (界面-39): the pack's 堡垒守御 panel in place of the stage's bar and objective — the wave of the waves,
+ * the enemies gone of those it spawns; the last wave's panel with its damage instead; the time left as a stage's.
+ * @param {Screen} scr @param {UiNode} status the status panel @param {FortressTask} f @param {number} warn
+ */
+function showFortress(scr, status, f, warn) {
+  const task = scr.one('task', status);
+  if (!task) return;
+  task.active = true;
+  scr.show('normal', false, task);
+  for (const o of OBJECTIVES) scr.show(`taskInfo/${o}`, false, task);
+  scr.show('fortress', !f.last, task);
+  scr.show('fortress_lastWave', f.last, task);
+  if (f.last) scr.text('fortress_lastWave/waveDmg', String(Math.floor(f.damage)), task);
+  else {
+    scr.text('curWave/maxWave/waveCnt', String(f.wave), task);
+    scr.text('curWave/maxWave', String(f.waves), task);
+    scr.text('maxEnemy/enemyCnt', String(f.out), task);
+    scr.text('maxEnemy', String(f.total), task);
+  }
+  const late = f.left <= warn;
+  scr.show('group_timeout', late, task);
+  scr.show('text_timer', late, task);
+  scr.show('text_timer_normal', !late, task);
+  scr.text(late ? 'text_timer' : 'text_timer_normal', clockText(f.left), task);
 }
 
 /** @param {Screen} scr @param {UiNode} root @param {string} ref @param {() => void} fn */

@@ -30,10 +30,26 @@ const FRAME_MS = 1000 / 30, RECONNECT_MS = 1000;
  *   summons: Record<string, import('./cards.js').SummonStatus>, revive: number, ask: number, askCd: number }} PlayerStatus
  */
 /**
- * The match's state the page shows besides the view (合作-6, 波次-2, 结束-1): the current wave, the current stage, the
- * frame its clock starts at, its count, the stamps, the stages passed, the result; each player's state.
- * @typedef {{ wave: number, stage: number, start: number, count: number, stamps: number, passed: number, result: number, players: PlayerStatus[] }} Status
+ * 堡垒守御's state the page shows (守御-1, 守御-2, 守御-4): the phase, its wave, the frame it ends at, the waves defended,
+ * the damage to the last wave, each seat's 「休整完毕」 and builder cards held, the wave's enemies and those gone; each
+ * facility's level by unit id (守御-3).
+ * @typedef {{ phase: string, wave: number, until: number, defended: number, damage: number, ready: boolean[], pools: Record<string, number>[], total: number, out: number,
+ *   levels: Record<number, number> }} FortressStatus
  */
+/**
+ * The match's state the page shows besides the view (合作-6, 波次-2, 结束-1): the current wave, the current stage, the
+ * frame its clock starts at, its count, the stamps, the stages passed, the result; each player's state; 堡垒守御's.
+ * @typedef {{ wave: number, stage: number, start: number, count: number, stamps: number, passed: number, result: number, players: PlayerStatus[],
+ *   fortress?: FortressStatus }} Status
+ */
+
+/** @param {import('@aue/sim').World} w @returns {FortressStatus | undefined} */
+const fortressOf = (w) => {
+  const f = w.fortress;
+  if (!f) return undefined;
+  const levels = Object.fromEntries(w.units.flatMap((u) => (u.fac ? [[u.id, u.fac.level]] : [])));
+  return { phase: f.phase, wave: f.round, until: f.until, defended: f.defended, damage: f.damage, ready: [...f.ready], pools: f.pools.map((p) => ({ ...p })), total: f.total, out: f.out, levels };
+};
 
 /** @param {import('@aue/sim').World} w @param {import('@aue/sim').Content} c @returns {Status} */
 const statusOf = (w, c) => ({
@@ -42,6 +58,7 @@ const statusOf = (w, c) => ({
     costTimer: p.costTimer, deployed: [...p.deployed], revive: p.revive, ask: p.ask, askCd: p.askCd,
     ...operatorCards(w, c, i), summons: summonCards(w, c, i),
   })),
+  ...(w.fortress ? { fortress: fortressOf(w) } : {}),
 });
 
 export class BattleSession {

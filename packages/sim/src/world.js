@@ -30,13 +30,15 @@ import { emit, hasHook, runTimers } from './bus.js';
 import { fallIntoHoles } from './holes.js';
 import { tacticalFatal, tacticalBehaviors } from './tactical.js';
 import { dollFatal, dollBehaviors } from './doll.js';
+import { newFortress, setUpFortress, fortressHooks, tickFortress } from './fortress.js';
+import { fieldContent } from './facilities.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('@aue/schema').Command} Command */
 
 /**
  * A new world at frame 0 (spec 费用-1: each player starts with the level's initial cost and life), its hooks and timers
- * set up by the content (钩子-4).
+ * set up by the content (钩子-4); in 堡垒守御 its progress and facilities (守御-1, 守御-3).
  * @param {Content} c @param {{ seed: number, players: number }} o @returns {World}
  */
 export function createWorld(c, o) {
@@ -46,8 +48,10 @@ export function createWorld(c, o) {
     frame: 0, rng: seedState(o.seed), nextId: 1, sched: newSchedule(), predefined: visiblePredefines(c), result: -1, stage: newStageState(), bornThisFrame: 0, units: [], shots: [], blasts: [], bolts: [],
     events: [],
     players: Array.from({ length: o.players }, () => ({ life: maxLifePoint, cost: initialCost, costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {}, revive: -1, downs: 0, ask: -1, askCd: 0 })),
+    ...(c.level.fortress ? { fortress: newFortress(c, o.players) } : {}),
   };
   for (const alias of w.predefined) { placeDevice(w, c, alias); placePredefined(w, c, alias); }
+  setUpFortress(w, c);
   c.behaviors?.world?.(w, c);
   return w;
 }
@@ -136,10 +140,13 @@ function buffBehaviors(c) {
 
 /**
  * Runs frame `w.frame` with the commands executed in it ([seat, command] in the order the server sealed them) and
- * advances to the next frame. Returns the frame's presentation events.
- * @param {World} w @param {Content} c @param {[number, Command][]} commands
+ * advances to the next frame — on the field as the facilities make it at the frame's start (守御-5). Returns the
+ * frame's presentation events.
+ * @param {World} w @param {Content} level @param {[number, Command][]} commands
  */
-export function step(w, c, commands = []) {
+export function step(w, level, commands = []) {
+  const c = fieldContent(w, level);
+  fortressHooks(w, level);
   w.events = [];
   w.bornThisFrame = 0;
   for (const [seat, cmd] of commands) applyCommand(w, c, seat, cmd);
@@ -152,6 +159,7 @@ export function step(w, c, commands = []) {
   tickRequests(w);
   tickStage(w, c);
   tickWaves(w, c);
+  tickFortress(w, c);
   tickBuffs(w, buffBehaviors(c));
   regenAll(w);
   enemiesAct(w, c);
@@ -195,10 +203,12 @@ function pushText(out, tag, s) {
 
 /**
  * The state hash (spec 同步-1): the frame, the random state, the id counter, the waves' progress, the predefined units in
- * effect, the result, the co-op stages, the players, the units, the projectiles, bolts and explosions, all of their data.
+ * effect, the result, the co-op stages, the players, the units, the projectiles, bolts and explosions, 堡垒守御's
+ * progress when there is one (守御-1), all of their data.
  * @param {World} w @returns {number}
  */
 export function stateHash(w) {
-  return hashValue(HASH_START, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, stage: w.stage, players: w.players, units: w.units, shots: w.shots, blasts: w.blasts, bolts: w.bolts });
+  return hashValue(HASH_START, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, stage: w.stage, players: w.players, units: w.units, shots: w.shots, blasts: w.blasts, bolts: w.bolts,
+    fortress: w.fortress });
 }
 

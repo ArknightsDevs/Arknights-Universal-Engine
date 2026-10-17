@@ -15,6 +15,7 @@ import { defOf, tokenDefOf } from './compat/records.js';
 import { KIT_SOURCE } from './compat/kitmod.js';
 import { seatRules, withRunes } from './runes.js';
 import { carriedDef } from './carried.js';
+import { withBuilders } from './fortress.js';
 
 /** The official behaviours: skills (技能-6) and enemy abilities (敌能-2). */
 const BEHAVIORS = Object.freeze({ skills: skillBehaviors, foes: foeBehaviors });
@@ -71,7 +72,8 @@ function withoutTalents({ talentBb, fieldTalents, rangeTalents, critTalents, tim
  * (召唤-2), keyed "summon id#seat", with their owner's key (`summoner`). An operator with a loaded kit (兼容-6,
  * kitmod.js) fights by its kit: its record without its talents, its team talents not given by the engine, its kit's
  * world setup and skill behaviours; the content names the commit and the kits it uses. A seat's runes (符文-1) change its
- * operators and summons, and its deploy limit (level.options.characterLimitAdd); runes not supported throw.
+ * operators and summons, and its deploy limit (level.options.characterLimitAdd); runes not supported throw. In 堡垒守御
+ * every seat's deck has the level's builders too (守御-4).
  * @param {{ level: string, difficulty: 'NORMAL' | 'FOUR_STAR', seed: number, decks: { id: string, build: import('./operators.js').Build }[][], runes?: import('./runes.js').SeatRune[][] }} match
  * @param {Readonly<Record<string, any>>} [levels] the extracted levels (LEVELS)
  * @param {Readonly<Record<string, import('./compat/kitmod.js').KitFactory>>} [kits] loaded kit factories by character id
@@ -100,6 +102,7 @@ export async function matchContent(match, levels = LEVELS, kits = {}) {
   }));
   await withPredefined(operators, lv.level, lv.blockAdd);
   const limitAdd = await withSeatRunes(operators, decks, match.runes ?? []);
+  withBuilders(lv.level, lv.devices, operators, decks);
   const used = [...new Set(Object.keys(entries).map((k) => k.split('#')[0]))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const kb = used.length ? kitsBehaviors(entries) : null;
   const behaviors = kb ? { ...BEHAVIORS, world: kb.world, skills: { ...BEHAVIORS.skills, ...kb.skills }, buffs: kb.buffs, traits: kb.traits } : BEHAVIORS;
@@ -197,7 +200,8 @@ export const skeletonSource = skeleton.source;
 
 export { skillDefOf, skillBehaviors } from './skills.js';
 export { BRANCHES, coveredBranch, withTrait } from './traits.js';
-export { LEVELS, levelAt } from './levels.js';
+export { LEVELS, TESTING, levelAt } from './levels.js';
+export { withBuilders } from './fortress.js';
 export { foeBehaviors, withFoeExtras, FOE_EXTRAS } from './foes.js';
 export { ROSTER, rosterSource, loadTraining, operatorAt } from './operators.js';
 export { TOKENS, SUMMON_PAGES, loadToken, tokenAt } from './tokens.js';

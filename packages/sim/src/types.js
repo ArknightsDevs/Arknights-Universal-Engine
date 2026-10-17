@@ -32,7 +32,17 @@
  * A device's record (关卡-6, 装置-1): its name, attributes and its talents' blackboard; its side when it is the enemies'
  * (装置-3), the statuses it is immune to, and the modifiers it gives every enemy while on the field (装置-4).
  * @typedef {{ name: string, maxHp: number, atk: number, def: number, res: number, blockCnt: number, baseAttackTime: number, aspd: number, tauntLevel: number,
- *   massLevel: number, talentBb: Record<string, number>, side?: 'ENEMY', immune?: string[], enemyMods?: Record<string, number> }} DeviceDef
+ *   massLevel: number, talentBb: Record<string, number>, side?: 'ENEMY', immune?: string[], enemyMods?: Record<string, number>, talents?: Record<string, number>[],
+ *   cost?: number, facility?: FacilityDef, builder?: BuilderDef, rubble?: RubbleDef, inert?: boolean }} DeviceDef
+ */
+/**
+ * 堡垒守御 (守御-1…守御-6): the level's times in seconds and the life a rest gives; a facility's kind, its modes'
+ * blackboards by level and a roadblock's blast; a builder's progress key, hits and seconds on the field; the rubble
+ * pile's range cells, its guards' branch and its check times.
+ * @typedef {{ rest: number, wave: number, waveLast: number, life: number, restAdd: number }} FortressRules
+ * @typedef {{ kind: 'workshop' | 'lounge' | 'platform' | 'roadblock' | 'gym', modes: Record<string, number>[], boom?: number }} FacilityDef
+ * @typedef {{ sp: 'sp' | 'sp2', hits: number, life: number }} BuilderDef
+ * @typedef {{ range: string, cells: Cell[], branch: string, first: number, every: number }} RubbleDef
  */
 /**
  * A co-op stage (合作-6, 合作-7): the alias of its controller, its objective, the minimum and advanced targets (for 突击 as
@@ -50,7 +60,8 @@
  * A level: its map, options, routes, waves (波次-1), the hidden groups enabled (波次-4), its predefined units (波次-6) and
  * its co-op stages (合作-6).
  * @typedef {import('./level.js').LevelMap & { id: string, code?: string, name?: string, options: LevelOptions, routes: Route[], waves: Wave[],
- *   hiddenGroups?: string[], predefines?: Predefine[], stages?: Stage[], view?: number[], works?: { dealt: number, taken: number }, cards?: LevelCards }} Level
+ *   hiddenGroups?: string[], predefines?: Predefine[], stages?: Stage[], view?: number[], works?: { dealt: number, taken: number }, cards?: LevelCards,
+ *   branches?: Record<string, Fragment[]>, fortress?: FortressRules, uncovered?: string[] }} Level
  */
 
 /** @typedef {'phys' | 'arts' | 'true' | 'elemental'} DamageType */
@@ -216,7 +227,7 @@
  *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, trait?: Partial<TraitDef>, respawnTime?: number, char?: string,
  *   talentBb?: Record<string, number>, fieldTalents?: TeamTalent[], powers?: string[], rangeTalents?: RangeTalent[],
  *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[], summoner?: string, summon?: SummonDef,
- *   runeMods?: Record<string, number>, probSp?: { prob: number, sp: number }[], rangeSp?: { sp: number, interval: number }, carried?: CarriedEffect }} OperatorDef
+ *   runeMods?: Record<string, number>, probSp?: { prob: number, sp: number }[], rangeSp?: { sp: number, interval: number }, carried?: CarriedEffect, builder?: BuilderDef }} OperatorDef
  */
 /**
  * A summon's card rules (召唤-3, 召唤-4): its limits on the field and held, what its owner's deployment adds (0: no card),
@@ -368,6 +379,8 @@
  * @property {number} anim schema ANIM
  * @property {number} [summoner] the id of the unit that summoned it (召唤-4, 召唤-6); left out for others
  * @property {number} [expires] the frame a summon with a time leaves at (召唤-9); left out for others
+ * @property {{ level: number, top: number, pts: number }} [fac] a facility's level, highest level reached and progress (守御-3)
+ * @property {{ hits: number, next: number, leave: number }} [bld] a builder's hits, the frame of its next and the frame it leaves at (守御-4)
  */
 
 /**
@@ -446,6 +459,15 @@
  * @typedef {{ wave: number, step: 'pre' | 'frags' | 'hold' | 'post' | 'done', at: number, frag: number, fragAt: number, fired: number[],
  *   chosen: number[] }} Schedule
  */
+/**
+ * 堡垒守御's progress (守御-1, 守御-2, 守御-4, 守御-6): the phase — `defend`, `rest`, `go` (the rest over, the next wave
+ * about to begin), `over` —, its wave (`round`), the frame the defence began and the frame the phase ends at, the last wave that
+ * may begin; whether a player fell in this defence, the waves defended, the damage the last wave took; each seat's
+ * 「休整完毕」 and builder cards; the rubble piles' guards to come and whether the advanced builder came this defence; the
+ * enemies the wave spawns that it waits for and those of them gone from the field.
+ * @typedef {{ phase: 'defend' | 'rest' | 'go' | 'over', round: number, start: number, until: number, next: number, fell: boolean, defended: number, damage: number,
+ *   ready: boolean[], pools: Record<string, number>[], guards: { at: number, key: string, route: number }[], freed: boolean, total: number, out: number }} FortressState
+ */
 
 /**
  * @typedef {object} World
@@ -461,6 +483,7 @@
  * @property {Blast[]} blasts delayed explosions (敌能-3)
  * @property {Bolt[]} bolts 直击 bolts in flight (敌能-4)
  * @property {number} bornThisFrame units created so far in this frame
+ * @property {FortressState} [fortress] 堡垒守御's progress (守御-1), only in its levels
  * @property {Shot[]} shots projectiles in flight, in launch order (攻击-3)
  * @property {Record<string, string | number>[]} events this frame's presentation events (not part of the state)
  * @property {import('./bus.js').Bus} [bus] the hook bus and timers (钩子-1, 钩子-2; not part of the state)

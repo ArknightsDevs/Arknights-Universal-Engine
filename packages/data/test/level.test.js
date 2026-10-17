@@ -132,3 +132,16 @@ test('[地图-2] closed edges: a tile, its side and the mask, in data order; non
   lv.mapData.blockEdges = [{ pos: pos(0, 1), direction: 'UP', blockMask: 'SOME' }];
   assert.throws(() => out(lv), /blockMask: unknown SOME/);
 });
+
+test('[守御-1] [守御-6] 堡垒守御: its global buff\'s times and life as `fortress`; its branches as fragments, their enemies among the level\'s', () => {
+  const lv = /** @type {any} */ (makeLevel());
+  const bb = { rest_time: 65, wave_time: 120, wave_time_last: 300, life_point: 3, rest_add: 5 };
+  lv.globalBuffs = [{ prefabKey: 'cooperate_fortress_global_buff', blackboard: Object.entries(bb).map(([key, value]) => ({ key, value, valueStr: null })) }];
+  lv.branches = { guards: { phases: [{ preDelay: 2, actions: [spawn('e_d', 1)] }] } };
+  const s = /** @type {any} */ (extractLevel({ id: 'lv', level: lv, enemyDb: db(), commit: 'c' }));
+  assert.deepEqual(s.level.fortress, { rest: 65, wave: 120, waveLast: 300, life: 3, restAdd: 5 });
+  assert.deepEqual(s.level.branches.guards.map((/** @type {any} */ f) => [f.preDelay, f.actions.map((/** @type {any} */ a) => [a.key, a.route])]), [[2, [['e_d', 0]]]], 'routes in first-use order, as the waves do (data route 1 is the first used)');
+  assert.ok(Object.hasOwn(s.enemies, 'e_d'));
+  const plain = /** @type {any} */ (extractLevel({ id: 'lv', level: makeLevel(), enemyDb: db(), commit: 'c' }));
+  assert.deepEqual([plain.level.fortress, plain.level.branches], [undefined, undefined]);
+});

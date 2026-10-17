@@ -30,6 +30,8 @@ export * as doll from './doll.js';
 export * as displacement from './displacement.js';
 export { moveOperator, canMoveTo } from './move.js';
 export * as devices from './devices.js';
+export * as fortress from './fortress.js';
+export * as facilities from './facilities.js';
 export * as swing from './swing.js';
 export * as coop from './coop.js';
 export * as waves from './waves.js';

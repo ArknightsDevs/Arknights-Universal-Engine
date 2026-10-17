@@ -1,6 +1,6 @@
-// The units system: each unit is a Spine figure when its model is loaded (docs/spec/render.md 渲染-1 … 渲染-4), else a
-// card with the operator's avatar or the enemy's icon standing at its feet; a device with neither is a block in its
-// side's colour (渲染-16); any other unit with neither is not drawn. Figures, cards and blocks are depth-tested against
+// The units system: each unit is a Spine figure when its model is loaded (docs/spec/render.md 渲染-1 … 渲染-4), a device
+// with a mesh model that mesh at its level (渲染-20), else a card with the operator's avatar or the enemy's icon standing
+// at its feet; a device with none of them is a block in its side's colour (渲染-16); any other unit with neither is not drawn. Figures, cards and blocks are depth-tested against
 // the terrain without writing depth (ADR 0027). A figure whose unit died stays to play its die clip. Every figure, card
 // and block has a shadow (渲染-6) for as long as it is drawn.
 import * as THREE from 'three';
@@ -9,6 +9,7 @@ import { toThree, tileWorld } from './camera.js';
 import { FPS, newFigure, follow, attacked, dies, deathOver, poseFigure } from './figure.js';
 import { createShadows } from './shadows.js';
 import { BAR } from './overlays.js';
+import { createMeshDrawer } from './devicemesh.js';
 
 const CARD = 0.8;
 /** A device block (渲染-16): its footprint and height in tiles; its sides are this much of its top's colour. */
@@ -48,16 +49,16 @@ const disposeFigure = (f) => { for (const x of Object.values(f.sides)) x.dispose
  * The units system; its shadows are a separate object (drawn before every unit).
  * @param {Map<string, THREE.Texture>} textures @param {Models} [models] by content key (operators by character id)
  * @param {Set<string>} [foeDevices] content keys of the devices on the enemies' side (装置-3)
+ * @param {Map<string, import('./devicemesh.js').DeviceMeshModel>} [meshes] devices' mesh models by content key (渲染-20)
  */
-export function createUnits(textures, models = new Map(), foeDevices = new Set()) {
+export function createUnits(textures, models = new Map(), foeDevices = new Set(), meshes = new Map()) {
   const group = new THREE.Group(), shadows = createShadows(textures.get('ui:shadow'));
   /** @type {Map<number, THREE.Sprite | THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>>} cards and blocks */
   const cards = new Map();
-  /** @type {Map<number, Figure>} */
-  const figures = new Map();
+  /** @type {Map<number, Figure>} */ const figures = new Map();
   /** @type {Map<number, string>} unit id → content key, from the worker's frame messages */
   const keys = new Map();
-  const clock = { frame: 0, at: 0 };
+  const clock = { frame: 0, at: 0 }, mesh = createMeshDrawer(group, meshes, (id) => keys.get(id) ?? '');
 
   /** @param {import('@aue/schema').ViewUnit} u */
   const card = (u) => {
@@ -77,11 +78,24 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
   };
 
   /**
+   * A unit at its place: a device's mesh (渲染-20), else its figure, else its card or block, made on first sight.
+   * @param {import('@aue/schema').ViewUnit} u @param {[number, number, number]} at @param {number} frame
+   */
+  const draw = (u, at, frame) => {
+    if (mesh.draw(u, u.kind === KIND.DEVICE && !figures.has(u.id) && !cards.has(u.id), at)) return;
+    const f = figures.get(u.id) ?? (cards.has(u.id) ? null : figure(u, frame));
+    if (f) { follow(f, u, frame); f.group.position.set(...at); shadows.place(u.id, at); return; }
+    const s = cards.get(u.id) ?? card(u);
+    if (s) { s.position.set(...at); shadows.place(u.id, at); }
+  };
+
+  /**
    * Units gone from the view: cards go; a figure that died plays its die clip and goes when it is over.
    * @param {Set<number>} seen @param {Set<number>} died @param {number} frame
    */
   const prune = (seen, died, frame) => {
     for (const [id, s] of cards) if (!seen.has(id)) { group.remove(s); s.material.dispose(); cards.delete(id); shadows.drop(id); }
+    mesh.prune(seen);
     for (const [id, f] of figures) {
       if (seen.has(id)) continue;
       if (f.dying ? !deathOver(f, frame) : died.has(id) && dies(f, frame)) continue;
@@ -100,14 +114,7 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
       for (const [id, key] of Object.entries(newKeys)) keys.set(Number(id), key);
       Object.assign(clock, { frame: view.frame, at: now });
       const seen = new Set();
-      for (const u of view.units) {
-        seen.add(u.id);
-        const at = toThree(tileWorld(level, u.x, u.y, u.z));
-        const f = figures.get(u.id) ?? (cards.has(u.id) ? null : figure(u, view.frame));
-        if (f) { follow(f, u, view.frame); f.group.position.set(...at); shadows.place(u.id, at); continue; }
-        const s = cards.get(u.id) ?? card(u);
-        if (s) { s.position.set(...at); shadows.place(u.id, at); }
-      }
+      for (const u of view.units) { seen.add(u.id); draw(u, toThree(tileWorld(level, u.x, u.y, u.z)), view.frame); }
       for (const e of events) if (e.type === 'attack') { const f = figures.get(Number(e.id)); if (f && !f.dying) attacked(f, Number(e.wind), view.frame); }
       prune(seen, new Set(events.filter((e) => e.type === 'death').map((e) => Number(e.id))), view.frame);
     },
@@ -116,13 +123,15 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
       const frame = clock.frame + Math.min(1, Math.max(0, ((now - clock.at) * FPS) / 1000));
       for (const f of figures.values()) poseFigure(f, frame, camera);
     },
-    count: () => cards.size + figures.size,
-    /** Whether a unit is drawn (as a living figure or a card). @param {number} id */
-    shows: (id) => cards.has(id) || (figures.has(id) && !figures.get(id)?.dying),
+    /** The facilities' levels (守御-3) by unit id; those not given are at 0. @param {Record<string, number>} by */
+    setLevels: mesh.setLevels,
+    count: () => cards.size + figures.size + mesh.placed.size,
+    /** Whether a unit is drawn (as a living figure, a mesh or a card). @param {number} id */
+    shows: (id) => cards.has(id) || mesh.placed.has(id) || (figures.has(id) && !figures.get(id)?.dying),
     dispose() {
       for (const s of cards.values()) s.material.dispose();
       for (const f of figures.values()) disposeFigure(f);
-      cards.clear(); figures.clear(); shadows.dispose();
+      cards.clear(); figures.clear(); mesh.placed.clear(); shadows.dispose();
     },
   };
 }

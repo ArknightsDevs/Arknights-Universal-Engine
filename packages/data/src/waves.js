@@ -94,6 +94,22 @@ export function extractWaves(wavesRaw, routeOf) {
 }
 
 /**
+ * A level's branches (守御-6): each named branch's phases as fragments — their preDelay and their valid actions; none
+ * without branches. @param {unknown} raw level.branches @param {(index: number) => number} routeOf @returns {Record<string, Fragment[]>}
+ */
+export function branchesOf(raw, routeOf) {
+  if (raw === null || raw === undefined) return {};
+  return Object.fromEntries(Object.entries(asObject(raw, 'level.branches')).map(([name, b]) => {
+    const p = `level.branches.${name}`;
+    return [name, asArray(field(asObject(b, p), 'phases', p), `${p}.phases`).map((f, i) => {
+      const fp = `${p}.phases[${i}]`, fo = asObject(f, fp);
+      const actions = asArray(field(fo, 'actions', fp), `${fp}.actions`).map((a, ai) => readAction(a, `${fp}.actions[${ai}]`, routeOf));
+      return { preDelay: asNumber(fo.preDelay ?? 0, `${fp}.preDelay`, 0, 1e6), actions: /** @type {WaveAction[]} */ (actions.filter(Boolean)) };
+    })];
+  }));
+}
+
+/**
  * Whether a rune's difficultyMask covers a difficulty (波次-4): the difficulty's name, ALL, or a number whose bit for the
  * difficulty is set.
  * @param {unknown} mask @param {'NORMAL' | 'FOUR_STAR'} difficulty
