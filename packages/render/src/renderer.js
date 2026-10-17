@@ -8,6 +8,7 @@ import { createTerrain } from './terrain.js';
 import { createKitTerrain } from './kit.js';
 import { createHighlight } from './highlight.js';
 import { createRange } from './range.js';
+import { createTileMarks } from './tilemarks.js';
 import { createEffects } from './effects.js';
 import { FPS } from './figure.js';
 import { createUnits } from './units.js';
@@ -74,9 +75,9 @@ export function createBattleRenderer(o) {
   const highlight = createHighlight(o.level), patch = highlight.patch;
   const terrain = o.kit ? createKitTerrain(o.level, o.kit, terrainTextures(o), patch) : createTerrain(o.level, o.textures, patch);
   const units = createUnits(o.textures, o.models, o.foeDevices), field = { ...o.level, highland: o.kit?.kit.highland };
-  const range = createRange(field, o.textures.get('ui:range')), effects = o.effects ? createEffects(o.effects, field, { skills: o.skills }) : null, clock = battleClock();
-  const placing = createPlacing(o.textures, o.models ?? new Map(), field);
-  scene.add(terrain.object, range.object, units.shadows, placing.object, units.object, ...(effects ? [effects.object] : []));
+  const range = createRange(field, o.textures.get('ui:range')), marks = createTileMarks(field, o.textures.get('ui:range')), clock = battleClock();
+  const effects = o.effects ? createEffects(o.effects, field, { skills: o.skills }) : null, placing = createPlacing(o.textures, o.models ?? new Map(), field);
+  scene.add(terrain.object, range.object, marks.object, units.shadows, placing.object, units.object, ...(effects ? [effects.object] : []));
   const overlays = createOverlays(o.bars === false ? new Map() : o.textures, o.leaders, o.foeDevices);
   const ray = new THREE.Raycaster();
 
@@ -110,10 +111,12 @@ export function createBattleRenderer(o) {
     highlight: (keys) => highlight.set(keys),
     /** Shows an attack range (渲染-9): tile keys, healing or not; null for none. @param {Iterable<number> | null} keys @param {boolean} [heal] */
     range: (keys, heal) => range.show(keys, heal),
+    /** Shows the marked tiles (渲染-19); null for none. @param {readonly import('./tilemarks.js').TileMark[] | null} list */
+    marks: (list) => marks.show(list),
     /** Shows the operator being placed (渲染-14); null for none. @param {import('./placing.js').Placing | null} p */
     placing: (p) => placing.set(p),
     render() {
-      range.tick(performance.now() / 1000);
+      const now = performance.now() / 1000; range.tick(now); marks.tick(now);
       units.pose(camera);
       placing.pose(camera);
       overlays.pose(camera);
@@ -141,7 +144,7 @@ export function createBattleRenderer(o) {
     shows: (id) => units.shows(id),
     /** What the last frame drew and what the GPU holds (for measuring): draw calls, triangles, geometries, textures and their estimated bytes. */
     stats: () => drawStats(renderer, [scene, overlays.scene]),
-    dispose() { terrain.dispose(); range.dispose(); highlight.dispose(); units.dispose(); placing.dispose(); overlays.dispose(); effects?.dispose(); renderer.dispose(); },
+    dispose() { terrain.dispose(); range.dispose(); marks.dispose(); highlight.dispose(); units.dispose(); placing.dispose(); overlays.dispose(); effects?.dispose(); renderer.dispose(); },
   };
 }
 
