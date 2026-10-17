@@ -11,6 +11,7 @@ import { stageOf, startStage, resting } from './stage.js';
 import { foeSpawn } from './foes.js';
 import { emit } from './bus.js';
 import { placeDevice, withdrawDevice } from './devices.js';
+import { placePredefined, isPredefinedOperator } from './predefined.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Wave} Wave @typedef {import('./types.js').WaveAction} WaveAction @typedef {import('./types.js').Schedule} Schedule */
@@ -110,7 +111,8 @@ function beginWave(w, c, at) {
 }
 
 /**
- * One action acting once (波次-1, 波次-6): an enemy spawns, a predefined unit comes into effect or leaves.
+ * One action acting once (波次-1, 波次-6, 波次-7, 波次-8): an enemy spawns, a predefined unit comes into effect or leaves,
+ * a story is told.
  * @param {World} w @param {Content} c @param {WaveAction} a @param {number} fragAt @param {number} wave
  */
 function act(w, c, a, fragAt, wave) {
@@ -121,11 +123,17 @@ function act(w, c, a, fragAt, wave) {
     foeSpawn(w, c, u);
     emit(w, 'deploy', { unit: u, initial: false });
     emit(w, 'enemySpawn', { enemy: u });
+  } else if (a.type === 'ACTIVATE' && isPredefinedOperator(c, a.key)) {
+    // an operator comes back each time it is activated off the field, after the intermission too (波次-7)
+    if (!w.predefined.includes(a.key)) { w.predefined.push(a.key); w.events.push({ type: 'predefine', key: a.key, on: 1 }); }
+    placePredefined(w, c, a.key);
   } else if (a.type === 'ACTIVATE' && !w.predefined.includes(a.key)) {
     w.predefined.push(a.key);
     w.events.push({ type: 'predefine', key: a.key, on: 1 });
     placeDevice(w, c, a.key);
     if (stageOf(c, a.key) >= 0) startStage(w, c, stageOf(c, a.key));
+  } else if (a.type === 'STORY') {
+    w.events.push({ type: 'story', key: a.key });
   } else if (a.type === 'WITHDRAW' && w.predefined.includes(a.key)) {
     w.predefined = w.predefined.filter((k) => k !== a.key);
     w.events.push({ type: 'predefine', key: a.key, on: 0 });

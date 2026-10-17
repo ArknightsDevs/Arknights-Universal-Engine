@@ -65,6 +65,18 @@
 
 - 来源：[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935) 小队动作指令表（见波次-1）；数据：level.predefines（characterInsts、tokenInsts 的 alias、hidden）
 
+### 波次-7 预置干员
+
+关卡的预部署单位里，没有别名、但给出了所在格的干员实例是预置干员（训练场里协作者的干员）：别名就是它的干员 id，数据还给出它的练度（精英化阶段、等级、潜能、技能与技能等级；信赖 100，推断 INF-0201）。它生效时（波次-6），如果不在场上，就作为最后一个座位（两人对局里是协作者）的干员部署在给定的格子、朝向上：不花费用，不在任何卡组里，不占可部署人数，部署的效果同干员（部署-2）。它被撤下以后（比如中场休整时所有干员撤退，合作-8），下一次生效会再次部署；已经在场上时再生效什么也不做。
+
+- 来源：[PRTS「IG-TR-1 规则教学-常规项目」oldid=430163](https://prts.wiki/index.php?oldid=430163)「已部署干员」（米格鲁、阿米娅、芙蓉、空爆的练度与技能，「本关卡已部署干员信赖值都为100%」）与关卡内剧情「阿米娅部署米格鲁」「阿米娅，空爆，芙蓉，米格鲁依次部署」；数据：level.predefines.characterInsts（position、direction、hidden、skillIndex、mainSkillLvl、inst）；属于最后一个座位、不占可部署人数为推断 INF-0201
+
+### 波次-8 剧情
+
+`STORY` 动作执行时产生表现事件 `story`（事件第 10 版，`key` 为剧情的路径，如 `Activities/MultiV3/Training/training_multi_v3_01-01_a`）。剧情不改变战斗；由页面按剧情的内容显示（例如训练场的教学），它要暂停战斗时经暂停控制（同步-8、同步-14）。
+
+- 来源：数据：level_act1multi_tr01 的波次动作 `actionType: STORY`；[PRTS「IG-TR-1 规则教学-常规项目」oldid=430163](https://prts.wiki/index.php?oldid=430163)「关卡内剧情」
+
 ### 结束-1 战斗结束
 
 - **胜利**：有比赛阶段的关卡（合作-6），最后一个阶段结算通过；其他关卡，关卡有波次，并且所有波次已完成（波次-3）。

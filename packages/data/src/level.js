@@ -2,7 +2,7 @@
 // what each difficulty changes, and its enemies with the level's overrides. Pure functions over parsed game data.
 import { asArray, asNumber, asObject, asString, field } from './validate.js';
 import { extractEdges, extractTiles, readRoute } from './skeleton-world.js';
-import { extractWaves, predefinesOf, stagesOf, maskCovers } from './waves.js';
+import { extractWaves, predefinesOf, stagesOf, maskCovers, levelCardsOf } from './waves.js';
 import { devicesOf } from './devices.js';
 import { extractOptions } from './skeleton.js';
 import { enemyOf, sharedEnemies, damageTypeOf } from './enemies.js';
@@ -121,6 +121,12 @@ function withTasks(stages, missions) {
   });
 }
 
+/** The level's own cards (关卡-7), only when it has some. @param {unknown} raw level.predefines */
+function cardsField(raw) {
+  const cards = levelCardsOf(raw);
+  return cards.operators.length || cards.tokens.length ? { cards } : {};
+}
+
 /**
  * A whole level (关卡-1…关卡-5): `id` names it in the content.
  * @param {{ id: string, level: unknown, enemyDb: unknown, handbook?: unknown, commit: string, view?: { vector: unknown, source: string }, stage?: unknown,
@@ -143,7 +149,7 @@ export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage
   return {
     source: { repo: 'Kengxxiao/ArknightsGameData', commit, server: 'zh_CN', ...(view ? { view: view.source } : {}) },
     level: { id, ...stageNames(stage), width, height, options: extractOptions(field(lv, 'options', 'level')), tiles, ...(blockEdges.length > 0 ? { blockEdges } : {}),
-      routes, waves, predefines: predefinesOf(lv.predefines), stages: withTasks(stagesOf(lv.predefines), missions),
+      routes, waves, predefines: predefinesOf(lv.predefines), stages: withTasks(stagesOf(lv.predefines), missions), ...cardsField(lv.predefines),
       ...(view ? { view: viewOf(view.vector) } : {}), ...(typeof lv.bgmEvent === 'string' && lv.bgmEvent ? { bgm: lv.bgmEvent } : {}) },
     difficulties,
     enemies: Object.fromEntries(keys.map((k) => [k, { ...enemyOf(enemyDb, k, refs.get(k)), ...damageTypeOf(handbook, k), ...(shared.has(k) ? { shared: true } : {}) }])),

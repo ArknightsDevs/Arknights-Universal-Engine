@@ -10,16 +10,19 @@
  */
 /**
  * One action of a fragment (波次-1): SPAWN an enemy `key` on `route`; ACTIVATE or WITHDRAW the predefined unit whose
- * alias is `key`; NONE does nothing. Its i-th of `count` times comes `preDelay + i × interval` seconds after its
+ * alias is `key`; STORY tells the story `key` (波次-8); NONE does nothing. Its i-th of `count` times comes `preDelay + i × interval` seconds after its
  * fragment starts (波次-2). `dontBlockWave`: its enemies need not be handled for the wave to end (波次-3); `hidden`:
  * its hidden group (波次-4); `group`, `pack`, `weight`: random alternatives (波次-5); `unharmful`: its enemies cost no life
  * at the goal (目标-1).
- * @typedef {{ type: 'SPAWN' | 'ACTIVATE' | 'WITHDRAW' | 'NONE', key: string, route: number, count: number, preDelay: number, interval: number,
+ * @typedef {{ type: 'SPAWN' | 'ACTIVATE' | 'WITHDRAW' | 'STORY' | 'NONE', key: string, route: number, count: number, preDelay: number, interval: number,
  *   dontBlockWave?: boolean, hidden?: string, group?: string, pack?: string, weight?: number, unharmful?: boolean }} WaveAction
  */
 /** A fragment (波次-1, 波次-2). @typedef {{ preDelay: number, actions: WaveAction[] }} Fragment */
 /** A wave (波次-1…波次-3); `maxWait` is maxTimeWaitingForNextWave, −1 for none. @typedef {{ preDelay: number, postDelay: number, maxWait: number, fragments: Fragment[] }} Wave */
-/** A predefined unit (波次-6): its tile and facing when the data gives them. @typedef {{ alias: string, key: string, hidden: boolean, row?: number, col?: number, dir?: string }} Predefine */
+/**
+ * A predefined unit (波次-6): its tile and facing when the data gives them; a predefined operator's training (波次-7).
+ * @typedef {{ alias: string, key: string, hidden: boolean, row?: number, col?: number, dir?: string, build?: import('@aue/schema').Build }} Predefine
+ */
 /**
  * A device's record (关卡-6, 装置-1): its name, attributes and its talents' blackboard; its side when it is the enemies'
  * (装置-3), the statuses it is immune to, and the modifiers it gives every enemy while on the field (装置-4).

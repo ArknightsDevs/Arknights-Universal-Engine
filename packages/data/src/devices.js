@@ -61,7 +61,9 @@ export function devicesOf(charTable, raw) {
   const out = {};
   for (const k of ['characterInsts', 'tokenInsts']) {
     for (const [i, x] of (Array.isArray(pd[k]) ? pd[k] : []).entries()) {
-      const p = `level.predefines.${k}[${i}]`, inst = asObject(field(asObject(x, p), 'inst', p), `${p}.inst`), key = asString(field(inst, 'characterKey', `${p}.inst`), `${p}.inst.characterKey`);
+      const p = `level.predefines.${k}[${i}]`, o = asObject(x, p), inst = asObject(field(o, 'inst', p), `${p}.inst`), key = asString(field(inst, 'characterKey', `${p}.inst`), `${p}.inst.characterKey`);
+      // a predefined operator (波次-7) is no device
+      if (k === 'characterInsts' && !o.alias && o.position) continue;
       if (key === STAGE_CONTROLLER || Object.hasOwn(out, key) || !Object.hasOwn(table, key)) continue;
       const cp = `character_table[${key}]`, c = asObject(table[key], cp), phase = PHASE[String(inst.phase)] ?? 0, level = typeof inst.level === 'number' ? inst.level : 1;
       const phases = asArray(field(c, 'phases', cp), `${cp}.phases`);

@@ -8,7 +8,7 @@ import { levelAt, LEVELS } from './levels.js';
 import { foeBehaviors, withFoeExtras } from './foes.js';
 import { loadTraining, operatorAt, teamTalentsAt } from './operators.js';
 import { TOKENS, loadToken, tokenAt } from './tokens.js';
-import { teamFits } from '@aue/sim';
+import { teamFits, predefinedKey } from '@aue/sim';
 import { skillBehaviors } from './skills.js';
 import { kitsBehaviors, withKitTrait } from './compat/kits.js';
 import { defOf, tokenDefOf } from './compat/records.js';
@@ -98,12 +98,25 @@ export async function matchContent(match, levels = LEVELS, kits = {}) {
     for (const { id, build } of deck) Object.assign(operators, await summonsOf(id, build, seat, lv.blockAdd, Object.hasOwn(kits, id)));
     return built.map((x) => x.key);
   }));
+  await withPredefined(operators, lv.level, lv.blockAdd);
   const limitAdd = await withSeatRunes(operators, decks, match.runes ?? []);
   const used = [...new Set(Object.keys(entries).map((k) => k.split('#')[0]))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const kb = used.length ? kitsBehaviors(entries) : null;
   const behaviors = kb ? { ...BEHAVIORS, world: kb.world, skills: { ...BEHAVIORS.skills, ...kb.skills }, buffs: kb.buffs, traits: kb.traits } : BEHAVIORS;
   const level = limitAdd.some((n) => n !== 0) ? { ...lv.level, options: { ...lv.level.options, characterLimitAdd: limitAdd } } : lv.level;
   return /** @type {any} */ ({ level, enemies: enemiesOf(lv.enemies), devices: lv.devices, operators, decks, behaviors, ...(used.length ? { kits: { sha: KIT_SOURCE.sha, used } } : {}) });
+}
+
+/**
+ * The level's predefined operators (波次-7), each at its training, under its predefined key; their summons too.
+ * @param {Record<string, import('@aue/sim').OperatorDef>} operators @param {import('@aue/sim').Content['level']} level @param {number} blockAdd
+ */
+async function withPredefined(operators, level, blockAdd) {
+  for (const p of level.predefines ?? []) {
+    if (!p.build) continue;
+    const op = operatorAt(await loadTraining(p.key), p.build);
+    operators[predefinedKey(p.alias)] = { ...op, blockCnt: Math.max(0, op.blockCnt + blockAdd), char: p.key, ...attackOf(p.key) };
+  }
 }
 
 /**

@@ -8,6 +8,7 @@ import { hashValue, HASH_START } from './hash.js';
 import { enemiesAct } from './enemies.js';
 import { newSchedule, visiblePredefines, tickWaves, checkEnd } from './waves.js';
 import { placeDevice } from './devices.js';
+import { placePredefined } from './predefined.js';
 import { newStageState, tickStage, stageCount } from './stage.js';
 import { releaseAll } from './blocking.js';
 import { operatorsAttack, shotsFly } from './combat.js';
@@ -46,7 +47,7 @@ export function createWorld(c, o) {
     events: [],
     players: Array.from({ length: o.players }, () => ({ life: maxLifePoint, cost: initialCost, costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {}, revive: -1, downs: 0, ask: -1, askCd: 0 })),
   };
-  for (const alias of w.predefined) placeDevice(w, c, alias);
+  for (const alias of w.predefined) { placeDevice(w, c, alias); placePredefined(w, c, alias); }
   c.behaviors?.world?.(w, c);
   return w;
 }

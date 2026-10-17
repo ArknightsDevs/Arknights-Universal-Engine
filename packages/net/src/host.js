@@ -13,10 +13,10 @@ import { MAX_AHEAD, HASH_HISTORY, HASH_EVERY, framesAt, PAUSE_ASK_MS, RESUME_MS,
  * content otherwise), the seats, the seed, the transport, the desync report; `hashEvery`, the frames between the
  * arbiter's kept hashes, a divisor of HASH_EVERY — the clients report every HASH_EVERY frames (同步-5), so by default
  * it hashes only those; 1 keeps every frame's (tests); `signals`, the mode's rule for the seats' signals (同步-13): only
- * those it lets through are passed on.
+ * those it lets through are passed on; `absent`, the seats nobody plays (a training's partner, 同步-14).
  * @typedef {{ content: import('@aue/sim').Content, seats: number, seed: number, send: (seat: number, msg: ServerMessage) => void,
  *   onDesync?: (d: Desync) => void, match?: Match | null, hashEvery?: number,
- *   signals?: (seat: number, s: import('@aue/schema').Signal, now: number) => boolean }} HostOptions
+ *   signals?: (seat: number, s: import('@aue/schema').Signal, now: number) => boolean, absent?: readonly number[] }} HostOptions
  */
 
 export class LockstepHost {
@@ -102,11 +102,17 @@ export class LockstepHost {
     this.broadcastControl();
   }
 
-  /** A seat's page has loaded the battle: once every seat's has, the battle begins (同步-11). @param {number} seat @param {number} now */
+  /** Whether a seat is one nobody plays (同步-14). @param {number} seat */
+  absent(seat) { return this.o.absent?.includes(seat) ?? false; }
+
+  /**
+   * A seat's page has loaded the battle: once every seat's has — but for the absent ones (同步-14) —, the battle begins
+   * (同步-11). @param {number} seat @param {number} now
+   */
   ready(seat, now) {
     this.rebase(now);
     this.loaded.add(seat);
-    if (this.loaded.size >= this.o.seats) this.begun = true;
+    if (Array.from({ length: this.o.seats }, (_, s) => s).every((s) => this.loaded.has(s) || this.absent(s))) this.begun = true;
   }
 
   /** A seat's connection closed. With nobody left the clock stops (同步-6). @param {number} seat @param {number} now */
@@ -133,13 +139,14 @@ export class LockstepHost {
   }
 
   /**
-   * A seat asks to pause (同步-8): alone it pauses at once; with a mate, the mate must agree. A pause already on or asked
+   * A seat asks to pause (同步-8): alone — the others absent too (同步-14) — it pauses at once; with a mate, the mate must agree. A pause already on or asked
    * for changes nothing.
    * @param {number} seat @param {number} now
    */
   pause(seat, now) {
     if (this.held || this.asker >= 0) return;
-    if (this.o.seats === 1) { this.rebase(now); this.held = true; }
+    const alone = Array.from({ length: this.o.seats }, (_, s) => s).every((s) => s === seat || this.absent(s));
+    if (alone) { this.rebase(now); this.held = true; }
     else { this.asker = seat; this.askedAt = now; }
     this.broadcastControl();
   }

@@ -6,6 +6,7 @@ import act1multi06 from '../data/levels/act1multi_06.json' with { type: 'json' }
 import act1multiHard02 from '../data/levels/act1multi_hard-02.json' with { type: 'json' };
 import act1multiRm07 from '../data/levels/act1multi_rm07.json' with { type: 'json' };
 import act2multiRm01 from '../data/levels/act2multi_rm01.json' with { type: 'json' };
+import act1multiTr01 from '../data/levels/act1multi_tr01.json' with { type: 'json' };
 import { uncoveredAbilities } from './foes.js';
 import { profiledDevices } from './devices.js';
 
@@ -15,7 +16,7 @@ import { profiledDevices } from './devices.js';
 /** The extracted levels, by id. @type {Readonly<Record<string, any>>} */
 export const LEVELS = Object.freeze({
   act1multi_01: act1multi01, act1multi_02: act1multi02, act1multi_06: act1multi06, 'act1multi_hard-02': act1multiHard02, act1multi_rm07: act1multiRm07,
-  act2multi_rm01: act2multiRm01,
+  act2multi_rm01: act2multiRm01, act1multi_tr01: act1multiTr01,
 });
 
 /** enemy_attribute_mul's keys and the enemy fields they multiply, with each field's value when the enemy has none. */
