@@ -64,12 +64,18 @@ export function createUi(o) {
 
   return {
     ctx, anim, screens, layer,
-    /** Loads the pack's sprites (each resolves even when it fails; a missing one is not drawn tinted). */
-    load() {
-      return Promise.all(Object.entries(o.pack.sprites).map(([k, s]) => new Promise((done) => {
+    /**
+     * Loads the pack's sprites (each resolves even when it fails; a missing one is not drawn tinted); `each` hears how
+     * many have settled of how many, for a loading screen. @param {(settled: number, total: number) => void} [each]
+     */
+    load(each) {
+      const all = Object.entries(o.pack.sprites);
+      let settled = 0;
+      const one = () => { settled += 1; each?.(settled, all.length); };
+      return Promise.all(all.map(([k, s]) => new Promise((done) => {
         const im = new Image();
-        im.onload = () => { ctx.imgs.set(k, im); done(undefined); };
-        im.onerror = () => done(undefined);
+        im.onload = () => { ctx.imgs.set(k, im); one(); done(undefined); };
+        im.onerror = () => { one(); done(undefined); };
         im.src = ctx.base + s.uri;
       })));
     },

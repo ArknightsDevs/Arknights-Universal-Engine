@@ -236,3 +236,21 @@ test('[界面-8] templates instantiated into a list, their references resolved i
   assert.equal(scr.all.filter((s) => s.n.name === 'x').length, 2, 'the removed instance has left the screen');
   assert.throws(() => scr.instantiate(list, 'nothing'));
 });
+
+test('[界面-1] the pack\'s sprites load, each settled one counted for a loading screen, a missing one too', async () => {
+  const doc = fakeDocument(), ui = createUi({ pack: { ...pack(), sprites: { 'sprite/a': pack().sprites['sprite/a'], 'sprite/b': { w: 1, h: 1, uri: 'missing.webp' } } }, host: fakeHost(doc), base: 'http://x/' });
+  const real = /** @type {any} */ (globalThis).Image;
+  /** A stand-in image: loads unless its source names a missing file. */
+  /** @type {any} */ (globalThis).Image = class {
+    /** @type {(() => void) | null} */ onload = null;
+    /** @type {(() => void) | null} */ onerror = null;
+    set src(/** @type {string} */ v) { queueMicrotask(() => (v.includes('missing') ? this.onerror?.() : this.onload?.())); }
+  };
+  try {
+    /** @type {number[][]} */
+    const heard = [];
+    await ui.load((n, total) => heard.push([n, total]));
+    assert.deepEqual(heard, [[1, 2], [2, 2]]);
+    assert.deepEqual([...ui.ctx.imgs.keys()], ['sprite/a'], 'the missing one not kept');
+  } finally { /** @type {any} */ (globalThis).Image = real; }
+});
