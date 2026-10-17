@@ -171,7 +171,7 @@ test('[同步-9] a welcome with match settings: the content is made first, messa
   assert.equal(host.world.units.filter((u) => u.key === 'guard').length, 1);
   const last = posts.filter((p) => p.type === 'frame').at(-1).status.players[0];
   assert.deepEqual(last.deployed, ['guard'], 'the status has the made content\'s deck');
-  assert.deepEqual(last.cards, { guard: { cost: made.operators.guard.cost, ready: 0 } });
+  assert.deepEqual(last.cards, { guard: { cost: made.operators.guard.cost, ready: 0, locked: false } });
   assert.equal(last.slots, made.level.options.characterLimit - 1, 'one deploy slot taken');
 });
 

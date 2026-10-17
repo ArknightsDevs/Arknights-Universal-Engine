@@ -30,7 +30,7 @@ test('[界面-23] [召唤-4] [召唤-8] the summon cards: shown with their owner
   assert.deepEqual([s.wolf.shown, s.wolf.held, s.wolf.full], [false, 0, true], '默认: all used, none shown');
   assert.deepEqual([s.mark.shown, s.mark.held, s.mark.full], [true, 0, true], '唯一: shown while its one is on the field');
   assert.equal(operatorCards(w, c, 0).slots, 0, 'the guard and the wolf (部署占用数 1) take the two places');
-  assert.deepEqual(operatorCards(w, c, 0).cards.guard, { cost: 5, ready: 0 });
+  assert.deepEqual(operatorCards(w, c, 0).cards.guard, { cost: 5, ready: 0, locked: false });
 });
 
 test('[波次-9] the cards held back: a hidden level token card until its alias comes into effect', () => {

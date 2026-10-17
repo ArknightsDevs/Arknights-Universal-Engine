@@ -62,13 +62,14 @@ export function stageCount(w, c, u, arrived) {
 }
 
 /**
- * The intermission after a stage passed (合作-8): enemies and projectiles are gone, every operator retreats with its
+ * The intermission after a stage passed (合作-8): enemies, those to be brought in (敌能-22) and projectiles are gone, every operator retreats with its
  * redeployment time cleared, lives are full and the fallen come back, and the current wave stops acting.
  * @param {World} w @param {Content} c
  */
 function intermission(w, c) {
   w.units = w.units.filter((u) => u.kind !== KIND.ENEMY);
   w.shots = [];
+  if (w.broods) w.broods = [];
   for (const u of w.units.filter((x) => x.kind === KIND.OPERATOR)) {
     w.units = w.units.filter((x) => x !== u);
     releaseAll(w, u.id);

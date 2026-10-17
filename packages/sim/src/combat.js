@@ -74,16 +74,18 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * aftershock (职业-8) and chain (职业-11); whether the skill makes it, and which of its hits this is (钩子-3).
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
  *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null,
- *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number }} Load
+ *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number }} Load
  */
 
 /**
  * A hit's damage, with where it comes from (钩子-3, the names of Stronghold's content): an attack's hit on its target,
  * on one splashed or jumped to; an aftershock is a splash and no attack's hit; whether the skill made it; a projectile's.
- * @param {Load} load @returns {import('./damage.js').Damage}
+ * Its amount × `frozen` on a target 冻结 as the hit is worked out (敌能-27).
+ * @param {Load} load @param {Unit} t @returns {import('./damage.js').Damage}
  */
-function damageOf(load) {
-  const how = load.hit, d = /** @type {import('./damage.js').Damage} */ ({ type: load.type, amount: load.amount, isAttack: how !== 'aftershock', isSkill: !!load.skill, isProjectile: !!load.ranged });
+function damageOf(load, t) {
+  const amount = load.frozen && statsOf(t).flags.freeze ? load.amount * load.frozen : load.amount;
+  const how = load.hit, d = /** @type {import('./damage.js').Damage} */ ({ type: load.type, amount, isAttack: how !== 'aftershock', isSkill: !!load.skill, isProjectile: !!load.ranged });
   if (how === 'splash' || how === 'aftershock') d.isSplash = true;
   if (how === 'chain' || how === 'aftershock') d.tags = [how];
   return d;
@@ -109,7 +111,7 @@ function hitTarget(w, c, src, t, load) {
  */
 function oneHit(w, c, src, t, load) {
   const el = /** @type {import('./elements.js').Element | ''} */ (load.element), op = src && src.kind === KIND.OPERATOR ? src : null;
-  const alive = t.hp > 0, dmg = damageOf(load), dealt = dealDamage(w, src, t, dmg, c);
+  const alive = t.hp > 0, dmg = damageOf(load, t), dealt = dealDamage(w, src, t, dmg, c);
   if (op) traitDealt(w, c, op, t, { dmg, taken: dealt });
   if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
   if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
@@ -148,6 +150,7 @@ const atkOf = (a, pct) => (pct ? computeStats({ base: a.base, buffs: [...a.buffs
 const loadOf = (a, mods) => ({
   type: mods.type ?? a.base.dmgType, amount: atkOf(a, mods.atkPct) * mods.scale * statsOf(a).atkScaleMul, times: mods.times, element: mods.element ?? '', ep: mods.ep ?? 0,
   ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.skill ? { skill: true } : {}), ...(mods.mark ? { mark: mods.mark } : {}),
+  ...(mods.frozen ? { frozen: mods.frozen } : {}),
 });
 
 /**
@@ -249,9 +252,10 @@ function heals(w, c, a, t, how) {
  */
 function deliverAll(w, c, a, sw, heals) {
   const load = loadOf(a, sw.mods), area = sw.mods.square ? 'square' : sw.mods.cross ? 'cross' : null, reached = [];
+  const share = sw.mods.splashScale ?? 1, direct = !!sw.mods.direct;
   for (const id of sw.targets) {
     const t = w.units.find((u) => u.id === id);
-    if (t && t.hp > 0 && !t.hidden) { deliver(w, c, a, t, { load, heals, area }); reached.push(t); }
+    if (t && t.hp > 0 && !t.hidden) { deliver(w, c, a, t, { load, heals, area, share, direct }); reached.push(t); }
   }
   return reached;
 }
@@ -300,14 +304,16 @@ function selfHeal(w, c, a, reached) {
 
 /**
  * One locked target of a landing attack (攻击-2, 攻击-3, 职业-2, 敌能-7, 敌能-8): a healer's heals, a tile splash's hits
- * around it, a ranged attacker's projectile, or the hits.
- * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t @param {{ load: Load, heals: boolean, area: 'cross' | 'square' | null }} how
+ * around it (the others at the splash's share, 敌能-26), a ranged attacker's projectile — not for an attack that hits
+ * directly (敌能-27) —, or the hits.
+ * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t
+ * @param {{ load: Load, heals: boolean, area: 'cross' | 'square' | null, share: number, direct: boolean }} how
  */
 function deliver(w, c, a, t, how) {
   const far = how.heals ? null : fortressSplash(c, a, t), load = far ? { ...loadFor(w, c, a, t, how.load), splash: far } : loadFor(w, c, a, t, how.load);
   if (how.heals) heals(w, c, a, t, { load, jumps: load.chain ? chainOf(w, c, t, load.chain, { heals: true, antiAir: true }) : [] });
-  else if (how.area) for (const u of areaOf(w, a, t, how.area)) hitTarget(w, c, a, u, u === t ? load : { ...load, hit: 'splash' });
-  else if (far || shoots(c, a, how.heals)) launch(w, a, t, a.kind === KIND.OPERATOR ? { ...load, boomerang: traitOf(c, a).boomerang } : load);
+  else if (how.area) for (const u of areaOf(w, a, t, how.area)) hitTarget(w, c, a, u, u === t ? load : { ...load, amount: load.amount * how.share, hit: 'splash' });
+  else if (far || (shoots(c, a, how.heals) && !how.direct)) launch(w, a, t, a.kind === KIND.OPERATOR ? { ...load, boomerang: traitOf(c, a).boomerang } : load);
   else impact(w, c, a, t, load);
 }
 
@@ -481,8 +487,8 @@ export function enemyTargets(w, e) {
 
 /**
  * An enemy's attack this frame (敌人攻击-1, 攻击-2): like an operator's — a swing under way goes on; the cooldown counts
- * down while it can act; when it is out and there is a target, the first in the official order (索敌-5) is locked and a
- * swing starts — not while it is blocked under 战栗 (状态-5; a swing under way goes on). One that cannot act, has no
+ * down while it can act; when it is out and there is a target, the first in the official order (索敌-5) — as many as
+ * its abilities' mods say (敌能-2), one by default — are locked and a swing starts — not while it is blocked under 战栗 (状态-5; a swing under way goes on). One that cannot act, has no
  * attack or has disappeared loses its swing. Returns whether it is attacking this frame (it does not walk).
  * @param {World} w @param {Content} c @param {Unit} e
  */
@@ -494,8 +500,9 @@ export function enemyAttack(w, c, e) {
   if (e.atkCd > 0) { e.atkCd--; return swinging; }
   if (e.swing) return true;
   if (s.flags.disarmedCombat && e.blockedBy >= 0) return false;
-  const t = sortAllies(e, foeTargets(w, c, e, enemyTargets(w, e)), FPS)[0];
-  if (!t) return swinging;
-  startSwing(w, c, e, [t], foeAttack(w, c, e, { scale: 1, times: 1, targets: 1, skill: false }));
+  const order = sortAllies(e, foeTargets(w, c, e, enemyTargets(w, e)), FPS);
+  if (order.length === 0) return swinging;
+  const mods = foeAttack(w, c, e, { scale: 1, times: 1, targets: 1, skill: false });
+  startSwing(w, c, e, order.slice(0, Math.max(1, mods.targets)), mods);
   return true;
 }

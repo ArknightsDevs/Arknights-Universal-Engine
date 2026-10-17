@@ -97,12 +97,29 @@ test('[同步-9] [部署-2] a match\'s content: its level, each seat\'s deck at 
   assert.equal(w.units.filter((u) => u.owner === 0).length, 1);
 });
 
-test('[关卡-2] more co-op levels: act2multi_rm01, act1multi_06 and act1multi_hard-02 load; act1multi_rm07 waits for its enemies\' abilities, act1multi_02 for its sight system', () => {
+test('[敌能-22] [敌能-23] the real IG-14 plays out headless the same way twice, with the enemies others bring in', () => {
+  const c = levelContent('act1multi_rm07', 'NORMAL');
+  /** @returns {[number, Record<string, number>]} */
+  const play = () => {
+    const w = createWorld(c, { seed: 5, players: 2 });
+    /** @type {Record<string, number>} */
+    const seen = {};
+    for (let f = 0; f < 30 * 200 && w.result < 0; f++) for (const e of step(w, c)) seen[e.type] = (seen[e.type] ?? 0) + 1;
+    return [stateHash(w), seen];
+  };
+  const [h1, seen] = play(), [h2] = play();
+  assert.equal(h1, h2);
+  assert.ok(seen.spawn > 10 && seen.end === 1, JSON.stringify(seen));
+  assert.ok(['enemy_1137_plasm', 'enemy_1138_tumor', 'enemy_1139_hologc', 'enemy_1221_dzomg'].every((k) => k in c.enemies), 'the enemies others bring in');
+});
+
+test('[关卡-2] more co-op levels: act2multi_rm01, act1multi_06, act1multi_hard-02 and act1multi_rm07 load; act1multi_02 waits for its sight system', () => {
   assert.deepEqual(['act1multi_01', 'act1multi_02', 'act1multi_06', 'act1multi_hard-02', 'act1multi_rm07', 'act2multi_rm01'].every((id) => id in LEVELS), true);
   assert.deepEqual(['NORMAL', 'FOUR_STAR'].map((d) => levelAt('act1multi_hard-02', /** @type {any} */ (d)).level.code), ['IG-S-2', 'IG-S-2']);
   assert.deepEqual(['NORMAL', 'FOUR_STAR'].map((d) => levelAt('act2multi_rm01', /** @type {any} */ (d)).level.stages?.map((s) => s.objective)), [['protect', 'protect'], ['protect', 'protect']]);
   assert.deepEqual(['NORMAL', 'FOUR_STAR'].map((d) => levelAt('act1multi_06', /** @type {any} */ (d)).level.stages?.length), [2, 2], 'act1multi_06 now loads');
-  assert.throws(() => levelAt('act1multi_rm07', 'NORMAL'), /enemy abilities not supported yet: warn, Awake/);
+  assert.equal(levelAt('act1multi_rm07', 'NORMAL').level.code, 'IG-14');
+  assert.throws(() => levelAt('act1multi_rm07', 'FOUR_STAR'), /runes not supported yet: env_gbuff_new_with_verify, env_system_new/);
   assert.throws(() => levelAt('act1multi_02', 'NORMAL'), /runes not supported yet: env_system_new/);
   assert.throws(() => levelAt('nope', 'NORMAL'), /no level nope/);
   assert.deepEqual(uncoveredAbilities([{ talents: { dead: {}, Light: {}, DmgUp: {}, boom: {}, x: {} }, skills: [{ key: 'PowerHit' }, { key: 'y' }] }].map((e) => /** @type {any} */ (e))), ['x', 'y']);

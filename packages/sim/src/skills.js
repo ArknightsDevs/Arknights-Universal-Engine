@@ -19,11 +19,12 @@ import { restartCharge } from './modes.js';
  * the skill makes (it gives no attack SP); `element` and `ep`, 元素损伤 each hit carries (元素-2).
  * An attack's modifiers: 倍率, hits, targets, whether a skill makes it, its 元素损伤; and for enemy abilities (敌能-6…敌能-11)
  * a damage type in place of the attacker's, a cross-shaped splash, an attack bonus for this attack only, and a channel
- * (`hits` hits spread over `duration` seconds, the k-th at k × duration ÷ hits, then `after` seconds of cooldown); `mark`,
- * a mark content gave this attack (钩子-3 beforeAttack).
+ * (`hits` hits spread over `duration` seconds, the k-th at k × duration ÷ hits, then `after` seconds of cooldown), the
+ * tile splash's share on the others (`splashScale`, 敌能-26), hits without a projectile (`direct`) and a 倍率 on a
+ * frozen target (`frozen`, 敌能-27); `mark`, a mark content gave this attack (钩子-3 beforeAttack).
  * @typedef {{ scale: number, times: number, targets: number, skill: boolean, element?: import('./elements.js').Element, ep?: number,
  *   type?: import('./types.js').DamageType, cross?: boolean, atkPct?: number, channel?: { hits: number, duration: number, after: number }, heal?: boolean, square?: boolean, blocked?: boolean, more?: number,
- *   hitStatus?: { key: import('./status.js').StatusKey, seconds: number }, mark?: number }} AttackMods
+ *   hitStatus?: { key: import('./status.js').StatusKey, seconds: number }, mark?: number, splashScale?: number, direct?: boolean, frozen?: number }} AttackMods
  */
 
 /**

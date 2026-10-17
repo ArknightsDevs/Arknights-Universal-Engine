@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-11): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-32): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read. They act only through the context (ADR 0055).
 
@@ -6,6 +6,10 @@ import { moreFoeBehaviors } from './abilities.js';
 import { prisonerBehaviors } from './prisoners.js';
 import { avengerBehaviors } from './avenger.js';
 import { hoverBehaviors } from './hover.js';
+import { summonerBehaviors } from './summoners.js';
+import { partisanBehaviors } from './partisans.js';
+import { sarkazBehaviors } from './sarkaz.js';
+import { devourerBehaviors } from './devourers.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -37,6 +41,35 @@ export const FOE_EXTRAS = Object.freeze({
   enemy_1121_lifbos_2: { talents: { liberty: { all: 1 } }, source: `${PRTS}%E4%BC%A0%E5%A5%87%E9%87%8D%E7%8A%AF&oldid=435683` },
   // 山海众掌令使: 未被阻挡时，在经过的首个可部署的“玉门天灾工事”上部署30级的山海密语仪 (the data has no talent for it)
   enemy_1297_ymflag_2: { talents: { PlaceFlag: {} }, source: `${PRTS}%E5%B1%B1%E6%B5%B7%E4%BC%97%E6%8E%8C%E4%BB%A4%E4%BD%BF&oldid=436476` },
+  // 变异沙地兽α/变异巨岩蛛/变异巨岩蛛α: 因坠落以外的原因死亡时 …… 召唤 ……（可被沉默）
+  enemy_1131_sbeast_2: { talents: { deathrattle: { silence: 1, fall: 0 } }, source: `${PRTS}%E5%8F%98%E5%BC%82%E6%B2%99%E5%9C%B0%E5%85%BD%CE%B1&oldid=435587` },
+  enemy_1133_harchn: { talents: { deathrattle: { silence: 1, fall: 0 } }, source: `${PRTS}%E5%8F%98%E5%BC%82%E5%B7%A8%E5%B2%A9%E8%9B%9B&oldid=435584` },
+  enemy_1133_harchn_2: { talents: { deathrattle: { silence: 1, fall: 0 } }, source: `${PRTS}%E5%8F%98%E5%BC%82%E5%B7%A8%E5%B2%A9%E8%9B%9B%CE%B1&oldid=435585` },
+  // 萨卡兹子裔集恨者/集怒者: 死亡1秒后在距离自身最近的可通行地块中心0.2边长正方形范围内随机位置以自身路径召唤1只……
+  enemy_1226_dklord: { talents: { deathrattle: { offset_bound: 0.1 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E5%AD%90%E8%A3%94%E9%9B%86%E6%81%A8%E8%80%85&oldid=436451` },
+  enemy_1226_dklord_2: { talents: { deathrattle: { offset_bound: 0.1 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E5%AD%90%E8%A3%94%E9%9B%86%E6%80%92%E8%80%85&oldid=436452` },
+  // 全息幻影/全息幻影MK2: {{异常效果|自缚}} (the data has no talent for it)
+  enemy_1139_hologc: { talents: { Bind: {} }, source: `${PRTS}%E5%85%A8%E6%81%AF%E5%B9%BB%E5%BD%B1&oldid=436360` },
+  enemy_1139_hologc_2: { talents: { Bind: {} }, source: `${PRTS}%E5%85%A8%E6%81%AF%E5%B9%BB%E5%BD%B1MK2&oldid=436361` },
+  // 游击队迫击炮兵/组长: 炮弹能对目标及其周围八格的我方单位造成伤害
+  enemy_1082_soticn: { talents: { Shell: {} }, source: `${PRTS}%E6%B8%B8%E5%87%BB%E9%98%9F%E8%BF%AB%E5%87%BB%E7%82%AE%E5%85%B5&oldid=436975` },
+  enemy_1082_soticn_2: { talents: { Shell: {} }, source: `${PRTS}%E6%B8%B8%E5%87%BB%E9%98%9F%E8%BF%AB%E5%87%BB%E7%82%AE%E5%85%B5%E7%BB%84%E9%95%BF&oldid=436976` },
+  // 萨卡兹积怨者/恶咒者: 可同时攻击2个目标，造成近战途径伤害
+  enemy_1074_dbskar: { talents: { Targets: { n: 2, direct: 1 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E7%A7%AF%E6%80%A8%E8%80%85&oldid=436411` },
+  enemy_1074_dbskar_2: { talents: { Targets: { n: 2, direct: 1 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%81%B6%E5%92%92%E8%80%85&oldid=436402` },
+  // 冰原术师/队长: 拥有抵抗，可同时攻击2个目标
+  enemy_1192_krgscr: { talents: { Targets: { n: 2 }, Resist: {} }, source: `${PRTS}%E5%86%B0%E5%8E%9F%E6%9C%AF%E5%B8%88&oldid=435602` },
+  enemy_1192_krgscr_2: { talents: { Targets: { n: 2 }, Resist: {} }, source: `${PRTS}%E5%86%B0%E5%8E%9F%E6%9C%AF%E5%B8%88%E9%98%9F%E9%95%BF&oldid=435603` },
+  // 冰原狂战士队长: 拥有抵抗
+  enemy_1193_krgbsk_2: { talents: { Resist: {} }, source: `${PRTS}%E5%86%B0%E5%8E%9F%E7%8B%82%E6%88%98%E5%A3%AB%E9%98%9F%E9%95%BF&oldid=435599` },
+  // 冰原猎人队长: ①被阻挡时进行近战途径攻击 ②未被阻挡时进行远程途径攻击，优先攻击防御力最低的我方单位
+  enemy_1190_krgbow_2: { talents: { LowDef: {} }, source: `${PRTS}%E5%86%B0%E5%8E%9F%E7%8C%8E%E4%BA%BA%E9%98%9F%E9%95%BF&oldid=435601` },
+  // 大君之赐/慷慨之赐 are 重生造物, which the supply carts feed: 场上所有'''重生造物'''（大君之触，仁慈之触，大君之赐，慷慨之赐）
+  enemy_1221_dzomg: { talents: { Creation: {} }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E5%AD%90%E8%A3%94%E8%A1%A5%E7%BB%99%E8%BD%A6&oldid=436444` },
+  enemy_1221_dzomg_2: { talents: { Creation: {} }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E5%AD%90%E8%A3%94%E8%A1%A5%E7%BB%99%E8%BD%A6&oldid=436444` },
+  // 萨卡兹悖谬谍报官/谍报长: 初始技力=3, 技力上限=3 (rounds of ammunition)
+  enemy_1317_wdexg: { talents: { 1: { ammo: 3 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%82%96%E8%B0%AC%E8%B0%8D%E6%8A%A5%E5%AE%98&oldid=436389` },
+  enemy_1317_wdexg_2: { talents: { 1: { ammo: 3 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%82%96%E8%B0%AC%E8%B0%8D%E6%8A%A5%E9%95%BF&oldid=436390` },
 });
 
 /**
@@ -81,13 +114,22 @@ const FirstAttack = Object.freeze({
   },
 });
 
+/** The 倍率 on a frozen target an `atkup` blackboard gives (敌能-27), or undefined. @param {Record<string, number>} bb */
+const frozenScale = (bb) => Object.entries(bb).find(([k]) => k === 'atk_scale' || k.endsWith('[frozen].atk_scale'))?.[1];
+
 /**
  * 低血强化 (敌能-8): ATK up — by its `atk`, else by `AtkUp`'s — while its HP is below half its maximum, or with
- * `hp_ratio` at most that share of it.
+ * `hp_ratio` at most that share of it. With an `atk_scale` instead (敌能-27): its attack's 倍率 × that on a target
+ * 冻结 as the hit is worked out.
  * @type {FoeBehavior}
  */
 const atkup = Object.freeze({
+  attack: (ctx, mods) => {
+    const k = frozenScale(ctx.bb);
+    return k === undefined ? mods : { ...mods, frozen: k };
+  },
   tick: (ctx) => {
+    if (frozenScale(ctx.bb) !== undefined) return;
     const max = ctx.stats(ctx.self).maxHp, hp = ctx.self.hp, ratio = ctx.bb.hp_ratio;
     const low = ratio === undefined ? hp < max * 0.5 : hp <= max * ratio, has = ctx.self.buffs.some((b) => b.key === 'atkup');
     if (low && !has) ctx.addBuff(ctx.self, { key: 'atkup', mods: { atkPct: ctx.bb.atk ?? ctx.talent('AtkUp')?.atk ?? 0 } });
@@ -182,13 +224,17 @@ const PowerHit = Object.freeze({
 });
 
 /** Behaviours by talent or skill name. @type {Readonly<Record<string, FoeBehavior>>} */
-export const foeBehaviors = Object.freeze({ boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors });
+export const foeBehaviors = Object.freeze({
+  boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
+  ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...devourerBehaviors,
+});
 
 /**
  * Talents with no behaviour of their own that are still covered (关卡-2): `dead` is the data's 生命 loss of a neutral
- * unit (合作-9), `Light` is read by `Bomb`, `DmgUp` acts only on devices the engine does not have (敌能-11).
+ * unit (合作-9), `Light` is read by `Bomb`, `DmgUp` acts only on devices the engine does not have (敌能-11), `Stronger` is
+ * read by `Devour` (敌能-30), `storm` acts only in a 沙尘暴 the engine's levels do not have (敌能-24).
  */
-export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp']);
+export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp', 'Stronger', 'storm']);
 
 /**
  * The abilities (talents and skills) of the given enemies that have no behaviour and are not covered otherwise

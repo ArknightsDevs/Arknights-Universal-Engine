@@ -88,13 +88,13 @@ test('client messages: generated well-formed deploys are accepted', () => {
 });
 
 test('snapshot envelope v13', () => {
-  assert.equal(snapshotProblem({ v: 17, frame: 0, data: {} }), null, "version 17: 堡垒守御's progress");
-  assert.equal(snapshotProblem({ v: 16, frame: 0, data: {} }), 'snapshot version 16, expected 17');
+  assert.equal(snapshotProblem({ v: 18, frame: 0, data: {} }), null, 'version 18: enemies brought in later, devoured cards');
+  assert.equal(snapshotProblem({ v: 17, frame: 0, data: {} }), 'snapshot version 17, expected 18');
   assert.equal(snapshotProblem([]), 'snapshot is not an object');
-  assert.equal(snapshotProblem({ v: 18, frame: 0, data: {} }), 'snapshot version 18, expected 17');
-  assert.equal(snapshotProblem({ v: 17, frame: -1, data: {} }), 'snapshot.frame out of range');
-  assert.equal(snapshotProblem({ v: 17, frame: 0, data: [] }), 'snapshot.data is not an object');
-  assert.equal(snapshotProblem({ v: 17, frame: 0 }), 'missing field data');
+  assert.equal(snapshotProblem({ v: 19, frame: 0, data: {} }), 'snapshot version 19, expected 18');
+  assert.equal(snapshotProblem({ v: 18, frame: -1, data: {} }), 'snapshot.frame out of range');
+  assert.equal(snapshotProblem({ v: 18, frame: 0, data: [] }), 'snapshot.data is not an object');
+  assert.equal(snapshotProblem({ v: 18, frame: 0 }), 'missing field data');
 });
 
 test('server messages: well-formed ones pass; broken ones are reported, never thrown', () => {

@@ -24,8 +24,9 @@ import { refNode } from '../node.js';
 /**
  * The deck's state: the frame and frames a second, the cost the player has, each card's cost now and the frame it may
  * be deployed again from, the operators on the field, how many more the player may deploy, the summon cards, the cards
- * held back (the engine's 波次-9); the counted cards left and whether they may be deployed now (界面-39).
- * @typedef {{ frame: number, fps: number, cost: number, cards: Record<string, { cost: number, ready: number }>, deployed: string[], slots: number,
+ * held back (the engine's 波次-9); the counted cards left and whether they may be deployed now (界面-39); a card locked
+ * by the enemy that devoured its operator (the engine's 敌能-30).
+ * @typedef {{ frame: number, fps: number, cost: number, cards: Record<string, { cost: number, ready: number, locked?: boolean }>, deployed: string[], slots: number,
  *   summons?: Record<string, SummonCardState>, hidden?: string[], counts?: Record<string, number>, building?: boolean }} DeckState
  */
 
@@ -41,8 +42,8 @@ function countdown(d, s, ready) {
 
 /**
  * The cards shown (界面-10, 界面-23, 界面-39): the deck's operators not on the field nor held back, the summon cards shown
- * and the counted cards with some left, in the deck's order; an operator's usable when not waiting, its cost is paid and
- * a deploy slot is left; a summon's when not waiting, a copy is held, fewer are on the field than may be, its cost is paid
+ * and the counted cards with some left, in the deck's order; an operator's usable when not waiting nor locked, its cost
+ * is paid and a deploy slot is left; a summon's when not waiting, a copy is held, fewer are on the field than may be, its cost is paid
  * and — when it takes a place — a slot is left; a counted card's when they may be deployed now and its cost is paid.
  * @param {DeckCard[]} deck @param {DeckState} s @returns {CardView[]}
  */
@@ -54,7 +55,7 @@ export function cardViews(deck, s) {
       return { id: d.id, cost: m.cost, ...t, count: m.held, usable: !t.waiting && m.held > 0 && !m.full && m.cost <= s.cost && (!m.occupy || s.slots > 0) };
     }
     const c = s.cards[d.id] ?? { cost: 0, ready: 0 }, t = countdown(d, s, c.ready);
-    return { id: d.id, cost: c.cost, ...t, count: -1, usable: !t.waiting && c.cost <= s.cost && s.slots > 0 };
+    return { id: d.id, cost: c.cost, ...t, count: -1, usable: !t.waiting && !c.locked && c.cost <= s.cost && s.slots > 0 };
   });
 }
 

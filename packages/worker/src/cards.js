@@ -1,5 +1,5 @@
-// What the battle UI shows of a player's deck (界面-10, 界面-23): each operator card's cost now and the frame it may be
-// deployed again from, how many more operators it may deploy, and each summon card — its cost, when it may be deployed,
+// What the battle UI shows of a player's deck (界面-10, 界面-23): each operator card's cost now, the frame it may be
+// deployed again from and whether it is locked, how many more operators it may deploy, and each summon card — its cost, when it may be deployed,
 // the copies held, whether its owner is on the field to deploy it from and whether as many are on the field as may be.
 import { KIND, deck, traits, summons } from '@aue/sim';
 
@@ -15,14 +15,15 @@ import { KIND, deck, traits, summons } from '@aue/sim';
 const free = (d) => traits.traitOfDef(d).free === true;
 
 /**
- * A seat's operator cards and the deploy places left (部署-2, 部署-3, 召唤-4).
+ * A seat's operator cards — cost, the frame each may be deployed again from, whether it is locked by the enemy that
+ * devoured its operator (敌能-30) — and the deploy places left (部署-2, 部署-3, 召唤-4).
  * @param {World} w @param {Content} c @param {number} seat
  */
 export function operatorCards(w, c, seat) {
   const p = w.players[seat];
   return {
     slots: deck.deployLimit(c, seat, w) - summons.occupying(w, c, seat, free),
-    cards: Object.fromEntries((c.decks?.[seat] ?? []).map((k) => [k, { cost: deck.deployCost(c, p, k), ready: deck.cardOf(p, k).ready }])),
+    cards: Object.fromEntries((c.decks?.[seat] ?? []).map((k) => [k, { cost: deck.deployCost(c, p, k), ready: deck.cardOf(p, k).ready, locked: deck.cardLocked(w, deck.cardOf(p, k)) }])),
     hidden: (c.decks?.[seat] ?? []).filter((k) => deck.cardHidden(w, c, k)),
   };
 }

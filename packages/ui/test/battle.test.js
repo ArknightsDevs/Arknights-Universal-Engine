@@ -98,6 +98,7 @@ test('[界面-10] the cards: those not on the field in the deck\'s order; waitin
   assert.equal(cardViews([{ ...DECK[0], respawn: 0 }], state({ cards: { a: { cost: 1, ready: 400 } } }))[0].ratio, 0);
   assert.equal(cardViews([DECK[0]], state({ cards: {} }))[0].cost, 0);
   assert.deepEqual(cardViews(DECK, state({ hidden: ['b'] })).map((x) => x.id), ['a', 'c'], 'a card held back is not shown (波次-9)');
+  assert.equal(cardViews([DECK[0]], state({ cards: { a: { cost: 1, ready: 0, locked: true } } }))[0].usable, false, 'locked by its devourer (the engine\'s 敌能-30)');
   assert.equal(cardWidth(10, 1920, [109, 178]), 178);
   assert.equal(cardWidth(12, 1920, [109, 178]), 160);
   assert.equal(cardWidth(30, 1920, [109, 178]), 109);

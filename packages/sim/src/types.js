@@ -400,6 +400,11 @@
  * @typedef {{ src: number, x: number, y: number, dx: number, dy: number, type: DamageType, amount: number, status: { key: string, seconds: number } | null,
  *   blast: number }} Bolt
  */
+/**
+ * An enemy another brings in after a delay (敌能-22): its key, where it appears, the route and leg it goes on with, the
+ * frame its fragment began, the frames left.
+ * @typedef {{ key: string, x: number, y: number, route: number, leg: number, frag: number, left: number }} Brood
+ */
 
 /**
  * A projectile in flight (攻击-3): its shooter's and its target's ids, where it is (tile coordinates), its speed in
@@ -407,7 +412,7 @@
  * (职业-12) its way back's speed and, on its way back, `ret` 1; `held` 1 while content holds it where it arrived.
  * @typedef {{ src: number, target: number, sx: number, sy: number, speed: number, type: DamageType, amount: number, times: number, element: string, ep: number,
  *   splash?: Splash | null, aftershock?: number, chain?: Chain | null, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null,
- *   skill?: boolean, back?: number, ret?: number, held?: number, mark?: number }} Shot
+ *   skill?: boolean, back?: number, ret?: number, held?: number, mark?: number, frozen?: number }} Shot
  */
 
 /**
@@ -428,8 +433,8 @@
 
 /**
  * An operator's card in a player's deck (部署-3): the 再部署惩罚 layers it has (0–2) and the frame it may be deployed
- * again from.
- * @typedef {{ penalty: number, ready: number }} Card
+ * again from; `lock`, the enemy that devoured it (吞噬, 敌能-30) — locked while that enemy is on the field.
+ * @typedef {{ penalty: number, ready: number, lock?: number }} Card
  */
 /**
  * A summon's card in a player's deck (召唤-4): copies held, the frame it may be deployed from, copies cooling (队列).
@@ -482,6 +487,7 @@
  * @property {StageState} stage the co-op stages (合作-6)
  * @property {Blast[]} blasts delayed explosions (敌能-3)
  * @property {Bolt[]} bolts 直击 bolts in flight (敌能-4)
+ * @property {Brood[]} [broods] enemies brought in that appear later (敌能-22), once there has been one
  * @property {number} bornThisFrame units created so far in this frame
  * @property {FortressState} [fortress] 堡垒守御's progress (守御-1), only in its levels
  * @property {Shot[]} shots projectiles in flight, in launch order (攻击-3)

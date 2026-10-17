@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step, stateHash, deployProblem, facilities } from '@aue/sim';
-import { levelAt, levelContent, matchContent, TESTING, withBuilders } from '../src/index.js';
+import { levelAt, levelContent, matchContent, TESTING, withBuilders, LEVELS } from '../src/index.js';
 
 /** The phases a `fortress` event tells (schema FORTRESS_PHASE). */
 const FORTRESS_PHASE = { defend: 0, rest: 1 };
@@ -20,7 +20,8 @@ test('[关卡-8] [守御-1] the 堡垒守御 levels being tested load, naming th
       assert.deepEqual(Object.keys(lv.level.branches ?? {}), ['mufrprn_branch']);
     }
   }
-  assert.throws(() => levelAt('act1multi_rm07', 'NORMAL'), /enemy abilities not supported yet/);
+  const raw = /** @type {any} */ (LEVELS).act1multi_01, odd = { ...raw, enemies: Object.fromEntries(Object.entries(raw.enemies).map(([k, e]) => [k, { .../** @type {any} */ (e), talents: { nope: {} } }])) };
+  assert.throws(() => levelAt('odd', 'NORMAL', undefined, { odd }), /enemy abilities not supported yet: nope/);
   assert.equal(levelAt('act1multi_01', 'NORMAL').level.uncovered, undefined);
 });
 

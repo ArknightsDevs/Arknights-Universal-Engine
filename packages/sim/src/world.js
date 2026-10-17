@@ -93,10 +93,12 @@ function removeDead(w, c) {
 
 /**
  * Whether a unit stays on the field at the frame's end (伤害-9): it has HP, or at 0 an ability keeps the enemy (敌能-2) —
- * not one at the goal —, the tactical summon turns into its point (召唤-11) or the 傀儡师 switches to its 替身 (职业-15).
+ * not one at the goal —, the tactical summon turns into its point (召唤-11) or the 傀儡师 switches to its 替身 (职业-15) —
+ * not one devoured (敌能-30).
  * @param {World} w @param {Content} c @param {Unit} u @param {boolean} atGoal
  */
-const stays = (w, c, u, atGoal) => u.hp > 0 || (u.kind === KIND.ENEMY && !atGoal && foeFatal(w, c, u)) || tacticalFatal(w, c, u) || dollFatal(w, c, u);
+const stays = (w, c, u, atGoal) => u.hp > 0 || (u.kind === KIND.ENEMY && !atGoal && foeFatal(w, c, u))
+  || (u.ab['@devoured'] === undefined && (tacticalFatal(w, c, u) || dollFatal(w, c, u)));
 
 /**
  * The unit whose hit this frame brought `u` to 0 HP — the last hit on it this frame —, while it is on the field; null
@@ -204,11 +206,12 @@ function pushText(out, tag, s) {
 /**
  * The state hash (spec 同步-1): the frame, the random state, the id counter, the waves' progress, the predefined units in
  * effect, the result, the co-op stages, the players, the units, the projectiles, bolts and explosions, 堡垒守御's
- * progress when there is one (守御-1), all of their data.
+ * progress when there is one (守御-1), the enemies brought in to appear later once there have been some (敌能-22), all of
+ * their data.
  * @param {World} w @returns {number}
  */
 export function stateHash(w) {
   return hashValue(HASH_START, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, stage: w.stage, players: w.players, units: w.units, shots: w.shots, blasts: w.blasts, bolts: w.bolts,
-    fortress: w.fortress });
+    fortress: w.fortress, broods: w.broods });
 }
 

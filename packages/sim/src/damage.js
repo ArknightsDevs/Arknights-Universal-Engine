@@ -254,6 +254,15 @@ export function dealDamage(w, src, target, dmg, c) {
 }
 
 /**
+ * A unit knocked down outright (敌能-24, 敌能-30): its HP to 0, 不死 or not; it leaves at the frame's end as any whose HP
+ * ran out.
+ * @param {Unit} u
+ */
+export function knockDown(u) {
+  u.hp = 0;
+}
+
+/**
  * Content sets a unit's HP outright (伤害-9): between 0 (1 for an undying unit) and its maximum — neither damage nor a
  * heal, no event; a unit set to 0 leaves at the frame's end as any whose HP ran out.
  * @param {Unit} u @param {number} hp

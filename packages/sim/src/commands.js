@@ -7,7 +7,7 @@ import { onDeploy, commandSkill } from './skills.js';
 import { traitDeploy, traitOfDef, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
 import { carriedDeploy } from './carried.js';
-import { cardOf, cardHidden, deployCost, deployLimit, withdraw } from './deck.js';
+import { cardOf, cardHidden, cardLocked, deployCost, deployLimit, withdraw } from './deck.js';
 import { occupying, summonProblem, deploySummon, supplySummons, inOwnerRange, trapRefused } from './summons.js';
 import { isDown, askCost, answerCost } from './coop.js';
 import { emit } from './bus.js';
@@ -75,15 +75,15 @@ const rangeProblem = (w, c, seat, cmd) => (inOwnerRange(w, c, seat, cmd.op, cmd)
 const trapProblem = (w, c, seat, cmd) => (trapRefused(w, c, seat, cmd.op, cmd) ? 'an enemy on the tile' : null);
 
 /**
- * An operator's own reasons (部署-2, 部署-3): on the field already, the deploy limit, redeploying, then the place's; a
- * builder's own (守御-4).
+ * An operator's own reasons (部署-2, 部署-3): on the field already, the deploy limit, redeploying, its card locked by the
+ * enemy that devoured it (敌能-30), then the place's; a builder's own (守御-4).
  * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd
  */
 function operatorProblem(w, c, seat, cmd) {
   const p = w.players[seat], d = c.operators[cmd.op];
   if (d.builder) return builderProblem(w, c, seat, cmd);
   if (p.deployed.includes(cmd.op)) return 'already deployed';
-  return limitProblem(w, c, seat, d) ?? (w.frame < cardOf(p, cmd.op).ready ? 'redeploying' : null) ?? placeProblem(w, c, seat, cmd, deployCost(c, p, cmd.op));
+  return limitProblem(w, c, seat, d) ?? (w.frame < cardOf(p, cmd.op).ready ? 'redeploying' : null) ?? (cardLocked(w, cardOf(p, cmd.op)) ? 'devoured' : null) ?? placeProblem(w, c, seat, cmd, deployCost(c, p, cmd.op));
 }
 
 /**
