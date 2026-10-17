@@ -14,6 +14,8 @@ import { traitDeploy, traitOf } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
 import { emit } from './bus.js';
 import { summonForm } from './tactical.js';
+import { draw } from './rng.js';
+import { makeBuff, addBuff } from './buffs.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Player} Player @typedef {import('./types.js').SummonCard} SummonCard @typedef {import('./types.js').OperatorDef} OperatorDef */
@@ -43,7 +45,20 @@ export const summonerOf = (w, c, seat, key) => onField(w, seat, c.operators[key]
 export function occupying(w, c, seat, free) {
   const p = w.players[seat];
   const summons = w.units.filter((u) => u.kind === KIND.OPERATOR && u.owner === seat && u.summoner !== undefined && c.operators[u.key].summon?.occupy === 1);
-  return p.deployed.filter((k) => !free(c.operators[k])).length + summons.length;
+  return p.deployed.filter((k) => !free(c.operators[k])).length + summons.length - freeSummons(w, c, summons);
+}
+
+/**
+ * How many of these summons take no place (职业-21): for each owner, up to its trait's number of them.
+ * @param {World} w @param {Content} c @param {Unit[]} summons
+ */
+function freeSummons(w, c, summons) {
+  let n = 0;
+  for (const owner of w.units) {
+    const k = owner.kind === KIND.OPERATOR && owner.hp > 0 ? traitOf(c, owner).freeSummons : 0;
+    if (k > 0) n += Math.min(k, summons.filter((u) => u.summoner === owner.id).length);
+  }
+  return n;
 }
 
 /**
@@ -108,7 +123,8 @@ function enter(w, c, owner, o) {
 
 /**
  * Deploys a summon from its card (召唤-4): its cost is paid, a copy is taken; under 默认 the card cools down from now. A
- * tactical point takes its summon form (召唤-11).
+ * tactical point takes its summon form (召唤-11). One of an owner whose trait boosts its summons (职业-21) deals × the
+ * boost's damage at the boost's chance (one draw, 随机-1).
  * @param {World} w @param {Content} c @param {number} seat @param {import('@aue/schema').DeployCommand} cmd
  */
 export function deploySummon(w, c, seat, cmd) {
@@ -118,6 +134,8 @@ export function deploySummon(w, c, seat, cmd) {
   setCard(p, cmd.op, { ...card, held: card.held - 1, ready });
   const u = enter(w, c, owner, { key: cmd.op, row: cmd.row, col: cmd.col, dir: cmd.dir, paid: d.cost });
   if (d.summon?.tactical) summonForm(c, u);
+  const boost = traitOf(c, owner).summonBoost;
+  if (boost && draw(w) < boost.prob) addBuff(u, makeBuff({ key: 'boosted', src: owner.id, mods: { dmgDealtMul: boost.scale } }));
 }
 
 /**

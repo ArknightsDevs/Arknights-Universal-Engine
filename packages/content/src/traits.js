@@ -58,16 +58,29 @@ const taken = (r) => (r ? 1 - r : undefined);
 /** The covered branches, by subProfessionId (职业-7). A branch not here uses its position's defaults. */
 export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // 先锋
-  // SOL-X: attack and defence + atk, def while it blocks (职业-18)
-  pioneer: { trait: (bb) => whileOf('blocking', { atkPct: bb.atk, defPct: bb.def }) },
-  // AGE-X: 嘲讽等级 + taunt_level (职业-18)
-  agent: { trait: (bb) => ({ antiAir: true, blockedFirst: false, ...whileOf('always', { taunt: bb.taunt_level }) }) },
-  bearer: {},
+  // SOL-X: attack and defence + atk, def while it blocks (职业-18); SOL-Y: its first deployment costs runtime_cost (−4) more
+  // (the module's own data; 职业-21)
+  pioneer: { trait: (bb, own, type) => ({ ...whileOf('blocking', { atkPct: bb.atk, defPct: bb.def }), ...(type === 'SOL-Y' && own?.runtime_cost ? { firstCost: own.runtime_cost } : {}) }) },
+  // AGE-X: 嘲讽等级 + taunt_level (职业-18); AGE-Y: its first retreat's 再部署时间 × (1 + respawn_time) (职业-21)
+  agent: { trait: (bb) => ({ antiAir: true, blockedFirst: false, ...whileOf('always', { taunt: bb.taunt_level }), ...(bb.respawn_time ? { firstRetreatRespawn: 1 + bb.respawn_time } : {}) }) },
+  // BEA-X: while its skill runs, the operator in front of it blocks block_cnt more; BEA-Y: 迷彩 while its skill runs (职业-21)
+  bearer: { trait: (bb, _own, type) => ({
+    ...(bb.block_cnt ? { auras: [{ to: 'frontAlly', skill: true, mods: { blockCnt: bb.block_cnt } }] } : {}),
+    ...(type === 'BEA-Y' ? { whiles: [{ when: 'inSkill', mods: {}, flags: { camou: true } }] } : {}),
+  }) },
   // CHG-Y: × atk_scale against an enemy below hp_ratio of its HP (the module's own data; 职业-17)
-  charger: { trait: (bb, own) => ({ killCost: bb.cost ?? 1, refund: 1, ...(own?.hp_ratio ? vsWhen('hpBelow', 'atk', own.atk_scale, { value: own.hp_ratio }) : {}) }) },
+  // CHG-X: its refund not capped at its initial cost (the module's own data withdraw_cost_recover_ratio; 职业-21)
+  charger: { trait: (bb, own) => ({
+    killCost: bb.cost ?? 1, refund: 1, ...(own?.hp_ratio ? vsWhen('hpBelow', 'atk', own.atk_scale, { value: own.hp_ratio }) : {}),
+    ...(own?.withdraw_cost_recover_ratio ? { refund: own.withdraw_cost_recover_ratio, refundUncapped: true } : {}),
+  }) },
   // its 战术点 is a summon (召唤-11); × atk_scale against the enemies its own summons block (职业-14)
-  // TAC-Y: the enemies its summons block 嘲讽等级 +1 (职业-20)
-  tactician: { trait: (bb, _own, type) => ({ summonBlockedScale: bb.atk_scale ?? 1.5, ...(type === 'TAC-Y' ? { auras: [{ to: 'summonBlocked', mods: { taunt: 1 } }] } : {}) }) },
+  // TAC-Y: the enemies its summons block 嘲讽等级 +1 (职业-20); TAC-X: its summons take damage_scale of the damage from the
+  // units they block (the module's own data where it has one, else the 85 % of its text; 职业-21)
+  tactician: { trait: (bb, own, type) => ({
+    summonBlockedScale: bb.atk_scale ?? 1.5, ...(type === 'TAC-Y' ? { auras: [{ to: 'summonBlocked', mods: { taunt: 1 } }] } : {}),
+    ...(type === 'TAC-X' ? { auras: [{ to: 'summons', mods: { blockedTakenMul: own?.damage_scale ?? 0.85 } }] } : {}),
+  }) },
   // the support of the operators in the deck is its skills' and talents' (职业-7)
   counsellor: {},
   // 近卫
@@ -258,7 +271,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // arts; while its skill runs, its attacks heal at heal_scale (职业-12)
   // BLS-Y: attacks and heals attack@max_target (2) (职业-19)
   blessing: { dmgType: ARTS, trait: (bb) => ({ skillHeal: bb.heal_scale ?? 0.75, ...(bb['attack@max_target'] ? { targets: bb['attack@max_target'] } : {}) }) },
-  summoner: { dmgType: ARTS },
+  // SUM-X: cnt (1) of its summons take no place in the deploy limit (职业-21)
+  summoner: { dmgType: ARTS, trait: (bb, _own, type) => (type === 'SUM-X' && bb.cnt ? { freeSummons: bb.cnt } : {}) },
   // UMD-Y: SP recovery + sp_recovery_per_sec while an elite or leader is in its range (the trait's, or the module's own data; 职业-18)
   // UMD-X: each hit 虚弱 −atk for duration seconds (职业-20)
   underminer: { dmgType: ARTS, trait: (bb, own) => ({
@@ -275,15 +289,21 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // RAN-X: attack + atk while another operator in its range has its skill running (职业-18)
   supportiveranger: { trait: (bb) => whileOf('skillAllies', { atkPct: bb.atk }) },
   // 特种
-  // EXE-Y (and Misery's EXE-X): attack + atk while no other operator stands on the 4 tiles next to it (职业-18)
-  executor: { trait: (bb) => whileOf('alone4', { atkPct: bb.atk }) },
+  // EXE-Y (and Misery's EXE-X): attack + atk while no other operator stands on the 4 tiles next to it (职业-18); EXE-X: a
+  // retreat returns withdraw_cost_recover_ratio of its cost, not capped at its initial cost (职业-21)
+  executor: { trait: (bb) => ({
+    ...whileOf('alone4', { atkPct: bb.atk }), ...(bb.withdraw_cost_recover_ratio ? { refund: bb.withdraw_cost_recover_ratio, refundUncapped: true } : {}),
+  }) },
   // its 炼金单元 are its skills' (职业-7)
   alchemist: {},
   // at 0 HP in its own form, a switch to its 替身 for duration seconds, attack and HP + atk, max_hp; switches take 1 s (职业-15)
   dollkeeper: { trait: (bb) => ({ doll: { duration: bb.duration ?? 20, switch: DOLL_SWITCH, atk: bb.atk ?? 0, maxHp: bb.max_hp ?? 0 } }) },
   // its summons (traps) not on a tile a ground enemy stands on (职业-14)
-  // TRP-D: itself on melee tiles too (the module's own data buildable_type 3; 职业-19)
-  traper: { trait: (_bb, own) => ({ trapTiles: true, ...(own?.buildable_type === 3 ? { meleeTiles: true } : {}) }) },
+  // TRP-D: itself on melee tiles too (the module's own data buildable_type 3; 职业-19); TRP-Y: a trap at the chance prob
+  // deals × atk_scale damage (职业-21)
+  traper: { trait: (bb, own) => ({
+    trapTiles: true, ...(own?.buildable_type === 3 ? { meleeTiles: true } : {}), ...(bb.prob && bb.atk_scale ? { summonBoost: { prob: bb.prob, scale: bb.atk_scale } } : {}),
+  }) },
   // every enemy in range; half of the physical and arts hits dodged (blackboard prob)
   // AMB-X: the enemies in its range move − move_speed (直接乘算; the module's own data; 职业-20)
   stalker: { trait: (bb, own, type) => ({

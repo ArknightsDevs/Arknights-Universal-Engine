@@ -264,3 +264,15 @@ test('[职业-7] [职业-20] the modules\' riders, SP, auras and 元素损伤, f
   ]);
   assert.deepEqual([yu.whiles, lee.payStack], [[{ when: 'blocking', mods: { epDealtMul: 1.15 } }], { atk: 0.04, max: 5 }]);
 });
+
+test('[职业-7] [职业-21] the modules\' card, refund, summons and skill-time effects, from the real data', async () => {
+  const [saga, ines, phantom, bagpipe, magallan, dorothy, saileach, saria, muelsyse] = await Promise.all([withModule('嵯峨', 'SOL-Y'), withModule('伊内丝', 'AGE-Y'),
+    withModule('傀影', 'EXE-X'), withModule('风笛', 'CHG-X'), withModule('麦哲伦', 'SUM-X'), withModule('多萝西', 'TRP-Y'), withModule('琴柳', 'BEA-X'), withModule('琴柳', 'BEA-Y'),
+    withModule('缪尔赛思', 'TAC-X')]);
+  assert.deepEqual([saga.firstCost, ines.firstRetreatRespawn, phantom.refund, phantom.refundUncapped, bagpipe.refund, bagpipe.refundUncapped, magallan.freeSummons, dorothy.summonBoost], [
+    -4, 1 - 0.35, 0.8, true, 1, true, 1, { prob: 0.2, scale: 2 },
+  ]);
+  assert.deepEqual([saileach.auras, saria.whiles, muelsyse.auras], [
+    [{ to: 'frontAlly', skill: true, mods: { blockCnt: 1 } }], [{ when: 'inSkill', mods: {}, flags: { camou: true } }], [{ to: 'summons', mods: { blockedTakenMul: 0.85 } }],
+  ]);
+});

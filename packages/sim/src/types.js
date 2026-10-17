@@ -221,12 +221,19 @@
  *   leader, on a target it did not bring down, or every `every` boomerangs caught (职业-20)
  * @property {{ atk: number, max: number } | null} payStack each upkeep payment, attack + `atk` (直接乘算), at most `max` steps (职业-20)
  * @property {ModuleAura[]} auras modifiers or flags it gives other units while they are so (职业-20)
+ * @property {number} firstCost added to its deploy cost before its first deployment, the cost never below 0 (职业-21)
+ * @property {number} firstRetreatRespawn × its 再部署时间 after its first retreat (职业-21)
+ * @property {boolean} refundUncapped a retreat's refund is not capped at its initial cost (撤退-1, 职业-21)
+ * @property {number} freeSummons this many of its summons on the field take no place in the deploy limit (部署-2, 职业-21)
+ * @property {{ prob: number, scale: number } | null} summonBoost a summon deployed from its card deals × `scale` damage at the
+ *   chance `prob` (职业-21)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
  */
 /**
  * Modifiers or flags an operator's trait gives other units (职业-20): the enemies it blocks (`blocked`), those its own
- * summons block (`summonBlocked`), those with a tile in its attack range (`range`) — a buff on each while they are so.
- * @typedef {{ to: 'blocked' | 'summonBlocked' | 'range', mods?: Record<string, number>, flags?: Record<string, boolean> }} ModuleAura
+ * summons block (`summonBlocked`), those with a tile in its attack range (`range`), the operator on the tile in front of
+ * it (`frontAlly`), its own summons (`summons`) — a buff on each while they are so; `skill`: only while its skill runs.
+ * @typedef {{ to: 'blocked' | 'summonBlocked' | 'range' | 'frontAlly' | 'summons', skill?: boolean, mods?: Record<string, number>, flags?: Record<string, boolean> }} ModuleAura
  */
 /**
  * A trait's modifiers while a condition on the operator holds (职业-18): it blocks an enemy (`blocking`) or none
@@ -235,9 +242,10 @@
  * an element burst (`burstEnemies`); at least `value` other operators are in it (`allies`), or a wounded friendly unit
  * (`injuredAllies`), or one with element damage (`epAllies`), or another operator whose skill runs (`skillAllies`); no
  * other operator stands on the 4 tiles next to it (`alone4`) or the 8 around it (`alone8`); it holds stored attack energy
- * (`energy`); always (`always`).
+ * (`energy`); its skill runs (`inSkill`); always (`always`). The buff may carry flags too.
  * @typedef {{ when: 'blocking' | 'notBlocking' | 'hpAbove' | 'hpBelow' | 'enemies' | 'groundEnemies' | 'eliteEnemies' | 'burstEnemies'
- *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always', value?: number, mods: Record<string, number> }} WhileMods
+ *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always' | 'inSkill', value?: number,
+ *   mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
  */
 /**
  * A trait's 倍率 against a target (职业-17): × `atk` on a hit's attack 倍率 (before the target's 防御), × `dmg` on its 伤害倍率,
@@ -480,7 +488,7 @@
 /**
  * An operator's card in a player's deck (部署-3): the 再部署惩罚 layers it has (0–2) and the frame it may be deployed
  * again from; `lock`, the enemy that devoured it (吞噬, 敌能-30) — locked while that enemy is on the field.
- * @typedef {{ penalty: number, ready: number, lock?: number }} Card
+ * @typedef {{ penalty: number, ready: number, lock?: number, retreated?: boolean }} Card
  */
 /**
  * A summon's card in a player's deck (召唤-4): copies held, the frame it may be deployed from, copies cooling (队列).

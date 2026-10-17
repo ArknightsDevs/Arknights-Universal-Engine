@@ -10,6 +10,8 @@ import { inKeys, hostile } from './targeting.js';
 import { reachKeys } from './reach.js';
 import { traitOf, dollNow, summonHeld } from './traits.js';
 import { statMods } from './skills.js';
+import { tileOf } from './body.js';
+import { frontOf } from './dir.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /**
@@ -88,17 +90,23 @@ function dollAura(c, src, units, want) {
 }
 
 /**
- * The auras a module adds to an operator's trait (职业-20): the enemies (not neutral) it blocks, those its own summons
- * block, or those with a tile in its attack range, each with the aura's modifiers and flags — a buff `mod:<its id>:<n>`.
+ * The auras a module adds to an operator's trait (职业-20, 职业-21): the enemies (not neutral) it blocks, those its own
+ * summons block, or those with a tile in its attack range; the operator on the tile in front of it; its own summons —
+ * each with the aura's modifiers and flags, some only while its skill runs — a buff `mod:<its id>:<n>`.
  * @param {World} w @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
  */
 function moduleAuras(w, c, src, units, want) {
   const list = traitOf(c, src).auras;
   if (list.length === 0) return;
-  const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src), bySummon = summonHeld(w, src);
-  const holds = { blocked: (/** @type {Unit} */ u) => u.blockedBy === src.id, summonBlocked: bySummon, range: (/** @type {Unit} */ u) => inKeys(u, keys, grid) };
+  const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src), bySummon = summonHeld(w, src), [fr, fc] = frontOf(...tileOf(src), src.dir);
+  /** @type {Record<import('./types.js').ModuleAura['to'], (u: Unit) => boolean>} */
+  const holds = {
+    blocked: (u) => hostile(u) && u.blockedBy === src.id, summonBlocked: (u) => hostile(u) && bySummon(u), range: (u) => hostile(u) && inKeys(u, keys, grid),
+    frontAlly: (u) => u.kind === KIND.OPERATOR && u !== src && tileOf(u)[0] === fr && tileOf(u)[1] === fc, summons: (u) => u.summoner === src.id,
+  };
   list.forEach((a, i) => {
-    for (const u of units) if (hostile(u) && holds[a.to](u)) want.get(u)?.set(`mod:${src.id}:${i}`, { src: src.id, value: 0, mods: a.mods ?? {}, ...(a.flags ? { flags: a.flags } : {}) });
+    if (a.skill && !(src.skill && src.skill.active)) return;
+    for (const u of units) if (holds[a.to](u)) want.get(u)?.set(`mod:${src.id}:${i}`, { src: src.id, value: 0, mods: a.mods ?? {}, ...(a.flags ? { flags: a.flags } : {}) });
   });
 }
 

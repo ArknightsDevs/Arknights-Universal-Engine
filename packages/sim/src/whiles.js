@@ -55,6 +55,7 @@ const WHEN = Object.freeze({
   alone8: (w, _c, op) => !crowded(w, op, 8),
   energy: (_w, _c, op) => (op.buffs.find((b) => b.key === 'energy')?.value ?? 0) > 0,
   always: () => true,
+  inSkill: (_w, _c, op) => !!op.skill && op.skill.active,
 });
 
 /**
@@ -66,7 +67,7 @@ export function traitWhiles(w, c, op) {
   const list = traitOf(c, op).whiles;
   for (let i = 0; i < list.length; i++) {
     const x = list[i], key = `while:${i}`, on = WHEN[x.when](w, c, op, x.value ?? 0), has = op.buffs.some((b) => b.key === key);
-    if (on && !has) addBuff(op, makeBuff({ key, src: op.id, mods: { ...x.mods } }));
+    if (on && !has) addBuff(op, makeBuff({ key, src: op.id, mods: { ...x.mods }, ...(x.flags ? { flags: { ...x.flags } } : {}) }));
     else if (!on && has) removeBuff(op, key);
   }
 }

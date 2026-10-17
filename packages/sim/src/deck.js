@@ -53,14 +53,19 @@ export function cardHidden(w, c, key) {
 export const deployLimit = (c, seat, w) => Math.max(0, c.level.options.characterLimit + (c.level.options.characterLimitAdd?.[seat] ?? 0) + (w ? facilitySum(w, c, 'lounge', 'value_char') : 0));
 
 /**
- * The cost to deploy an operator now (部署-3): its initial cost × (1 + 0.5 × 再部署惩罚), rounded down.
+ * The cost to deploy an operator now (部署-3): its initial cost × (1 + 0.5 × 再部署惩罚), rounded down; before its first
+ * deployment, plus its trait's first-deployment change, never below 0 (职业-21).
  * @param {Content} c @param {Player} p @param {string} key
  */
-export const deployCost = (c, p, key) => Math.floor(c.operators[key].cost * (1 + 0.5 * cardOf(p, key).penalty));
+export function deployCost(c, p, key) {
+  const d = c.operators[key], base = Math.floor(d.cost * (1 + 0.5 * cardOf(p, key).penalty)), first = traitOfDef(d).firstCost;
+  return first !== 0 && !Object.hasOwn(p.cards, key) && !p.deployed.includes(key) ? Math.max(0, base + first) : base;
+}
 
 /**
- * An operator leaves the field (部署-3, 撤退-1): a retreat returns ⌊min(paid × 返还倍率, initial cost)⌋ cost; either way
- * its card gains a penalty layer (at most 2) and it may be deployed again after its 再部署时间 — 20% shorter while a
+ * An operator leaves the field (部署-3, 撤退-1): a retreat returns ⌊min(paid × 返还倍率, initial cost)⌋ cost (without the
+ * cap when its trait says so, 职业-21); either way its card gains a penalty layer (at most 2) and it may be deployed again
+ * after its 再部署时间 — × its trait's share for its first retreat (职业-21), 20% shorter while a
  * 临时休息舱 is at level 3, none for a retreat in a rest (守御-2, 守御-5) — an operator devoured is locked instead, with
  * none (敌能-30). A summon has its own card (召唤-4).
  * @param {World} w @param {Content} c @param {Unit} u @param {boolean} retreated
@@ -70,11 +75,12 @@ export function leaveField(w, c, u, retreated) {
     summonLeft(w, c, u);
     return;
   }
-  const p = w.players[u.owner], d = c.operators[u.key], card = cardOf(p, u.key);
-  if (retreated) gainCost(w, c, u.owner, Math.floor(Math.min(u.paid * traitOfDef(d).refund, d.cost)));
-  const wait = retreated && w.fortress?.phase === 'rest' ? 0 : secondsToFrames((d.respawnTime ?? DEFAULT_RESPAWN) * respawnFactor(w, c));
-  const penalty = Math.min(MAX_PENALTY, card.penalty + 1), lock = u.ab['@devoured'];
-  p.cards[u.key] = lock !== undefined && !retreated ? { penalty, ready: w.frame, lock } : { penalty, ready: w.frame + wait };
+  const p = w.players[u.owner], d = c.operators[u.key], card = cardOf(p, u.key), t = traitOfDef(d);
+  if (retreated) gainCost(w, c, u.owner, Math.floor(t.refundUncapped ? u.paid * t.refund : Math.min(u.paid * t.refund, d.cost)));
+  const first = retreated && !card.retreated ? t.firstRetreatRespawn : 1;
+  const wait = retreated && w.fortress?.phase === 'rest' ? 0 : secondsToFrames((d.respawnTime ?? DEFAULT_RESPAWN) * respawnFactor(w, c) * first);
+  const penalty = Math.min(MAX_PENALTY, card.penalty + 1), lock = u.ab['@devoured'], once = (retreated || card.retreated) && t.firstRetreatRespawn !== 1 ? { retreated: true } : {};
+  p.cards[u.key] = lock !== undefined && !retreated ? { penalty, ready: w.frame, lock, ...once } : { penalty, ready: w.frame + wait, ...once };
   p.deployed = p.deployed.filter((k) => k !== u.key);
 }
 

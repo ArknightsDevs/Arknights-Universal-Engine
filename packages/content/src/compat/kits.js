@@ -37,17 +37,20 @@ function kitTraitOf(entry, level) {
 const KIT_OWNED = Object.freeze({ soulcaster: { summonBlockedScale: 1 } });
 
 /**
- * What a module adds to the trait (职业-17, 职业-18, 职业-20), none: a kit carries its operator's modules itself, their trait
- * additions too (兼容-5).
+ * What a module adds to the trait in battle (职业-17, 职业-18, 职业-20, 职业-21), none: a kit carries its operator's modules
+ * itself, their trait additions too (兼容-5). The deck's rules — the first deployment's cost, the 再部署时间, the refund,
+ * the places in the deploy limit — stay the engine's: Stronghold has no deploy cost (op-siege.js: SOL-Y's
+ * 「首次部署时部署费用-4」 has no effect there).
  * @type {Readonly<Partial<import('@aue/sim').TraitDef>>}
  */
 const NO_MODULE_ADDITIONS = Object.freeze({
   vs: [], far: null, crowd: null, packed: null, whiles: [], extraArts: 0, counterArts: 0, epRider: null, burstHit: null, spOn: null, payStack: null, auras: [],
+  summonBoost: null,
 });
 
 /** Whether a trait has some of what modules add (NO_MODULE_ADDITIONS). @param {import('@aue/sim').TraitDef} t */
 const moduleAdded = (t) => t.vs.length > 0 || t.whiles.length > 0 || t.auras.length > 0 || t.extraArts > 0 || t.counterArts > 0
-  || !!(t.far || t.crowd || t.packed || t.epRider || t.burstHit || t.spOn || t.payStack);
+  || !!(t.far || t.crowd || t.packed || t.epRider || t.burstHit || t.spOn || t.payStack || t.summonBoost);
 
 /**
  * An operator's record under its kit's trait (兼容-5): where the kit's `trait` takes the place of a part of the
