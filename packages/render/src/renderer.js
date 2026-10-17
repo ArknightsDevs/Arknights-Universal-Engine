@@ -3,15 +3,16 @@
 // bars) over it with the depth cleared (ADR 0027). The page owns the loop: it calls update() with each render state
 // from the worker and render() once per animation frame.
 import * as THREE from 'three';
+import { KIND } from '@aue/schema';
 import { applyPose, DEFAULT_VIEW, STEP_HEIGHT, screenOf, tileWorld } from './camera.js';
-import { createTerrain } from './terrain.js';
+import { createTerrain, tileKeys } from './terrain.js';
 import { createKitTerrain } from './kit.js';
 import { createHighlight } from './highlight.js';
 import { createRange } from './range.js';
 import { createTileMarks } from './tilemarks.js';
 import { createEffects } from './effects.js';
 import { FPS } from './figure.js';
-import { createUnits } from './units.js';
+import { createUnits, unitTextureKey } from './units.js';
 import { createOverlays } from './overlays.js';
 import { createPlacing } from './placing.js';
 import { spineModel } from './spine.js';
@@ -190,13 +191,29 @@ export function drawStats(renderer, scenes) {
   return { calls: render.calls, triangles: render.triangles, geometries: memory.geometries, textures: memory.textures, sceneTextures: tex.size, textureBytes: Math.round(bytes) };
 }
 
+/** The battle UI's textures the renderer draws with (渲染-5, 渲染-6, 渲染-8, 渲染-9, 渲染-14). */
+const UI_TEXTURES = Object.freeze(['ui:bar', 'ui:shadow', 'ui:range', 'ui:directionRing', 'ui:directionArrow']);
+
 /**
- * Loads the textures a manifest lists (relative to baseUrl), as sRGB.
- * @param {{ files: Record<string, { file: string }> }} manifest @param {string} baseUrl @returns {Promise<Map<string, THREE.Texture>>}
+ * The texture keys a match draws with: the UI's, the level's tiles' (渲染-7), each unit's card by its kind (渲染-1,
+ * 渲染-16) — operators by character ID, enemies and devices by key.
+ * @param {import('./terrain.js').TerrainLevel} level @param {{ operators: Iterable<string>, enemies: Iterable<string>, devices?: Iterable<string> }} units
+ * @returns {string[]}
  */
-export async function loadTextures(manifest, baseUrl) {
-  const loader = new THREE.TextureLoader(), out = new Map();
-  await Promise.all(Object.entries(manifest.files).map(async ([key, f]) => {
+export function matchTextureKeys(level, units) {
+  return [...UI_TEXTURES, ...tileKeys(level).map((k) => `tile:${k}`), ...[...units.operators].map((k) => unitTextureKey(KIND.OPERATOR, k)),
+    ...[...units.enemies].map((k) => unitTextureKey(KIND.ENEMY, k)), ...[...(units.devices ?? [])].map((k) => unitTextureKey(KIND.DEVICE, k))];
+}
+
+/**
+ * Loads the textures a manifest lists (relative to baseUrl), as sRGB: all of them, or only those of the keys given
+ * (a match's, 渲染-1) that it lists.
+ * @param {{ files: Record<string, { file: string }> }} manifest @param {string} baseUrl @param {Iterable<string>} [keys]
+ * @returns {Promise<Map<string, THREE.Texture>>}
+ */
+export async function loadTextures(manifest, baseUrl, keys) {
+  const loader = new THREE.TextureLoader(), out = new Map(), want = keys ? new Set(keys) : null;
+  await Promise.all(Object.entries(manifest.files).filter(([key]) => !want || want.has(key)).map(async ([key, f]) => {
     const t = await loader.loadAsync(new URL(f.file, baseUrl).href);
     t.colorSpace = THREE.SRGBColorSpace;
     out.set(key, t);
