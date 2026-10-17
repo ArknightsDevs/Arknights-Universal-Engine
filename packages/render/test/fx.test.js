@@ -7,7 +7,7 @@ import { KIND, DIR, SKILL_STATE, STATUS_BIT } from '@aue/schema';
 import { mm, evalKeys, grad, startColor, trackAt, trackValue, scroll, uvThrough, euler, rot } from '../src/fx/curves.js';
 import { FxSystem, shapePoint } from '../src/fx/system.js';
 import { FxBatch, fxMaterial, quad, strip, particleAxes } from '../src/fx/geometry.js';
-import { FxInstance, rootAt, rootToward, rootAlong, effectLead } from '../src/fx/player.js';
+import { FxInstance, rootAt, rootToward, rootAlong, effectLead, sizesOf } from '../src/fx/player.js';
 import { createEffects, FX } from '../src/effects.js';
 
 const near = (/** @type {number} */ a, /** @type {number} */ b, e = 1e-6) => Math.abs(a - b) < e;
@@ -92,6 +92,13 @@ test('[渲染-10] triangles: a quad takes its sheet cell; a strip faces the came
   assert.deepEqual(lying.b, [0, 0, -1], 'a local-aligned particle lies in its system plane: its y is north');
   assert.equal(fxMaterial({ tex: 'x', blend: 'add' }, new Map()).blendDst, THREE.OneFactor);
   b.dispose();
+});
+
+test('[渲染-10] sizes: one start size grows alike on every axis, or apart when the system sizes the axes apart; 3D start sizes their own', () => {
+  const q = { size: 0.5, sizeY: 0, sizeZ: 0, r2: 0.3 };
+  assert.deepEqual(sizesOf({ sizeOL: C(2) }, q, 0.5), { size: 1, sizeY: 1, sizeZ: 1 });
+  assert.deepEqual(sizesOf({ sizeOL: C(2), sizeOLY: C(0.1), sizeOLZ: C(1) }, q, 0.5), { size: 1, sizeY: 0.05, sizeZ: 0.5 }, 'a streak from one start size');
+  assert.deepEqual(sizesOf({ size3D: 1, sizeOL: C(2) }, { ...q, sizeY: 0.25, sizeZ: 0 }, 0.5), { size: 1, sizeY: 0.5, sizeZ: 1 }, '3D start sizes, alike over life');
 });
 
 test('[渲染-10] an instance: it waits, plays, stops at its cap, fades, and is done', () => {

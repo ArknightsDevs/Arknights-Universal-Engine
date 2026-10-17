@@ -188,13 +188,15 @@ class FxDrawn {
 }
 
 /**
- * A particle's size now on each axis (start size × size over its life): the axes apart when the system sizes them so,
- * a mesh's depth its own on z then, else its width. @param {any} p @param {any} q @param {number} tl
+ * A particle's size now on each axis: its start size — each axis its own when the system starts them apart — times its
+ * size over its life — each axis its own when the system sizes them apart, even from one start size; a mesh's depth its
+ * own start size on z then, else its width. @param {any} p @param {any} q @param {number} tl
  */
-function sizesOf(p, q, tl) {
+export function sizesOf(p, q, tl) {
   const sOL = p.sizeOL ? mm(p.sizeOL, tl, q.r2) : 1, size = q.size * sOL;
-  if (!p.size3D) return { size, sizeY: size, sizeZ: size };
-  return { size, sizeY: q.sizeY * (p.sizeOLY ? mm(p.sizeOLY, tl, q.r2) : sOL), sizeZ: q.sizeZ ? q.sizeZ * (p.sizeOLZ ? mm(p.sizeOLZ, tl, q.r2) : sOL) : size };
+  if (!p.size3D && !p.sizeOLY) return { size, sizeY: size, sizeZ: size };
+  const y0 = p.size3D ? q.sizeY : q.size, z0 = p.size3D ? q.sizeZ : q.size;
+  return { size, sizeY: y0 * (p.sizeOLY ? mm(p.sizeOLY, tl, q.r2) : sOL), sizeZ: z0 ? z0 * (p.sizeOLZ ? mm(p.sizeOLZ, tl, q.r2) : sOL) : size };
 }
 
 /** A texture-sheet cell of a particle now: its frame and the sheet's size. @param {any} p @param {number} tl @param {any} q */
