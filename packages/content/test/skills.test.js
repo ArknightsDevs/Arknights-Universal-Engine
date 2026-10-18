@@ -69,3 +69,55 @@ test('[技能-9] what descriptions add, on real skills: blocked targets, 二连�
   assert.deepEqual(red.attack.hitStatus.key, 'stun');
   assert.equal(def('skcom_atk_up[3]').extra, undefined, 'nothing it does not read');
 });
+
+/** An operator's skill at elite 2, skill level 7, from its training record. @param {string} id @param {number} skill */
+async function skillAt(id, skill) {
+  const { loadTraining, operatorAt } = await import('../src/index.js');
+  return /** @type {any} */ (operatorAt(await loadTraining(id), { elite: 2, level: 1, potential: 1, trust: 0, skill, skillLevel: 7 }).skill);
+}
+
+test('[技能-4] [技能-5] real skills that say 持续时间无限 run until closed; an attribute shown without a percent is 直接加算', async () => {
+  const [whitew, lisa, surtr, quercu] = await Promise.all([skillAt('char_140_whitew', 0), skillAt('char_358_lisa', 1), skillAt('char_350_surtr', 2), skillAt('char_492_quercu', 0)]);
+  assert.deepEqual([whitew, lisa, surtr].map((s) => [s.forever, skills.kindOf(s)]), [[true, 'duration'], [true, 'duration'], [true, 'duration']], '拉普兰德 S1, 铃兰 S2, 史尔特尔 S3');
+  assert.deepEqual([quercu.forever, quercu.stoppable], [true, true], '夏栎 S1: 技能持续时间无限，可主动关闭技能');
+  assert.deepEqual(surtr.extra.mods, { hpPct: 0, hpFlat: 5000 }, '生命上限+{max_hp}');
+  assert.equal(def('skcom_atk_up[3]').forever, undefined);
+});
+
+test('[技能-10] real skills that cost deployment cost to start: the first sentence\'s 「消耗…点部署费用」, not an 装备应变\'s', async () => {
+  const [catap1, catap2, hadiya1, hadiya2] = await Promise.all([skillAt('char_1049_catap2', 0), skillAt('char_1049_catap2', 1), skillAt('char_394_hadiya', 0), skillAt('char_394_hadiya', 1)]);
+  assert.deepEqual([catap1.spend, catap2.spend, hadiya1.spend, hadiya2.spend], [20, 5, undefined, 10]);
+});
+
+test('[技能-11] real 鼓舞: the attributes after each ratio, 其他 or not, a block count for the allies; those keys none of the 吟游者\'s own', async () => {
+  const [sora, heidi1, heidi2, dolris1, skadi2, cetsyr3] = await Promise.all([skillAt('char_101_sora', 1), skillAt('char_4045_heidi', 0), skillAt('char_4045_heidi', 1),
+    skillAt('char_4184_dolris', 0), skillAt('char_1012_skadi2', 1), skillAt('char_4134_cetsyr', 2)]);
+  assert.deepEqual([sora.allies, sora.extra.mods], [{ others: true, inspire: { atk: 0.9 } }, { atkPct: 0 }], '空 S2 战斗之歌 (skill level 7)');
+  assert.deepEqual([heidi1.allies, heidi1.extra.mods], [{ others: false, inspire: { atk: 0.9 }, mods: { blockCnt: -3 } }, { atkPct: 0, blockCnt: 0 }], '海蒂 S1');
+  assert.deepEqual([heidi2.allies, heidi2.extra.mods], [{ others: false, inspire: { def: 0.5, maxHp: 0.2 }, mods: { blockCnt: 1 } }, { defPct: 0, hpPct: 0, blockCnt: 0 }], '海蒂 S2: {def}防御力和{max_hp}生命值上限');
+  assert.deepEqual([dolris1.allies, dolris1.extra], [{ others: false, inspire: { atk: 0.4, def: 0.4 } }, undefined], '三角初华 S1: {attack@atk}攻击力与防御力');
+  assert.deepEqual([skadi2.allies, skadi2.extra.mods, skadi2.forever], [{ others: true, inspire: { atk: 0.45, def: 0.45 } }, { atkPct: 0, defPct: 0 }, true], '浊心斯卡蒂 S2: def a ratio too');
+  assert.deepEqual([cetsyr3.allies, cetsyr3.extra.mods], [{ others: true, inspire: { maxHp: 0.8 } }, { hpPct: 0 }], '魔王 S3: {max_hp}的最大生命值');
+  assert.equal(def('skcom_atk_up[3]').allies, undefined);
+});
+
+test('[技能-12] 史尔特尔 S3 黄昏: her whole maximum HP healed at its start, then 生命流失 every 0.2 s rising evenly to 20 % a second over 60 s', async () => {
+  const c = /** @type {any} */ (tinyContent());
+  c.operators.guard.skill = { ...(await skillAt('char_350_surtr', 2)), init: 99 };
+  c.behaviors = { skills: skillBehaviors };
+  c.level.waves = [];
+  const w = createWorld(c, { seed: 1, players: 1 });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 }]]);
+  const g = w.units[0];
+  g.hp = 10;
+  step(w, c, [[0, { type: 'skill', unit: g.id }]]);
+  const max = attrs.statsOf(g).maxHp;
+  assert.deepEqual([max, g.hp], [1000 + 5000, 6000], 'healed in full after +5000');
+  for (let i = 0; i < 6; i++) step(w, c, []);
+  const first = 6000 - g.hp;
+  assert.ok(Math.abs(first - max * 0.2 * (0.2 / 60) * 0.2) < 1e-6, `the first loss at 0.2 s: ${first}`);
+  for (let i = 0; i < 30 * 70; i++) { step(w, c, []); g.hp = max; }
+  const before = g.hp;
+  for (let i = 0; i < 6; i++) step(w, c, []);
+  assert.ok(Math.abs(before - g.hp - max * 0.2 * 0.2) < 1e-6, 'past 60 s: 20 % a second, a fifth of it every 0.2 s');
+});

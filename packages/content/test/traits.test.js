@@ -296,3 +296,8 @@ test('[职业-16] [职业-20] [职业-21] 贝娜\'s 替身, BAR-Y\'s 伤害减�
     [{ to: 'blocked', mods: { dmgTakenMul: 1.1 } }, { to: 'summonBlocked', mods: { dmgTakenMul: 1.1 } }], [{ to: 'blocked', mods: { artsTakenMul: 1.1 } }], true,
   ]);
 });
+
+test('[职业-13] [职业-20] 鼓舞 does not reach a 吟游者; 佣兵 MCN-X: attack for each cost a skill pays, from the real data', async () => {
+  const [catap, sora] = await Promise.all([withModule('雷狼龙S空爆', 'MCN-X'), real('char_101_sora')]);
+  assert.deepEqual([catap.spendAtk, traits.traitOfDef(sora).noInspire], [{ atk: 0.02, max: 10 }, true]);
+});

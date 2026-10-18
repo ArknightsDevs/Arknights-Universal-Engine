@@ -149,8 +149,9 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // CRU-Y: 伤害倍率 × damage_scale against a blocked enemy (职业-17); CRU-X: heals it takes × heal_scale (职业-18)
   crusher: { trait: (bb) => ({ targets: 'blockCnt', ...vsWhen('blocked', 'dmg', bb.damage_scale), ...whileOf('always', { healingTakenMul: bb.heal_scale }) }) },
   primguard: {},
-  // the 应变 that spends cost is its skills' (职业-7)
-  mercenary: {},
+  // the 应变 that spends cost is its skills' (职业-7, 技能-10); MCN-X: attack + atk for each cost a skill of its pays, at most
+  // max_stack_cnt, while the skill runs (the module's own data; 职业-20)
+  mercenary: { trait: (bb, own, type) => (type === 'MCN-X' && own?.atk ? { spendAtk: { atk: own.atk, max: own.max_stack_cnt ?? 10 } } : {}) },
   // attacks only while its skill runs; 阻挡数 × 0 while it does not, and an attack bonus building up to atk over max_stack_cnt s (职业-12)
   librator: { trait: (bb, hidden) => ({ attackInSkill: true, idleMods: { blockCntMul: 0 }, charge: { atk: bb.atk ?? 2, steps: bb.max_stack_cnt ?? 40, init: hidden?.init_atk ?? 0 } }) },
   // 重装
@@ -286,11 +287,12 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // 辅助
   // DEC-X: SP recovery + sp_recovery_per_sec while an enemy is in its range (the module's own data; 职业-18)
   slower: { dmgType: ARTS, trait: (bb, own) => ({ hitStatus: { key: 'sluggish', seconds: bb.sluggish ?? 0.8 }, ...whileOf('enemies', { spRecoveryFlat: own?.sp_recovery_per_sec }, 1) }) },
-  // no attacks, outside the deploy limit; the operators in its range regenerate a share of its attack a second (职业-13)
+  // no attacks, outside the deploy limit, 鼓舞 does not reach it; the operators in its range regenerate a share of its attack a
+  // second (职业-13)
   // BAR-X: attack + atk while cnt other operators are in its range (the module's own data; 职业-18); BAR-Y: while its skill
   // runs, the operators in its range take −damage_resistance (30) of each physical and arts hit (伤害减免; 职业-20)
   bard: { trait: (bb, own, type) => ({
-    noAttack: true, free: true, regenAura: bb['attack@atk_to_hp_recovery_ratio'] ?? bb.atk_to_hp_recovery_ratio ?? 0.1,
+    noAttack: true, free: true, noInspire: true, regenAura: bb['attack@atk_to_hp_recovery_ratio'] ?? bb.atk_to_hp_recovery_ratio ?? 0.1,
     ...(own?.cnt ? whileOf('allies', { atkPct: own.atk }, own.cnt) : {}),
     ...(type === 'BAR-Y' && own?.damage_resistance ? { auras: [{ to: 'rangeAllies', skill: true, mods: { dmgReduceFlat: Math.abs(own.damage_resistance) } }] } : {}),
   }) },

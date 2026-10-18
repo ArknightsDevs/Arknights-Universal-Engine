@@ -1,8 +1,9 @@
-// Auras (docs/spec/traits.md 职业-13, docs/spec/field.md 部署-5, 部署-6, docs/spec/devices.md 装置-4): an operator that
-// raises the 生命回复速度 of every operator in its attack range by a share of its attack, an operator's talents for every
-// operator of a profession or faction, its talents for the units in its attack range, a 替身's slow of the enemies
-// around it, and a device's modifiers for every enemy, while the source is on the field — a buff per aura on each of
-// them, kept in step every frame, gone with the aura's source.
+// Auras (docs/spec/traits.md 职业-13, docs/spec/field.md 部署-5, 部署-6, docs/spec/devices.md 装置-4, docs/spec/skills.md
+// 技能-11): an operator that raises the 生命回复速度 of every operator in its attack range by a share of its attack, an
+// operator's talents for every operator of a profession or faction, its talents for the units in its attack range, a
+// 替身's slow of the enemies around it, a running skill's modifiers and 鼓舞 for the friendly units in its range, and a
+// device's modifiers for every enemy, while the source is on the field — a buff per aura on each of them, kept in step
+// every frame, gone with the aura's source.
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune } from './buffs.js';
@@ -15,12 +16,14 @@ import { frontOf } from './dir.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /**
- * What an aura gives one unit: its source, its strength (to see a change), its modifiers and flags.
- * @typedef {{ src: number, value: number, mods: Record<string, number>, flags?: Record<string, boolean> }} Want
+ * What an aura gives one unit: its source, its strength (to see a change), its modifiers and flags; a 鼓舞's ratio.
+ * @typedef {{ src: number, value: number, mods: Record<string, number>, flags?: Record<string, boolean>, ratio?: number }} Want
  */
 
+/** The keys of the aura buffs. */
+const AURA_KEYS = /^(?:aura|field|range|doll|mod|ally|inspire):/;
 /** Whether a buff is an aura's. @param {{ key: string }} b */
-const isAura = (b) => b.key.startsWith('aura:') || b.key.startsWith('field:') || b.key.startsWith('range:') || b.key.startsWith('doll:') || b.key.startsWith('mod:');
+const isAura = (b) => AURA_KEYS.test(b.key);
 
 /**
  * An aura's share of its source's attack now (职业-13): its skill's `attack@atk_to_hp_recovery_ratio` (or the same key
@@ -112,6 +115,42 @@ function moduleAuras(w, c, src, units, want) {
   });
 }
 
+/** The 最终加算 modifier of each attribute a 鼓舞 raises (技能-11). */
+const INSPIRE_MOD = Object.freeze({ atk: 'atkFinal', def: 'defFinal', maxHp: 'hpFinal' });
+
+/**
+ * What a running skill gives the friendly units in its attack range (技能-11): every operator (summons too) with a tile
+ * in it — not the source when the skill says 其他 — gets its modifiers (`ally:<id>`) and, unless `noInspire`, its 鼓舞: a
+ * 最终加算 of the source's attribute (without the 鼓舞 it holds itself) × the ratio, of several the highest ratio of each
+ * attribute (`inspire:<attribute>`).
+ * @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
+ */
+function skillAllies(c, src, units, want) {
+  const a = src.skill?.active ? c.operators[src.key].skill?.allies : undefined;
+  if (!a) return;
+  const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src);
+  const s = a.inspire ? statsOf({ ...src, buffs: src.buffs.filter((b) => !b.key.startsWith('inspire:')) }) : null;
+  for (const u of units) {
+    const w = want.get(u);
+    if (!w || u.kind !== KIND.OPERATOR || (a.others && u === src) || !inKeys(u, keys, grid)) continue;
+    if (a.mods) w.set(`ally:${src.id}`, { src: src.id, value: 0, mods: a.mods });
+    if (s && !traitOf(c, u).noInspire) inspire(w, src, /** @type {NonNullable<typeof a.inspire>} */ (a.inspire), s);
+  }
+}
+
+/**
+ * One unit's 鼓舞 from one source (技能-11): for each attribute, the source's × the ratio, unless it has a higher ratio
+ * of that attribute already.
+ * @param {Map<string, Want>} w @param {Unit} src @param {NonNullable<import('./types.js').SkillAllies['inspire']>} ratios
+ * @param {import('./attrs.js').Stats} s the source's stats without its own 鼓舞
+ */
+function inspire(w, src, ratios, s) {
+  for (const [attr, ratio] of /** @type {[keyof typeof INSPIRE_MOD, number][]} */ (Object.entries(ratios))) {
+    const key = `inspire:${attr}`, amount = s[attr] * ratio;
+    if (!((w.get(key)?.ratio ?? -Infinity) >= ratio)) w.set(key, { src: src.id, value: amount, ratio, mods: { [INSPIRE_MOD[attr]]: amount } });
+  }
+}
+
 /**
  * A device's modifiers for every enemy on the field, neutral units aside (装置-4): one buff per device, so the devices'
  * modifiers stack.
@@ -124,8 +163,9 @@ function deviceAura(c, src, units, want) {
 }
 
 /**
- * Every aura this frame, before the operators' turns (职业-13, 职业-16, 职业-20, 部署-5, 部署-6, 装置-4): each operator on
- * the field gives its regen aura, its on-field team talents, its in-range talents, its 替身's slow and its module's auras as buffs, each device
+ * Every aura this frame, before the operators' turns (职业-13, 职业-16, 职业-20, 部署-5, 部署-6, 装置-4, 技能-11): each
+ * operator on the field gives its regen aura, its on-field team talents, its in-range talents, its 替身's slow, its
+ * module's auras and its running skill's effects on its allies as buffs, each device
  * its modifiers for the enemies; a unit out of an aura's reach, or whose source left, loses its buff.
  * @param {World} w @param {Content} c
  */
@@ -139,6 +179,7 @@ export function auras(w, c) {
     rangeTalents(c, src, units, want);
     dollAura(c, src, units, want);
     moduleAuras(w, c, src, units, want);
+    skillAllies(c, src, units, want);
   }
   for (const src of units) if (src.kind === KIND.DEVICE) deviceAura(c, src, units, want);
   for (const u of w.units) sync(u, want.get(u) ?? new Map());

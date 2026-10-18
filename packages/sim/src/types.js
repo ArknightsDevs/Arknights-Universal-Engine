@@ -124,6 +124,16 @@
  * @property {Cell[]} [range] the operator's attack range while it runs (技能-8)
  * @property {SkillExtra} [extra] what its description adds to the blackboard's effects (技能-9)
  * @property {boolean} [rangeAll] while it runs the operator's attack reaches the whole map (技能-8)
+ * @property {boolean} [forever] it has no duration and runs until it is closed or its operator leaves the field (技能-4)
+ * @property {number} [spend] the deployment cost its owner pays to start it; it starts only while the owner holds that
+ *   much (技能-10)
+ * @property {SkillAllies} [allies] what it gives the friendly units in its attack range while it runs (技能-11)
+ */
+/**
+ * What a skill gives the friendly units (summons too) in its operator's attack range while it runs (技能-11): its
+ * operator too unless `others`; modifiers; 鼓舞, a share of the operator's attack, defence or maximum HP for each
+ * attribute (最终加算; never to a unit with `noInspire`).
+ * @typedef {{ others: boolean, mods?: Record<string, number>, inspire?: Partial<Record<'atk' | 'def' | 'maxHp', number>> }} SkillAllies
  */
 /**
  * A 傀儡师's 替身 (职业-15, 职业-16). The fields after `maxHp` may be left out: no range of its own, ground units only, it
@@ -198,6 +208,9 @@
  *   for each attack on the one it attacked last, at most `max` (职业-12)
  * @property {boolean} noAttack it makes no normal attacks (职业-13)
  * @property {boolean} free it does not count towards the deploy limit (部署-2, 职业-13)
+ * @property {boolean} noInspire 鼓舞 does not reach it (职业-13, 技能-11)
+ * @property {{ atk: number, max: number } | null} spendAtk a skill of its that costs deployment cost gives attack + `atk`
+ *   (直接乘算) for each cost paid, at most `max` of them, while it runs (职业-20, 技能-10)
  * @property {number} regenAura the operators in its attack range gain 生命回复速度 of this share of its attack (职业-13)
  * @property {boolean} summonBlocked its normal attack can also select the enemies its own summons block, wherever they
  *   stand (职业-14)

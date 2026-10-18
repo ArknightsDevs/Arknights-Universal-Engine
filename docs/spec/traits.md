@@ -102,7 +102,7 @@
 | 链术师 | 法术伤害；跳跃链：共 blackboard `attack@max_target`（或 `attack@chain.max_target`）个目标，半径 1.7，每跳 × `attack@chain.atk_scale`（特性没有这个键，为 85%；模组 CHA-X 为 90%，CHA-Y 为 100%，干员-7）；每一下 `hitStatus` 停顿 `attack@sluggish` 秒（职业-11） |
 | 链愈师 | 治疗，目标 1；跳跃链：共 `attack@chain.max_target` 个目标，范围 x-4，每跳 × `attack@chain.atk_scale`（职业-11） |
 | 咒愈师 | 法术伤害；伤害的 blackboard `scale` 倍治疗范围内一名干员（职业-11） |
-| 佣兵 | 默认值（消耗费用强化是技能的效果） |
+| 佣兵 | 默认值（消耗费用强化是技能的效果，技能-10） |
 | 解放者 | 只在技能期间普通攻击；技能未开启时阻挡数 × 0，攻击力每秒提升一级，共 blackboard `max_stack_cnt` 级到 +`atk`；模组隐藏天赋的 `init_atk` 为部署时的起始加成（职业-12） |
 | 阵法术师 | 法术；只在技能期间普通攻击，攻击范围内所有敌人，可对空；技能未开启时防御力直接乘算 +`def`、法术抗性直接加算 +`magic_resistance`（职业-12） |
 | 护佑者 | 法术伤害；技能期间普通攻击改为治疗，倍率 blackboard `heal_scale`（职业-12） |
@@ -114,7 +114,7 @@
 | 裂空炮手 | 可对空，优先攻击自身阻挡的单位；技能未开启时起飞（标记 `liftoff`），只攻击空中敌人与自身阻挡的；技能期间攻击溅射，半径 1.1（职业-12） |
 | 驭械术师 | 法术伤害，可对空；浮游单元的倍率从 blackboard `init_atk_scale` 起，同一目标每次 + `delta_atk_scale`，最多 `max_atk_scale`（职业-12） |
 | 行医 | 治疗，目标 1；治疗同时回复元素值，比例 blackboard `ep_heal_ratio`（职业-12） |
-| 吟游者 | 不攻击，不计入部署数量；攻击范围内的干员生命回复速度 + blackboard `attack@atk_to_hp_recovery_ratio`（或 `atk_to_hp_recovery_ratio`）× 攻击力（职业-13）；不受鼓舞影响一项随鼓舞实现 |
+| 吟游者 | 不攻击，不计入部署数量；攻击范围内的干员生命回复速度 + blackboard `attack@atk_to_hp_recovery_ratio`（或 `atk_to_hp_recovery_ratio`）× 攻击力（职业-13）；`noInspire`：不受鼓舞（技能-11） |
 | 伏击客 | 仇恨过滤器 全部，`targets` 全部，不优先攻击阻挡的单位（INF-0085），`mods` 物理闪避、法术闪避 = blackboard `prob`（嘲讽等级 -1 在干员数据里） |
 | 塑灵术师 | 法术伤害；`summonBlocked`，`summonBlockedScale` = blackboard `atk_scale`（模组的 1.15，没有时 1）（职业-14） |
 | 战术家 | `summonBlockedScale` = blackboard `atk_scale`（1.5，模组 1.65）（职业-14）；援军与战术点见 召唤-4、召唤-11；模组 TAC-X、TAC-Y 的追加见 职业-20、职业-21 |
@@ -349,6 +349,7 @@
 - **爆发中的元素伤害**（`burstHit`：元素 `el`、倍数 `scale`）：干员的伤害打到处于这种元素爆发的目标后，再造成攻击力 × `scale` 的元素伤害。
 - **技力**（`spOn`：`on`、`sp`、`every`）：`elite` 时，攻击的一下打到主目标、主目标是精英或领袖敌人；`survives` 时，攻击的一下打到主目标后主目标仍有生命；`catch` 时，每回收 `every` 个回旋投射物（职业-12）——干员的技能得到 `sp` 点技力（技能-2）。回收的计数是干员身上键为 `catches` 的 Buff。
 - **付费的攻击力**（`payStack`：`atk`、`max`）：每次特性的费用消耗扣了费用（职业-10），干员身上键为 `payStack` 的 Buff 升一级，攻击力直接乘算 + `atk` × 级数，最多 `max` 级。
+- **技能付费的攻击力**（`spendAtk`：`atk`、`max`）：干员的技能开启时付了 n 点费用（技能-10），本次技能期间攻击力直接乘算 + `atk` × min(n, `max`)。
 - **光环**（`auras`：对象 `to`、修饰器 `mods`、标记 `flags`）：每帧和 部署-6 的范围天赋同时，给对象一个键为 `mod:<干员 id>:<序号>` 的 Buff，带这些修饰器与标记；不再是对象的、干员不在场的，去掉它。对象：`blocked` 干员阻挡着的敌人，`summonBlocked` 干员自己的召唤物阻挡着的敌人，`range` 有一格在干员攻击范围（攻击-1）里的敌人；都不含中立单位。
 - **命中的状态带强度**：特性的 `hitStatus` 可以带强度 `value`（状态-5，如虚弱）。
 
@@ -365,6 +366,7 @@
 | DEA-Y | 神射手 | `spOn` survives，`sp` |
 | LPS-Y | 回环射手 | `spOn` catch，`every` = `come_back_cnt`，`sp` |
 | MER-Y | 行商 | `payStack`：`atk`、`max_stack_cnt`（模组自己的数据） |
+| MCN-X | 佣兵 | `spendAtk`：`atk`、`max_stack_cnt`（模组自己的数据） |
 | BAR-Y | 吟游者 | `auras` rangeAllies，技能期间：伤害减免 = 模组自己的数据 `damage_resistance` 的绝对值（30） |
 | AFT-Y | 术战者 | `auras` blocked：受到法术伤害倍率 × `damage_scale`（法术脆弱） |
 | TAC-Y | 战术家 | `auras` summonBlocked：嘲讽等级 + 1 |
@@ -374,9 +376,9 @@
 
 模组特性的追加说明写到召唤物时（维娜·维多利亚的 AFT-Y「自身及自身召唤物阻挡的敌人受到10%的脆弱效果」），AFT-Y 的光环是受到伤害倍率（脆弱）、对象还有召唤物阻挡的敌人；`@aue/content` 为此把模组特性部件的追加、替换说明交给分支表。吟游者 BAR-Y 的光环对象是 `rangeAllies`（攻击范围里的干员，召唤物与它自己也算），只在技能期间，修饰器是**伤害减免** `dmgReduceFlat`：伤判的伤害修改里（伤害-8），物理、法术伤害减去这个数（不低于 0），n 层减 n 倍。
 
-带 Stronghold 兼容 kit 的干员不带这些（兼容-5）。还没有实现的：佣兵 MCN-X。
+带 Stronghold 兼容 kit 的干员不带这些（兼容-5）。
 
-- 来源：数据：battle_equip_table 各模组的特性部件与天赋部件（干员-5）及其描述：领主 LOR-X「攻击附带10%攻击力的法术伤害」，驭法铁卫 AST-X「技能开启时普通攻击会造成法术伤害，且攻击和受到攻击时对目标额外造成10％攻击力的法术伤害」，削弱者 UMD-X「并对目标造成10％虚弱效果，持续2秒」，轰击术师 BLA-D「造成法术伤害时附带相当于8%伤害的灼燃损伤」，中坚术师 CCR-D、秘术师 MSC-D「造成法术伤害时附带相当于8%伤害的凋亡损伤」，领主 LOR-D「造成伤害时附带相当于10%伤害的神经损伤」，术战者 AFT-D「攻击灼燃损伤爆发期间的目标时额外造成攻击力15%的元素伤害」，中坚术师 CCR-Y「普通攻击命中精英或领袖敌人时获得1点技力」，神射手 DEA-Y「攻击的敌人未被击倒时自身额外获得1点技力」，回环射手 LPS-Y「每回收5次回旋投射物时获得1点技力」，行商 MER-Y「每次特性消耗费用时攻击力+4%，最多可以叠加5次」，术战者 AFT-Y「自身阻挡的敌人受到10%的法术脆弱效果」，战术家 TAC-Y「援军阻挡的敌人更容易受到我方的攻击」，巫役 RIT-Y「攻击范围内敌人受到10%的元素脆弱」、RIT-X「对精英和领袖敌人造成的元素损伤提升18%」，本源铁卫 PRP-X「阻挡敌人时，自身造成的元素损伤提升15%」，伏击客 AMB-X「攻击范围内所有敌人移动速度-20%」，哨戒铁卫 SPT-X「攻击范围内敌人的隐匿效果失效」；[PRTS「银灰」oldid=435245](https://prts.wiki/index.php?title=%E9%93%B6%E7%81%B0&oldid=435245) LOR-X「※于计算伤害时触发，造成预计算的法术附加伤害」；[PRTS「黑键」oldid=434952](https://prts.wiki/index.php?title=%E9%BB%91%E9%94%AE&oldid=434952) MSC-D「※旧日残影造成的伤害也可以附加相应的凋亡损伤」；[PRTS「薇薇安娜」oldid=435185](https://prts.wiki/index.php?title=%E8%96%87%E8%96%87%E5%AE%89%E5%A8%9C&oldid=435185) AFT-D「※于任意非本模组特性的伤害的输出伤害时触发，造成元素附加伤害」；[PRTS「水月」oldid=435146](https://prts.wiki/index.php?title=%E6%B0%B4%E6%9C%88&oldid=435146) AMB-X「※多个伏击客X模组之间的减速效果可叠加。」；[PRTS「缪尔赛思」oldid=435076](https://prts.wiki/index.php?title=%E7%BC%AA%E5%B0%94%E8%B5%9B%E6%80%9D&oldid=435076) TAC-Y「※被援军阻挡的敌人嘲讽等级+1」；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 法术脆弱「受到的法术伤害提升相应比例」、虚弱「使目标攻击力降低相应比例」；结算的时刻、计数与对象为推断 INF-0232
+- 来源：数据：battle_equip_table 各模组的特性部件与天赋部件（干员-5）及其描述：领主 LOR-X「攻击附带10%攻击力的法术伤害」，驭法铁卫 AST-X「技能开启时普通攻击会造成法术伤害，且攻击和受到攻击时对目标额外造成10％攻击力的法术伤害」，削弱者 UMD-X「并对目标造成10％虚弱效果，持续2秒」，轰击术师 BLA-D「造成法术伤害时附带相当于8%伤害的灼燃损伤」，中坚术师 CCR-D、秘术师 MSC-D「造成法术伤害时附带相当于8%伤害的凋亡损伤」，领主 LOR-D「造成伤害时附带相当于10%伤害的神经损伤」，术战者 AFT-D「攻击灼燃损伤爆发期间的目标时额外造成攻击力15%的元素伤害」，中坚术师 CCR-Y「普通攻击命中精英或领袖敌人时获得1点技力」，神射手 DEA-Y「攻击的敌人未被击倒时自身额外获得1点技力」，回环射手 LPS-Y「每回收5次回旋投射物时获得1点技力」，行商 MER-Y「每次特性消耗费用时攻击力+4%，最多可以叠加5次」，佣兵 MCN-X「特性消耗费用时，每消耗1点费用使本次技能期间攻击力+2%（上限10层）」（技能开启时付的费用，技能-10），术战者 AFT-Y「自身阻挡的敌人受到10%的法术脆弱效果」，战术家 TAC-Y「援军阻挡的敌人更容易受到我方的攻击」，巫役 RIT-Y「攻击范围内敌人受到10%的元素脆弱」、RIT-X「对精英和领袖敌人造成的元素损伤提升18%」，本源铁卫 PRP-X「阻挡敌人时，自身造成的元素损伤提升15%」，伏击客 AMB-X「攻击范围内所有敌人移动速度-20%」，哨戒铁卫 SPT-X「攻击范围内敌人的隐匿效果失效」；[PRTS「银灰」oldid=435245](https://prts.wiki/index.php?title=%E9%93%B6%E7%81%B0&oldid=435245) LOR-X「※于计算伤害时触发，造成预计算的法术附加伤害」；[PRTS「黑键」oldid=434952](https://prts.wiki/index.php?title=%E9%BB%91%E9%94%AE&oldid=434952) MSC-D「※旧日残影造成的伤害也可以附加相应的凋亡损伤」；[PRTS「薇薇安娜」oldid=435185](https://prts.wiki/index.php?title=%E8%96%87%E8%96%87%E5%AE%89%E5%A8%9C&oldid=435185) AFT-D「※于任意非本模组特性的伤害的输出伤害时触发，造成元素附加伤害」；[PRTS「水月」oldid=435146](https://prts.wiki/index.php?title=%E6%B0%B4%E6%9C%88&oldid=435146) AMB-X「※多个伏击客X模组之间的减速效果可叠加。」；[PRTS「缪尔赛思」oldid=435076](https://prts.wiki/index.php?title=%E7%BC%AA%E5%B0%94%E8%B5%9B%E6%80%9D&oldid=435076) TAC-Y「※被援军阻挡的敌人嘲讽等级+1」；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 法术脆弱「受到的法术伤害提升相应比例」、虚弱「使目标攻击力降低相应比例」；结算的时刻、计数与对象为推断 INF-0232
 
 ### 职业-21 模组改的部署、撤退与召唤物
 
@@ -401,7 +403,7 @@
 | BEA-Y | 执旗手 | 条件增益 inSkill：迷彩（`camou`） |
 | TAC-X | 战术家 | 光环 summons：受到来自自身阻挡单位的伤害倍率 × 模组自己的数据 `damage_scale`（没有时 0.85） |
 
-带 Stronghold 兼容 kit 的干员不带召唤物加倍、光环与条件增益，部署、撤退与部署位的几项照常（兼容-5）。陷阱师 TRP-D 的模组自己的数据 `buildable_type` 为 3 时，特性的 `summonRangedTiles` 为是：它的召唤物（陷阱）也可以部署在远程位（部署-1）。还没有实现的：伊内丝 AGE-Y「携带3技能的情况下，改为第二次部署的撤退时触发」、佣兵 MCN-X。召唤师 SUM-Y、工匠 CRA-X、陷阱师 TRP-X 的持有上限、可部署数量与召唤物费用来自模组给召唤物的属性（召唤-2、召唤-3；多萝西的共振装置带 TRP-X 时费用 3→2、上限 10→13）。
+带 Stronghold 兼容 kit 的干员不带召唤物加倍、光环与条件增益，部署、撤退与部署位的几项照常（兼容-5）。陷阱师 TRP-D 的模组自己的数据 `buildable_type` 为 3 时，特性的 `summonRangedTiles` 为是：它的召唤物（陷阱）也可以部署在远程位（部署-1）。还没有实现的：伊内丝 AGE-Y「携带3技能的情况下，改为第二次部署的撤退时触发」。召唤师 SUM-Y、工匠 CRA-X、陷阱师 TRP-X 的持有上限、可部署数量与召唤物费用来自模组给召唤物的属性（召唤-2、召唤-3；多萝西的共振装置带 TRP-X 时费用 3→2、上限 10→13）。
 
 - 来源：数据：battle_equip_table 各模组的特性部件与天赋部件（干员-5）及其描述：尖兵 SOL-Y「首次部署时部署费用-4」，情报官 AGE-Y「首次撤退再部署时间额外减少35%」，处决者 EXE-X「撤退时返还大量该次部署费用」，冲锋手 CHG-X「击杀敌人后获得2点部署费用，撤退时返还该次部署费用」，召唤师 SUM-X「首个召唤物部署时不消耗部署位（场上最后一个召唤物撤退或被击倒时不返还部署位）」，陷阱师 TRP-Y「有20%概率部署造成2倍伤害的陷阱」，执旗手 BEA-X「技能发动期间阻挡数变为0，但使身前一名干员阻挡数+1」、BEA-Y「技能发动期间阻挡数变为0，但获得迷彩」，战术家 TAC-X「援军受到来自自身阻挡单位的伤害降低15%」；[PRTS「傀影」oldid=435013](https://prts.wiki/index.php?title=%E5%82%80%E5%BD%B1&oldid=435013) EXE-X「※携带此模组的情况下，撤退返费将不再考虑<初始部署费用>」，[PRTS「风笛」oldid=434923](https://prts.wiki/index.php?title=%E9%A3%8E%E7%AC%9B&oldid=434923) CHG-X 同样的备注；[PRTS「伊内丝」oldid=435241](https://prts.wiki/index.php?title=%E4%BC%8A%E5%86%85%E4%B8%9D&oldid=435241) AGE-Y「※携带3技能的情况下，改为第二次部署的撤退时触发」；[PRTS「多萝西」oldid=434917](https://prts.wiki/index.php?title=%E5%A4%9A%E8%90%9D%E8%A5%BF&oldid=434917) TRP-Y「※对应陷阱在部署后获得红色的提示」；[PRTS「部署费用」oldid=434779](https://prts.wiki/index.php?title=%E9%83%A8%E7%BD%B2%E8%B4%B9%E7%94%A8&oldid=434779)「部署费用（属性）=(初始部署费用+基础费用增减)×费用倍率+实时费用增减」；不占部署位的算法、加倍的倍率与几率的抽取、「身前一名干员」的位置为推断 INF-0233
 
