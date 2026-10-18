@@ -12,6 +12,8 @@ import { dealEp } from './elements.js';
 import { vsDamage, vsHeal, vsEp } from './vs.js';
 import { afterOwnHit } from './riders.js';
 import { talentKill, talentDealt, dotOnHit } from './talentfx.js';
+import { trackTime } from './talenttime.js';
+import { lifeDeploy } from './talentlife.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').TraitDef} TraitDef @typedef {import('./types.js').OperatorDef} OperatorDef */
@@ -28,7 +30,8 @@ export const defaultTrait = (position) => ({
   rangedTiles: false, meleeTiles: false, skillArts: false, immuneBlocking: [], hpDrain: 0, costDrain: null, zone: null, chain: null, healOnHit: 0,
   attackInSkill: false, idleMods: {}, idleFlags: {}, idleAirOnly: false, skillSplash: null, liftoffBlock: 0, fortress: 0, charge: null, skillHeal: 0, bullets: null, store: 0, epHeal: 0, funnel: null, boomerang: null, noAttack: false, free: false, noInspire: false, spendAtk: null, regenAura: 0,
   summonBlocked: false, summonBlockedScale: 1, trapTiles: false, doll: null, vs: [], far: null, crowd: null, packed: null, whiles: [], extraArts: 0, counterArts: 0, epRider: null, burstHit: null, spOn: null, payStack: null, auras: [],
-  firstCost: 0, firstRetreatRespawn: 1, refundUncapped: false, freeSummons: 0, summonRangedTiles: false, summonBoost: null, aftershocks: 1, secondLife: null, pushBoost: null, pullBoost: null, pullTrauma: null, rangedRefund: 0, onHit: [], stacks: [], talentSp: [], grit: null, bb: {},
+  firstCost: 0, firstRetreatRespawn: 1, refundUncapped: false, freeSummons: 0, summonRangedTiles: false, summonBoost: null, aftershocks: 1, secondLife: null, pushBoost: null, pullBoost: null, pullTrauma: null, rangedRefund: 0, onHit: [], stacks: [], talentSp: [], grit: null, nextAttack: [], rhythm: null, idleShield: null, layers: null, lowHp: null,
+  lastStand: null, frostLife: null, costLife: null, hurt: null, reflect: null, bb: {},
 });
 
 /**
@@ -58,22 +61,31 @@ function sameFields(o, fields) {
   return i === fields.length;
 }
 
+/** The single fields only talents give (职业-26, 职业-27): each the talents' when they have it. */
+const TALENT_ONLY = Object.freeze(/** @type {const} */ (['rhythm', 'idleShield', 'layers', 'lowHp', 'lastStand', 'frostLife', 'costLife', 'hurt', 'reflect']));
+
 /**
- * A trait with what its operator's talents add (职业-24, 职业-25): their conditional modifiers, target 倍率, hit effects,
- * stacks, SP and auras after the trait's own, their 法术伤害 on each hit added to its, their number of targets when it is
- * more than a number the trait has, their 坚忍, their 倍率 by the enemies a splash reaches when the trait has none.
+ * A trait with what its operator's talents add (职业-24…职业-27): their conditional modifiers, target 倍率, hit effects,
+ * stacks, SP, auras and next attacks after the trait's own, their 法术伤害 on each hit added to its, their number of
+ * targets when it is more than a number the trait has, their 坚忍 and the fields only talents give, their 倍率 by the
+ * enemies a splash reaches and their second life when the trait has none.
  * @param {TraitDef} t @param {Partial<TraitDef> | undefined} a @returns {TraitDef}
  */
 function withTalents(t, a) {
   if (!a) return t;
   const more = typeof a.targets === 'number' && typeof t.targets === 'number' && a.targets > t.targets;
+  const only = Object.fromEntries(TALENT_ONLY.filter((k) => a[k]).map((k) => [k, a[k]]));
   return {
-    ...t, whiles: [...t.whiles, ...(a.whiles ?? [])], vs: [...t.vs, ...(a.vs ?? [])], onHit: [...t.onHit, ...(a.onHit ?? [])],
-    stacks: [...t.stacks, ...(a.stacks ?? [])], talentSp: [...t.talentSp, ...(a.talentSp ?? [])], auras: [...t.auras, ...(a.auras ?? [])],
-    extraArts: t.extraArts + (a.extraArts ?? 0), ...(more ? { targets: a.targets } : {}), ...(a.grit ? { grit: a.grit } : {}),
-    ...(a.packed && !t.packed ? { packed: a.packed } : {}),
+    ...t, ...talentLists(t, a), extraArts: t.extraArts + (a.extraArts ?? 0), ...(more ? { targets: a.targets } : {}),
+    ...(a.grit ? { grit: a.grit } : {}), ...only, ...(a.packed && !t.packed ? { packed: a.packed } : {}), ...(a.secondLife && !t.secondLife ? { secondLife: a.secondLife } : {}),
   };
 }
+
+/** The trait's lists with its talents' after them (职业-24…职业-26). @param {TraitDef} t @param {Partial<TraitDef>} a */
+const talentLists = (t, a) => ({
+  whiles: [...t.whiles, ...(a.whiles ?? [])], vs: [...t.vs, ...(a.vs ?? [])], onHit: [...t.onHit, ...(a.onHit ?? [])], stacks: [...t.stacks, ...(a.stacks ?? [])],
+  talentSp: [...t.talentSp, ...(a.talentSp ?? [])], auras: [...t.auras, ...(a.auras ?? [])], nextAttack: [...t.nextAttack, ...(a.nextAttack ?? [])],
+});
 
 /**
  * An operator record's trait: its own fields over the defaults of its position (职业-1), with its talents' additions
@@ -210,7 +222,7 @@ export function traitSkip(w, c, op) {
 /**
  * A newly deployed operator's trait (职业-4, 职业-10): its lasting modifiers and flags as a buff, its upkeep —
  * the HP drain each second, the cost it consumes — as buffs without an end — unless its behaviour owns them (职业-6),
- * then its behaviour's deploy.
+ * then its talents' trackers and their buffs on its life (职业-26, 职业-27), then its behaviour's deploy.
  * @param {World} w @param {Content} c @param {Unit} op
  */
 export function traitDeploy(w, c, op) {
@@ -220,6 +232,8 @@ export function traitDeploy(w, c, op) {
     if (t.hpDrain > 0) addBuff(op, makeBuff({ key: 'drain', src: op.id, every: FPS, fixed: true, value: t.hpDrain }));
     if (t.costDrain) addBuff(op, makeBuff({ key: 'upkeep', src: op.id, every: secondsToFrames(t.costDrain.every), fixed: true, value: t.costDrain.cost }));
   }
+  trackTime(w, c, op);
+  lifeDeploy(w, c, op);
   behaviorOf(c, op)?.deploy?.(contextOf(w, c, op));
 }
 

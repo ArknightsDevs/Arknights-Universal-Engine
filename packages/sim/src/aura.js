@@ -4,6 +4,7 @@
 // 替身's slow of the enemies around it, a running skill's modifiers and 鼓舞 for the friendly units in its range, and a
 // device's modifiers for every enemy, while the source is on the field — a buff per aura on each of them, kept in step
 // every frame, gone with the aura's source.
+import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune } from './buffs.js';
@@ -62,12 +63,12 @@ const sizeOf = (mods) => Object.values(mods).reduce((n, v) => n + Math.abs(v), 0
  * The on-field team talents of one source (部署-5): every operator on the field the talent is for, any player's — its
  * attribute keys' and its effects' modifiers, a buff `field:<source id>:<n>`; one of 同类效果取最高 (`max`) a buff
  * `field:max:<its keys>` shared by every such talent with those keys, the strongest kept; one of the source's skill only
- * while that runs (or does not).
- * @param {Content} c @param {Unit} src @param {Unit[]} ops @param {Map<Unit, Map<string, Want>>} want
+ * while that runs (or does not); one with `after` once the source has been on the field that many seconds.
+ * @param {World} w @param {Content} c @param {Unit} src @param {Unit[]} ops @param {Map<Unit, Map<string, Want>>} want
  */
-function fieldTalents(c, src, ops, want) {
+function fieldTalents(w, c, src, ops, want) {
   (c.operators[src.key].fieldTalents ?? []).forEach((t, i) => {
-    if (t.skill !== undefined && t.skill !== !!src.skill?.active) return;
+    if ((t.skill !== undefined && t.skill !== !!src.skill?.active) || (t.after !== undefined && w.frame - src.born < secondsToFrames(t.after))) return;
     const mods = { ...statMods(t.bb), ...t.mods }, size = sizeOf(mods), key = t.max ? `field:max:${Object.keys(mods).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join(',')}` : `field:${src.id}:${i}`;
     for (const u of ops) {
       const w = want.get(u);
@@ -299,7 +300,7 @@ export function auras(w, c) {
   const want = new Map(units.map((u) => [u, new Map()]));
   for (const src of ops) {
     regenAura(c, src, ops, want);
-    fieldTalents(c, src, ops, want);
+    fieldTalents(w, c, src, ops, want);
     fieldAspd(c, src, units, want);
     rangeTalents(w, c, src, units, want);
     dollAura(c, src, units, want);

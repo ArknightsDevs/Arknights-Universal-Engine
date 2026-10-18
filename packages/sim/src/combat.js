@@ -29,6 +29,7 @@ import { mayAttack, healsNow, healerNow, inSkill, skillIdle, holdFrames, modeMod
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitDealt, traitAsk, traitSkip, summonHeld, dollNow } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_CUT_FRAMES } from './swing.js';
 import { talentSp } from './talentfx.js';
+import { timedAttack, attackEnded } from './talenttime.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell @typedef {import('./attrs.js').Stats} Stats */
@@ -358,6 +359,7 @@ function land(w, c, a) {
   a.swing = null;
   if (palsyInterrupts(a)) { a.anim = ANIM.IDLE; return; }
   const op = a.kind === KIND.OPERATOR, heals = op && (healerNow(c, a) || !!sw.mods.heal);
+  if (op) attackEnded(w, a);
   const reached = deliverAll(w, c, a, sw, !!heals);
   const noAmmo = reached.length > 0 && (!!emit(w, 'attack', { attacker: a, targets: reached, isSkill: !!sw.mods.skill, noAmmo: false }).noAmmo || !!sw.free);
   if (op) operatorLanded(w, c, a, { sw, reached: reached.length, heals: !!heals, noAmmo });
@@ -467,7 +469,7 @@ function operatorAttack(w, c, op) {
   const found = mayAttack(c, op) && traitAsk(w, c, op, 'canAttack') !== false ? targetsOf(w, c, op) : [], hold = holdFrames(w, c, op, found.length > 0);
   if (hold > 0) { op.atkCd = hold - 1; op.anim = ANIM.IDLE; return; }
   if (found.length === 0) { op.anim = ANIM.IDLE; return; }
-  const a = armed(w, c, op, critMods(w, c, op, beforeAttack(w, c, op)));
+  const a = armed(w, c, op, timedAttack(w, c, op, critMods(w, c, op, beforeAttack(w, c, op))));
   startSwing(w, c, op, a.targets, a.mods);
 }
 
@@ -491,7 +493,7 @@ function armed(w, c, op, mods) {
  */
 export function attackNow(w, c, op, given = null, o = {}) {
   if (op.kind !== KIND.OPERATOR || op.hp <= 0 || !w.units.includes(op)) return false;
-  const a = armed(w, c, op, critMods(w, c, op, attackMods(w, c, op)));
+  const a = armed(w, c, op, timedAttack(w, c, op, critMods(w, c, op, attackMods(w, c, op))));
   const { targets, mods } = lockTargets(w, op, given ? given.filter((u) => u.hp > 0 && w.units.includes(u)) : a.targets, a.mods);
   if (targets.length === 0 || op.hp <= 0) return false;
   const prev = op.swing;

@@ -2,7 +2,7 @@
 // a condition holds, its 倍率 against some targets, and what its attacks' hits give their targets — as additions to its
 // trait (职业-18, 职业-17, 职业-20) that the simulation merges into the trait (职业-24).
 import { skills } from '@aue/sim';
-import { selfClause } from './talents.js';
+import { selfClause, TAGS, powerOf } from './talents.js';
 
 /** @typedef {import('./talents.js').Talent} Talent @typedef {import('@aue/sim').WhileMods} WhileMods @typedef {import('@aue/sim').VsScale} VsScale */
 /** @typedef {import('@aue/sim').TalentHit} TalentHit */
@@ -24,8 +24,10 @@ const COUNT = Object.freeze(/** @type {Record<string, number>} */ ({ 一: 1, 两
 const ELEMENT_WORD = Object.freeze(/** @type {Record<string, string>} */ ({ 神经: 'SANITY', 侵蚀: 'WATER', 灼燃: 'FIRE', 凋亡: 'DARK', 狂躁: 'ANGER' }));
 
 /**
- * The conditions on the operator a clause may begin with (干员-17): the words, and the 职业-18 condition they are — its
- * number from the blackboard where it has one, else from the words; null when it needs a key the blackboard lacks.
+ * The conditions on the operator a clause may begin with (干员-17, 干员-24): the words, and the 职业-18 condition they are —
+ * its number from the blackboard where it has one, else from the words; null when it needs a key the blackboard lacks.
+ * In time (干员-24): 「N秒内没有主动攻击过」 and 「自身未进行攻击时」 (`idle`, `delay`), 「最近N秒内未受伤害时」 (`unhurt`, true from
+ * the deployment on); 「身侧或身后存在高台时」 (`highSide`, `cnt`).
  */
 const SELF_WHEN = Object.freeze(/** @type {[RegExp, (m: RegExpExecArray, bb: Record<string, number>) => Omit<WhileMods, 'mods'> | null][]} */ ([
   [/^未阻挡敌人时[，,]?/u, () => ({ when: 'notBlocking' })],
@@ -46,6 +48,10 @@ const SELF_WHEN = Object.freeze(/** @type {[RegExp, (m: RegExpExecArray, bb: Rec
   [/^部署后第(\d)次开启技能之前[，,]?/u, (m, bb) => ({ when: 'fewStarts', value: bb.cnt ?? Number(m[1]) })],
   [/^首次释放技能后后续技能期间/u, () => ({ when: 'laterSkill' })],
   [/^生命值(高于|低于)\d+(?:\.\d+)?%时[，,]?/u, (m, bb) => (has(bb, 'hp_ratio') ? { when: m[1] === '高于' ? 'hpAbove' : 'hpBelow', value: bb.hp_ratio } : null)],
+  [/^(\d+(?:\.\d+)?)秒内没有主动攻击过[，,]?/u, (m, bb) => ({ when: 'idle', value: firstKey(bb, ['delay', 'attack@delay']) ?? Number(m[1]) })],
+  [/^自身未进行攻击时[，,]?/u, (_m, bb) => (has(bb, 'delay') ? { when: 'idle', value: bb.delay } : null)],
+  [/^最近(\d+(?:\.\d+)?)秒内未受到?伤害时[，,]?/u, (m, bb) => ({ when: 'unhurt', value: firstKey(bb, ['delay', 'interval']) ?? Number(m[1]), fresh: true })],
+  [/^身侧或身后存在高台时[，,]?/u, (_m, bb) => ({ when: 'highSide', value: bb.cnt ?? 1 })],
 ]));
 
 /**
@@ -70,13 +76,16 @@ const attrMods = (k, v) => skills.statMods({ [k]: v });
 /** @typedef {{ mods: Record<string, number>, flags?: Record<string, boolean> }} Gain */
 /**
  * The clauses after a condition that are flags or whole-number changes (干员-17): 获得迷彩 (`camou`), 阻挡数降至0, 攻击间隔略微
- * 缩短 / 增大 (`base_attack_time`), 不容易成为敌人的目标 / 受到敌人（的）攻击 (`taunt_level`).
+ * 缩短 / 增大 (`base_attack_time`), 不容易成为敌人的目标 / 受到敌人（的）攻击 (`taunt_level`); 「每次受到攻击时对目标造成相当于
+ * <name>攻击力N%的法术伤害」 (`atk_scale` as `counterArts`, 干员-25), 「攻击无视目标的物理闪避」 (`ignoreDodgePhys`, 干员-26).
  */
 const STATE = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>) => Gain | null][]} */ ([
   [/^获得迷彩$/u, () => ({ mods: {}, flags: { camou: true } })],
   [/^阻挡数降至0$/u, () => ({ mods: { blockCntMul: 0 } })],
   [/^攻击间隔略微(?:缩短|增大)$/u, (bb) => (has(bb, 'base_attack_time') ? { mods: { batFlat: bb.base_attack_time } } : null)],
   [/^(?:自身)?不容易(?:成为敌人的目标|受到敌人的?攻击)$/u, (bb) => (has(bb, 'taunt_level') ? { mods: { taunt: bb.taunt_level } } : null)],
+  [/^每次受到攻击时对(?:目标|攻击者)造成相当于\S+?攻击力\d+(?:\.\d+)?%的法术伤害$/u, (bb) => (has(bb, 'atk_scale') ? { mods: { counterArts: bb.atk_scale } } : null)],
+  [/^攻击无视目标的物理闪避$/u, () => ({ mods: {}, flags: { ignoreDodgePhys: true } })],
 ]));
 
 /**
@@ -147,9 +156,6 @@ export function whileParts(c) {
   }
   return out.every((x) => Object.keys(x.mods).length > 0 || x.flags) ? out : [];
 }
-
-/** The enemies' tags by the names a description gives them in 【】 (关卡-1). */
-const TAGS = Object.freeze(/** @type {Record<string, string>} */ ({ 萨卡兹: 'sarkaz', 无人机: 'drone', 感染生物: 'infection' }));
 
 /** The target conditions a talent names (干员-18): the words between 攻击/对 and 的敌人, and the 职业-17 condition they are. */
 const TARGET_WHEN = Object.freeze(/** @type {[RegExp, (m: RegExpExecArray, bb: Record<string, number>) => Omit<VsScale, 'atk' | 'dmg'> | null][]} */ ([
@@ -460,18 +466,28 @@ const AROUND = Object.freeze(/** @type {Record<string, { row: number, col: numbe
 }));
 /** Who an aura around the operator is for (干员-22): the words and the record field it asks. @type {Record<string, Partial<RangeTalent>>} */
 const AROUND_WHO = Object.freeze({ 近战友方单位: { melee: true }, 高台干员: { ranged: true }, '【术师】干员': { profession: 'CASTER' }, 友方干员: {}, 友方单位: {}, 干员: {} });
-/** The sentence of an aura around the operator (干员-22): the operator itself too, 周围/相邻 8 or 4 tiles, whom, what. */
-const AROUND_SENTENCE = /^(?:在场时)?(?:自身[与和及])?(?:周围|相邻)(八|8|四|4)格内?的?(近战友方单位|高台干员|【术师】干员|友方干员|友方单位|干员)(.+)$/u;
+/** The sentence of an aura around the operator (干员-22): (在场时 / 部署后，) the operator itself too (its name before 自身), 周围/相邻 8 or 4 tiles, whom, what. */
+const AROUND_SENTENCE = /^(?:在场时|部署后[，,])?(?:[^，,]{0,8}?自身[与和及])?(?:周围|相邻)(八|8|四|4)格内?的?(近战友方单位|高台干员|【术师】干员|友方干员|友方单位|干员)(.+)$/u;
+
+/**
+ * What an aura around the operator gives that is not an attribute (干员-22, 干员-26): 物理闪避 (`prob`), 对空庇护 (the
+ * physical and arts damage from flying units × (1 − `damage_resistance`)); null for another.
+ * @param {string} what @param {Record<string, number>} bb @returns {Record<string, number> | null}
+ */
+function aroundEffect(what, bb) {
+  if (/^\d+(?:\.\d+)?%的物理闪避$/u.test(what)) return has(bb, 'prob') ? { dodgePhys: bb.prob } : null;
+  return /^\d+(?:\.\d+)?%的对空庇护$/u.test(what) && has(bb, 'damage_resistance') ? { airTakenMul: 1 - bb.damage_resistance } : null;
+}
 
 /**
  * An aura around the operator (干员-22) from its sentence: the tiles of the talent's range (its id, else 周围8格 / 四格),
- * whom it is for, its modifiers — an attribute (stepMods) or 物理闪避; null otherwise.
+ * whom it is for, its modifiers — an attribute (stepMods), 物理闪避 or 对空庇护 (aroundEffect); null otherwise.
  * @param {string} first @param {Talent} c @param {Record<string, { row: number, col: number }[]>} ranges @returns {RangeTalent | null}
  */
 function aroundPart(first, c, ranges) {
   const m = AROUND_SENTENCE.exec(first), what = m ? m[3].replace(/^获得/u, '') : '';
   if (!m) return null;
-  const dodge = /^\d+(?:\.\d+)?%的物理闪避$/u.test(what) && has(c.bb, 'prob') ? { dodgePhys: c.bb.prob } : null, mods = dodge ?? stepMods(what, c.bb);
+  const mods = aroundEffect(what, c.bb) ?? stepMods(what, c.bb);
   const area = (c.rangeId ? ranges[c.rangeId] : null) ?? AROUND[m[1] === '八' || m[1] === '8' ? 8 : 4];
   return mods ? { side: 'ally', ranged: false, mods, area, ...AROUND_WHO[m[2]] } : null;
 }
@@ -521,4 +537,97 @@ export function perParts(c) {
   const { first, laterEffect } = firstOf(c), m = /^攻击范围内每有一个敌人[，,](.+)$/u.exec(first);
   const mods = m && !laterEffect ? stepMods(m[1], c.bb) : null, max = firstKey(c.bb, ['max_valid_stack_cnt', 'max_stack_cnt']);
   return mods && max !== undefined ? [{ when: 'enemies', value: 1, per: max, mods }] : [];
+}
+
+/** @typedef {import('@aue/sim').TraitDef} TraitDef */
+/** A blackboard value by the end of its key (`etlchi_t_2[heal].hp_ratio`), the first key that ends so. @param {Record<string, number>} bb @param {string} end */
+const byEnd = (bb, end) => Object.entries(bb).find(([k]) => k === end || k.endsWith(end))?.[1];
+/** Whether every value is a number. @param {(number | undefined)[]} vs @returns {vs is number[]} */
+const all = (vs) => vs.every((v) => Number.isFinite(v));
+
+/**
+ * The talents in time (干员-24), whole descriptions, and what each adds to the trait: a next attack after `delay` seconds
+ * without attacking (冰酿, 乌有; 图耶's heal) or after a dodge (因陀罗, 焰尾), 隐匿 while not attacking (狮蝎), a dodge
+ * after a while without being hit (蒂比), the 倍率 by the time since the last attack (白金), a 屏障 after a while without
+ * attacking (信仰搅拌机).
+ */
+const TIME = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>) => Partial<TraitDef> | null][]} */ ([
+  [/^如果\d+(?:\.\d+)?秒内没有主动攻击过[，,]下次攻击造成相当于攻击力\d+(?:\.\d+)?%的物理伤害$/u, (bb) => {
+    const delay = firstKey(bb, ['attack@delay', 'delay']);
+    return all([delay, bb.atk_scale]) ? { nextAttack: [{ when: 'idle', value: /** @type {number} */ (delay), scale: bb.atk_scale }] } : null;
+  }],
+  [/^如果\d+(?:\.\d+)?秒内没有主动攻击过[，,]下一次攻击的攻击力提升至\d+(?:\.\d+)?%并晕眩目标\d+(?:\.\d+)?秒$/u,
+    (bb) => (all([bb.delay, bb.atk_scale, bb.stun]) ? { nextAttack: [{ when: 'idle', value: bb.delay, scale: bb.atk_scale, stun: bb.stun }] } : null)],
+  [/^\d+(?:\.\d+)?秒内未进行治疗后[，,]下次治疗时的治疗量提升至攻击力的\d+(?:\.\d+)?%$/u,
+    (bb) => (all([bb.delay, bb.heal_scale_2]) ? { nextAttack: [{ when: 'idle', value: bb.delay, scale: bb.heal_scale_2 }] } : null)],
+  [/^平时处于隐匿状态[，,]攻击时会解除隐匿状态[，,]且当次攻击的攻击力[+＋]\d+(?:\.\d+)?%。停止攻击\d+(?:\.\d+)?秒后[，,]重新进入隐匿状态$/u, (bb) => (all([bb.delay, bb.atk])
+    ? { whiles: [{ when: 'idle', value: bb.delay, fresh: true, mods: {}, flags: { stealth: true } }], nextAttack: [{ when: 'idle', value: bb.delay, fresh: true, atk: bb.atk }] } : null)],
+  [/^若最近\d+(?:\.\d+)?秒内未受攻击[，,]闪避下一次物理或法术攻击$/u,
+    (bb) => (all([bb.stack_time, bb.prob]) ? { whiles: [{ when: 'calm', value: bb.stack_time, mods: { dodgePhys: bb.prob, dodgeArts: bb.prob } }] } : null)],
+  [/^距离上次攻击的间隔越长[，,]下次攻击的攻击力就越高$/u, (bb) => {
+    const [min, max, low, top] = ['attack@min_delta', 'attack@max_delta', 'attack@min_atk_scale', 'attack@max_atk_scale'].map((k) => bb[k]);
+    return all([min, max, low, top]) && low === 1 && max > min ? { rhythm: { min, max, top } } : null;
+  }],
+  [/^若\d+(?:\.\d+)?秒内未主动攻击[，,]获得相当于生命上限\d+(?:\.\d+)?%的屏障[，,]失去屏障后重新计时$/u,
+    (bb) => (all([bb.interval, bb.shield]) ? { idleShield: { value: bb.interval, share: bb.shield } } : null)],
+  [/^有\d+(?:\.\d+)?%的概率闪避敌人的近战物理攻击[，,]成功闪避后自己的下一次攻击攻击力[+＋]\d+(?:\.\d+)?%$/u, (bb) => {
+    const prob = byEnd(bb, 'prob'), atk = byEnd(bb, '.atk');
+    return all([prob, atk]) ? { whiles: [{ when: 'always', mods: { dodgeMelee: /** @type {number} */ (prob) } }], nextAttack: [{ when: 'dodged', atk: /** @type {number} */ (atk) }] } : null;
+  }],
+  [/^触发闪避时[，,]下次攻击变为二连击并攻击所有阻挡的敌人$/u, () => ({ nextAttack: [{ when: 'dodged', times: 2, blocked: true }] })],
+  [/^触发闪避时[，,]下次攻击攻击力提升至\d+(?:\.\d+)?[%％]并变为二连击[，,]且攻击所有阻挡的敌人$/u,
+    (bb) => (has(bb, 'atk_scale') ? { nextAttack: [{ when: 'dodged', scale: bb.atk_scale, times: 2, blocked: true }] } : null)],
+]));
+
+/**
+ * The talents on life (干员-25), whole descriptions, and what each adds to the trait: a second life (号角), a heal once
+ * the HP is low (隐德来希), a last stand (史尔特尔), a heal bought with cost (琳琅诗怀雅), 寒冷 on whoever hurts it and a frozen
+ * life (圣聆初雪), a heal on every hit taken (乌尔比安), 护盾 layers (泥岩), true damage returned for its faction (玛恩纳).
+ */
+const LIFE = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>, m: RegExpExecArray) => Partial<TraitDef> | null][]} */ ([
+  [/^被击倒时不撤退[，,]恢复所有生命且生命上限[-－]\d+(?:\.\d+)?%[，,]攻击速度[+＋]\d+、防御力[+＋]\d+(?:\.\d+)?%$/u, (bb) => (all([bb.max_hp, bb.hp_ratio, bb.attack_speed, bb.def])
+    ? { secondLife: { hp: bb.hp_ratio, mods: { hpMul: 1 - bb.max_hp, aspd: bb.attack_speed, defPct: bb.def } } } : null)],
+  [/^生命值低于\d+(?:\.\d+)?%时[，,]仅一次立刻回复\d+(?:\.\d+)?%最大生命值[，,]且自身之后受到的物理伤害降低\d+(?:\.\d+)?%$/u, (bb) => {
+    const heal = byEnd(bb, '[heal].hp_ratio');
+    return all([bb.hp_ratio, heal, bb.damage_resistance]) ? { lowHp: { below: bb.hp_ratio, heal: /** @type {number} */ (heal), mods: { physTakenMul: 1 - bb.damage_resistance } } } : null;
+  }],
+  [/^受到致命伤害时持续使生命值不低于1[，,]\d+(?:\.\d+)?秒后强制退出战场$/u, (bb) => {
+    const seconds = byEnd(bb, 'interval');
+    return seconds !== undefined && Number.isFinite(seconds) ? { lastStand: { seconds } } : null;
+  }],
+  [/^受到致命伤害时[，,]若费用足够则消耗\d+点部署费用使生命恢复到\d+(?:\.\d+)?%[，,]每次触发该天赋时消耗的费用翻倍$/u,
+    (bb) => (all([bb.cost, bb.hp_ratio, bb.cost_multi]) ? { costLife: { cost: Math.abs(bb.cost), hp: bb.hp_ratio, mul: bb.cost_multi } } : null)],
+  [/^受到伤害时使敌人寒冷\d+(?:\.\d+)?秒[，,]若受到致命伤害[，,]仅一次立刻回复所有生命值并使自身冻结\d+(?:\.\d+)?秒[，,]使攻击范围内所有敌方单位冻结\d+(?:\.\d+)?秒$/u, (bb) => (all([bb.cold, bb.hp_ratio, bb.freeze, bb.c2e_freeze])
+    ? { hurt: { status: { key: 'cold', seconds: bb.cold } }, frostLife: { hp: bb.hp_ratio, self: bb.freeze, foes: bb.c2e_freeze } } : null)],
+  [/^每次受到伤害时[，,]治疗自身\d+点生命值；生命值低于\d+(?:\.\d+)?%时[，,]治疗效果提升至\d+点生命值$/u,
+    (bb) => (all([bb.value1, bb.value2, bb.hp_ratio]) ? { hurt: { heal: { low: bb.value1, high: bb.value2, below: bb.hp_ratio } } } : null)],
+  [/^每\d+(?:\.\d+)?秒获得1层护盾[，,]每层护盾破裂时恢复自身\d+(?:\.\d+)?%最大生命$/u, (bb) => (all([bb.interval, bb.max_times, bb.times, bb.hp_ratio])
+    ? { layers: { every: bb.interval, max: bb.max_times, init: bb.times, heal: bb.hp_ratio } } : null)],
+  [/^在场时[，,]自身更容易受到攻击[，,]所有(\S+?)干员被攻击时反弹相当于\S+?攻击力\d+(?:\.\d+)?%的真实伤害$/u, (bb, m) => {
+    const power = powerOf(m[1]);
+    return power && all([bb.taunt_level, bb.atk_scale]) ? { whiles: [{ when: 'always', mods: { taunt: bb.taunt_level } }], reflect: { power, scale: bb.atk_scale } } : null;
+  }],
+]));
+
+/** The tiles of 周围四格 around an operator, its own left out (干员-26). */
+const AROUND_OTHERS = Object.freeze(AROUND[4].filter((t) => t.row !== 0 || t.col !== 0));
+
+/**
+ * The special parts of a talent (干员-24…干员-26): its whole description (plainOf) one of TIME or LIFE with the keys it
+ * needs — what it adds to the trait —, or 可颂's 抵挡 (「有N%的几率抵挡物理和法术伤害。周围四格内的友方单位获得一半该效果」:
+ * its own `blockPA` always, the other units on the 4 tiles next to it the blackboard's `[aura].prob`). Hidden talents have
+ * none.
+ * @param {Talent} c @returns {{ trait: Partial<TraitDef> | null, range: RangeTalent[] }}
+ */
+export function specialParts(c) {
+  const none = { trait: null, range: [] };
+  if (c.hidden || !c.description) return none;
+  const text = plainOf(c);
+  for (const [re, make] of [...TIME, ...LIFE]) {
+    const m = re.exec(text);
+    if (m) return { trait: make(c.bb, m), range: [] };
+  }
+  const self = byEnd(c.bb, '[self].prob'), aura = byEnd(c.bb, '[aura].prob');
+  if (!/^有\d+(?:\.\d+)?%的几率抵挡物理和法术伤害。周围四格内的友方单位获得一半该效果$/u.test(text) || !all([self, aura])) return none;
+  return { trait: { whiles: [{ when: 'always', mods: { blockPA: /** @type {number} */ (self) } }] }, range: [{ side: 'ally', ranged: false, mods: { blockPA: /** @type {number} */ (aura) }, area: [...AROUND_OTHERS] }] };
 }

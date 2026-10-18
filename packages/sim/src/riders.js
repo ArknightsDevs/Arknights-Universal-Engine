@@ -9,6 +9,7 @@ import { gainSp } from './sp.js';
 import { setHp } from './damage.js';
 import { traitOf, creditedDamage } from './traits.js';
 import { vsEp } from './vs.js';
+import { reflectHit } from './talentlife.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./damage.js').Damage} Damage */
@@ -38,12 +39,16 @@ export function afterOwnHit(w, c, op, t, hit) {
 }
 
 /**
- * An operator hit by an enemy's attack (职业-20): its trait's arts damage of a share of its attack on the attacker.
+ * An operator hit by an enemy's attack (职业-20, 职业-27): arts damage on the attacker of a share of its attack — its
+ * trait's, with what its buffs add (`counterArts`, summed: a talent's while a condition holds) —, then the true damage
+ * operators return for an attack on their faction (reflectHit).
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} attacker @param {Damage} dmg
  */
 export function attacked(w, c, op, attacker, dmg) {
-  const k = op.kind === KIND.OPERATOR && op.hp > 0 ? traitOf(c, op).counterArts : 0;
-  if (k > 0 && dmg.isAttack && attacker.kind === KIND.ENEMY && attacker.hp > 0) creditedDamage(w, c, op, attacker, { type: 'arts', amount: statsOf(op).atk * k, tags: [RIDER] });
+  if (!dmg.isAttack || attacker.kind !== KIND.ENEMY || attacker.hp <= 0 || op.kind !== KIND.OPERATOR) return;
+  const k = op.hp > 0 ? traitOf(c, op).counterArts + (statsOf(op).sum.counterArts ?? 0) : 0;
+  if (k > 0) creditedDamage(w, c, op, attacker, { type: 'arts', amount: statsOf(op).atk * k, tags: [RIDER] });
+  reflectHit(w, c, op, attacker, RIDER);
 }
 
 /**

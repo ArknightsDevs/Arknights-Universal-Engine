@@ -10,6 +10,10 @@ import { tileOf } from './body.js';
 import { rangeKeys, inKeys, hostile } from './targeting.js';
 import { traitOf } from './traits.js';
 import { gritTurn } from './talentfx.js';
+import { quiet, idleShieldTurn } from './talenttime.js';
+import { lifeTurn } from './talentlife.js';
+import { tileAt } from './level.js';
+import { rotateOffset } from './dir.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').WhileMods} WhileMods */
@@ -54,8 +58,17 @@ const blockedBy = (w, op) => w.units.filter((e) => e.blockedBy === op.id && e.hp
 /** Whether a unit is in a burst of an element, or of any without one (元素-3). @param {Unit} u @param {string | undefined} el */
 const burstOf = (u, el) => (el ? u.buffs.some((b) => b.key === `burst:${el}`) : bursting(u));
 
+/** The tiles behind an operator and at its sides, as offsets facing right (职业-26). */
+const BEHIND_SIDES = Object.freeze(/** @type {[number, number][]} */ ([[0, -1], [-1, 0], [1, 0]]));
+
+/** How many 高台 tiles are behind an operator and at its sides, turned with it (职业-26). @param {Content} c @param {Unit} op */
+function highSides(c, op) {
+  const [r, col] = tileOf(op);
+  return BEHIND_SIDES.filter(([dr, dc]) => { const [x, y] = rotateOffset(dr, dc, op.dir); return tileAt(c.level, r + x, col + y)?.height === 'HIGHLAND'; }).length;
+}
+
 /**
- * The conditions on the operator (职业-18, 职业-24), each asked at its turn.
+ * The conditions on the operator (职业-18, 职业-24, 职业-26), each asked at its turn.
  * @type {Readonly<Record<WhileMods['when'], (w: World, c: Content, op: Unit, value: number, x: WhileMods) => boolean>>}
  */
 const WHEN = Object.freeze({
@@ -86,6 +99,10 @@ const WHEN = Object.freeze({
   fewStarts: (_w, _c, op, v) => starts(op) < v,
   laterSkill: (_w, _c, op) => !!op.skill && op.skill.active && starts(op) >= 2,
   alchemy: (w, _c, op) => (w.alchemy ?? []).some((a) => a.src === op.id),
+  idle: (w, _c, op, _v, x) => quiet(w, op, x),
+  unhurt: (w, _c, op, _v, x) => quiet(w, op, x),
+  calm: (w, _c, op, _v, x) => quiet(w, op, x),
+  highSide: (_w, c, op, v) => highSides(c, op) >= v,
 });
 
 /**
@@ -102,12 +119,15 @@ function perWhile(w, c, op, x, key) {
 }
 
 /**
- * At the start of an operator's turn (职业-18, 职业-25): its 坚忍 (gritTurn), then each of its trait's `whiles` is a buff
- * `while:<n>` with its modifiers while its condition holds; when it no longer does, the buff goes.
+ * At the start of an operator's turn (职业-18, 职业-25…职业-27): its 坚忍 (gritTurn), its talents on its life (lifeTurn),
+ * its 屏障 after a while without attacking (idleShieldTurn), then each of its trait's `whiles` is a buff `while:<n>` with
+ * its modifiers while its condition holds; when it no longer does, the buff goes.
  * @param {World} w @param {Content} c @param {Unit} op
  */
 export function traitWhiles(w, c, op) {
   gritTurn(c, op);
+  lifeTurn(w, c, op);
+  idleShieldTurn(w, c, op);
   const list = traitOf(c, op).whiles;
   for (let i = 0; i < list.length; i++) {
     const x = list[i], key = `while:${i}`;

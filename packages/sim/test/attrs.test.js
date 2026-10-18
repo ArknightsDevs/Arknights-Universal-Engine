@@ -93,13 +93,14 @@ test('[属性-2] aggregate: the oracle\'s sums and products of every key but the
 
 test('[属性-2] keys: …Mul multiplies, the rest add, judge keys and non-finite values are left out, stacks count', () => {
   const a = aggregate([
-    buff('a', { fooMul: 2, fooBar: 3, dmgTakenMul: 5, dodgePhys: 0.5, bad: NaN, worse: Infinity, atkMul: 3 }, 3),
+    buff('a', { fooMul: 2, fooBar: 3, dmgTakenMul: 5, dodgePhys: 0.5, bad: NaN, worse: Infinity, atkMul: 3, 'from:sarkaz': 0.7, 'fromPA:drone': 0.5 }, 3),
     buff('b', { fooMul: 0.5, fooBar: 1, hpPct: 0.25 }),
   ]);
   assert.deepEqual(a.sum, { fooBar: 10, hpPct: 0.25 });
   assert.deepEqual(a.prod, { fooMul: 4, atkMul: 27 });
   for (const k of JUDGE_KEYS) assert.ok(!(k in a.sum) && !(k in a.prod), k);
-  assert.deepEqual(JUDGE_KEYS.slice().sort(), ['artsTakenMul', 'dmgTakenMul', 'dodgeArts', 'dodgePhys', 'elementalTakenMul', 'physTakenMul', 'trueTakenMul']);
+  assert.deepEqual(JUDGE_KEYS.slice().sort(), ['airTakenMul', 'artsTakenMul', 'blockAll', 'blockPA', 'blockPhys', 'blockRangedPhys', 'dmgTakenMul', 'dodgeArts', 'dodgeMelee', 'dodgePhys',
+    'elementalTakenMul', 'physTakenMul', 'trueTakenMul']);
 });
 
 test('[属性-2] order: buffs are summed in list order, which changes the float bits', () => {

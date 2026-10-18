@@ -33,6 +33,7 @@ import { tacticalFatal, tacticalBehaviors } from './tactical.js';
 import { dollFatal, dollBehaviors } from './doll.js';
 import { secondLifeFatal } from './riders.js';
 import { talentDeaths, TALENT_BEHAVIORS } from './talentfx.js';
+import { lifeFatal, lifeBehaviors } from './talentlife.js';
 import { newFortress, setUpFortress, fortressHooks, tickFortress } from './fortress.js';
 import { fieldContent } from './facilities.js';
 
@@ -97,12 +98,12 @@ function removeDead(w, c) {
 
 /**
  * Whether a unit stays on the field at the frame's end (伤害-9): it has HP, or at 0 an ability keeps the enemy (敌能-2) —
- * not one at the goal —, the tactical summon turns into its point (召唤-11) or the 傀儡师 switches to its 替身 (职业-15) —
- * not one devoured (敌能-30).
+ * not one at the goal —, the tactical summon turns into its point (召唤-11), the 傀儡师 switches to its 替身 (职业-15), the
+ * operator takes its second life (职业-22) or a talent keeps it (职业-27) — not one devoured (敌能-30).
  * @param {World} w @param {Content} c @param {Unit} u @param {boolean} atGoal
  */
 const stays = (w, c, u, atGoal) => u.hp > 0 || (u.kind === KIND.ENEMY && !atGoal && foeFatal(w, c, u))
-  || (u.ab['@devoured'] === undefined && (tacticalFatal(w, c, u) || dollFatal(w, c, u) || secondLifeFatal(w, c, u)));
+  || (u.ab['@devoured'] === undefined && (tacticalFatal(w, c, u) || dollFatal(w, c, u) || secondLifeFatal(w, c, u) || lifeFatal(w, c, u)));
 
 /**
  * The unit whose hit this frame brought `u` to 0 HP — the last hit on it this frame —, while it is on the field; null
@@ -129,8 +130,8 @@ function announceDeath(w, u, leak) {
   emit(w, 'death', { unit: u, reason: leak ? 'leak' : 'killed', killer });
 }
 
-/** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12, 职业-15, 召唤-11, 装置-6); content cannot replace them. @param {Content} c */
-const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...TALENT_BEHAVIORS, ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c) });
+/** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12, 职业-15, 职业-27, 召唤-11, 装置-6); content cannot replace them. @param {Content} c */
+const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...TALENT_BEHAVIORS, ...lifeBehaviors(c), ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c) });
 
 /** Each content's buff behaviours, made once (they depend on the content alone), with the content's table they were made from. @type {WeakMap<Content, { from: unknown, table: Record<string, import('./buffs.js').Behavior> }>} */
 const buffTables = new WeakMap();

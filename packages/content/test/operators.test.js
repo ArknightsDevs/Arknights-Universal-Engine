@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { loadTraining, operatorAt, skeletonContent, ROSTER } from '../src/index.js';
 import { traitAt, teamTalentsAt, upgradedTalentsAt, moduleOwnAt } from '../src/operators.js';
 import { talentsAt, alwaysOn, alwaysMods, teamPart, rangePart, critPart, timedPart, deployPart, forSkill } from '../src/talents.js';
-import { whileParts, targetPart, hitPart, attackPart, stackPart, spParts, gritPart, auraParts, perParts } from '../src/talentparts.js';
+import { whileParts, targetPart, hitPart, attackPart, stackPart, spParts, gritPart, auraParts, perParts, specialParts } from '../src/talentparts.js';
 import rangeTable from '../data/ranges.json' with { type: 'json' };
 
 /** The range table (干员-8). */
@@ -237,7 +237,7 @@ test('[干员-16] always-on effects that are not attributes: 无视防御 and �
     { defIgnoreFlat: 175 }, { defIgnorePct: 0.23 }, { resIgnoreFlat: 22 }, { dodgePhys: 0.5 }, { dodgeArts: 0.5 }, { dodgePhys: 0.45, dodgeArts: 0.45 },
     { physDealtMul: 1.12, physTakenMul: 0.88 }, { physTakenMul: 0.85 }, { epTakenMul: 0.88 }, { hpRegenRatio: 0.04 },
   ]);
-  assert.deepEqual([m('获得50%的物理闪避', { atk: 0.1 }), m('自身获得15%的物理减伤；在战场停留35秒后效果翻倍', { damage_resistance: 0.15, interval: 35 }),
+  assert.deepEqual([m('获得50%的物理闪避', { atk: 0.1 }), m('自身获得15%的物理减伤；技能开启时效果翻倍', { damage_resistance: 0.15 }),
     m('获得33%的物理闪避，闪避后此效果失效', { prob: 0.33 })], [null, null, null], 'a key missing, an effect doubled later, one that changes it');
   const tachak = await atE2('char_459_tachak');
   assert.deepEqual([tachak.talentMods, tachak.talentBb], [{ rangeExtend: 2 }, { def: 0.1 }], '战车: 攻击距离+2，防御力+10%，再部署时间+20秒');
@@ -452,7 +452,7 @@ test('[干员-17] conditions on its skill: running, not running, before its seco
     [{ when: 'notInSkill', mods: {}, flags: { camou: true } }, { when: 'inSkill', mods: { batFlat: -0.15 } }], [{ when: 'inSkill', mods: { atkPct: 0.2 } }],
     [{ when: 'fewStarts', value: 2, mods: { spRecoveryFlat: 1 } }], [{ when: 'laterSkill', mods: { dmgDealtMul: 1.16 } }], [{ when: 'inSkill', mods: { taunt: -1 } }],
   ]);
-  assert.deepEqual(w('技能开启时，每秒恢复最大生命值5%的生命，同时获得30%的近战物理闪避', { hp_recovery_per_sec_by_max_hp_ratio: 0.05, prob: 0.3 }), [], 'a clause it cannot read');
+  assert.deepEqual(w('技能开启时，每秒恢复最大生命值5%的生命，同时获得30%的远程物理闪避', { hp_recovery_per_sec_by_max_hp_ratio: 0.05, prob: 0.3 }), [], 'a clause it cannot read');
   assert.deepEqual([perParts(talent('攻击范围内每有一个敌人，自身攻击力+4%（最多可叠加6层（+1））', { atk: 0.04, max_valid_stack_cnt: 6 })), perParts(talent('攻击范围内每有一个敌人，自身攻击力+4%', { atk: 0.04 }))],
     [[{ when: 'enemies', value: 1, per: 6, mods: { atkPct: 0.04 } }], []]);
 });
@@ -469,4 +469,86 @@ test('[干员-9] [干员-19] [干员-21] team talents of the holder\'s skill; th
   assert.equal(t('技能开启时，所有【医疗】和【萨卡兹】干员获得抵抗', { one_minus_status_resistance: -0.5 }), null, 'a profession and a faction together');
   assert.deepEqual(attackPart(talent('攻击溅射范围内有大于或等于3个敌人时，使当次攻击造成的伤害提升至125%（+5%）', { damage_scale: 1.25, min_target_cnt: 3 })), { packed: { cnt: 3, atk: 1.25 } });
   assert.deepEqual(spParts(talent('技能结束时恢复自身60%（+10%）最大生命值', { hp_ratio: 0.6 })), [{ on: 'skillEnd', heal: 0.6 }]);
+});
+
+test('[干员-24] talents in time: idle, unhurt and calm conditions, next attacks, the 倍率 by the time since the last attack, a 屏障 after a while', () => {
+  const w = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => whileParts(talent(d, bb));
+  const s = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => specialParts(talent(d, bb)).trait;
+  assert.deepEqual([
+    w('4秒内没有主动攻击过，技力自然回复速度+0.5（+0.05）/秒', { delay: 4, sp_recovery_per_sec: 0.5 }), w('自身未进行攻击时，技力回复速度+0.2/秒', { delay: 2, sp_recovery_per_sec: 0.2 }),
+    w('最近10秒内未受伤害时，攻击力+18%（+3%）', { atk: 0.18, delay: 10 }), w('技能开启时不容易成为敌人的目标，且攻击无视目标的物理闪避', { taunt_level: -1 }),
+    w('技能未开启时每次受到攻击时对目标造成相当于龙舌兰攻击力23%（+3%）的法术伤害', { atk_scale: 0.23 }),
+    w('技能开启时，每秒恢复最大生命值5%（+1%）的生命，同时获得30%（+5%）的近战物理闪避', { hp_recovery_per_sec_by_max_hp_ratio: 0.05, prob: 0.3 }),
+  ], [
+    [{ when: 'idle', value: 4, mods: { spRecoveryFlat: 0.5 } }], [{ when: 'idle', value: 2, mods: { spRecoveryFlat: 0.2 } }], [{ when: 'unhurt', value: 10, fresh: true, mods: { atkPct: 0.18 } }],
+    [{ when: 'inSkill', mods: { taunt: -1 }, flags: { ignoreDodgePhys: true } }], [{ when: 'notInSkill', mods: { counterArts: 0.23 } }],
+    [{ when: 'inSkill', mods: { hpRegenRatio: 0.05, dodgeMelee: 0.3 } }],
+  ]);
+  assert.deepEqual([
+    s('如果2秒内没有主动攻击过，下次攻击造成相当于攻击力133%（+3%）的物理伤害', { atk_scale: 1.33, 'attack@delay': 2 }),
+    s('如果4秒内没有主动攻击过，下一次攻击的攻击力提升至155%（+5%）并晕眩目标4秒', { delay: 4, atk_scale: 1.55, stun: 4 }),
+    s('4秒内未进行治疗后，下次治疗时的治疗量提升至攻击力的155%（+5%）', { delay: 4, heal_scale_2: 1.55 }),
+    s('平时处于隐匿状态，攻击时会解除隐匿状态，且当次攻击的攻击力+54%（+4%）。停止攻击5秒后，重新进入隐匿状态', { delay: 5, atk: 0.54 }),
+    s('若最近8（-1）秒内未受攻击，闪避下一次物理或法术攻击', { stack_time: 8, prob: 1 }),
+    s('距离上次攻击的间隔越长，下次攻击的攻击力就越高（最长2.5秒，攻击力190%（+10%））', { 'attack@min_delta': 1, 'attack@max_delta': 2.5, 'attack@min_atk_scale': 1, 'attack@max_atk_scale': 1.9 }),
+    s('若8秒内未主动攻击，获得相当于生命上限18%（+3%）的屏障，失去屏障后重新计时', { interval: 8, shield: 0.18 }),
+    s('有33%（+3%）的概率闪避敌人的近战物理攻击，成功闪避后自己的下一次攻击攻击力+100%', { 'tiger_t_1[evade].prob': 0.33, 'charge_on_evade.atk': 1 }),
+    s('触发闪避时，下次攻击变为二连击并攻击所有阻挡的敌人', {}),
+  ], [
+    { nextAttack: [{ when: 'idle', value: 2, scale: 1.33 }] }, { nextAttack: [{ when: 'idle', value: 4, scale: 1.55, stun: 4 }] }, { nextAttack: [{ when: 'idle', value: 4, scale: 1.55 }] },
+    { whiles: [{ when: 'idle', value: 5, fresh: true, mods: {}, flags: { stealth: true } }], nextAttack: [{ when: 'idle', value: 5, fresh: true, atk: 0.54 }] },
+    { whiles: [{ when: 'calm', value: 8, mods: { dodgePhys: 1, dodgeArts: 1 } }] }, { rhythm: { min: 1, max: 2.5, top: 1.9 } }, { idleShield: { value: 8, share: 0.18 } },
+    { whiles: [{ when: 'always', mods: { dodgeMelee: 0.33 } }], nextAttack: [{ when: 'dodged', atk: 1 }] }, { nextAttack: [{ when: 'dodged', times: 2, blocked: true }] },
+  ]);
+  assert.deepEqual([s('如果2秒内没有主动攻击过，下次攻击造成相当于攻击力133%的物理伤害', { atk_scale: 1.33 }), w('身侧或身后存在高台时获得25%的物理抵挡', { cnt: 1, prob: 0.25 })],
+    [null, [{ when: 'highSide', value: 1, mods: { blockPhys: 0.25 } }]], 'a key missing; 高台 behind or at its sides');
+});
+
+test('[干员-25] talents on life: a second life, a heal once low, a last stand, a heal bought with cost, a frozen life, heals on hits, 护盾 layers, true damage returned', async () => {
+  const s = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => specialParts(talent(d, bb)).trait;
+  assert.deepEqual([
+    s('被击倒时不撤退，恢复所有生命且生命上限-50%，攻击速度+21（+3）、防御力+21%（+3%）（单次部署只触发一次）', { max_hp: 0.5, hp_ratio: 1, attack_speed: 21, def: 0.21 }),
+    s('生命值低于25%时，仅一次立刻回复55%（+5%）最大生命值，且自身之后受到的物理伤害降低15%（+5%）', { hp_ratio: 0.25, damage_resistance: 0.15, 'etlchi_t_2[heal].hp_ratio': 0.55 }),
+    s('受到致命伤害时持续使生命值不低于1，9（+1）秒后强制退出战场', { 'surtr_t_2[withdraw].interval': 9 }),
+    s('受到致命伤害时，若费用足够则消耗5点部署费用使生命恢复到80%（+10%），每次触发该天赋时消耗的费用翻倍', { cost: -5, hp_ratio: 0.8, cost_multi: 2 }),
+    s('受到伤害时使敌人寒冷2（+0.5）秒，若受到致命伤害，仅一次立刻回复所有生命值并使自身冻结4秒，使攻击范围内所有敌方单位冻结8秒', { hp_ratio: 1, cold: 2, freeze: 4, c2e_freeze: 8 }),
+    s('每次受到伤害时，治疗自身100点生命值；生命值低于50%时，治疗效果提升至160点生命值', { hp_ratio: 0.5, value1: 100, value2: 160 }),
+    s('每9秒获得1层护盾（最多3层，部署后立即获得1层），每层护盾破裂时恢复自身22%（+2%）最大生命', { interval: 9, times: 1, max_times: 3, hp_ratio: 0.22 }),
+    s('在场时，自身更容易受到攻击，所有卡西米尔干员被攻击时反弹相当于玛恩纳攻击力18%（+3%）的真实伤害', { taunt_level: 1, atk_scale: 0.18 }),
+  ], [
+    { secondLife: { hp: 1, mods: { hpMul: 0.5, aspd: 21, defPct: 0.21 } } }, { lowHp: { below: 0.25, heal: 0.55, mods: { physTakenMul: 0.85 } } }, { lastStand: { seconds: 9 } },
+    { costLife: { cost: 5, hp: 0.8, mul: 2 } }, { hurt: { status: { key: 'cold', seconds: 2 } }, frostLife: { hp: 1, self: 4, foes: 8 } },
+    { hurt: { heal: { low: 100, high: 160, below: 0.5 } } }, { layers: { every: 9, max: 3, init: 1, heal: 0.22 } },
+    { whiles: [{ when: 'always', mods: { taunt: 1 } }], reflect: { power: 'kazimierz', scale: 0.18 } },
+  ]);
+  assert.equal(s('在场时，自身更容易受到攻击，所有维多利亚干员被攻击时反弹相当于玛恩纳攻击力18%的真实伤害', { taunt_level: 1, atk_scale: 0.18 })?.reflect?.power, 'victoria');
+  assert.equal(s('在场时，自身更容易受到攻击，所有无名之国干员被攻击时反弹相当于玛恩纳攻击力18%的真实伤害', { taunt_level: 1, atk_scale: 0.18 }), null, 'a faction it does not know');
+  const [horn, mlynar, surtr] = [await atE2('char_4039_horn'), await atE2('char_4064_mlynar'), await atE2('char_350_surtr')];
+  assert.deepEqual([horn.talentTrait.secondLife, mlynar.talentTrait.reflect, surtr.talentTrait.lastStand], [{ hp: 1, mods: { hpMul: 0.5, aspd: 18, defPct: 0.18 } }, { power: 'kazimierz', scale: 0.15 }, { seconds: 8 }], '号角, 玛恩纳, 史尔特尔');
+});
+
+test('[干员-26] the damage by its source and 抵挡: 伤害抵挡, 远程物理抵挡, damage from a tag, 对空庇护, 可颂\'s 抵挡 shared; an effect doubled after a while; more ammo', async () => {
+  const m = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => alwaysMods(talent(d, bb));
+  const t = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => teamPart(talent(d, bb));
+  assert.deepEqual([m('获得28%（+3%）的伤害抵挡', { prob: 0.28 }), m('获得30%（+3%）的远程物理抵挡', { prob: 0.3 }), m('受到来自【萨卡兹】敌人的伤害降低30%', { damage_resistance: 0.3 }),
+    m('受到来自【乌萨斯】敌人的伤害降低30%', { damage_resistance: 0.3 })], [{ blockAll: 0.28 }, { blockRangedPhys: 0.3 }, { 'from:sarkaz': 0.7 }, null]);
+  assert.deepEqual([
+    t('上阵时，所有友方单位受到【萨卡兹】敌人的伤害降低15%（+5%）', { damage_resistance: 0.15 }),
+    t('在场时，所有【深海猎人】干员每秒回复2.5%最大生命值且受到【海怪】敌人的物理与法术伤害降低25%', { hp_recovery_per_sec_by_max_hp_ratio: 0.025, damage_resistance: 0.25 }),
+    t('灵知在场且部署后经过10秒时，使所有【谢拉格】干员获得抵抗', { interval: 10, one_minus_status_resistance: -0.5 }),
+    t('在场时，所有【深海猎人】干员攻击力+10%且获得某种效果', { atk: 0.1 }),
+  ], [
+    { when: 'field', all: true, bb: {}, mods: { 'from:sarkaz': 0.85 } }, { when: 'field', power: 'abyssal', bb: {}, mods: { hpRegenRatio: 0.025, 'fromPA:seamonster': 0.75 } },
+    { when: 'field', power: 'kjerag', bb: {}, mods: { statusResFlat: -0.5 }, after: 10 }, null,
+  ]);
+  assert.deepEqual(auraParts(talent('部署后，嘉辛塔自身与周围八格的友方单位获得15%（+2%）的对空庇护', { damage_resistance: 0.15 }), RANGES).range.map((r) => [r.mods, r.area?.length]), [[{ airTakenMul: 0.85 }, 9]]);
+  assert.deepEqual(specialParts(talent('有23%（+3%）的几率抵挡物理和法术伤害。周围四格内的友方单位获得一半该效果', { 'moeshd_t_1[self].prob': 0.23, 'moeshd_t_1[aura].prob': 0.115 })),
+    { trait: { whiles: [{ when: 'always', mods: { blockPA: 0.23 } }] }, range: [{ side: 'ally', ranged: false, mods: { blockPA: 0.115 }, area: [{ row: 1, col: 0 }, { row: -1, col: 0 }, { row: 0, col: 1 }, { row: 0, col: -1 }] }] });
+  const cement = talent('自身获得15%（+3%）的物理减伤；在战场停留35秒后效果翻倍', { damage_resistance: 0.15, interval: 35, damage_resistance_addtion: 0.15 });
+  const after = /** @type {any} */ (timedPart(cement));
+  assert.deepEqual([alwaysMods(cement), after.kind, after.seconds], [{ physTakenMul: 0.85 }, 'after', 35]);
+  assert.ok(Math.abs(0.85 * after.mods.physTakenMul - 0.7) < 1e-12, '30% after 35 s');
+  assert.deepEqual(timedPart(talent('在场20秒后，攻击力+10%，自身弹药类技能弹药上限+1', { interval: 20, atk: 0.1, add_count: 1, ex_add_count: 0 })), { kind: 'after', seconds: 20, max: 1, mods: { atkPct: 0.1, ammoFlat: 1 } });
+  const [glady, moeshd] = [await atE2('char_474_glady'), await atE2('char_201_moeshd')];
+  assert.deepEqual([glady.fieldTalents, moeshd.talentTrait.whiles, moeshd.rangeTalents[0].mods], [[{ power: 'abyssal', bb: {}, mods: { hpRegenRatio: 0.025, 'fromPA:seamonster': 0.75 } }], [{ when: 'always', mods: { blockPA: 0.2 } }], { blockPA: 0.1 }], '歌蕾蒂娅, 可颂');
 });

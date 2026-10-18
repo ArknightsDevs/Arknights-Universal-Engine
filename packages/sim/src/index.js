@@ -58,7 +58,7 @@ export { reserveIds } from './units.js';
 /** @typedef {import('./types.js').TraitDef} TraitDef */
 /** @typedef {import('./types.js').VsScale} VsScale */
 /** @typedef {import('./types.js').WhileMods} WhileMods */
-/** @typedef {import('./types.js').TalentHit} TalentHit @typedef {import('./types.js').TalentStack} TalentStack @typedef {import('./types.js').TalentSp} TalentSp */
+/** @typedef {import('./types.js').TalentHit} TalentHit @typedef {import('./types.js').TalentStack} TalentStack @typedef {import('./types.js').TalentSp} TalentSp @typedef {import('./types.js').NextAttack} NextAttack */
 /** @typedef {import('./types.js').ModuleAura} ModuleAura */
 /** @typedef {import('./types.js').Doll} Doll */
 /** @typedef {import('./types.js').OperatorDef} OperatorDef @typedef {import('./types.js').TeamTalent} TeamTalent @typedef {import('./types.js').RangeTalent} RangeTalent @typedef {import('./types.js').CritTalent} CritTalent @typedef {import('./types.js').TimedTalent} TimedTalent @typedef {import('./types.js').DeployTalent} DeployTalent @typedef {import('./types.js').CarriedEffect} CarriedEffect */

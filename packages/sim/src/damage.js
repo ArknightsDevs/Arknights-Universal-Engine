@@ -2,13 +2,15 @@
 // target's 伤判 effects one buff at a time in event priority and acquisition order, then the HP; the hook events on the
 // way (钩子-3).
 import { powi, FPS } from '@aue/math';
+import { KIND } from '@aue/schema';
 import { statsOf, activeBuffs } from './attrs.js';
-import { removeBuff } from './buffs.js';
+import { removeBuff, stamp, count } from './buffs.js';
 import { draw } from './rng.js';
 import { MIN_DAMAGE_RATIO } from './constants.js';
 import { hurtSp, gainSp } from './sp.js';
 import { emit, hasHook } from './bus.js';
 import { worksMul } from './works.js';
+import { inflict } from './status.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').DamageType} DamageType */
@@ -108,18 +110,90 @@ export function setShield(u, b, amount) {
 }
 
 /**
- * One buff's 伤判 effects on a hit, in a fixed order within the buff: dodge, taken multipliers, shield, barrier
- * (伤害-8); a hit from a unit it blocks also takes its 受到伤害倍率 for that, a physical or arts hit its 伤害减免 (a
- * number off, 职业-20). Returns the damage left — 0 ends the step, −1 when the hit is dodged.
- * @param {World} w @param {Unit} u @param {Buff} b @param {number} amount @param {{ dmg: Damage, src: Unit | null }} hit
+ * Sets a buff's 护盾 layers (a talent that adds them, 职业-27): whole layers, at least 0; a buff that is only used-up
+ * layers goes. @param {Unit} u @param {Buff} b @param {number} n
  */
-function judge(w, u, b, amount, { dmg, src }) {
-  const p = dmg.type === 'phys' ? b.mods.dodgePhys : dmg.type === 'arts' ? b.mods.dodgeArts : undefined;
-  if (p !== undefined && p > 0 && (dmg.canDodge ?? true)) {
-    const miss = 1 - powi(1 - clamp01(p), b.stacks);
-    if (draw(w) < miss) return -1;
+export function setShieldHits(u, b, n) {
+  b.shieldHits = Math.max(0, Math.round(Number(n) || 0));
+  if (b.shieldHits === 0) dropIfSpent(u, b);
+}
+
+/**
+ * A buff's chance to dodge a hit (伤害-8, 伤害-12): its 物理闪避 or 法术闪避 by the hit's type, with its 近战物理闪避
+ * (`dodgeMelee`) on a physical hit of the 近战途径 (one that is not a projectile's) — 1 − the product of what each lets
+ * through; 0 without one.
+ * @param {Buff} b @param {Damage} dmg
+ */
+function dodgeOf(b, dmg) {
+  const m = b.mods, own = dmg.type === 'phys' ? m.dodgePhys : dmg.type === 'arts' ? m.dodgeArts : undefined;
+  const melee = dmg.type === 'phys' && !dmg.isProjectile ? m.dodgeMelee : undefined;
+  if (own === undefined && melee === undefined) return 0;
+  return 1 - (1 - clamp01(own ?? 0)) * (1 - clamp01(melee ?? 0));
+}
+
+/** Whether a hit's source is an enemy whose 攻击方式 includes ranged (伤害-12). @param {Unit | null} src */
+const rangedFoe = (src) => !!src && src.kind === KIND.ENEMY && (src.base.applyWay === 'RANGED' || src.base.applyWay === 'ALL');
+
+/**
+ * A buff's chance of 抵挡 for a hit (伤害-12): 伤害抵挡 (`blockAll`) for physical, arts and true damage, `blockPA` for
+ * physical and arts, `blockPhys` for physical, `blockRangedPhys` for physical damage from an enemy whose 攻击方式 includes
+ * ranged — 1 − the product of what each lets through; 0 for elemental damage.
+ * @param {Buff} b @param {Damage} dmg @param {Unit | null} src
+ */
+function blockOf(b, dmg, src) {
+  const m = b.mods, t = dmg.type;
+  if (t === 'elemental') return 0;
+  let keep = 1;
+  for (const q of [m.blockAll, t !== 'true' ? m.blockPA : undefined, t === 'phys' ? m.blockPhys : undefined, t === 'phys' && rangedFoe(src) ? m.blockRangedPhys : undefined]) {
+    if (q !== undefined && q > 0) keep *= 1 - clamp01(q);
   }
-  let left = amount * takenMul(b, dmg.type) * blockedMul(u, b, src);
+  return 1 - keep;
+}
+
+/**
+ * A buff's taken multiplier by a hit's source (伤害-12), its stacks' power: `airTakenMul` on physical and arts damage
+ * from a flying source; `from:<tag>` on physical, arts and true damage from an enemy with the tag, `fromPA:<tag>` on
+ * physical and arts damage from one.
+ * @param {Buff} b @param {Damage} dmg @param {{ src: Unit | null, tags: readonly string[] }} at
+ */
+function sourceMul(b, dmg, at) {
+  const m = b.mods, t = dmg.type, pa = t === 'phys' || t === 'arts';
+  const k = (m.airTakenMul !== undefined && pa && at.src && statsOf(at.src).flying ? m.airTakenMul : 1) * (at.tags.length && t !== 'elemental' ? tagMul(m, at.tags, pa) : 1);
+  return b.stacks === 1 ? k : powi(k, b.stacks);
+}
+
+/**
+ * The product of a buff's `from:<tag>` multipliers for the tags, and of its `fromPA:<tag>` ones on physical and arts
+ * damage (伤害-12). @param {Record<string, number>} m @param {readonly string[]} tags @param {boolean} pa
+ */
+function tagMul(m, tags, pa) {
+  let k = 1;
+  for (const key in m) {
+    if (!Object.hasOwn(m, key)) continue;
+    if (key.startsWith('from:') && tags.includes(key.slice(5))) k *= m[key];
+    else if (pa && key.startsWith('fromPA:') && tags.includes(key.slice(7))) k *= m[key];
+  }
+  return k;
+}
+
+/**
+ * Whether a hit can be dodged (伤害-8): physical and arts damage unless the hit says not, nor a physical hit of a source
+ * whose flags ignore 物理闪避 (`ignoreDodgePhys`, 伤害-12).
+ * @param {Damage} dmg @param {Unit | null} src
+ */
+const dodgeable = (dmg, src) => (dmg.canDodge ?? true) && !(dmg.type === 'phys' && src && statsOf(src).flags.ignoreDodgePhys);
+
+/**
+ * One buff's 伤判 effects on a hit, in a fixed order within the buff: dodge, 抵挡, taken multipliers, shield, barrier
+ * (伤害-8, 伤害-12); a hit from a unit it blocks also takes its 受到伤害倍率 for that, a physical or arts hit its 伤害减免 (a
+ * number off, 职业-20). Returns the damage left — 0 ends the step (抵挡 too), −1 when the hit is dodged.
+ * @param {World} w @param {Unit} u @param {Buff} b @param {number} amount @param {{ dmg: Damage, src: Unit | null, tags: readonly string[] }} hit
+ */
+function judge(w, u, b, amount, hit) {
+  const { dmg, src } = hit, p = dodgeOf(b, dmg), q = blockOf(b, dmg, src);
+  if (p > 0 && dodgeable(dmg, src) && draw(w) < 1 - powi(1 - p, b.stacks)) return -1;
+  if (q > 0 && draw(w) < 1 - powi(1 - q, b.stacks)) return 0;
+  let left = amount * takenMul(b, dmg.type) * blockedMul(u, b, src) * sourceMul(b, dmg, hit);
   if (b.mods.dmgReduceFlat && (dmg.type === 'phys' || dmg.type === 'arts')) left = Math.max(0, left - b.mods.dmgReduceFlat * b.stacks);
   if (b.shieldHits > 0 && absorbs(b, dmg.type)) {
     b.shieldHits--;
@@ -146,19 +220,54 @@ function misses(w, dmg, src) {
   return h !== undefined && h < 1 && draw(w) >= h;
 }
 
+/** A unit's buff that keeps the frame of a tracked event (职业-26), when it has one. @param {Unit} u @param {string} key */
+const tracker = (u, key) => u.buffs.find((b) => b.key === key);
+
 /**
- * The target's 伤判 effects in turn (伤害-8): a miss by the source's hit rate first, then its active buffs by event
- * priority, highest first, then acquisition order. One that cancels the hit or brings it to 0 ends the step; a dodge or
- * a miss is the `dodge` event (钩子-3).
- * @param {World} w @param {Unit} u @param {number} amount @param {Damage} dmg @param {Unit | null} [src]
+ * What a hit sets off on an operator as its 伤判 begins (职业-26, 职业-27) — dodged, 抵挡 or not —: the frame on its
+ * `lastJudged` tracker; its talents' heal of itself, by its HP before the hit (`hurt.heal`: `high` HP below `below` of its
+ * maximum, else `low`), and their status on an enemy source that is not invincible, 隐匿 or 无法选中 (`hurt.status`).
+ * @param {World} w @param {Unit} u @param {Unit | null} src @param {import('./types.js').Content | undefined} c
  */
-export function takeDamage(w, u, amount, dmg, src = null) {
-  if (misses(w, dmg, src)) { emit(w, 'dodge', { source: src, target: u, dmg }); return 0; }
+function judged(w, u, src, c) {
+  const t = tracker(u, 'lastJudged');
+  if (t) stamp(t, w.frame);
+  const h = c && u.kind === KIND.OPERATOR ? c.operators[u.key]?.talentTrait?.hurt : undefined;
+  if (!h || u.hp <= 0) return;
+  if (h.heal) w.events.push({ type: 'heal', id: u.id, target: u.id, amount: heal(w, u, u, u.hp < h.heal.below * statsOf(u).maxHp ? h.heal.high : h.heal.low) });
+  if (h.status && src && reachable(src)) inflict(w, src, h.status.key, { seconds: h.status.seconds, src: u });
+}
+
+/** Whether a talent's status reaches the enemy that hurt it (职业-27): one with HP, not invincible, 隐匿 or 无法选中. @param {Unit} e */
+function reachable(e) {
+  const f = statsOf(e).flags;
+  return e.kind === KIND.ENEMY && e.hp > 0 && !f.invincible && !f.stealth && !f.untargetable;
+}
+
+/** A dodge or a miss (伤害-8): the `dodge` event (钩子-3), and one more on the target's `dodges` tracker (职业-26). @param {World} w @param {Unit} u @param {Unit | null} src @param {Damage} dmg */
+function dodged(w, u, src, dmg) {
+  emit(w, 'dodge', { source: src, target: u, dmg });
+  const t = tracker(u, 'dodges');
+  if (t) count(t, 1);
+}
+
+/**
+ * The target's 伤判 effects in turn (伤害-8): what the hit sets off as they begin (judged), a miss by the source's hit
+ * rate, then its active buffs by event priority, highest first, then acquisition order. One that cancels the hit or
+ * brings it to 0 ends the step; a dodge or a miss is the `dodge` event (钩子-3). `from`: the source, the tags of an enemy
+ * source (伤害-12), the content (for the target's talents).
+ * @param {World} w @param {Unit} u @param {number} amount @param {Damage} dmg
+ * @param {{ src?: Unit | null, tags?: readonly string[], c?: import('./types.js').Content }} [from]
+ */
+export function takeDamage(w, u, amount, dmg, from = {}) {
+  const src = from.src ?? null, tags = from.tags ?? [];
+  judged(w, u, src, from.c);
+  if (misses(w, dmg, src)) { dodged(w, u, src, dmg); return 0; }
   const order = activeBuffs(u.buffs).map((b, i) => ({ b, i })).sort((x, y) => y.b.prio - x.b.prio || x.i - y.i);
   let left = amount;
   for (const { b } of order) {
-    left = judge(w, u, b, left, { dmg, src });
-    if (left < 0) emit(w, 'dodge', { source: src, target: u, dmg });
+    left = judge(w, u, b, left, { dmg, src, tags });
+    if (left < 0) dodged(w, u, src, dmg);
     if (!(left > 0)) return 0;
   }
   return left;
@@ -175,7 +284,8 @@ const seenOf = (src, dmg) => (dmg.sourceless ? null : src);
  * @param {World} w @param {Unit | null} src @param {Unit} t @param {number} amount @param {Damage} dmg
  */
 function loseHp(w, src, t, amount, dmg) {
-  const seen = seenOf(src, dmg);
+  const seen = seenOf(src, dmg), hurt = !dmg.hpLoss && amount > 0 ? tracker(t, 'lastHurt') : undefined;
+  if (hurt) stamp(hurt, w.frame);
   t.hp -= amount;
   if (t.hp <= 0 && statsOf(t).flags.undying) t.hp = Math.min(1, statsOf(t).maxHp);
   if (t.hp <= 0) {
@@ -254,6 +364,12 @@ function runeSp(w, c, src) {
 }
 
 /**
+ * An enemy source's tags (关卡-1), for the multipliers by them (伤害-12); none without the content, or for another source.
+ * @param {import('./types.js').Content | undefined} c @param {Unit | null} src @returns {readonly string[]}
+ */
+const tagsOf = (c, src) => (c && src && src.kind === KIND.ENEMY ? /** @type {{ tags?: string[] }} */ (c.enemies[src.key] ?? {}).tags ?? [] : []);
+
+/**
  * Deals a hit (伤害-7): nothing to a unit already at 0 HP; 生命流失 goes straight to the HP; nothing to an invincible
  * unit (无敌, 沉睡, disappeared: 路线-4); otherwise the `hit` event, then the hit counts for 受击回复 (技能-2) and for
  * its source's rune SP (符文-4; given the content), then the target's defences, `mul`, the source's multiplier, the 工事 multiplier (地图-3; given the content), the target's 伤判
@@ -271,7 +387,7 @@ export function dealDamage(w, src, target, dmg, c) {
   const seen = seenOf(src, dmg), ss = seen ? statsOf(seen) : null;
   let amount = mitigate(dmg.amount, dmg.type, statsOf(target), penetration(ss, dmg)) * /** @type {number} */ (dmg.mul);
   if (ss) amount *= dealtMul(ss, dmg.type) * (c && seen ? worksMul(c, seen, target) : 1);
-  amount = hpDamage(w, src, target, takeDamage(w, target, amount, dmg, seen), dmg);
+  amount = hpDamage(w, src, target, takeDamage(w, target, amount, dmg, { src: seen, tags: tagsOf(c, seen), ...(c ? { c } : {}) }), dmg);
   return amount > 0 ? loseHp(w, src, target, amount, dmg) : 0;
 }
 

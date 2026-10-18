@@ -124,6 +124,11 @@ export function count(b, d) {
   b.n += d;
 }
 
+/** Notes the frame of a tracked event on a buff that keeps it (its counter `n`; the stats do not change). @param {Buff} b @param {number} frame */
+export function stamp(b, frame) {
+  b.n = frame;
+}
+
 /**
  * Removes buffs by key, or one buff; returns how many were removed. Removal is not expiry: no behaviour runs.
  * @param {Unit} u @param {string | Buff} which

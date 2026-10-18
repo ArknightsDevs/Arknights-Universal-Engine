@@ -283,7 +283,34 @@
  * @property {TalentSp[]} talentSp SP its talents give on events (干员-21, 职业-25)
  * @property {{ mods: Record<string, number>, full: number } | null} grit its talent's 坚忍: the modifiers × the share of its maximum HP
  *   lost over `full`, at most 1 (干员-23, 职业-25)
+ * @property {NextAttack[]} nextAttack what its attack gets as it starts after a while without attacking, or after a dodge (干员-24, 职业-26)
+ * @property {{ min: number, max: number, top: number } | null} rhythm its attack's 倍率 by the seconds since its last attack started:
+ *   1 up to `min`, rising to `top` at `max` (干员-24, 职业-26)
+ * @property {{ value: number, share: number } | null} idleShield a 屏障 of `share` of its maximum HP once it has not attacked for
+ *   `value` seconds, the wait beginning again when the 屏障 is gone (干员-24, 职业-26)
+ * @property {{ every: number, max: number, init: number, heal: number } | null} layers 护盾 layers: `init` at deployment, one more
+ *   every `every` seconds up to `max`, a heal of `heal` of its maximum HP as each breaks (干员-25, 职业-27)
+ * @property {{ below: number, heal: number, mods: Record<string, number> } | null} lowHp 不死 until its HP is below `below` of its
+ *   maximum, then once a heal of `heal` of it and `mods` for the rest of the deployment (干员-25, 职业-27)
+ * @property {{ seconds: number } | null} lastStand brought to 0 HP, once a deployment, it stays at 1 HP, 不死 and 禁疗, and
+ *   retreats after `seconds` (干员-25, 职业-27)
+ * @property {{ hp: number, self: number, foes: number } | null} frostLife brought to 0 HP, once a deployment, it heals to `hp` of
+ *   its maximum, is 冻结 `self` seconds and the enemies in its range `foes` seconds (干员-25, 职业-27)
+ * @property {{ cost: number, hp: number, mul: number } | null} costLife brought to 0 HP, when its owner has the cost — `cost`, × `mul`
+ *   each time before this deployment — it pays and goes on at `hp` of its maximum (干员-25, 职业-27)
+ * @property {{ heal?: { low: number, high: number, below: number }, status?: { key: import('./status.js').StatusKey, seconds: number } } | null} hurt
+ *   what a hit sets off as its 伤判 begins: a heal of itself (`high` below `below` of its maximum HP, else `low`), a status on
+ *   the enemy that dealt it (干员-25, 职业-27); read from the record's `talentTrait`
+ * @property {{ power: string, scale: number } | null} reflect while it is on the field, an enemy's attack on an operator of
+ *   the faction `power` takes true damage of `scale` × its attack (干员-25, 职业-27)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
+ */
+/**
+ * What an attack gets as it starts (干员-24, 职业-26): after `value` seconds without attacking (`idle`; with `fresh`, also
+ * before the first attack since its deployment), or while a dodge is not yet spent (`dodged`, one spent for the attack):
+ * × `scale` on its 倍率, + `atk` attack for it (直接乘算), its stun of `stun` seconds on each hit, × `times` its hits, all the
+ * enemies it blocks as its targets (`blocked`).
+ * @typedef {{ when: 'idle' | 'dodged', value?: number, fresh?: boolean, scale?: number, atk?: number, stun?: number, times?: number, blocked?: boolean }} NextAttack
  */
 /**
  * A talent's steps (干员-20, 职业-25): for its kills (its summons' too with `summons`) or the damage it deals (physical
@@ -327,11 +354,15 @@
  * tiles next to it (`noEnemies4`) or exactly one (`soleEnemy4`); no other friendly unit, summons too, on them
  * (`aloneUnits4`); its skill does not run (`notInSkill`); it has killed no enemy since its deployment (`noKills`); its skill
  * has started fewer than `value` times since its deployment (`fewStarts`), or runs a second time or later (`laterSkill`).
- * With `per`, an `enemies` part's modifiers are × the enemies in its own range, at most `per` (职业-25).
+ * With `per`, an `enemies` part's modifiers are × the enemies in its own range, at most `per` (职业-25). In time (职业-26):
+ * no attack of its ended for `value` seconds (`idle`), no hit took its HP (`unhurt`), no hit's 伤判 began on it (`calm`) —
+ * the deployment counting as such an event, or not with `fresh` —; at least `value` 高台 tiles are behind it and at its
+ * sides (`highSide`).
  * @typedef {{ when: 'blocking' | 'notBlocking' | 'hpAbove' | 'hpBelow' | 'enemies' | 'groundEnemies' | 'eliteEnemies' | 'burstEnemies'
  *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always' | 'inSkill' | 'alchemy'
- *   | 'blockingAtLeast' | 'lowHpEnemies' | 'noEnemies4' | 'soleEnemy4' | 'aloneUnits4' | 'notInSkill' | 'noKills' | 'fewStarts' | 'laterSkill',
- *   value?: number, el?: string, per?: number, mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
+ *   | 'blockingAtLeast' | 'lowHpEnemies' | 'noEnemies4' | 'soleEnemy4' | 'aloneUnits4' | 'notInSkill' | 'noKills' | 'fewStarts' | 'laterSkill'
+ *   | 'idle' | 'unhurt' | 'calm' | 'highSide',
+ *   value?: number, el?: string, per?: number, fresh?: boolean, mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
  */
 /**
  * A trait's 倍率 against a target (职业-17): × `atk` on a hit's attack 倍率 (before the target's 防御), × `dmg` on its 伤害倍率,
@@ -419,9 +450,10 @@
 /**
  * A team talent (部署-5): for the operators of a profession, of one of several (`professions`), of a faction, or every
  * friendly unit (`all`), its blackboard and the modifiers of its effects; `max`: of several such talents, the strongest
- * (同类效果取最高); `skill`: only while its holder's skill runs (true) or does not (false).
+ * (同类效果取最高); `skill`: only while its holder's skill runs (true) or does not (false); `after`: only once its holder has
+ * been on the field that many seconds.
  * @typedef {({ profession: string } | { professions: string[] } | { power: string } | { all: true })
- *   & { bb: Record<string, number>, mods?: Record<string, number>, max?: boolean, skill?: boolean }} TeamTalent
+ *   & { bb: Record<string, number>, mods?: Record<string, number>, max?: boolean, skill?: boolean, after?: number }} TeamTalent
  */
 /**
  * Behaviours by key (ADR 0054, 0055): what a skill or a buff does beyond its data. Content brings them; the default is

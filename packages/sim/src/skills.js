@@ -181,8 +181,8 @@ export function setTimeLeft(st, frames) {
 const runFrames = (kind, seconds) => ((kind === 'duration' || kind === 'passive' || kind === 'ammo') && seconds > 0 && Number.isFinite(seconds) ? secondsToFrames(seconds) : -1);
 
 /**
- * Starts a skill (技能-3, 技能-4): it takes its cost; by kind it lasts its duration, holds its ammo, waits for the next
- * attack, or acts at once and ends. The `skillStart` event (钩子-3) follows its behaviour's start, with why: `manual`,
+ * Starts a skill (技能-3, 技能-4): it takes its cost; by kind it lasts its duration, holds its ammo (more by its holder's
+ * `ammoFlat`, summed: 部署-7), waits for the next attack, or acts at once and ends. The `skillStart` event (钩子-3) follows its behaviour's start, with why: `manual`,
  * `auto` or `deploy` (a passive skill). A free start (content's own, 技能-3) takes no cost.
  * @param {World} w @param {Content} c @param {Unit} op @param {string} [reason] @param {boolean} [free]
  */
@@ -193,7 +193,7 @@ export function activate(w, c, op, reason = 'auto', free = false) {
   st.active = true; st.at = w.frame;
   st.armed = kind === 'next';
   st.dur = runFrames(kind, seconds);
-  st.ammo = kind === 'ammo' ? Math.max(1, def.bb['attack@trigger_time'] ?? def.bb.trigger_time ?? def.bb.cnt ?? 1) : 0;
+  st.ammo = kind === 'ammo' ? Math.max(1, def.bb['attack@trigger_time'] ?? def.bb.trigger_time ?? def.bb.cnt ?? 1) + Math.max(0, Math.floor(statsOf(op).sum.ammoFlat ?? 0)) : 0;
   w.events.push({ type: 'skill', id: op.id, active: 1 });
   talentSkillStart(c, op);
   behaviorOf(c, st.id).start?.(contextOf(w, c, op));
