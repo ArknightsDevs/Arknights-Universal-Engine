@@ -209,3 +209,9 @@ test('[干员-14] deployment parts: SP, random SP, heals of everyone, shield lay
   assert.deepEqual([c('部署后立即对攻击范围内一个敌人投掷闪光弹', { stun: 4 }), c('首次部署后立即获得35点技力', { sp: 35 })], [null, null]);
   assert.deepEqual(operatorAt(await loadTraining('char_180_amgoat'), E2).deployTalents, [{ sp: [7, 16] }], '艾雅法拉');
 });
+
+test('[部署-5] 引星棘刺\'s 视界 from the real data: the attack speed for every unit while she is on the field, from elite 2', async () => {
+  const { loadTraining: load, operatorAt: at } = await import('../src/index.js');
+  const t = await load('char_1039_thorn2'), b = (/** @type {number} */ elite) => ({ elite, level: 1, potential: 1, trust: 0, skill: 0, skillLevel: 1 });
+  assert.deepEqual([at(t, b(1)).fieldAspd, at(t, b(2)).fieldAspd], [undefined, { ally: 5, enemy: -5, cnt: 6, allyExtra: 5, enemyExtra: -5 }]);
+});

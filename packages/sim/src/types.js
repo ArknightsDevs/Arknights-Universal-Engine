@@ -314,7 +314,9 @@
 /**
  * An operator: `branch` is its profession branch (subProfessionId), `trait` the branch's trait (职业-1), `respawnTime`
  * its 再部署时间 in seconds (部署-3; default 60), `talentBb` the blackboard of its always-on talents (部署-4),
- * `fieldTalents` its talents for every operator of a profession or faction while it is on the field (部署-5), `powers`
+ * `fieldTalents` its talents for every operator of a profession or faction while it is on the field (部署-5), `fieldAspd`
+ * the attack speed it gives every friendly unit (`ally`) and every enemy (`enemy`) while on the field, those on a straight
+ * road of at least `cnt` passable ground tiles `allyExtra`, `enemyExtra` more (部署-5), `powers`
  * its factions, `rangeTalents` its talents for the units in its attack range while it is on the field (部署-6),
  * `critTalents` its chances to strike harder (攻击-4), `timedTalents` its talents in time on the field (部署-7),
  * `deployTalents` what its talents do at its deployment (部署-8); from its seat's runes, `runeMods` its always-on buff
@@ -323,7 +325,8 @@
  * and how its card works (`summon`, 召唤-3, 召唤-4); `position` ALL lets it stand on melee and ranged tiles.
  * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
  *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, trait?: Partial<TraitDef>, respawnTime?: number, char?: string,
- *   talentBb?: Record<string, number>, fieldTalents?: TeamTalent[], powers?: string[], rangeTalents?: RangeTalent[],
+ *   talentBb?: Record<string, number>, fieldTalents?: TeamTalent[], fieldAspd?: { ally: number, enemy: number, cnt: number, allyExtra: number, enemyExtra: number },
+ *   powers?: string[], rangeTalents?: RangeTalent[],
  *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[], summoner?: string, summon?: SummonDef,
  *   runeMods?: Record<string, number>, probSp?: { prob: number, sp: number }[], rangeSp?: { sp: number, interval: number }, carried?: CarriedEffect, builder?: BuilderDef }} OperatorDef
  */

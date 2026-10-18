@@ -165,8 +165,9 @@ export function teamTalentsAt(t, b) {
 
 /**
  * The talent fields of an operator record (干员-6, 干员-9, 干员-11…干员-14): the always-on part's 部署费用 and 再部署时间
- * to fold in and the rest as `talentBb`, the on-field team talents, the in-range, chance, timed and deployment talents — each only
- * when there is one.
+ * to fold in and the rest as `talentBb`, the on-field team talents, the in-range, chance, timed and deployment talents, and
+ * the attack speed it gives every unit while on the field (引星棘刺's 视界: `attack_speed_ally`, `attack_speed_enemy`, doubled
+ * on straight roads of `cnt` tiles: 部署-5) — each only when there is one.
  * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod
  */
 function talentFields(t, b, mod) {
@@ -175,9 +176,11 @@ function talentFields(t, b, mod) {
   const lists = [['fieldTalents', teamTalentsAt(t, b).field], ['rangeTalents', talents.map(rangePart).filter((p) => p !== null)],
     ['critTalents', talents.map(critPart).filter((p) => p !== null)], ['timedTalents', talents.map(timedPart).filter((p) => p !== null)],
     ['deployTalents', talents.map(deployPart).filter((p) => p !== null)]];
+  const aspd = talents.find((x) => Number.isFinite(x.bb.attack_speed_ally) && Number.isFinite(x.bb.attack_speed_enemy))?.bb;
   return {
     cost, respawn,
-    fields: { ...(Object.keys(talentBb).length ? { talentBb } : {}), ...Object.fromEntries(lists.filter(([, v]) => v.length > 0)) },
+    fields: { ...(Object.keys(talentBb).length ? { talentBb } : {}), ...Object.fromEntries(lists.filter(([, v]) => v.length > 0)),
+      ...(aspd ? { fieldAspd: { ally: aspd.attack_speed_ally, enemy: aspd.attack_speed_enemy, cnt: aspd.cnt ?? 6, allyExtra: aspd.attack_speed_ally_extra ?? 0, enemyExtra: aspd.attack_speed_enemy_extra ?? 0 } } : {}) },
   };
 }
 

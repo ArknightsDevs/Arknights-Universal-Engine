@@ -22,7 +22,7 @@ import { alchemyDef, inAlchemy, groundFoe } from './alchemy.js';
  */
 
 /** The keys of the aura buffs. */
-const AURA_KEYS = /^(?:aura|field|range|doll|mod|ally|inspire|alchemy):/;
+const AURA_KEYS = /^(?:aura|field|range|doll|mod|ally|inspire|alchemy|aspd):/;
 /** Whether a buff is an aura's. @param {{ key: string }} b */
 const isAura = (b) => AURA_KEYS.test(b.key);
 
@@ -62,6 +62,54 @@ function fieldTalents(c, src, ops, want) {
     const mods = statMods(t.bb);
     for (const u of ops) if (teamFits(t, c.operators[u.key])) want.get(u)?.set(`field:${src.id}:${i}`, { src: src.id, value: 0, mods });
   });
+}
+
+/** Each level's tiles on a straight road, by the road length asked (部署-5). @type {WeakMap<object, Map<number, Set<number>>>} */
+const ROADS = new WeakMap();
+
+/**
+ * The tiles (row × width + column) on a straight road of at least `cnt` passable ground tiles, along a row or a column
+ * (部署-5: 引星棘刺's 视界) — worked out once for a level.
+ * @param {Content['level']} level @param {number} cnt @returns {Set<number>}
+ */
+export function straightRoads(level, cnt) {
+  let byCnt = ROADS.get(level);
+  if (!byCnt) ROADS.set(level, (byCnt = new Map()));
+  const known = byCnt.get(cnt);
+  if (known) return known;
+  /** @type {Set<number>} */
+  const keys = new Set(), W = level.width, H = level.height, ok = (/** @type {number} */ r, /** @type {number} */ c) => level.tiles[r]?.[c]?.passable === 'ALL';
+  /** @param {number} n @param {(i: number) => number[]} at the row and column of the i-th tile of the line */
+  const line = (n, at) => {
+    for (let i = 0, run = 0; i <= n; i++) {
+      const [r, c] = i < n ? at(i) : [-1, -1];
+      if (i < n && ok(r, c)) { run++; continue; }
+      if (run >= cnt) for (let j = i - run; j < i; j++) { const [rr, cc] = at(j); keys.add(rr * W + cc); }
+      run = 0;
+    }
+  };
+  for (let r = 0; r < H; r++) line(W, (i) => [r, i]);
+  for (let c = 0; c < W; c++) line(H, (i) => [i, c]);
+  byCnt.set(cnt, keys);
+  return keys;
+}
+
+/**
+ * The attack speed one source gives while on the field (部署-5: 引星棘刺's 视界): every friendly unit (summons too, itself
+ * too) + `ally`, every enemy (not neutral) + `enemy`; those on a straight road (straightRoads) their extra too — a buff
+ * `aspd:<its id>` each.
+ * @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
+ */
+function fieldAspd(c, src, units, want) {
+  const f = c.operators[src.key].fieldAspd;
+  if (!f) return;
+  const roads = straightRoads(c.level, f.cnt), W = c.level.width;
+  for (const u of units) {
+    const ally = u.kind === KIND.OPERATOR;
+    if (!ally && !hostile(u)) continue;
+    const [r, col] = tileOf(u), v = (ally ? f.ally : f.enemy) + (roads.has(r * W + col) ? (ally ? f.allyExtra : f.enemyExtra) : 0);
+    if (v !== 0) want.get(u)?.set(`aspd:${src.id}`, { src: src.id, value: v, mods: { aspd: v } });
+  }
 }
 
 /**
@@ -207,6 +255,7 @@ export function auras(w, c) {
   for (const src of ops) {
     regenAura(c, src, ops, want);
     fieldTalents(c, src, ops, want);
+    fieldAspd(c, src, units, want);
     rangeTalents(c, src, units, want);
     dollAura(c, src, units, want);
     moduleAuras(w, c, src, units, want);
