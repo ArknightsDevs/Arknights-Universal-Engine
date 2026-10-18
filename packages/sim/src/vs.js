@@ -1,6 +1,6 @@
-// A trait's 倍率 by the target (docs/spec/traits.md 职业-17): an operator's hits on a target as it stands — its attack
-// 倍率 before the target's 防御, its 伤害倍率 after —, its heals by the one it heals, and a whole attack's by how many
-// enemies its splash reaches.
+// A trait's 倍率 by the target (docs/spec/traits.md 职业-17, 职业-24): an operator's hits on a target as it stands — its
+// attack 倍率 before the target's 防御, its 伤害倍率 after, more 无视防御 —, its heals by the one it heals, and a whole
+// attack's by how many enemies its splash reaches.
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { bursting } from './elements.js';
@@ -29,30 +29,40 @@ function nearBy(op, t) {
   return Math.max(Math.abs(tr - or), Math.abs(tc - oc)) <= 1;
 }
 
+/** The tags of an enemy's record (关卡-1); none for another unit. @param {Content} c @param {Unit} t @returns {string[]} */
+const tagsOf = (c, t) => (t.kind === KIND.ENEMY ? /** @type {{ tags?: string[] }} */ (c.enemies[t.key] ?? {}).tags ?? [] : []);
+
 /**
- * The target conditions (职业-17), each asked of the operator and the target as the hit (when there is one) or the heal
- * is worked out.
- * @type {Readonly<Record<VsScale['when'], (w: World, op: Unit, t: Unit, value: number, dmg?: Damage) => boolean>>}
+ * The target conditions (职业-17, 职业-24), each asked of the operator and the target as the hit (when there is one) or
+ * the heal is worked out.
+ * @type {Readonly<Record<VsScale['when'], (w: World, op: Unit, t: Unit, v: { value: number, dmg?: Damage, c: Content, x: VsScale }) => boolean>>}
  */
 const WHEN = Object.freeze({
   blocked: (w, _op, t) => inBlock(w, t),
   flying: (_w, _op, t) => statsOf(t).flying,
   skillGround: (_w, op, t) => inSkill(op) && !statsOf(t).flying,
-  hpBelow: (_w, _op, t, v) => t.hp < v * statsOf(t).maxHp,
-  heavy: (_w, _op, t, v) => statsOf(t).massLevel >= v,
+  hpBelow: (_w, _op, t, v) => t.hp < v.value * statsOf(t).maxHp,
+  heavy: (_w, _op, t, v) => statsOf(t).massLevel >= v.value,
   front: (_w, op, t) => inFront(op, t),
   near: (_w, op, t) => nearBy(op, t),
   burst: (_w, _op, t) => bursting(t),
   onGround: (_w, _op, t) => t.z === 0,
-  skill: (_w, _op, _t, _v, dmg) => !!dmg?.isSkill,
+  skill: (_w, _op, _t, v) => !!v.dmg?.isSkill,
   elite: (_w, _op, t) => t.base.levelType === 'ELITE' || t.base.levelType === 'BOSS',
+  unblocked: (w, _op, t) => !inBlock(w, t),
+  notOwnBlocked: (_w, op, t) => t.blockedBy !== op.id,
+  hpAbove: (_w, _op, t, v) => t.hp > v.value * statsOf(t).maxHp,
+  light: (_w, _op, t, v) => statsOf(t).massLevel <= v.value,
+  tag: (_w, _op, t, v) => !!v.x.tag && tagsOf(v.c, t).includes(v.x.tag),
+  rangedFoe: (_w, _op, t) => t.kind === KIND.ENEMY && t.base.applyWay === 'RANGED',
+  status: (_w, _op, t, v) => !!v.x.status && !!statsOf(t).flags[v.x.status],
 });
 
 /**
- * Whether a 倍率's condition holds for the target (and the hit). @param {World} w @param {Unit} op @param {Unit} t @param {VsScale} v
- * @param {Damage} [dmg]
+ * Whether a 倍率's condition holds for the target (and the hit). @param {World} w @param {Content} c
+ * @param {{ op: Unit, t: Unit, dmg?: Damage }} at @param {VsScale} v
  */
-const holds = (w, op, t, v, dmg) => WHEN[v.when](w, op, t, v.value ?? 0, dmg);
+const holds = (w, c, at, v) => WHEN[v.when](w, at.op, at.t, { value: v.value ?? 0, dmg: at.dmg, c, x: v });
 
 /**
  * The 伤害倍率 by the distance to the target (职业-17): 1 up to `min` tiles, rising in a line to 1 + `dmg` at `max` and on.
@@ -69,11 +79,13 @@ function crowdOf(w, c, op) {
   return w.units.filter((u) => hostile(u) && u.hp > 0 && !u.hidden && inKeys(u, keys, grid)).length;
 }
 
-/** One 倍率 on a hit whose condition holds (职业-17). @param {Damage} dmg @param {VsScale} v */
+/** One 倍率 on a hit whose condition holds (职业-17, 职业-24). @param {Damage} dmg @param {VsScale} v */
 function scaleHit(dmg, v) {
   if (v.atk) dmg.amount *= v.atk;
   if (v.dmg) dmg.mul = (dmg.mul ?? 1) * v.dmg;
   if (v.noDodge && dmg.type === 'phys') dmg.canDodge = false;
+  if (v.defFlat) dmg.defIgnoreFlat = (dmg.defIgnoreFlat ?? 0) + v.defFlat;
+  if (v.defPct) dmg.defIgnorePct = (dmg.defIgnorePct ?? 0) + v.defPct;
 }
 
 /**
@@ -86,7 +98,7 @@ function scaleHit(dmg, v) {
 export function vsDamage(w, c, op, t, dmg) {
   if (op.kind !== KIND.OPERATOR || dmg.sourceless || dmg.hpLoss || dmg.type === 'elemental') return;
   const tr = traitOf(c, op);
-  for (const v of tr.vs) if ((v.atk || v.dmg) && holds(w, op, t, v, dmg)) scaleHit(dmg, v);
+  for (const v of tr.vs) if ((v.atk || v.dmg || v.defFlat || v.defPct) && holds(w, c, { op, t, dmg }, v)) scaleHit(dmg, v);
   if (tr.far) dmg.mul = (dmg.mul ?? 1) * farMul(op, t, tr.far);
   if (tr.crowd) dmg.mul = (dmg.mul ?? 1) * (1 + tr.crowd.step * Math.min(tr.crowd.cap, crowdOf(w, c, op)));
 }
@@ -99,7 +111,7 @@ export function vsDamage(w, c, op, t, dmg) {
 export function vsEp(w, c, src, t) {
   if (!src || src.kind !== KIND.OPERATOR) return 1;
   let k = statsOf(src).epDealtMul;
-  for (const v of traitOf(c, src).vs) if (v.ep && holds(w, src, t, v)) k *= v.ep;
+  for (const v of traitOf(c, src).vs) if (v.ep && holds(w, c, { op: src, t }, v)) k *= v.ep;
   return k;
 }
 
@@ -111,6 +123,6 @@ export function vsEp(w, c, src, t) {
 export function vsHeal(w, c, src, t) {
   if (!src || src.kind !== KIND.OPERATOR) return 1;
   let k = 1;
-  for (const v of traitOf(c, src).vs) if (v.heal && holds(w, src, t, v)) k *= v.heal;
+  for (const v of traitOf(c, src).vs) if (v.heal && holds(w, c, { op: src, t }, v)) k *= v.heal;
   return k;
 }

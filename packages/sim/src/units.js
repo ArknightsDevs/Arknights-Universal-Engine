@@ -52,13 +52,13 @@ function fresh(w, base, buffs = []) {
 }
 
 /**
- * The buffs an operator is deployed with (部署-4, 部署-7, 符文-3): its always-on talents' attribute keys as one buff
- * without an end; its seat runes' modifiers as another (`rune`); each timed talent as a buff `timed:<index>` — for a
- * 'during' one its modifiers for its time, for the others a step a time (timedBehaviors).
+ * The buffs an operator is deployed with (部署-4, 部署-7, 符文-3): its always-on talents' attribute keys and their effects'
+ * modifiers as one buff without an end; its seat runes' modifiers as another (`rune`); each timed talent as a buff
+ * `timed:<index>` — for a 'during' one its modifiers for its time, for the others a step a time (timedBehaviors).
  * @param {OperatorDef} d
  */
 function talentBuffs(d) {
-  const mods = statMods(d.talentBb ?? {});
+  const mods = { ...statMods(d.talentBb ?? {}), ...d.talentMods };
   const timed = (d.timedTalents ?? []).map((t, i) => (t.kind === 'during'
     ? makeBuff({ key: `timed:${i}`, left: secondsToFrames(t.seconds), mods: t.mods })
     : makeBuff({ key: `timed:${i}`, every: Math.max(1, secondsToFrames(t.seconds)), fixed: true })));

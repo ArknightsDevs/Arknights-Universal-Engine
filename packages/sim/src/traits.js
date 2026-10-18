@@ -7,6 +7,7 @@ import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff } from './buffs.js';
 import { inflict } from './status.js';
 import { dealDamage, heal } from './damage.js';
+import { draw } from './rng.js';
 import { dealEp } from './elements.js';
 import { vsDamage, vsHeal, vsEp } from './vs.js';
 import { afterOwnHit } from './riders.js';
@@ -26,13 +27,14 @@ export const defaultTrait = (position) => ({
   rangedTiles: false, meleeTiles: false, skillArts: false, immuneBlocking: [], hpDrain: 0, costDrain: null, zone: null, chain: null, healOnHit: 0,
   attackInSkill: false, idleMods: {}, idleFlags: {}, idleAirOnly: false, skillSplash: null, liftoffBlock: 0, fortress: 0, charge: null, skillHeal: 0, bullets: null, store: 0, epHeal: 0, funnel: null, boomerang: null, noAttack: false, free: false, noInspire: false, spendAtk: null, regenAura: 0,
   summonBlocked: false, summonBlockedScale: 1, trapTiles: false, doll: null, vs: [], far: null, crowd: null, packed: null, whiles: [], extraArts: 0, counterArts: 0, epRider: null, burstHit: null, spOn: null, payStack: null, auras: [],
-  firstCost: 0, firstRetreatRespawn: 1, refundUncapped: false, freeSummons: 0, summonRangedTiles: false, summonBoost: null, aftershocks: 1, secondLife: null, pushBoost: null, pullBoost: null, pullTrauma: null, rangedRefund: 0, bb: {},
+  firstCost: 0, firstRetreatRespawn: 1, refundUncapped: false, freeSummons: 0, summonRangedTiles: false, summonBoost: null, aftershocks: 1, secondLife: null, pushBoost: null, pullBoost: null, pullTrauma: null, rangedRefund: 0, onHit: [], bb: {},
 });
 
 /**
  * Each record's last trait and what it was made from — its position, its trait object and that object's own fields in
- * order — given again while they are the same (the trait is asked for many times a frame). Not part of the state.
- * @type {WeakMap<OperatorDef, { trait: TraitDef, position: string, src: unknown, fields: unknown[] }>}
+ * order, its talents' additions — given again while they are the same (the trait is asked for many times a frame). Not
+ * part of the state.
+ * @type {WeakMap<OperatorDef, { trait: TraitDef, position: string, src: unknown, fields: unknown[], talents: unknown }>}
  */
 const traitMemo = new WeakMap();
 
@@ -56,15 +58,31 @@ function sameFields(o, fields) {
 }
 
 /**
- * An operator record's trait: its own fields over the defaults of its position (职业-1). The same object as the last
- * time while the record's position and trait fields are the same; never change it.
+ * A trait with what its operator's talents add (职业-24): their conditional modifiers, target 倍率 and hit effects after
+ * the trait's own, their 法术伤害 on each hit added to its, their number of targets when it is more than a number the
+ * trait has.
+ * @param {TraitDef} t @param {Partial<TraitDef> | undefined} a @returns {TraitDef}
+ */
+function withTalents(t, a) {
+  if (!a) return t;
+  const more = typeof a.targets === 'number' && typeof t.targets === 'number' && a.targets > t.targets;
+  return {
+    ...t, whiles: [...t.whiles, ...(a.whiles ?? [])], vs: [...t.vs, ...(a.vs ?? [])], onHit: [...t.onHit, ...(a.onHit ?? [])],
+    extraArts: t.extraArts + (a.extraArts ?? 0), ...(more ? { targets: a.targets } : {}),
+  };
+}
+
+/**
+ * An operator record's trait: its own fields over the defaults of its position (职业-1), with its talents' additions
+ * (职业-24). The same object as the last time while the record's position, trait fields and talents' additions are the
+ * same; never change it.
  * @param {OperatorDef} d @returns {TraitDef}
  */
 export function traitOfDef(d) {
   const m = traitMemo.get(d);
-  if (m !== undefined && m.position === d.position && m.src === d.trait && sameFields(d.trait, m.fields)) return m.trait;
-  const trait = { ...defaultTrait(d.position), ...d.trait };
-  traitMemo.set(d, { trait, position: d.position, src: d.trait, fields: fieldsOf(d.trait) });
+  if (m !== undefined && m.position === d.position && m.src === d.trait && m.talents === d.talentTrait && sameFields(d.trait, m.fields)) return m.trait;
+  const trait = withTalents({ ...defaultTrait(d.position), ...d.trait }, d.talentTrait);
+  traitMemo.set(d, { trait, position: d.position, src: d.trait, fields: fieldsOf(d.trait), talents: d.talentTrait });
   return trait;
 }
 
@@ -203,13 +221,38 @@ export function traitDeploy(w, c, op) {
 }
 
 /**
- * After each hit of an operator's attack (职业-4): the trait's status on the target, then its behaviour.
+ * After each hit of an operator's attack (职业-4, 职业-24): the trait's status on the target, its talents' hit effects in
+ * order, then its behaviour.
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target
  */
 export function traitHit(w, c, op, target) {
   const t = traitOf(c, op);
   if (t.hitStatus && target.hp > 0) inflict(w, target, t.hitStatus.key, { seconds: t.hitStatus.seconds, src: op, ...(t.hitStatus.value !== undefined ? { value: t.hitStatus.value } : {}) });
+  t.onHit.forEach((h, i) => talentHit(w, op, target, { h, i }));
   behaviorOf(c, op)?.hit?.(contextOf(w, c, op), target);
+}
+
+/**
+ * A talent's effect on a target its operator's attack hit (职业-24), while the target has HP: once on each enemy for a
+ * `first` one — the target keeps a buff `seen:<operator id>:<n>` without an end —; at its chance (one draw) when it has
+ * one; its status (状态-5), or its modifiers for its seconds as a buff `talentHit:<operator id>:<n>`, the time starting
+ * again at each hit.
+ * @param {World} w @param {Unit} op @param {Unit} target @param {{ h: import('./types.js').TalentHit, i: number }} at
+ */
+function talentHit(w, op, target, { h, i }) {
+  if (target.hp <= 0) return;
+  if (h.first) {
+    const seen = `seen:${op.id}:${i}`;
+    if (target.buffs.some((b) => b.key === seen)) return;
+    addBuff(target, makeBuff({ key: seen, src: op.id }));
+  }
+  if (h.prob !== undefined && draw(w) >= h.prob) return;
+  if (h.status) inflict(w, target, h.status.key, { seconds: h.status.seconds, src: op, ...(h.status.value !== undefined ? { value: h.status.value } : {}) });
+  if (h.debuff) {
+    const key = `talentHit:${op.id}:${i}`;
+    removeBuff(target, key);
+    addBuff(target, makeBuff({ key, src: op.id, left: secondsToFrames(h.debuff.seconds), mods: h.debuff.mods }));
+  }
 }
 
 /**

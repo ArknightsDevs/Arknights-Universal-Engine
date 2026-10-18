@@ -43,38 +43,108 @@ function clauseKeys(words, unit, table, g) {
   return keys.every((k) => SHARES.includes(k) === (unit === '%')) ? keys : null;
 }
 
+/** An attribute clause written the other way round (干员-6): 获得 and a signed number before the attributes (「获得+18%攻击力」). */
+const CLAUSE_AFTER = new RegExp(`^获得[+＋\\-－]\\d+(?:\\.\\d+)?(%)?((?:${ATTR})(?:[和、](?:${ATTR}))*)$`);
+
+/** @param {Record<string, number>} bb @param {string} k */
+const has = (bb, k) => Number.isFinite(bb[k]);
+/** A number of the blackboard as 1 − it: the share left by a reduction (庇护, 减伤). @param {number} v */
+const left = (v) => 1 - v;
+
 /**
- * The blackboard keys the leading clauses of a text name, while they only raise the operator's own attributes (干员-6),
- * and how many clauses those are: from the first clause between ，on, each that is attributes and a signed number.
- * @param {string} sentence @returns {{ keys: Set<string>, n: number }}
+ * The effects on the operator itself that are not attributes (干员-16): a clause, the blackboard key it takes its number
+ * from, and the modifiers (属性-2, 伤害-8) that number gives.
+ * @type {readonly [RegExp, string, (v: number) => Record<string, number>][]}
  */
-function leadingKeys(sentence) {
-  const keys = new Set(), clauses = sentence.split('，');
-  let n = 0;
-  for (; n < clauses.length; n++) {
-    const m = CLAUSE.exec(clauses[n].trim()), named = m ? clauseKeys(m[1], m[2], WORDS, ATTR_G) : null;
-    if (!named) break;
-    for (const k of named) keys.add(k);
-  }
-  return { keys, n };
+const EFFECTS = Object.freeze([
+  [/^(?:攻击时?)?无视(?:攻击)?(?:目标|敌人)的?\d+点?的?防御力$/u, 'def_penetrate_fixed', (v) => ({ defIgnoreFlat: v })],
+  [/^攻击时?无视(?:目标|敌人)\d+(?:\.\d+)?%的防御力$/u, 'def_penetrate', (v) => ({ defIgnorePct: v })],
+  [/^(?:攻击时?)?无视(?:攻击)?目标\d+点?法术抗性$/u, 'magic_resist_penetrate_fixed', (v) => ({ resIgnoreFlat: v })],
+  [/^(?:自身)?(?:获得|拥有)\d+(?:\.\d+)?%的?物理闪避$/u, 'prob', (v) => ({ dodgePhys: v })],
+  [/^(?:自身)?(?:获得|拥有)\d+(?:\.\d+)?%的?法术闪避$/u, 'prob', (v) => ({ dodgeArts: v })],
+  [/^(?:自身)?(?:获得|拥有)\d+(?:\.\d+)?%的?物理和法术闪避$/u, 'prob', (v) => ({ dodgePhys: v, dodgeArts: v })],
+  [/^攻击距离[+＋]\d+$/u, 'ability_range_forward_extend', (v) => ({ rangeExtend: v })],
+  [/^(?:自身)?造成的物理伤害[+＋]\d+(?:\.\d+)?%$/u, 'damage_scale', (v) => ({ physDealtMul: v })],
+  [/^(?:自身)?受到的物理伤害[-－]\d+(?:\.\d+)?%$/u, 'damage_resistance', (v) => ({ physTakenMul: left(v) })],
+  [/^(?:自身)?获得\d+(?:\.\d+)?%的物理减伤$/u, 'damage_resistance', (v) => ({ physTakenMul: left(v) })],
+  [/^(?:自身)?受到的元素损伤[-－]\d+(?:\.\d+)?%$/u, 'damage_resistance', (v) => ({ epTakenMul: left(v) })],
+  [/^每秒(?:回复|恢复)\d+(?:\.\d+)?%的?(?:最大)?生命值?$/u, 'hp_recovery_per_sec_by_max_hp_ratio', (v) => ({ hpRegenRatio: v })],
+  [/^每秒恢复最大生命值\d+(?:\.\d+)?%的生命$/u, 'hp_recovery_per_sec_by_max_hp_ratio', (v) => ({ hpRegenRatio: v })],
+]);
+
+/**
+ * One clause about the operator itself (干员-6, 干员-16), or null: its own attributes (the keys they name, with the %
+ * agreeing — the other way round too, 「获得+18%攻击力」), or an effect that is not an attribute (EFFECTS, its key in the
+ * blackboard) as modifiers; with the blackboard keys it uses.
+ * @param {string} clause @param {Record<string, number>} bb
+ * @returns {{ keys: string[], mods: Record<string, number> } | null}
+ */
+export function selfClause(clause, bb) {
+  const s = clause.trim(), m = CLAUSE.exec(s), r = m ? null : CLAUSE_AFTER.exec(s);
+  const named = m ? clauseKeys(m[1], m[2], WORDS, ATTR_G) : r ? clauseKeys(r[2], r[1], WORDS, ATTR_G) : null;
+  if (named) return { keys: named, mods: {} };
+  const e = EFFECTS.find(([re]) => re.test(s));
+  return e && has(bb, e[1]) ? { keys: [e[1]], mods: e[2](bb[e[1]]) } : null;
 }
 
 /**
- * The always-on part of a talent (干员-6): its description's rich-text tags and bracketed potential differences
- * removed, the leading clauses of the first sentence (up to 。 or ；) that only raise the operator's own attributes —
- * at least one, every key they name in the blackboard; those keys and their values. When nothing follows them, every
- * other key must be 0; the rest of their sentence must not speak of an 效果 (it may change theirs). Null when the
- * talent has no such part; hidden talents have none.
+ * The leading clauses of a sentence about the operator itself (干员-6, 干员-16): from the first clause between ，on, each
+ * selfClause reads — the attribute keys they name, the effects' modifiers, every key they use, how many clauses.
+ * @param {string} sentence @param {Record<string, number>} bb
+ * @returns {{ attrs: Set<string>, keys: Set<string>, mods: Record<string, number>, n: number }}
+ */
+function leadingParts(sentence, bb) {
+  const attrs = new Set(), keys = new Set(), mods = /** @type {Record<string, number>} */ ({}), clauses = sentence.split('，');
+  let n = 0;
+  for (; n < clauses.length; n++) {
+    const p = selfClause(clauses[n], bb);
+    if (!p) break;
+    for (const k of p.keys) keys.add(k);
+    if (Object.keys(p.mods).length) Object.assign(mods, p.mods);
+    else for (const k of p.keys) attrs.add(k);
+  }
+  return { attrs, keys, mods, n };
+}
+
+/** A later sentence that changes the always-on part (干员-6): 「……后效果翻倍」. */
+const DOUBLES = /效果翻倍/u;
+
+/**
+ * The always-on clauses of a talent (干员-6, 干员-16): its description's rich-text tags and bracketed potential
+ * differences removed, the leading clauses of the first sentence (up to 。 or ；) about the operator itself — at least
+ * one, every key they use in the blackboard. When nothing follows them, every other key must be 0; the rest of their
+ * sentence must not speak of an 效果 (it may change theirs), nor a later sentence of 「效果翻倍」. Null otherwise; hidden
+ * talents have none.
+ * @param {Talent} c @returns {{ attrs: Set<string>, mods: Record<string, number> } | null}
+ */
+function alwaysParts(c) {
+  if (c.hidden || !c.description) return null;
+  const text = c.description.replace(/<[^>]*>/g, '').replace(/（[^）]*）/g, '').replace(/[。；]+$/, '');
+  const first = text.split(/[。；]/)[0], { attrs, keys, mods, n } = leadingParts(first, c.bb);
+  if (!n || ![...keys].every((k) => has(c.bb, k))) return null;
+  const lead = first.split('，').slice(0, n).join('，');
+  if (text.length > lead.length ? first.slice(lead.length).includes('效果') || DOUBLES.test(text.slice(first.length)) : !Object.entries(c.bb).every(([k, v]) => keys.has(k) || v === 0)) return null;
+  return { attrs, mods };
+}
+
+/**
+ * The always-on part of a talent (干员-6): the attribute keys of its always-on clauses (alwaysParts) and their values;
+ * null when it has none.
  * @param {Talent} c @returns {Record<string, number> | null}
  */
 export function alwaysOn(c) {
-  if (c.hidden || !c.description) return null;
-  const text = c.description.replace(/<[^>]*>/g, '').replace(/（[^）]*）/g, '').replace(/[。；]+$/, '');
-  const first = text.split(/[。；]/)[0], { keys, n } = leadingKeys(first);
-  if (!n || ![...keys].every((k) => Number.isFinite(c.bb[k]))) return null;
-  const lead = first.split('，').slice(0, n).join('，');
-  if (text.length > lead.length ? first.slice(lead.length).includes('效果') : !Object.entries(c.bb).every(([k, v]) => keys.has(k) || v === 0)) return null;
-  return Object.fromEntries([...keys].map((k) => [k, c.bb[k]]));
+  const p = alwaysParts(c);
+  return p && p.attrs.size ? Object.fromEntries([...p.attrs].map((k) => [k, c.bb[k]])) : null;
+}
+
+/**
+ * The always-on effects of a talent that are not attributes (干员-16): the modifiers of its always-on clauses' effects
+ * (alwaysParts); null when it has none.
+ * @param {Talent} c @returns {Record<string, number> | null}
+ */
+export function alwaysMods(c) {
+  const p = alwaysParts(c);
+  return p && Object.keys(p.mods).length ? p.mods : null;
 }
 
 /**
@@ -86,6 +156,51 @@ export function alwaysOnBb(talents) {
   const bb = {};
   for (const c of talents) for (const [k, v] of Object.entries((c && alwaysOn(c)) ?? {})) if (v !== 0) bb[k] = (bb[k] ?? 0) + v;
   return bb;
+}
+
+/**
+ * The always-on effects of a training's talents (干员-16): their modifiers, a product's (…Mul) multiplied and the others
+ * summed.
+ * @param {(Talent | null)[]} talents @returns {Record<string, number>}
+ */
+export function alwaysModsOf(talents) {
+  /** @type {Record<string, number>} */
+  const out = {};
+  for (const c of talents) {
+    for (const [k, v] of Object.entries((c && alwaysMods(c)) ?? {})) out[k] = k.endsWith('Mul') ? (out[k] ?? 1) * v : (out[k] ?? 0) + v;
+  }
+  return out;
+}
+
+/** A description in parts by the skill brought (干员-6): 「装备技能1时……，装备技能2时……」. */
+const BY_SKILL = /^装备技能(\d)时[，,]?/u;
+
+/**
+ * The blackboard keys a part of a description uses (干员-6): those its attribute words name, and those of its clauses
+ * about the operator itself (selfClause). @param {string} s @param {Record<string, number>} bb
+ */
+function partKeys(s, bb) {
+  const keys = new Set((s.match(ATTR_G) ?? []).map((w) => WORDS[w]));
+  for (const clause of s.split(/[，,]/u)) for (const k of selfClause(clause, bb)?.keys ?? []) keys.add(k);
+  return keys;
+}
+
+/**
+ * A talent as it reads for the skill brought (干员-6): when its description is parts each beginning 「装备技能N时」 (split
+ * before each, at ，or ；), the part of the skill slot (N − 1) without those words, and the blackboard without the keys
+ * the other parts use (partKeys; the part's own kept); as it is otherwise, or when no part is the slot's.
+ * @param {Talent} c @param {number} slot the skill's slot, 0-based
+ * @returns {Talent}
+ */
+export function forSkill(c, slot) {
+  if (c.hidden || !c.description) return c;
+  const parts = c.description.replace(/<[^>]*>/g, '').replace(/（[^）]*）|\([^)]*\)/g, '').replace(/[。；]+$/u, '').split(/[，；](?=装备技能\d时)/u).map((s) => s.trim());
+  if (parts.length < 2 || !parts.every((s) => BY_SKILL.test(s))) return c;
+  const own = parts.find((s) => Number(BY_SKILL.exec(s)?.[1]) === slot + 1);
+  if (!own) return c;
+  const text = (/** @type {string} */ s) => s.replace(BY_SKILL, ''), mine = partKeys(text(own), c.bb);
+  const others = new Set(parts.filter((s) => s !== own).flatMap((s) => [...partKeys(text(s), c.bb)]));
+  return { ...c, description: text(own), bb: Object.fromEntries(Object.entries(c.bb).filter(([k]) => mine.has(k) || !others.has(k))) };
 }
 
 /** The professions a team talent names (干员-9), by their Chinese names. */
@@ -106,21 +221,31 @@ const TEAM_ATTR_G = new RegExp(TEAM_ATTR, 'g');
 const REGEN = /^每秒回复\d+(?:\.\d+)?点生命$/;
 /** The keys an on-field team talent may carry: attributes a buff can hold (技能-5). */
 const FIELD_KEYS = Object.freeze(['atk', 'def', 'max_hp', 'attack_speed', 'magic_resistance', 'sp_recovery_per_sec', 'hp_recovery_per_sec']);
+/** Every friendly unit on the field (干员-9): 「全场友方单位」, 「在场时（，）所有友方单位（的）」, 「在场时（，）全地图的友方单位」. */
+const ALL_HEAD = /^(?:全场友方单位|在场时[，,]?(?:所有友方单位的?|全地图的友方单位))/u;
+/** The team clauses of an on-field effect that is not an attribute (干员-9): the clause, its key, its modifiers. @type {readonly [RegExp, string, (v: number) => Record<string, number>][]} */
+const TEAM_EFFECTS = Object.freeze([
+  [/^获得\d+(?:\.\d+)?%的物理闪避$/u, 'prob', (v) => ({ dodgePhys: v })],
+  [/^医疗效果提高\d+(?:\.\d+)?%$/u, 'heal_scale', (v) => ({ healingDealtMul: v })],
+]);
 
 /**
- * The keys the leading team clauses name, and how many clauses those are (干员-9).
- * @param {string[]} clauses @returns {{ keys: Set<string>, n: number }}
+ * The keys the leading team clauses name, the modifiers of those that are effects, and how many clauses those are
+ * (干员-9).
+ * @param {string[]} clauses @param {Record<string, number>} bb @returns {{ keys: Set<string>, mods: Record<string, number>, n: number }}
  */
-function teamKeys(clauses) {
-  const keys = new Set();
+function teamKeys(clauses, bb) {
+  const keys = new Set(), mods = /** @type {Record<string, number>} */ ({});
   let n = 0;
   for (; n < clauses.length; n++) {
     const cl = clauses[n].trim(), m = TEAM_CLAUSE.exec(cl), named = m ? clauseKeys(m[1], m[2], TEAM_WORDS, TEAM_ATTR_G) : null;
+    const e = named ? null : TEAM_EFFECTS.find(([re]) => re.test(cl));
     if (REGEN.test(cl)) keys.add('hp_recovery_per_sec');
     else if (named) for (const k of named) keys.add(k);
+    else if (e && has(bb, e[1])) Object.assign(mods, e[2](bb[e[1]]));
     else break;
   }
-  return { keys, n };
+  return { keys, mods, n };
 }
 
 /**
@@ -133,23 +258,39 @@ function whomOf(name) {
 }
 
 /**
- * The team part of a talent (干员-9): its first sentence begins 「编入队伍时」 (the deck) or 「在场时」 (on the field),
- * then 「所有（友方）【profession or faction】（职业 / 势力的）干员（的）」, then leading clauses as in 干员-6 — attributes
- * with a signed number (or 提升 and a number), or 「每秒回复N点生命」 — every key they name in the blackboard, the rest of
- * the sentence not speaking of an 效果. An on-field one carries only attributes a buff can hold. Null otherwise;
- * hidden talents have none.
+ * Whom a team talent's first sentence names and the rest of it (干员-9): 「编入队伍时」 (the deck) or 「在场时」 (on the
+ * field), then 「所有（友方）【profession or faction】（职业 / 势力的）干员（的）」; or every friendly unit on the field
+ * (ALL_HEAD). Null for another beginning.
+ * @param {string} first
+ * @returns {{ when: 'deck' | 'field', whom: { profession: string } | { power: string } | { all: true }, rest: string } | null}
+ */
+function teamHead(first) {
+  const all = ALL_HEAD.exec(first);
+  if (all) return { when: 'field', whom: { all: true }, rest: first.slice(all[0].length) };
+  const head = TEAM_HEAD.exec(first), whom = head ? whomOf(head[2] ?? head[3]) : null;
+  return head && whom ? { when: head[1] === '在场时' ? 'field' : 'deck', whom, rest: first.slice(head[0].length) } : null;
+}
+
+/**
+ * The team part of a talent (干员-9): its first sentence begins with whom it is for (teamHead), then leading clauses as
+ * in 干员-6 — attributes with a signed number (or 提升 and a number), 「每秒回复N点生命」, or an effect (TEAM_EFFECTS:
+ * 物理闪避, 医疗效果) — every key they use in the blackboard, the rest of the sentence not speaking of an 效果. An on-field
+ * one carries only attributes a buff can hold, a deck one no effect; 「同类效果取最高」 in the description makes it
+ * `max`. Null otherwise; hidden talents have none.
  * @param {Talent} c
- * @returns {({ when: 'deck' | 'field', bb: Record<string, number> } & ({ profession: string } | { power: string })) | null}
+ * @returns {({ when: 'deck' | 'field', bb: Record<string, number>, mods?: Record<string, number>, max?: true }
+ *   & ({ profession: string } | { power: string } | { all: true })) | null}
  */
 export function teamPart(c) {
   if (c.hidden || !c.description) return null;
-  const first = c.description.replace(/<[^>]*>/g, '').replace(/（[^）]*）/g, '').split(/[。；]/)[0], head = TEAM_HEAD.exec(first);
-  const whom = head ? whomOf(head[2] ?? head[3]) : null;
-  if (!head || !whom) return null;
-  const clauses = first.slice(head[0].length).split('，'), { keys, n } = teamKeys(clauses), when = head[1] === '在场时' ? 'field' : 'deck';
+  const plain = c.description.replace(/<[^>]*>/g, ''), head = teamHead(plain.replace(/（[^）]*）/g, '').split(/[。；]/)[0]);
+  if (!head) return null;
+  const clauses = head.rest.split('，'), { keys, mods, n } = teamKeys(clauses, c.bb), when = head.when, effects = Object.keys(mods).length > 0;
   if (!n || ![...keys].every((k) => Number.isFinite(c.bb[k])) || clauses.slice(n).join('，').includes('效果')) return null;
-  if (when === 'field' && ![...keys].every((k) => FIELD_KEYS.includes(k))) return null;
-  return { when, ...whom, bb: Object.fromEntries([...keys].map((k) => [k, c.bb[k]])) };
+  if (when === 'field' ? ![...keys].every((k) => FIELD_KEYS.includes(k)) : effects || 'all' in head.whom) return null;
+  return {
+    when, ...head.whom, bb: Object.fromEntries([...keys].map((k) => [k, c.bb[k]])), ...(effects ? { mods } : {}), ...(/同类效果取最高/u.test(plain) ? { max: /** @type {const} */ (true) } : {}),
+  };
 }
 
 /** The attribute words of an in-range talent (干员-11) and the blackboard key each names. */
@@ -160,7 +301,7 @@ const RANGE_WORDS = Object.freeze(/** @type {Record<string, string>} */ ({
 const RANGE_ATTR = Object.keys(RANGE_WORDS).sort((a, b) => b.length - a.length).join('|');
 const RANGE_ATTR_G = new RegExp(RANGE_ATTR, 'g');
 /** 攻击范围内的 enemies, every friendly unit, the friendly operators, or the ranged ones. */
-const RANGE_HEAD = /^攻击范围内的(敌军|敌人|友方单位|友方干员|远程干员)/;
+const RANGE_HEAD = /^攻击范围内的?(敌军|敌人|友方单位|友方干员|远程干员)/;
 /** The modifier each key becomes (属性-2), written without % and with %; null where that way is not read. */
 const RANGE_MODS = Object.freeze(/** @type {Record<string, [string | null, string | null]>} */ ({
   atk: ['atkFlat', 'atkPct'], def: ['defFlat', 'defPct'], max_hp: ['hpFlat', 'hpPct'], magic_resistance: ['resFlat', 'resPct'],
@@ -187,7 +328,7 @@ function rangeMods(clauses, bb) {
 }
 
 /**
- * The in-range part of a talent (干员-11): its first sentence begins 「攻击范围内的」 and whom — 敌军/敌人 (the enemies),
+ * The in-range part of a talent (干员-11): its first sentence begins 「攻击范围内（的）」 and whom — 敌军/敌人 (the enemies),
  * 友方单位 or 友方干员 (the operators), 远程干员 (the ranged operators) — then leading clauses whose modifiers it gives
  * them; the rest of the sentence not speaking of an 效果. Null otherwise; hidden talents have none.
  * @param {Talent} c @returns {{ side: 'enemy' | 'ally', ranged: boolean, mods: Record<string, number> } | null}
@@ -201,30 +342,46 @@ export function rangePart(c) {
   return { side: head[1] === '敌军' || head[1] === '敌人' ? 'enemy' : 'ally', ranged: head[1] === '远程干员', mods: got.mods };
 }
 
-/** A chance on each attack to raise its 倍率 (干员-12): 攻击时 / 每次攻击 / 造成伤害时, a chance, 攻击力提升至. */
-const CRIT = /^(?:攻击时|每次攻击|造成(?:物理)?伤害时)[，,]?有?\d+(?:\.\d+)?[%％]的?(?:几率|概率)(?:使)?(?:当次攻击的?)?攻击力提升至\d+(?:\.\d+)?[%％]$/u;
+/** The chance and what it does to the attack (干员-12): the clause, and what it gives from the blackboard — null without the keys it needs. */
+/** @typedef {{ prob: number, scale: number, stun?: number, more?: number, atk?: number, ignoreDef?: number, times?: number }} Crit */
+/** @type {readonly [RegExp, (bb: Record<string, number>) => Crit | null][]} */
+const CRITS = Object.freeze([
+  [/^(?:攻击时|每次攻击|造成(?:物理)?伤害时)[，,]?有?\d+(?:\.\d+)?[%％]的?(?:几率|概率)(?:使)?(?:当次攻击的?)?攻击力提升至\d+(?:\.\d+)?[%％]$/u,
+    (bb) => (has(bb, 'prob') && has(bb, 'atk_scale') ? { prob: bb.prob, scale: bb.atk_scale } : null)],
+  [/^(?:攻击时|普通攻击和技能释放时)[，,]?有?\d+(?:\.\d+)?%的?(?:几率|概率)当次攻击的?攻击力[+＋]\d+(?:\.\d+)?%$/u,
+    (bb) => (has(bb, 'prob') && has(bb, 'atk') ? { prob: bb.prob, scale: 1, atk: bb.atk } : null)],
+  [/^攻击时有?\d+(?:\.\d+)?%的?(?:几率|概率)无视目标的防御$/u, (bb) => (has(bb, 'prob') ? { prob: bb.prob, scale: 1, ignoreDef: 1 } : null)],
+  [/^攻击时有?\d+(?:\.\d+)?%的?(?:几率|概率)(?:造成二连击|连续攻击两次)$/u, (bb) => {
+    const prob = bb.prob ?? bb['attack@prob'];
+    return Number.isFinite(prob) ? { prob, scale: 1, times: 2 } : null;
+  }],
+  [/^攻击有\d+(?:\.\d+)?%的?(?:几率|概率)造成相当于攻击力\d+(?:\.\d+)?%的物理伤害$/u, (bb) => (has(bb, 'prob') && has(bb, 'atk_scale') ? { prob: bb.prob, scale: bb.atk_scale } : null)],
+]);
 /** What may follow it in the same sentence (干员-12). */
 const CRIT_STUN = /^并(?:使敌人)?晕眩(?:敌人)?\d+(?:\.\d+)?秒$/u;
 const CRIT_MORE = /^且额外攻击一个目标$/u;
 
 /**
- * The chance part of a talent (干员-12): in its first sentence a clause 「攻击时（，）（有）N%（的）几率/概率（当次攻击的）攻击力
- * 提升至M%」 (or 每次攻击 / 造成伤害时), the blackboard having `prob` and `atk_scale`; the clause after it may add a stun of
- * `stun` seconds (「并使敌人晕眩N秒」) or one more target (「且额外攻击一个目标」). Null otherwise; hidden talents have none.
- * @param {Talent} c @returns {{ prob: number, scale: number, stun?: number, more?: number } | null}
+ * The chance part of a talent (干员-12): in its first sentence a clause of CRITS — 「攻击时（，）（有）N%（的）几率/概率（当次
+ * 攻击的）攻击力提升至M%」 (or 每次攻击 / 造成伤害时: `prob`, 倍率 `atk_scale`), 「……当次攻击的攻击力+M%」 (`atk` more
+ * attack for that attack), 「……无视目标的防御」, 「……造成二连击 / 连续攻击两次」, 「攻击有N%几率造成相当于攻击力M%的物理伤害」 —
+ * with the blackboard keys it needs; for the first, the clause after it may add a stun of `stun` seconds (「并使敌人晕眩N秒」)
+ * or one more target (「且额外攻击一个目标」). Null otherwise; hidden talents have none.
+ * @param {Talent} c @returns {Crit | null}
  */
 export function critPart(c) {
-  if (c.hidden || !c.description || !Number.isFinite(c.bb.prob) || !Number.isFinite(c.bb.atk_scale)) return null;
+  if (c.hidden || !c.description) return null;
   const clauses = c.description.replace(/<[^>]*>/g, '').replace(/（[^）]*）/g, '').split(/[。；]/)[0].split('，').map((x) => x.trim());
   // 「攻击时」 may stand as a clause of its own before the chance
-  const joined = clauses.map((x, k) => (/^(?:攻击时|造成(?:物理)?伤害时)$/u.test(x) ? `${x}，${clauses[k + 1] ?? ''}` : x));
-  const i = joined.findIndex((x) => CRIT.test(x));
-  if (i < 0) return null;
-  const next = clauses[joined[i] === clauses[i] ? i + 1 : i + 2] ?? '';
-  return {
-    prob: c.bb.prob, scale: c.bb.atk_scale,
-    ...(CRIT_STUN.test(next) && Number.isFinite(c.bb.stun) ? { stun: c.bb.stun } : {}), ...(CRIT_MORE.test(next) ? { more: 1 } : {}),
-  };
+  const joined = clauses.map((x, k) => (/^(?:攻击时|造成(?:物理)?伤害时|普通攻击和技能释放时)$/u.test(x) ? `${x}，${clauses[k + 1] ?? ''}` : x));
+  for (const [i, x] of joined.entries()) {
+    const form = CRITS.find(([re]) => re.test(x)), got = form ? form[1](c.bb) : null;
+    if (!got) continue;
+    const next = clauses[x === clauses[i] ? i + 1 : i + 2] ?? '';
+    return got.atk === undefined && got.ignoreDef === undefined && got.times === undefined
+      ? { ...got, ...(CRIT_STUN.test(next) && has(c.bb, 'stun') ? { stun: c.bb.stun } : {}), ...(CRIT_MORE.test(next) ? { more: 1 } : {}) } : got;
+  }
+  return null;
 }
 
 /** The heads of timed talents (干员-13): stacking every N s, once after N s, for N s after deployment. */

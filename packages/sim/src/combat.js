@@ -79,7 +79,7 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
  *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number, value?: number, prob?: number } | null,
  *   hitDebuff?: { seconds: number, mods: Record<string, number> }, displace?: { pull: boolean, force: number, along?: boolean },
- *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number }, aftershocks?: number }} Load
+ *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number }, aftershocks?: number, ignoreDef?: number }} Load
  */
 
 /**
@@ -90,7 +90,8 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  */
 function damageOf(load, t) {
   const amount = load.frozen && statsOf(t).flags.freeze ? load.amount * load.frozen : load.amount;
-  const how = load.hit, d = /** @type {import('./damage.js').Damage} */ ({ type: load.type, amount, isAttack: how !== 'aftershock', isSkill: !!load.skill, isProjectile: !!load.ranged });
+  const how = load.hit, d = /** @type {import('./damage.js').Damage} */ ({ type: load.type, amount, isAttack: how !== 'aftershock', isSkill: !!load.skill, isProjectile: !!load.ranged,
+    ...(load.ignoreDef ? { defIgnorePct: load.ignoreDef } : {}) });
   if (how === 'splash' || how === 'aftershock') d.isSplash = true;
   if (how === 'chain' || how === 'aftershock') d.tags = [how];
   return d;
@@ -223,7 +224,7 @@ const loadOf = (a, mods) => ({
   type: mods.type ?? a.base.dmgType, amount: atkOf(a, mods.atkPct) * mods.scale * statsOf(a).atkScaleMul, times: mods.times, element: mods.element ?? '',
   ep: (mods.ep ?? 0) + (mods.epScale ? statsOf(a).atk * mods.epScale : 0),
   ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.hitDebuff ? { hitDebuff: mods.hitDebuff } : {}), ...(mods.displace ? { displace: mods.displace } : {}), ...(mods.skill ? { skill: true } : {}), ...(mods.mark ? { mark: mods.mark } : {}),
-  ...(mods.frozen ? { frozen: mods.frozen } : {}),
+  ...(mods.frozen ? { frozen: mods.frozen } : {}), ...(mods.ignoreDef ? { ignoreDef: mods.ignoreDef } : {}),
 });
 
 /**
@@ -495,7 +496,8 @@ export function attackNow(w, c, op, given = null, o = {}) {
 
 /**
  * The chance talents of an operator's attack (攻击-4): for each, in order, one draw (随机-1); under its chance the
- * attack's 倍率 × its scale, its stun on each hit, its more targets. A healing attack draws none.
+ * attack's 倍率 × its scale, its stun on each hit, its more targets, its attack bonus for this attack (added to the
+ * attack's), the share of the targets' 防御 it ignores (the most), its hits × its `times`. A healing attack draws none.
  * @param {World} w @param {Content} c @param {Unit} op @param {AttackMods} mods @returns {AttackMods}
  */
 function critMods(w, c, op, mods) {
@@ -503,7 +505,8 @@ function critMods(w, c, op, mods) {
   if (mods.heal || healerNow(c, op)) return out;
   for (const k of c.operators[op.key].critTalents ?? []) {
     if (draw(w) >= k.prob) continue;
-    out = { ...out, scale: out.scale * k.scale, ...(k.stun ? { hitStatus: { key: 'stun', seconds: k.stun } } : {}), ...(k.more ? { more: (out.more ?? 0) + k.more } : {}) };
+    out = { ...out, scale: out.scale * k.scale, ...(k.stun ? { hitStatus: { key: 'stun', seconds: k.stun } } : {}), ...(k.more ? { more: (out.more ?? 0) + k.more } : {}),
+      ...(k.atk ? { atkPct: (out.atkPct ?? 0) + k.atk } : {}), ...(k.ignoreDef ? { ignoreDef: Math.max(out.ignoreDef ?? 0, k.ignoreDef) } : {}), ...(k.times ? { times: out.times * k.times } : {}) };
   }
   return out;
 }

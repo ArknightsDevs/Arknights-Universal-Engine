@@ -57,11 +57,11 @@ export function levelContent(id, difficulty) {
 }
 
 /**
- * An operator record without its talent fields (干员-6…干员-15) — a 傀儡师's 替身 without its talents' parts, its range
+ * An operator record without its talent fields (干员-6…干员-19) — a 傀儡师's 替身 without its talents' parts, its range
  * kept (职业-16) —: a kit applies its talents itself (兼容-6).
  * @param {import('@aue/sim').OperatorDef} op @returns {import('@aue/sim').OperatorDef}
  */
-function withoutTalents({ talentBb, fieldTalents, rangeTalents, critTalents, timedTalents, deployTalents, ...rest }) {
+function withoutTalents({ talentBb, talentMods, talentTrait, fieldTalents, rangeTalents, critTalents, timedTalents, deployTalents, ...rest }) {
   const doll = rest.trait?.doll;
   return doll ? { ...rest, trait: { ...rest.trait, doll: { ...doll, attack: true, aura: null } } } : rest;
 }

@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadTraining, operatorAt, skeletonContent, ROSTER } from '../src/index.js';
 import { traitAt, teamTalentsAt, upgradedTalentsAt, moduleOwnAt } from '../src/operators.js';
-import { talentsAt, alwaysOn, teamPart, rangePart, critPart, timedPart, deployPart } from '../src/talents.js';
+import { talentsAt, alwaysOn, alwaysMods, teamPart, rangePart, critPart, timedPart, deployPart, forSkill } from '../src/talents.js';
+import { whileParts, targetPart, hitPart, attackPart } from '../src/talentparts.js';
 import { matchContent } from '../src/index.js';
 
 /** @typedef {import('../src/operators.js').Build} Build */
@@ -214,4 +215,142 @@ test('[部署-5] 引星棘刺\'s 视界 from the real data: the attack speed for
   const { loadTraining: load, operatorAt: at } = await import('../src/index.js');
   const t = await load('char_1039_thorn2'), b = (/** @type {number} */ elite) => ({ elite, level: 1, potential: 1, trust: 0, skill: 0, skillLevel: 1 });
   assert.deepEqual([at(t, b(1)).fieldAspd, at(t, b(2)).fieldAspd], [undefined, { ally: 5, enemy: -5, cnt: 6, allyExtra: 5, enemyExtra: -5 }]);
+});
+
+/** A talent of a description and blackboard, not hidden. @param {string} description @param {Record<string, number>} bb */
+const talent = (description, bb) => ({ description, bb, hidden: false });
+/** An operator's record at elite 2, level 1, potential 1, its first skill (or the slot given). @param {string} id @param {number} [skill] */
+const atE2 = async (id, skill = 0) => /** @type {any} */ (operatorAt(await loadTraining(id), { ...E2, skill }));
+
+test('[干员-16] always-on effects that are not attributes: 无视防御 and 法术抗性, 闪避, 攻击距离, 物理伤害 dealt and taken, 减伤, regen by maximum HP', async () => {
+  const m = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => alwaysMods(talent(d, bb));
+  assert.deepEqual([
+    m('攻击时无视目标175（+15）的防御力', { def_penetrate_fixed: 175 }), m('攻击无视敌人23%的防御力', { def_penetrate: 0.23 }), m('无视攻击目标22法术抗性', { magic_resist_penetrate_fixed: 22 }),
+    m('获得50%的物理闪避', { prob: 0.5 }), m('获得50%的法术闪避', { prob: 0.5 }), m('获得45%的物理和法术闪避', { prob: 0.45 }),
+    m('造成的物理伤害+12%，受到的物理伤害-12%', { damage_scale: 1.12, damage_resistance: 0.12 }), m('自身获得15%的物理减伤', { damage_resistance: 0.15 }),
+    m('受到的元素损伤-12%，受到凋亡损伤时回复2点技力', { damage_resistance: 0.12, sp: 2 }), m('每秒回复4%生命值', { hp_recovery_per_sec_by_max_hp_ratio: 0.04 }),
+  ], [
+    { defIgnoreFlat: 175 }, { defIgnorePct: 0.23 }, { resIgnoreFlat: 22 }, { dodgePhys: 0.5 }, { dodgeArts: 0.5 }, { dodgePhys: 0.45, dodgeArts: 0.45 },
+    { physDealtMul: 1.12, physTakenMul: 0.88 }, { physTakenMul: 0.85 }, { epTakenMul: 0.88 }, { hpRegenRatio: 0.04 },
+  ]);
+  assert.deepEqual([m('获得50%的物理闪避', { atk: 0.1 }), m('自身获得15%的物理减伤；在战场停留35秒后效果翻倍', { damage_resistance: 0.15, interval: 35 }),
+    m('获得33%的物理闪避，闪避后此效果失效', { prob: 0.33 })], [null, null, null], 'a key missing, an effect doubled later, one that changes it');
+  const tachak = await atE2('char_459_tachak');
+  assert.deepEqual([tachak.talentMods, tachak.talentBb], [{ rangeExtend: 2 }, { def: 0.1 }], '战车: 攻击距离+2，防御力+10%，再部署时间+20秒');
+  assert.equal(tachak.respawnTime - (await loadTraining('char_459_tachak')).phases[2].frames[0].stats.respawnTime, 20, 'its 再部署时间 folds in as before');
+  assert.deepEqual([(await atE2('char_279_excu')).talentMods, (await atE2('char_4218_aigis')).talentMods], [{ defIgnoreFlat: 160 }, { physDealtMul: 1.1, physTakenMul: 0.9 }], '送葬人, 埃癸斯');
+});
+
+test('[干员-6] [干员-16] a talent in parts by the skill brought: 夜魔 dodges with her first skill, has the attack with her second; 海蒂 in range', async () => {
+  const yoru = talent('装备技能1时获得45%（+5%）的物理和法术闪避，装备技能2时获得+18%（+3%）攻击力', { prob: 0.45, atk: 0.18 });
+  assert.deepEqual([forSkill(yoru, 0), forSkill(yoru, 1), forSkill(yoru, 2)].map((c) => [c.description, c.bb]), [
+    ['获得45%的物理和法术闪避', { prob: 0.45 }], ['获得+18%攻击力', { atk: 0.18 }], [yoru.description, yoru.bb],
+  ]);
+  const [s1, s2] = await Promise.all([atE2('char_164_nightm', 0), atE2('char_164_nightm', 1)]);
+  assert.deepEqual([s1.talentMods, s1.talentBb, s2.talentMods, s2.talentBb], [{ dodgePhys: 0.4, dodgeArts: 0.4 }, undefined, undefined, { atk: 0.15 }]);
+  const [h1, h2] = await Promise.all([atE2('char_4045_heidi', 0), atE2('char_4045_heidi', 1)]);
+  assert.deepEqual([h1.rangeTalents, h2.rangeTalents], [[{ side: 'ally', ranged: false, mods: { atkPct: 0.05 } }], [{ side: 'ally', ranged: false, mods: { defPct: 0.05 } }]]);
+});
+
+test('[干员-17] conditional parts: the conditions on the operator, each clause after one its own modifiers; 「改为」 adds what it is more', async () => {
+  const w = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => whileParts(talent(d, bb));
+  assert.deepEqual([
+    w('未阻挡敌人时，攻击力和防御力各+14%', { atk: 0.14, def: 0.14 }), w('未阻挡敌人时攻击速度+14，阻挡敌人时攻击力+14%', { attack_speed: 14, atk: 0.14 }),
+    w('阻挡两个以上的敌人时，攻击力和防御力+14%', { atk: 0.14, def: 0.14, cnt: 2 }), w('攻击范围内存在2名及以上敌人时，攻击速度+12', { cnt: 2, attack_speed: 12 }),
+    w('攻击范围内至少有1名其他友方干员时，攻击力+17%', { atk: 0.17 }), w('攻击范围内存在生命值低于一半的敌人时，攻击力+12%', { hp_ratio: 0.5, atk: 0.12 }),
+    w('攻击范围内存在处于凋亡损伤爆发期间的敌方单位时，攻击力+21%', { atk: 0.21 }), w('当周围4格没有敌人时，攻击力+10%', { atk: 0.1 }),
+    w('周围四格内仅存在一名敌人时，攻击力+10%', { atk: 0.1, cnt: 1 }), w('当周围四格内没有其他友方单位时，攻击力和防御力各+13%', { atk: 0.13, def: 0.13 }),
+    w('技能未开启时，每秒恢复4%的最大生命', { hp_recovery_per_sec_by_max_hp_ratio: 0.04 }),
+  ], [
+    [{ when: 'notBlocking', mods: { atkPct: 0.14, defPct: 0.14 } }], [{ when: 'notBlocking', mods: { aspd: 14 } }, { when: 'blocking', mods: { atkPct: 0.14 } }],
+    [{ when: 'blockingAtLeast', value: 2, mods: { atkPct: 0.14, defPct: 0.14 } }], [{ when: 'enemies', value: 2, mods: { aspd: 12 } }],
+    [{ when: 'allies', value: 1, mods: { atkPct: 0.17 } }], [{ when: 'lowHpEnemies', value: 0.5, mods: { atkPct: 0.12 } }],
+    [{ when: 'burstEnemies', el: 'DARK', mods: { atkPct: 0.21 } }], [{ when: 'noEnemies4', mods: { atkPct: 0.1 } }],
+    [{ when: 'soleEnemy4', mods: { atkPct: 0.1 } }], [{ when: 'aloneUnits4', mods: { atkPct: 0.13, defPct: 0.13 } }],
+    [{ when: 'notInSkill', mods: { hpRegenRatio: 0.04 } }],
+  ]);
+  const kirara = talent('每秒回复2%生命值，周围8格没有友方干员时，改为每秒回复4%（+0.5%）生命值', { hp_recovery_per_sec_by_max_hp_ratio: 0.02, 'kirara_t_2.hp_recovery_per_sec_by_max_hp_ratio': 0.04 });
+  assert.deepEqual([alwaysMods(kirara), whileParts(kirara)], [{ hpRegenRatio: 0.02 }, [{ when: 'alone8', mods: { hpRegenRatio: 0.02 } }]], '绮良: 2% always, 2% more alone');
+  assert.deepEqual([w('攻击力+8%', { atk: 0.08 }), w('未阻挡敌人时，攻击敌人造成伤害', { atk: 0.1 }), w('阻挡敌人时攻击力+10%。此效果在技能期间翻倍', { atk: 0.1 }),
+    w('攻击范围内存在2格以上的地面地形时，攻击力+19%', { atk: 0.19 })], [[], [], [], []], 'no condition, a clause it cannot read, a later 效果, a condition it does not know');
+  const [fire, broca] = await Promise.all([atE2('char_493_firwhl'), atE2('char_356_broca')]);
+  assert.deepEqual([fire.talentTrait.whiles, broca.talentTrait.whiles], [
+    [{ when: 'notBlocking', mods: { atkPct: 0.12 } }, { when: 'blocking', mods: { defPct: 0.12 } }], [{ when: 'blockingAtLeast', value: 2, mods: { atkPct: 0.12, defPct: 0.12 } }],
+  ], '火哨, 布洛卡 at elite 2');
+});
+
+test('[干员-18] target parts: the target the talent names and what it gets against it', async () => {
+  const v = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => targetPart(talent(d, bb));
+  assert.deepEqual([
+    v('攻击使用远程武器的敌人时，攻击力提升至145%', { atk_scale: 1.45 }), v('攻击被阻挡的敌人造成伤害提升20%', { atk_scale: 1.2 }),
+    v('攻击未被阻挡的敌人时攻击力提升至123%', { atk_scale: 1.23 }), v('攻击【萨卡兹】敌人时，攻击力提升至150%', { atk_scale: 1.5 }),
+    v('攻击【感染生物】时，攻击力提升至150%', { atk_scale: 1.5 }), v('攻击空中目标时，攻击力提升至140%', { atk_scale: 1.4 }),
+    v('攻击飞行目标时，攻击力+50%', { atk_scale: 1.5 }), v('攻击生命值低于40%的敌人伤害提高30%', { hp_ratio: 0.4, damage_scale: 1.3 }),
+    v('攻击生命值高于80%的敌人时造成的伤害提高20%', { hp_ratio: 0.8, damage_scale: 1.2 }), v('攻击未被自身阻挡的敌人时，自身造成的伤害+25%', { damage_scale: 1.25 }),
+    v('对未被自身阻挡的敌人造成的伤害提升45%', { damage_scale: 1.45 }), v('攻击重量小于等于3的敌人时攻击力提升至136%', { value: 3, atk_scale: 1.36 }),
+    v('攻击重量大于等于3的敌人时无视目标200的防御力', { value: 3, def_penetrate_fixed: 200 }), v('攻击被战栗的目标时，无视目标30%的防御力', { def_penetrate: 0.3 }),
+  ], [
+    { when: 'rangedFoe', atk: 1.45 }, { when: 'blocked', atk: 1.2 }, { when: 'unblocked', atk: 1.23 }, { when: 'tag', tag: 'sarkaz', atk: 1.5 },
+    { when: 'tag', tag: 'infection', atk: 1.5 }, { when: 'flying', atk: 1.4 }, { when: 'flying', atk: 1.5 }, { when: 'hpBelow', value: 0.4, dmg: 1.3 },
+    { when: 'hpAbove', value: 0.8, dmg: 1.2 }, { when: 'notOwnBlocked', dmg: 1.25 }, { when: 'notOwnBlocked', dmg: 1.45 },
+    { when: 'light', value: 3, atk: 1.36 }, { when: 'heavy', value: 3, defFlat: 200 }, { when: 'status', status: 'disarmedCombat', defPct: 0.3 },
+  ]);
+  assert.deepEqual([v('优先攻击【无人机】单位，且攻击【无人机】时攻击力提升至155%', { atk_scale: 1.55 }), v('攻击【海嗣】敌人时，攻击力提升至150%', { atk_scale: 1.5 }),
+    v('攻击被阻挡的敌人时攻击力提升至115%，并回复1点技力', { atk_scale: 1.15, sp: 1 })], [null, null, null], 'a priority, a tag it does not know, more after it');
+  assert.deepEqual((await atE2('char_363_toddi')).talentTrait.vs, [{ when: 'tag', tag: 'sarkaz', atk: 1.45 }], '熔泉');
+});
+
+test('[干员-19] hit parts: a status at a chance or on every hit, the first hit on each enemy, 法术脆弱, lower 法术抗性, 灼痕; arts damage on each hit, two targets', async () => {
+  const h = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => hitPart(talent(d, bb));
+  assert.deepEqual([
+    h('攻击时有23%的几率使目标束缚1.5秒', { prob: 0.23, duration: 1.5 }), h('攻击时有40%的几率对攻击目标造成2秒的停顿', { 'attack@prob': 0.4, 'attack@sluggish': 2 }),
+    h('攻击时对攻击目标造成0.6秒的停顿', { sluggish: 0.6 }), h('攻击使目标的特殊能力失效，持续6秒', { duration: 6 }),
+    h('对每个敌人首次造成伤害时，使其战栗5秒', { not_combat: 5 }), h('对每个敌人首次造成伤害后，使目标的特殊能力失效，持续7秒', { silence: 7 }),
+    h('攻击敌人时对目标施加14%的【法术脆弱】，持续5秒', { 'weak[magic][limit]': 5, damage_scale: 1.14 }), h('攻击使目标法术抗性-23%，持续1秒', { duration: 1, magic_resistance: -0.23 }),
+    h('攻击时有25%的几率使目标法术抗性-25%，持续3秒', { prob: 0.25, magic_resistance: -0.25, duration: 3 }),
+    h('造成伤害时有30%概率对敌人施加灼痕效果：攻击力-22%、32%的【法术脆弱】，不可叠加持续6秒', { prob: 0.3, atk: -0.22, damage_scale: 1.32, duration: 6 }),
+  ], [
+    { status: { key: 'root', seconds: 1.5 }, prob: 0.23 }, { status: { key: 'sluggish', seconds: 2 }, prob: 0.4 }, { status: { key: 'sluggish', seconds: 0.6 } },
+    { status: { key: 'silence', seconds: 6 } }, { status: { key: 'disarmedCombat', seconds: 5 }, first: true }, { status: { key: 'silence', seconds: 7 }, first: true },
+    { status: { key: 'artsFragile', seconds: 5, value: 0.14 } }, { debuff: { seconds: 1, mods: { resPct: -0.23 } } },
+    { debuff: { seconds: 3, mods: { resPct: -0.25 } }, prob: 0.25 }, { prob: 0.3, debuff: { seconds: 6, mods: { atkPct: -0.22, artsTakenMul: 1.32 } } },
+  ]);
+  assert.deepEqual([h('攻击时有20%的几率使目标束缚4秒，不以束缚状态的敌人为攻击目标', { prob: 0.2, duration: 4 }), h('攻击时有20%的几率使目标束缚4秒', { duration: 4 })], [null, null]);
+  assert.deepEqual([attackPart(talent('攻击额外造成攻击力20%的法术伤害', { 'attack@atk_scale_1': 0.2 })), attackPart(talent('攻击时同时攻击两个目标', { 'attack@max_target': 2 }))],
+    [{ extraArts: 0.2 }, { targets: 2 }]);
+  const [siege, yato, bell] = await Promise.all([atE2('char_1019_siege2'), atE2('char_1029_yato2'), atE2('char_174_slbell')]);
+  assert.deepEqual([siege.talentTrait.onHit, yato.talentTrait.extraArts, bell.talentTrait.targets], [[{ status: { key: 'disarmedCombat', seconds: 4 }, first: true }], 0.2, 2],
+    '维娜·维多利亚, 麒麟R夜刀, 初雪');
+});
+
+test('[干员-12] more chance parts: more attack for that attack, 防御 ignored, two hits, a hit at a 倍率', async () => {
+  const c = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => critPart(talent(d, bb));
+  assert.deepEqual([
+    c('普通攻击和技能释放时，30%几率当次攻击的攻击力+60%', { prob: 0.3, atk: 0.6 }), c('攻击时有20%的几率无视目标的防御', { prob: 0.2 }),
+    c('攻击时有23%的几率连续攻击两次', { prob: 0.23 }), c('攻击时有10%概率造成二连击', { 'attack@prob': 0.1, 'attack@normal_prob': 0.9 }),
+    c('攻击有30%几率造成相当于攻击力160%的物理伤害，对受到雷鸣地雷效果影响的目标必定触发', { prob: 0.3, atk_scale: 1.6 }),
+  ], [{ prob: 0.3, scale: 1, atk: 0.6 }, { prob: 0.2, scale: 1, ignoreDef: 1 }, { prob: 0.23, scale: 1, times: 2 }, { prob: 0.1, scale: 1, times: 2 }, { prob: 0.3, scale: 1.6 }]);
+  assert.deepEqual((await atE2('char_106_franka')).critTalents, [{ prob: 0.2, scale: 1, ignoreDef: 1 }], '芙兰卡');
+});
+
+test('[干员-9] team parts for every friendly unit, with effects, and 同类效果取最高', async () => {
+  const c = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => teamPart(talent(d, bb));
+  assert.deepEqual([
+    c('全场友方单位攻速+8（+1）', { attack_speed: 8 }), c('在场时所有友方单位的技力自然回复速度+0.3/秒（同类效果取最高）', { sp_recovery_per_sec: 0.3 }),
+    c('在场时，全地图的友方单位医疗效果提高12%', { heal_scale: 1.12 }), c('在场时，所有【先锋】职业干员获得25%的物理闪避', { prob: 0.25 }),
+  ], [
+    { when: 'field', all: true, bb: { attack_speed: 8 } }, { when: 'field', all: true, bb: { sp_recovery_per_sec: 0.3 }, max: true },
+    { when: 'field', all: true, bb: {}, mods: { healingDealtMul: 1.12 } }, { when: 'field', profession: 'PIONEER', bb: {}, mods: { dodgePhys: 0.25 } },
+  ]);
+  assert.deepEqual([c('编入队伍时，所有【先锋】职业干员获得25%的物理闪避', { prob: 0.25 }), c('技能未开启时，全场友方单位每秒回复25点生命', { hp_recovery_per_sec: 25 })], [null, null],
+    'no effect for the deck; a condition first');
+  const [mostma, plosis] = await Promise.all([atE2('char_213_mostma'), atE2('char_128_plosis')]);
+  assert.deepEqual([mostma.fieldTalents, plosis.fieldTalents], [[{ profession: 'CASTER', bb: { sp_recovery_per_sec: 0.4 }, max: true }], [{ all: true, bb: { sp_recovery_per_sec: 0.3 }, max: true }]]);
+});
+
+test('[干员-16] [干员-17] [干员-19] a kitted operator leaves its talents to its kit: no talent effects or trait additions in the match', async () => {
+  const kitted = 'char_1013_chen2';
+  const ops = /** @type {Record<string, any>} */ ((await matchContent({ level: 'act1multi_01', difficulty: 'NORMAL', seed: 1, decks: [[{ id: 'char_279_excu', build: E2 }, { id: kitted, build: E2 }]] },
+    undefined, { [kitted]: /** @type {any} */ (() => ({})) })).operators);
+  assert.deepEqual([ops['char_279_excu#0'].talentMods, ops[`${kitted}#0`].talentMods, ops[`${kitted}#0`].talentTrait], [{ defIgnoreFlat: 160 }, undefined, undefined]);
 });

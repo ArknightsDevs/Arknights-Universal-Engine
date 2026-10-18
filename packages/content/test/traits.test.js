@@ -162,12 +162,16 @@ test('[职业-7] [职业-15] 傀儡师 from the real data: a 20 s 替身, 1 s sw
   assert.ok(y.taken > 0.5 && y.taken < 1, 'elite 2: less damage taken');
 });
 
-/** The trait of an operator (by name) at elite 2, max level, with its module of a type at level 1 (职业-7, 干员-7). @param {string} name @param {string} type */
+/**
+ * The trait of an operator (by name) at elite 2, max level, with its module of a type at level 1 (职业-7, 干员-7) — without
+ * what its talents add (职业-24). @param {string} name @param {string} type
+ */
 async function withModule(name, type) {
   const id = /** @type {string} */ (Object.entries(ROSTER).find(([, r]) => r.name === name)?.[0]), t = await loadTraining(id);
   const module = t.modules.findIndex((m) => m.type === type);
   assert.ok(module >= 0, `${name} ${type}`);
-  return /** @type {any} */ (traits.traitOfDef(operatorAt(t, { elite: 2, level: t.phases[2].maxLevel, potential: 1, trust: 0, skill: -1, skillLevel: 1, module, moduleLevel: 1 })));
+  const { talentTrait: _, ...rec } = operatorAt(t, { elite: 2, level: t.phases[2].maxLevel, potential: 1, trust: 0, skill: -1, skillLevel: 1, module, moduleLevel: 1 });
+  return /** @type {any} */ (traits.traitOfDef(rec));
 }
 
 test('[职业-7] [职业-17] the modules\' 倍率 by the target from the real data: the trait\'s blackboard, or the module\'s own data', async () => {

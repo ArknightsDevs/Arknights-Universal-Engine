@@ -1,6 +1,7 @@
-// A trait's modifiers while a condition on the operator holds (docs/spec/traits.md 职业-18): its modules' additions that
-// last while it blocks or does not, while its HP is above or below a share, while enemies or allies in its range are so,
-// while no ally stands around it, while it holds stored energy — a buff each, given and taken back at its turn.
+// A trait's modifiers while a condition on the operator holds (docs/spec/traits.md 职业-18, 职业-24): its modules' and
+// talents' additions that last while it blocks or does not, while its HP is above or below a share, while enemies or
+// allies in its range are so, while no ally or enemy stands around it, while it holds stored energy, while its skill
+// runs or not — a buff each, given and taken back at its turn.
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff } from './buffs.js';
@@ -34,28 +35,49 @@ function crowded(w, op, n) {
 /** Whether a unit has an element value below its maximum. @param {Unit} u */
 const epDamaged = (u) => ELEMENTS.some((el) => epOf(u, el) < statsOf(u).maxEp);
 
+/** The units on an operator's tile or the 4 next to it (职业-24). @param {World} w @param {Unit} op @param {(u: Unit) => boolean} which */
+function onCross(w, op, which) {
+  const [r, col] = tileOf(op);
+  return w.units.filter((u) => {
+    if (u.hp <= 0 || u.hidden || !which(u)) return false;
+    const [ur, uc] = tileOf(u);
+    return Math.abs(ur - r) + Math.abs(uc - col) <= 1;
+  });
+}
+
+/** How many enemies with HP an operator blocks. @param {World} w @param {Unit} op */
+const blockedBy = (w, op) => w.units.filter((e) => e.blockedBy === op.id && e.hp > 0).length;
+/** Whether a unit is in a burst of an element, or of any without one (元素-3). @param {Unit} u @param {string | undefined} el */
+const burstOf = (u, el) => (el ? u.buffs.some((b) => b.key === `burst:${el}`) : bursting(u));
+
 /**
- * The conditions on the operator (职业-18), each asked at its turn.
- * @type {Readonly<Record<WhileMods['when'], (w: World, c: Content, op: Unit, value: number) => boolean>>}
+ * The conditions on the operator (职业-18, 职业-24), each asked at its turn.
+ * @type {Readonly<Record<WhileMods['when'], (w: World, c: Content, op: Unit, value: number, x: WhileMods) => boolean>>}
  */
 const WHEN = Object.freeze({
-  blocking: (w, _c, op) => w.units.some((e) => e.blockedBy === op.id && e.hp > 0),
-  notBlocking: (w, _c, op) => !w.units.some((e) => e.blockedBy === op.id && e.hp > 0),
+  blocking: (w, _c, op) => blockedBy(w, op) > 0,
+  notBlocking: (w, _c, op) => blockedBy(w, op) === 0,
+  blockingAtLeast: (w, _c, op, v) => blockedBy(w, op) >= v,
   hpAbove: (_w, _c, op, v) => op.hp > v * statsOf(op).maxHp,
   hpBelow: (_w, _c, op, v) => op.hp < v * statsOf(op).maxHp,
   enemies: (w, c, op, v) => inOwnRange(w, c, op).filter(hostile).length >= v,
   groundEnemies: (w, c, op, v) => inOwnRange(w, c, op).filter((u) => hostile(u) && !statsOf(u).flying).length >= v,
   eliteEnemies: (w, c, op) => inOwnRange(w, c, op).some((u) => hostile(u) && (u.base.levelType === 'ELITE' || u.base.levelType === 'BOSS')),
-  burstEnemies: (w, c, op) => inOwnRange(w, c, op).some((u) => hostile(u) && bursting(u)),
+  burstEnemies: (w, c, op, _v, x) => inOwnRange(w, c, op).some((u) => hostile(u) && burstOf(u, x.el)),
+  lowHpEnemies: (w, c, op, v) => inOwnRange(w, c, op).some((u) => hostile(u) && u.hp < v * statsOf(u).maxHp),
   allies: (w, c, op, v) => inOwnRange(w, c, op).filter((u) => u !== op && isOperator(u)).length >= v,
   injuredAllies: (w, c, op) => inOwnRange(w, c, op).some((u) => u.kind === KIND.OPERATOR && u.hp < statsOf(u).maxHp),
   epAllies: (w, c, op) => inOwnRange(w, c, op).some((u) => u.kind === KIND.OPERATOR && epDamaged(u)),
   skillAllies: (w, c, op) => inOwnRange(w, c, op).some((u) => u !== op && isOperator(u) && !!u.skill && u.skill.active),
   alone4: (w, _c, op) => !crowded(w, op, 4),
   alone8: (w, _c, op) => !crowded(w, op, 8),
+  noEnemies4: (w, _c, op) => onCross(w, op, (u) => u.kind === KIND.ENEMY).length === 0,
+  soleEnemy4: (w, _c, op) => onCross(w, op, (u) => u.kind === KIND.ENEMY).length === 1,
+  aloneUnits4: (w, _c, op) => onCross(w, op, (u) => u !== op && u.kind === KIND.OPERATOR).length === 0,
   energy: (_w, _c, op) => (op.buffs.find((b) => b.key === 'energy')?.value ?? 0) > 0,
   always: () => true,
   inSkill: (_w, _c, op) => !!op.skill && op.skill.active,
+  notInSkill: (_w, _c, op) => !(op.skill && op.skill.active),
   alchemy: (w, _c, op) => (w.alchemy ?? []).some((a) => a.src === op.id),
 });
 
@@ -67,7 +89,7 @@ const WHEN = Object.freeze({
 export function traitWhiles(w, c, op) {
   const list = traitOf(c, op).whiles;
   for (let i = 0; i < list.length; i++) {
-    const x = list[i], key = `while:${i}`, on = WHEN[x.when](w, c, op, x.value ?? 0), has = op.buffs.some((b) => b.key === key);
+    const x = list[i], key = `while:${i}`, on = WHEN[x.when](w, c, op, x.value ?? 0, x), has = op.buffs.some((b) => b.key === key);
     if (on && !has) addBuff(op, makeBuff({ key, src: op.id, mods: { ...x.mods }, ...(x.flags ? { flags: { ...x.flags } } : {}) }));
     else if (!on && has) removeBuff(op, key);
   }

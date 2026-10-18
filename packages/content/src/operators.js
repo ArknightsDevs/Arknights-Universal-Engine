@@ -4,7 +4,8 @@
 import index from '../data/operators/index.json' with { type: 'json' };
 import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
-import { unlockedAt, talentsAt, alwaysOnBb, teamPart, rangePart, critPart, timedPart, deployPart } from './talents.js';
+import { unlockedAt, talentsAt, alwaysOnBb, alwaysModsOf, teamPart, rangePart, critPart, timedPart, deployPart, forSkill } from './talents.js';
+import { whileParts, targetPart, hitPart, attackPart } from './talentparts.js';
 import { dollOf } from './doll.js';
 import rangeTable from '../data/ranges.json' with { type: 'json' };
 
@@ -164,14 +165,30 @@ export function teamTalentsAt(t, b) {
 }
 
 /**
- * The talent fields of an operator record (干员-6, 干员-9, 干员-11…干员-14): the always-on part's 部署费用 and 再部署时间
- * to fold in and the rest as `talentBb`, the on-field team talents, the in-range, chance, timed and deployment talents, and
- * the attack speed it gives every unit while on the field (引星棘刺's 视界: `attack_speed_ally`, `attack_speed_enemy`, doubled
- * on straight roads of `cnt` tiles: 部署-5) — each only when there is one.
+ * What a training's talents add to its trait (干员-17…干员-19, 职业-24): their conditional parts (`whiles`), target
+ * parts (`vs`), hit parts (`onHit`), and what they add to the attacks — 法术伤害 riding on each hit (`extraArts`, summed),
+ * more targets (`targets`, the most) —; null when there is none.
+ * @param {import('./talents.js').Talent[]} talents @returns {Partial<import('@aue/sim').TraitDef> | null}
+ */
+function talentTraitOf(talents) {
+  const whiles = talents.flatMap(whileParts), vs = talents.map(targetPart).filter((p) => p !== null), onHit = talents.map(hitPart).filter((p) => p !== null);
+  const attacks = talents.map(attackPart).filter((p) => p !== null), extraArts = attacks.reduce((n, p) => n + (p.extraArts ?? 0), 0);
+  const targets = Math.max(0, ...attacks.map((p) => p.targets ?? 0));
+  const out = { ...(whiles.length ? { whiles } : {}), ...(vs.length ? { vs } : {}), ...(onHit.length ? { onHit } : {}), ...(extraArts > 0 ? { extraArts } : {}), ...(targets > 0 ? { targets } : {}) };
+  return Object.keys(out).length ? out : null;
+}
+
+/**
+ * The talent fields of an operator record (干员-6, 干员-9, 干员-11…干员-14, 干员-16…干员-19): the talents as they read for
+ * the skill brought (干员-6); the always-on part's 部署费用 and 再部署时间 to fold in and the rest as `talentBb`, its
+ * effects' modifiers as `talentMods`, the on-field team talents, the in-range, chance, timed and deployment talents, what
+ * they add to the trait (`talentTrait`), and the attack speed it gives every unit while on the field (引星棘刺's 视界:
+ * `attack_speed_ally`, `attack_speed_enemy`, doubled on straight roads of `cnt` tiles: 部署-5) — each only when there is one.
  * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod
  */
 function talentFields(t, b, mod) {
-  const talents = upgradedTalents(t, b, mod), { cost = 0, respawn_time: respawn = 0, ...talentBb } = alwaysOnBb(talents);
+  const talents = upgradedTalents(t, b, mod).map((c) => forSkill(c, b.skill)), { cost = 0, respawn_time: respawn = 0, ...talentBb } = alwaysOnBb(talents);
+  const talentMods = alwaysModsOf(talents), talentTrait = talentTraitOf(talents);
   /** @type {[string, unknown[]][]} */
   const lists = [['fieldTalents', teamTalentsAt(t, b).field], ['rangeTalents', talents.map(rangePart).filter((p) => p !== null)],
     ['critTalents', talents.map(critPart).filter((p) => p !== null)], ['timedTalents', talents.map(timedPart).filter((p) => p !== null)],
@@ -179,7 +196,8 @@ function talentFields(t, b, mod) {
   const aspd = talents.find((x) => Number.isFinite(x.bb.attack_speed_ally) && Number.isFinite(x.bb.attack_speed_enemy))?.bb;
   return {
     cost, respawn,
-    fields: { ...(Object.keys(talentBb).length ? { talentBb } : {}), ...Object.fromEntries(lists.filter(([, v]) => v.length > 0)),
+    fields: { ...(Object.keys(talentBb).length ? { talentBb } : {}), ...(Object.keys(talentMods).length ? { talentMods } : {}), ...Object.fromEntries(lists.filter(([, v]) => v.length > 0)),
+      ...(talentTrait ? { talentTrait } : {}),
       ...(aspd ? { fieldAspd: { ally: aspd.attack_speed_ally, enemy: aspd.attack_speed_enemy, cnt: aspd.cnt ?? 6, allyExtra: aspd.attack_speed_ally_extra ?? 0, enemyExtra: aspd.attack_speed_enemy_extra ?? 0 } } : {}) },
   };
 }

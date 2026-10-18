@@ -230,15 +230,16 @@ function hpDamage(w, src, target, amount, dmg) {
 }
 
 /**
- * Every unit's 生命回复 this frame (属性-6): one on the field with HP below its maximum regains its 生命回复速度 ÷ 30,
- * up to the maximum. It is not a heal: no event, no healing multipliers, 禁疗 does not stop it.
+ * Every unit's 生命回复 this frame (属性-6): one on the field with HP below its maximum regains its 生命回复速度 — and its
+ * 生命回复速度（百分比） (`hpRegenRatio`, summed, held to [0, 1]) × its maximum HP — ÷ 30, up to the maximum. It is not a heal: no event, no
+ * healing multipliers, 禁疗 does not stop it.
  * @param {World} w
  */
 export function regenAll(w) {
   for (const u of w.units) {
     if (u.hp <= 0) continue;
-    const s = statsOf(u);
-    if (s.hpRecoveryPerSec > 0 && u.hp < s.maxHp) u.hp = Math.min(s.maxHp, u.hp + s.hpRecoveryPerSec / FPS);
+    const s = statsOf(u), per = s.hpRecoveryPerSec + Math.min(1, Math.max(0, s.sum.hpRegenRatio ?? 0)) * s.maxHp;
+    if (per > 0 && u.hp < s.maxHp) u.hp = Math.min(s.maxHp, u.hp + per / FPS);
   }
 }
 

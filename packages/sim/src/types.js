@@ -278,7 +278,14 @@
  * @property {number} rangedRefund this share of the cost back when deployed on a ranged tile (职业-23)
  * @property {{ hp: number, mods: Record<string, number> } | null} secondLife brought to 0 HP, once a deployment it stays with these
  *   modifiers and `hp` of its maximum HP (职业-22)
+ * @property {TalentHit[]} onHit what each hit of its attack gives the target by its talents (干员-19, 职业-24)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
+ */
+/**
+ * What a hit of an operator's attack gives the target by a talent (干员-19, 职业-24): a status (with its strength), or
+ * modifiers for some seconds; at the chance `prob` when it has one; only on the first hit on each enemy with `first`.
+ * @typedef {{ status?: { key: import('./status.js').StatusKey, seconds: number, value?: number }, debuff?: { seconds: number, mods: Record<string, number> },
+ *   prob?: number, first?: boolean }} TalentHit
  */
 /**
  * Modifiers or flags an operator's trait gives other units (职业-20): the enemies it blocks (`blocked`), those its own
@@ -296,9 +303,13 @@
  * (`injuredAllies`), or one with element damage (`epAllies`), or another operator whose skill runs (`skillAllies`); no
  * other operator stands on the 4 tiles next to it (`alone4`) or the 8 around it (`alone8`); it holds stored attack energy
  * (`energy`); its skill runs (`inSkill`); a 炼金单元 it threw is on the field (`alchemy`, 技能-13); always (`always`). The
- * buff may carry flags too.
+ * buff may carry flags too. From talents (职业-24): it blocks at least `value` enemies (`blockingAtLeast`); an enemy below
+ * `value` of its maximum HP is in its range (`lowHpEnemies`); `burstEnemies` of the element `el` only; no enemy on the 4
+ * tiles next to it (`noEnemies4`) or exactly one (`soleEnemy4`); no other friendly unit, summons too, on them
+ * (`aloneUnits4`); its skill does not run (`notInSkill`).
  * @typedef {{ when: 'blocking' | 'notBlocking' | 'hpAbove' | 'hpBelow' | 'enemies' | 'groundEnemies' | 'eliteEnemies' | 'burstEnemies'
- *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always' | 'inSkill' | 'alchemy', value?: number,
+ *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always' | 'inSkill' | 'alchemy'
+ *   | 'blockingAtLeast' | 'lowHpEnemies' | 'noEnemies4' | 'soleEnemy4' | 'aloneUnits4' | 'notInSkill', value?: number, el?: string,
  *   mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
  */
 /**
@@ -308,8 +319,12 @@
  * `value` (`heavy`), stands on the line of tiles straight in front of the operator (`front`), on its tile or the 8 around
  * (`near`), is in an element burst (`burst`), stands on a ground tile (`onGround`), or the hit is the skill's (`skill`);
  * `noDodge`: such a physical hit cannot be dodged; × `ep` on the 元素损伤 it deals the target, an elite or leader (`elite`).
- * @typedef {{ when: 'blocked' | 'flying' | 'skillGround' | 'hpBelow' | 'heavy' | 'front' | 'near' | 'burst' | 'onGround' | 'skill' | 'elite',
- *   atk?: number, dmg?: number, heal?: number, ep?: number, value?: number, noDodge?: boolean }} VsScale
+ * From talents (职业-24): the target is blocked by no unit (`unblocked`), not by the operator (`notOwnBlocked`), has more
+ * than `value` of its maximum HP (`hpAbove`), a 重量等级 of at most `value` (`light`), the tag `tag` (`tag`), a ranged
+ * attack (`rangedFoe`), the status `status` (`status`); `defFlat`, `defPct` more 无视防御 for the hit.
+ * @typedef {{ when: 'blocked' | 'flying' | 'skillGround' | 'hpBelow' | 'heavy' | 'front' | 'near' | 'burst' | 'onGround' | 'skill' | 'elite'
+ *   | 'unblocked' | 'notOwnBlocked' | 'hpAbove' | 'light' | 'tag' | 'rangedFoe' | 'status',
+ *   atk?: number, dmg?: number, heal?: number, ep?: number, value?: number, noDodge?: boolean, tag?: string, status?: string, defFlat?: number, defPct?: number }} VsScale
  */
 /**
  * A chain (职业-11): at most `max` targets in all, each jump at `scale` × the one before; a damage chain jumps to the
@@ -323,7 +338,8 @@
  */
 /**
  * An operator: `branch` is its profession branch (subProfessionId), `trait` the branch's trait (职业-1), `respawnTime`
- * its 再部署时间 in seconds (部署-3; default 60), `talentBb` the blackboard of its always-on talents (部署-4),
+ * its 再部署时间 in seconds (部署-3; default 60), `talentBb` the blackboard of its always-on talents and `talentMods` the
+ * modifiers of their effects (部署-4), `talentTrait` what its talents add to its trait (职业-24),
  * `fieldTalents` its talents for every operator of a profession or faction while it is on the field (部署-5), `fieldAspd`
  * the attack speed it gives every friendly unit (`ally`) and every enemy (`enemy`) while on the field, those on a straight
  * road of at least `cnt` passable ground tiles `allyExtra`, `enemyExtra` more (部署-5), `powers`
@@ -335,7 +351,7 @@
  * and how its card works (`summon`, 召唤-3, 召唤-4); `position` ALL lets it stand on melee and ranged tiles.
  * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
  *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, trait?: Partial<TraitDef>, respawnTime?: number, char?: string,
- *   talentBb?: Record<string, number>, fieldTalents?: TeamTalent[], fieldAspd?: { ally: number, enemy: number, cnt: number, allyExtra: number, enemyExtra: number },
+ *   talentBb?: Record<string, number>, talentMods?: Record<string, number>, talentTrait?: Partial<TraitDef>, fieldTalents?: TeamTalent[], fieldAspd?: { ally: number, enemy: number, cnt: number, allyExtra: number, enemyExtra: number },
  *   powers?: string[], rangeTalents?: RangeTalent[],
  *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[], summoner?: string, summon?: SummonDef,
  *   runeMods?: Record<string, number>, probSp?: { prob: number, sp: number }[], rangeSp?: { sp: number, interval: number }, carried?: CarriedEffect, builder?: BuilderDef }} OperatorDef
@@ -369,16 +385,18 @@
  */
 /**
  * A chance talent (攻击-4): on each attack, with chance `prob`, the attack's 倍率 × `scale`, and maybe a stun of `stun`
- * seconds on each hit and `more` targets.
- * @typedef {{ prob: number, scale: number, stun?: number, more?: number }} CritTalent
+ * seconds on each hit and `more` targets, `atk` more attack (直接乘算) for that attack, `ignoreDef` of the targets' 防御
+ * ignored, × `times` hits.
+ * @typedef {{ prob: number, scale: number, stun?: number, more?: number, atk?: number, ignoreDef?: number, times?: number }} CritTalent
  */
 /**
  * An in-range talent (部署-6): modifiers for the enemies, or the (ranged) operators, in the holder's attack range.
  * @typedef {{ side: 'enemy' | 'ally', ranged: boolean, mods: Record<string, number> }} RangeTalent
  */
 /**
- * A team talent (部署-5): for the operators of a profession, or of a faction, its blackboard.
- * @typedef {({ profession: string } | { power: string }) & { bb: Record<string, number> }} TeamTalent
+ * A team talent (部署-5): for the operators of a profession, of a faction, or every friendly unit (`all`), its blackboard
+ * and the modifiers of its effects; `max`: of several such talents, the strongest (同类效果取最高).
+ * @typedef {({ profession: string } | { power: string } | { all: true }) & { bb: Record<string, number>, mods?: Record<string, number>, max?: boolean }} TeamTalent
  */
 /**
  * Behaviours by key (ADR 0054, 0055): what a skill or a buff does beyond its data. Content brings them; the default is
@@ -526,7 +544,7 @@
  * (职业-12) its way back's speed and, on its way back, `ret` 1; `held` 1 while content holds it where it arrived.
  * @typedef {{ src: number, target: number, sx: number, sy: number, speed: number, type: DamageType, amount: number, times: number, element: string, ep: number,
  *   splash?: Splash | null, aftershock?: number, chain?: Chain | null, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null,
- *   skill?: boolean, back?: number, ret?: number, held?: number, mark?: number, frozen?: number }} Shot
+ *   skill?: boolean, back?: number, ret?: number, held?: number, mark?: number, frozen?: number, ignoreDef?: number }} Shot
  */
 
 /**
