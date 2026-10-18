@@ -137,10 +137,12 @@
  * of `scale` × the thrower's attack × `dmgMul` (天赋); `foeMods` the ground enemies in it have, `heavy` those of 重量 at
  * least `weight` more damage and their own modifiers; `regen` × the thrower's attack of 生命回复速度 and `allyMods` for the
  * friendly units in it; `drift`: it moves away from the thrower at `speed` tiles a second, its radius growing `grow` a
- * second, for `seconds`; `extend` seconds more when another operator is in the thrower's range as it throws (天赋).
+ * second, for `seconds`; `extend` seconds more when another operator is in the thrower's range as it throws (天赋);
+ * `hitRate`: the ground enemies in it hit at × `mul` (× `heavyMul` those of 重量 at least `weight`; 天赋).
  * @typedef {{ at: 'enemy' | 'ally', seconds: number, radius: number, square?: boolean, interval?: number, scale?: number, dmgMul?: number,
  *   foeMods?: Record<string, number>, heavy?: { weight: number, scale?: number, mods?: Record<string, number> }, regen?: number,
- *   allyMods?: Record<string, number>, drift?: { speed: number, seconds: number, grow: number }, extend?: number }} AlchemyDef
+ *   allyMods?: Record<string, number>, drift?: { speed: number, seconds: number, grow: number }, extend?: number,
+ *   hitRate?: { mul: number, heavyMul?: number, weight?: number } }} AlchemyDef
  */
 /**
  * A 炼金单元 on the field (技能-13): its id, its thrower's record key, unit and seat, its centre (`cx` the column, `cy` the

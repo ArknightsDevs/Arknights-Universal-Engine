@@ -221,13 +221,16 @@ function moduleRangeAt(b, mod) {
 
 /**
  * A skill with what its operator's talents add to its 炼金单元 (技能-13): 锡人's 凋敝魂灵 `skill@damage_scale` (its damage ×),
- * 引星棘刺's 心相 `projectile_extend` (seconds more while another operator is in her range).
+ * 引星棘刺's 心相 `projectile_extend` (seconds more while another operator is in her range), 旅骨's 潜水作业 `hitrate` and
+ * `heavy_hitrate` from 重量 `value` on (the ground enemies' 命中率 in it).
  * @param {import('@aue/sim').SkillDef} skill @param {{ bb: Record<string, number> }[]} talents
  */
 function withAlchemyTalents(skill, talents) {
   if (!skill.alchemy) return skill;
-  const bb = Object.assign({}, ...talents.map((x) => x.bb)), mul = bb['skill@damage_scale'], extend = bb.projectile_extend;
-  return { ...skill, alchemy: { ...skill.alchemy, ...(mul > 0 ? { dmgMul: mul } : {}), ...(extend > 0 ? { extend } : {}) } };
+  const of = (/** @type {string} */ k) => talents.find((x) => Number.isFinite(x.bb[k]))?.bb, mul = of('skill@damage_scale')?.['skill@damage_scale'] ?? 0;
+  const extend = of('projectile_extend')?.projectile_extend ?? 0, hit = of('hitrate');
+  const hitRate = hit ? { mul: 1 + hit.hitrate, ...(Number.isFinite(hit.heavy_hitrate) ? { heavyMul: 1 + hit.heavy_hitrate, weight: hit.value ?? 3 } : {}) } : null;
+  return { ...skill, alchemy: { ...skill.alchemy, ...(mul > 0 ? { dmgMul: mul } : {}), ...(extend > 0 ? { extend } : {}), ...(hitRate ? { hitRate } : {}) } };
 }
 
 /**

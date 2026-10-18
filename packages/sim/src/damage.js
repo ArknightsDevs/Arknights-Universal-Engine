@@ -136,11 +136,24 @@ function judge(w, u, b, amount, { dmg, src }) {
 }
 
 /**
- * The target's 伤判 effects in turn (伤害-8): its active buffs by event priority, highest first, then acquisition order.
- * One that cancels the hit or brings it to 0 ends the step; a dodge is the `dodge` event (钩子-3).
+ * Whether a hit misses by its source's 命中率 (伤害-8, 技能-13): a physical or arts hit that can be dodged and has a source
+ * whose hit rate (`hitRateMul`, 最终乘算) is below 1 misses at the chance 1 − the rate.
+ * @param {World} w @param {Damage} dmg @param {Unit | null} src
+ */
+function misses(w, dmg, src) {
+  if (!src || dmg.sourceless || (dmg.type !== 'phys' && dmg.type !== 'arts') || dmg.canDodge === false) return false;
+  const h = statsOf(src).prod.hitRateMul;
+  return h !== undefined && h < 1 && draw(w) >= h;
+}
+
+/**
+ * The target's 伤判 effects in turn (伤害-8): a miss by the source's hit rate first, then its active buffs by event
+ * priority, highest first, then acquisition order. One that cancels the hit or brings it to 0 ends the step; a dodge or
+ * a miss is the `dodge` event (钩子-3).
  * @param {World} w @param {Unit} u @param {number} amount @param {Damage} dmg @param {Unit | null} [src]
  */
 export function takeDamage(w, u, amount, dmg, src = null) {
+  if (misses(w, dmg, src)) { emit(w, 'dodge', { source: src, target: u, dmg }); return 0; }
   const order = activeBuffs(u.buffs).map((b, i) => ({ b, i })).sort((x, y) => y.b.prio - x.b.prio || x.i - y.i);
   let left = amount;
   for (const { b } of order) {

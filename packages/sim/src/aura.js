@@ -165,10 +165,21 @@ function alchemyAura(c, a, units, want) {
     if (groundFoe(u)) {
       const heavy = def.heavy && statsOf(u).massLevel >= def.heavy.weight ? def.heavy.mods : undefined, mods = { ...def.foeMods, ...heavy };
       if (Object.keys(mods).length) want.get(u)?.set(key, { src: a.src, value: 0, mods });
+      if (def.hitRate) lowerHitRate(def.hitRate, a, u, want.get(u));
     } else if (u.kind === KIND.OPERATOR && (def.allyMods || regen > 0)) {
       want.get(u)?.set(key, { src: a.src, value: regen, mods: { ...def.allyMods, ...(regen > 0 ? { hpRegen: regen } : {}) } });
     }
   }
+}
+
+/**
+ * A 炼金单元's lower 命中率 on a ground enemy in it (技能-13: 旅骨's 潜水作业): × `mul`, × `heavyMul` for one of 重量 at
+ * least `weight`; of several, the highest rate (the least lowered) — one buff `alchemy:hit`.
+ * @param {NonNullable<import('./types.js').AlchemyDef['hitRate']>} h @param {import('./types.js').Alchemy} a @param {Unit} u @param {Map<string, Want> | undefined} w
+ */
+function lowerHitRate(h, a, u, w) {
+  const mul = h.heavyMul !== undefined && statsOf(u).massLevel >= (h.weight ?? Infinity) ? h.heavyMul : h.mul, cur = w?.get('alchemy:hit');
+  if (w && !(cur && cur.value >= mul)) w.set('alchemy:hit', { src: a.src, value: mul, mods: { hitRateMul: mul } });
 }
 
 /**

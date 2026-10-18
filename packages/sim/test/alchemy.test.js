@@ -117,3 +117,22 @@ test('[技能-13] an AUTO one at the enemies waits for a target; 炼金单元 on
   run(w, c, 20); run(copy, c, 20);
   assert.equal(stateHash(copy), stateHash(w));
 });
+
+test('[技能-13] [伤害-8] a lower 命中率 in a 炼金单元: the enemies\' hits miss at its chance, the heavy ones\' rate their own; of two, the higher', async () => {
+  const { dealDamage } = await import('../src/damage.js');
+  const { w, c, op, foe, cast } = arena(sk({ at: 'enemy', seconds: 5, radius: 1, hitRate: { mul: 0, heavyMul: 0.5, weight: 3 } }), { noAttack: true });
+  const e = foe(1, 2), heavy = foe(1, 2, { massLevel: 3 });
+  cast();
+  step(w, c, []);
+  assert.deepEqual([statsOf(e).prod.hitRateMul, statsOf(heavy).prod.hitRateMul], [0, 0.5]);
+  const hp = op.hp;
+  for (let i = 0; i < 20; i++) dealDamage(w, e, op, { type: 'phys', amount: 100 }, c);
+  assert.equal(op.hp, hp, 'a rate of 0: every hit misses');
+  dealDamage(w, e, op, { type: 'true', amount: 10 }, c);
+  assert.equal(op.hp, hp - 10, 'true damage does not miss');
+  c.operators.guard.skill = sk({ at: 'enemy', seconds: 5, radius: 1, hitRate: { mul: 0.8 } });
+  forceSp(/** @type {any} */ (op.skill), 99);
+  step(w, c, [[0, { type: 'skill', unit: op.id }]]);
+  step(w, c, []);
+  assert.deepEqual([w.alchemy?.length, statsOf(e).prod.hitRateMul, e.buffs.filter((b) => b.key === 'alchemy:hit').length], [2, 0.8, 1], 'one buff, the higher rate');
+});
