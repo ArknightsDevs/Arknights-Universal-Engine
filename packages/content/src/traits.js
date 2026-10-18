@@ -277,7 +277,10 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
     ...whileOf('always', { taunt: bb.taunt_level, statusResMul: bb.one_minus_status_resistance === undefined ? undefined : 1 + bb.one_minus_status_resistance }),
   }) },
   // jumps among max_target operators in the 3 × 3 around each, 75 % of the heal before (职业-11)
-  chainhealer: { trait: (bb) => ({ heal: true, targets: 1, chain: { max: bb['attack@chain.max_target'] ?? 3, scale: bb['attack@chain.atk_scale'] ?? 0.75, radius: 0, cells: cellsOf('x-4') } }) },
+  // XAH-X: the jumps and their 倍率 of the module's own data (0.85: 15 % less a jump; 职业-23)
+  chainhealer: { trait: (bb, own) => ({ heal: true, targets: 1, chain: {
+    max: own?.['attack@chain.max_target'] ?? bb['attack@chain.max_target'] ?? 3, scale: own?.['attack@chain.atk_scale'] ?? bb['attack@chain.atk_scale'] ?? 0.75, radius: 0, cells: cellsOf('x-4'),
+  } }) },
   // its heals also restore element values by ep_heal_ratio of them (职业-12)
   // WDM-Y: attack speed + attack_speed while a friendly unit with element damage is in its range (职业-18)
   wandermedic: { trait: (bb) => ({ heal: true, targets: 1, epHeal: bb.ep_heal_ratio ?? 0.5, ...whileOf('epAllies', { aspd: bb.attack_speed }) }) },
@@ -340,8 +343,19 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
     ...(type === 'AMB-X' && own?.move_speed ? { auras: [{ to: 'range', mods: { movePct: own.move_speed } }] } : {}),
   }) },
   // melee, but may stand on ranged tiles too (职业-10)
-  pusher: { trait: () => ({ targets: 'blockCnt', rangedTiles: true }) },
-  hookmaster: { trait: () => ({ antiAir: true, rangedTiles: true }) },
+  // PUS-Y: its pushes one 力度 stronger while it blocks cnt (2) or more (base_force_level; 职业-23); PUS-X: half the cost
+  // back when deployed on a ranged tile (value; 职业-23)
+  pusher: { trait: (bb, own, type) => ({
+    targets: 'blockCnt', rangedTiles: true,
+    ...(type === 'PUS-Y' ? { pushBoost: { cnt: bb.cnt ?? 2, level: bb.base_force_level ?? 1 } } : {}), ...(type === 'PUS-X' ? { rangedRefund: bb.value ?? 0.5 } : {}),
+  }) },
+  // HOK-X: 移动创伤 — the arts damage of value (800) a tile its pulls move a target, every interval s (职业-23); HOK-Y: a pull
+  // one 力度 stronger on a target farther than range_radius (2.5) tiles (the module's own data, skill@ / attack@; 职业-23)
+  hookmaster: { trait: (bb, own, type) => ({
+    antiAir: true, rangedTiles: true,
+    ...(type === 'HOK-X' && bb.value ? { pullTrauma: { perTile: bb.value, every: bb.interval ?? 0.066 } } : {}),
+    ...(type === 'HOK-Y' && own?.['skill@delta_force'] ? { pullBoost: { range: own['skill@range_radius'] ?? 2.5, level: own['skill@delta_force'] } } : {}),
+  }) },
   // no refund; the blackboard's cost (negative) every interval seconds on the field, or it retreats (职业-10)
   // MER-Y: attack + atk for each upkeep payment, at most max_stack_cnt (the module's own data; 职业-20)
   merchant: { trait: (bb, own, type) => ({

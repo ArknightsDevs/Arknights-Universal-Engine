@@ -83,3 +83,38 @@ test('[技能-9] [位移-2] [位移-4] a skill\'s push along the facing and its 
   run(q.w, q.c, 10);
   assert.ok(q.e.x < 2 && q.e.x > 1, `toward the guard, not past it: at ${q.e.x}`);
 });
+
+test('[职业-23] PUS-Y a push one 力度 stronger while blocking two; HOK-Y a pull one stronger on a far target; HOK-X 移动创伤 a tile moved', async () => {
+  const { PULL_FORCE } = await import('../src/displacement.js');
+  const { attackMods } = await import('../src/skills.js');
+  const p = arena(sk({ extra: { attack: { displace: { pull: false, force: 0, along: true } } } }));
+  p.c.operators.guard.trait = { pushBoost: { cnt: 2, level: 1 } };
+  p.e.slide = undefined; p.e.blockedBy = p.op.id;
+  assert.equal(attackMods(p.w, p.c, p.op).displace?.force, 0, 'one blocked: as written');
+  const extra = makeEnemy(p.w, p.c, { key: 'slime', route: 0 });
+  extra.x = 1; extra.y = 1; extra.blockedBy = p.op.id; p.w.units.push(extra);
+  assert.equal(attackMods(p.w, p.c, p.op).displace?.force, 1, 'two blocked: one 力度 more');
+  const far = arena(sk({ extra: { attack: { displace: { pull: true, force: 1 } } } }));
+  far.c.operators.guard.trait = { pullBoost: { range: 0.5, level: 1 }, pullTrauma: { perTile: 800, every: 0.066 } };
+  far.c.operators.guard.range = [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 0, col: 3 }];
+  far.e.x = 4; far.e.slide = undefined; far.op.atkCd = 0;
+  const hp = far.e.hp;
+  run(far.w, far.c, 2);
+  assert.equal(/** @type {any} */ (far.e).slide?.pull?.f, PULL_FORCE[2], '力度 1 + 1 at more than 0.5 tiles');
+  const x0 = 4;
+  run(far.w, far.c, 40);
+  assert.ok(Math.abs((hp - far.e.hp) - (x0 - far.e.x) * 800) < 1e-6 * hp, `800 a tile: ${hp - far.e.hp} for ${x0 - far.e.x}`);
+});
+
+test('[职业-23] PUS-X half the cost back when deployed on a ranged tile, none on a melee one', () => {
+  const c = /** @type {any} */ (tinyContent());
+  c.level.waves = [];
+  c.level.options.costIncreaseTime = 1e9;
+  c.operators.guard.trait = { rangedTiles: true, rangedRefund: 0.5 };
+  const w = createWorld(c, { seed: 1, players: 2 });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 0, col: 2, dir: 0 }]]);
+  assert.deepEqual([w.units.some((u) => u.key === 'guard'), w.players[0].cost], [true, 10 - 5 + 2], 'paid 5, 2 back');
+  const m = createWorld(c, { seed: 1, players: 2 });
+  step(m, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 }]]);
+  assert.equal(m.players[0].cost, 5);
+});

@@ -271,6 +271,11 @@
  * @property {{ prob: number, scale: number } | null} summonBoost a summon deployed from its card deals × `scale` damage at the
  *   chance `prob` (职业-21)
  * @property {number} aftershocks how many aftershocks its attack has when it has one (职业-8, 职业-22)
+ * @property {{ cnt: number, level: number } | null} pushBoost its pushes `level` 力度 stronger while it blocks `cnt` or more (职业-23)
+ * @property {{ range: number, level: number } | null} pullBoost its pulls `level` 力度 stronger on a target farther than `range` tiles (职业-23)
+ * @property {{ perTile: number, every: number } | null} pullTrauma a target its pull moves takes `perTile` arts damage a tile moved, every
+ *   `every` seconds, until the pull ends (移动创伤, 职业-23)
+ * @property {number} rangedRefund this share of the cost back when deployed on a ranged tile (职业-23)
  * @property {{ hp: number, mods: Record<string, number> } | null} secondLife brought to 0 HP, once a deployment it stays with these
  *   modifiers and `hp` of its maximum HP (职业-22)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
@@ -481,7 +486,8 @@
  * @property {Cell[]} [range] an operator's own attack range when content changed it, over its record's (攻击-1)
  * @property {number[]} [reachExtra] extra tile keys content gave an operator's attack (攻击-1)
  * @property {Swing | null} swing the attack it is in the wind-up of, null for none (攻击-2)
- * @property {{ vx: number, vy: number, hard: number, pull?: { x: number, y: number, bx: number, by: number, f: number, x0: number, left: number, stop: boolean } }} [slide]
+ * @property {{ vx: number, vy: number, hard: number, pull?: { x: number, y: number, bx: number, by: number, f: number, x0: number, left: number, stop: boolean,
+ *   trauma?: { per: number, every: number, src: number, moved: number, frames: number } } }} [slide]
  *   its 失衡 slide: speed (tiles/s) and 硬直 frames left (位移-3); a pull on it — its point, its puller's centre, its force,
  *   the distance it began at, its frames left, whether it stopped (位移-4)
  * @property {number} anim schema ANIM

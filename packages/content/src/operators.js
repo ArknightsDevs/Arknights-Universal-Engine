@@ -214,11 +214,13 @@ const moduleTextAt = (b, mod) => (mod?.parts ?? []).filter((p) => (p.target.star
  * The attack range a module level gives its operator (干员-7): the last of its own talents' unlocked candidates (index
  * −1, −2; not a token's, valid in every mode and map) with a range id and no blackboard — the range of a part that only
  * shows 「攻击范围扩大」 (夜莺 RIN-X y-3) —, as offsets (干员-8); null when none has one. A candidate with numbers and a range
- * id is a talent's area, not the attack range (推进之王 SOL-Y x-5).
+ * id is a talent's area, not the attack range (推进之王 SOL-Y x-5) — unless the module's text says 「攻击范围扩大」 (白面鸮
+ * RIN-X: y-3 beside its new SP aura).
  * @param {Build} b @param {ModuleLevel | null} mod @returns {{ row: number, col: number }[] | null}
  */
 function moduleRangeAt(b, mod) {
-  const id = moduleTalents(b, mod).filter((c) => c.index < 0 && c.rangeId && Object.keys(c.bb).length === 0).at(-1)?.rangeId;
+  const widens = /攻击范围扩大/.test(moduleTextAt(b, mod).replace(/<[^>]*>/g, ''));
+  const id = moduleTalents(b, mod).filter((c) => c.index < 0 && c.rangeId && (widens || Object.keys(c.bb).length === 0)).at(-1)?.rangeId;
   return id ? /** @type {Record<string, { row: number, col: number }[]>} */ (rangeTable.ranges)[id] ?? null : null;
 }
 

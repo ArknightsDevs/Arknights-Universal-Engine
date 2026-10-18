@@ -306,3 +306,13 @@ test('[职业-18] [技能-13] 炼金师 ALC-X: SP recovery while a 炼金单元 
   const tin = await withModule('锡人', 'ALC-X');
   assert.deepEqual(tin.whiles, [{ when: 'alchemy', mods: { spRecoveryFlat: 0.1 } }]);
 });
+
+test('[职业-23] [干员-7] the push and pull modules, XAH-X\'s jumps and 白面鸮 RIN-X\'s range, from the real data', async () => {
+  const [shaw, forcer, cliff, glady, peper] = await Promise.all([withModule('阿消', 'PUS-Y'), withModule('见行者', 'PUS-X'), withModule('崖心', 'HOK-X'),
+    withModule('歌蕾蒂娅', 'HOK-Y'), withModule('明椒', 'XAH-X')]);
+  assert.deepEqual([shaw.pushBoost, forcer.rangedRefund, cliff.pullTrauma, glady.pullBoost, peper.chain.scale],
+    [{ cnt: 2, level: 1 }, 0.5, { perTile: 800, every: 0.066 }, { range: 2.5, level: 1 }, 0.85]);
+  const id = /** @type {string} */ (Object.entries(ROSTER).find(([, r]) => r.name === '白面鸮')?.[0]), t = await loadTraining(id);
+  const b = { elite: 2, level: t.phases[2].maxLevel, potential: 1, trust: 0, skill: -1, skillLevel: 1 }, module = t.modules.findIndex((m) => m.type === 'RIN-X');
+  assert.ok(operatorAt(t, { ...b, module, moduleLevel: 3 }).range.length > operatorAt(t, b).range.length, '攻击范围扩大 beside the module\'s SP aura numbers');
+});

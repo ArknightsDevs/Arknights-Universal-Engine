@@ -1,7 +1,7 @@
 // Attacks (spec 攻击-1…攻击-3, 敌人攻击-1, 索敌-1…索敌-5, 伤害-7, 职业-1…职业-5): when the cooldown is out, the first
 // candidates in the official order are locked and a swing starts; at the end of its wind-up they take hits of the
 // attacker's attack — a healer's heals, a ranged attacker's projectiles — and the attacker waits out its interval.
-import { FPS, secondsToFrames } from '@aue/math';
+import { FPS, secondsToFrames, hypot } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
 import { offsetTile, dirVec } from './dir.js';
 import { push, pull, PULL_POINT } from './displacement.js';
@@ -112,13 +112,16 @@ function hitTarget(w, c, src, t, load) {
 
 /**
  * A skill's push or pull on a target its attack reached, once per attack (技能-9, 位移-2, 位移-4): a pull toward 0.5
- * tiles in front of the attacker; a push along its facing (`along`), else away from it.
+ * tiles in front of the attacker — stronger on a far target, with 移动创伤, as its trait says (职业-23) —; a push along its
+ * facing (`along`), else away from it.
  * @param {World} w @param {Content} c @param {Unit} src @param {Unit} t @param {{ pull: boolean, force: number, along?: boolean }} d
  */
 function displaceOnHit(w, c, src, t, d) {
-  const [dr, dc] = dirVec(src.dir), at = { x: src.x, y: src.y };
-  if (d.pull) pull(w, c, t, d.force, { to: { x: src.x + dc * PULL_POINT, y: src.y + dr * PULL_POINT }, by: at });
-  else push(w, c, t, d.force, { from: at, ...(d.along ? { dir: { x: dc, y: dr } } : {}) });
+  const [dr, dc] = dirVec(src.dir), at = { x: src.x, y: src.y }, tr = traitOf(c, src);
+  if (!d.pull) { push(w, c, t, d.force, { from: at, ...(d.along ? { dir: { x: dc, y: dr } } : {}) }); return; }
+  const far = tr.pullBoost && hypot(t.x - src.x, t.y - src.y) > tr.pullBoost.range ? tr.pullBoost.level : 0;
+  pull(w, c, t, d.force + far, { to: { x: src.x + dc * PULL_POINT, y: src.y + dr * PULL_POINT }, by: at,
+    ...(tr.pullTrauma ? { trauma: { per: tr.pullTrauma.perTile, every: Math.max(1, secondsToFrames(tr.pullTrauma.every)), src: src.id } } : {}) });
 }
 
 /**

@@ -4,7 +4,7 @@ import { KIND } from '@aue/schema';
 import { tileAt, buildableFor } from './level.js';
 import { makeOperator } from './units.js';
 import { onDeploy, commandSkill } from './skills.js';
-import { traitDeploy, traitOfDef, traitOf } from './traits.js';
+import { traitDeploy, traitOfDef, traitOf, gainCost } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
 import { carriedDeploy } from './carried.js';
 import { cardOf, cardHidden, cardLocked, deployCost, deployLimit, withdraw } from './deck.js';
@@ -136,6 +136,9 @@ function deploy(w, c, seat, cmd) {
   const p = w.players[seat], b = c.operators[cmd.op].builder, paid = b ? c.operators[cmd.op].cost : deployCost(c, p, cmd.op);
   const u = makeOperator(w, c, { key: cmd.op, owner: seat, row: cmd.row, col: cmd.col, dir: cmd.dir, paid });
   p.cost -= paid;
+  // 推击手 PUS-X: part of the cost back on a ranged tile (职业-23)
+  const back = traitOf(c, u).rangedRefund;
+  if (back > 0 && tileAt(c.level, cmd.row, cmd.col)?.buildable === 'RANGED') gainCost(w, c, seat, Math.floor(paid * back));
   // a builder is one of the seat's cards (守御-4): untargetable, it stays until its work is done
   if (b) { usePool(w, seat, cmd.op); addBuff(u, makeBuff({ key: 'builder', flags: { untargetable: true, noRetreat: true } })); } else p.deployed.push(cmd.op);
   w.units.push(u);

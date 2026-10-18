@@ -289,10 +289,21 @@ export function attackMods(w, c, op) {
   const st = op.skill, plain = { scale: 1, times: 1, targets: 1, skill: false };
   if (!st) return plain;
   const kind = timingOf(w, c, op).kind;
-  if (st.active && kind === 'passive' && behaviorOf(c, st.id) === GENERIC) return hitExtra(plain, defOf(c, op));
+  if (st.active && kind === 'passive' && behaviorOf(c, st.id) === GENERIC) return pushed(w, c, op, hitExtra(plain, defOf(c, op)));
   if (!st.active || kind === 'instant' || kind === 'passive') return plain;
   const mods = withExtra(skillMods(defOf(c, op).bb), defOf(c, op)), beh = behaviorOf(c, st.id);
-  return beh.attack ? beh.attack(contextOf(w, c, op), mods) : mods;
+  return pushed(w, c, op, beh.attack ? beh.attack(contextOf(w, c, op), mods) : mods);
+}
+
+/**
+ * An attack's push with its trait's boost (职业-23: 推击手 PUS-Y): `level` 力度 more while the operator blocks `cnt` or
+ * more enemies as the attack starts.
+ * @param {World} w @param {Content} c @param {Unit} op @param {AttackMods} mods @returns {AttackMods}
+ */
+function pushed(w, c, op, mods) {
+  const d = mods.displace, b = traitOf(c, op).pushBoost;
+  if (!d || d.pull || !b || w.units.filter((e) => e.blockedBy === op.id && e.hp > 0).length < b.cnt) return mods;
+  return { ...mods, displace: { ...d, force: d.force + b.level } };
 }
 
 /**
