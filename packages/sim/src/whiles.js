@@ -9,6 +9,7 @@ import { bursting, ELEMENTS, epOf } from './elements.js';
 import { tileOf } from './body.js';
 import { rangeKeys, inKeys, hostile } from './targeting.js';
 import { traitOf } from './traits.js';
+import { gritTurn } from './talentfx.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').WhileMods} WhileMods */
@@ -78,15 +79,17 @@ const WHEN = Object.freeze({
   always: () => true,
   inSkill: (_w, _c, op) => !!op.skill && op.skill.active,
   notInSkill: (_w, _c, op) => !(op.skill && op.skill.active),
+  noKills: (_w, _c, op) => !op.buffs.some((b) => b.key === 'kills' && b.value > 0),
   alchemy: (w, _c, op) => (w.alchemy ?? []).some((a) => a.src === op.id),
 });
 
 /**
- * At the start of an operator's turn (职业-18): each of its trait's `whiles` is a buff `while:<n>` with its modifiers
- * while its condition holds; when it no longer does, the buff goes.
+ * At the start of an operator's turn (职业-18, 职业-25): its 坚忍 (gritTurn), then each of its trait's `whiles` is a buff
+ * `while:<n>` with its modifiers while its condition holds; when it no longer does, the buff goes.
  * @param {World} w @param {Content} c @param {Unit} op
  */
 export function traitWhiles(w, c, op) {
+  gritTurn(c, op);
   const list = traitOf(c, op).whiles;
   for (let i = 0; i < list.length; i++) {
     const x = list[i], key = `while:${i}`, on = WHEN[x.when](w, c, op, x.value ?? 0, x), has = op.buffs.some((b) => b.key === key);

@@ -123,18 +123,50 @@ function fieldAspd(c, src, units, want) {
 }
 
 /**
- * The in-range talents of one source (部署-6): the enemies (not neutral units), or the operators (only ranged ones when
- * the talent says so), with a tile in its attack range.
- * @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
+ * Whether an operator is one an in-range talent is for (部署-6): a ranged one (RANGED or ALL) when the talent says so, a
+ * melee one (MELEE or ALL), one of its profession.
+ * @param {import('./types.js').RangeTalent} t @param {import('./types.js').OperatorDef} d
  */
-function rangeTalents(c, src, units, want) {
+const whoFits = (t, d) => (!t.ranged || d.position === 'RANGED' || d.position === 'ALL') && (!t.melee || d.position === 'MELEE' || d.position === 'ALL')
+  && (!t.profession || d.profession === t.profession);
+
+/** Whether a unit is blocked by any unit, or blocks one. @param {World} w @param {Unit} u */
+const inBlock = (w, u) => u.blockedBy >= 0 || w.units.some((x) => x.blockedBy === u.id);
+
+/**
+ * The conditions an in-range talent may ask of a unit (部署-6): below or above a share of its maximum HP, blocked (or
+ * blocking), an ordinary enemy (not elite nor leader), flying.
+ * @type {Readonly<Record<NonNullable<import('./types.js').RangeTalent['when']>['when'], (w: World, u: Unit, v: number) => boolean>>}
+ */
+const UNIT_WHEN = Object.freeze({
+  hpBelow: (_w, u, v) => u.hp < v * statsOf(u).maxHp,
+  hpAbove: (_w, u, v) => u.hp > v * statsOf(u).maxHp,
+  blocked: (w, u) => inBlock(w, u),
+  normal: (_w, u) => u.base.levelType === 'NORMAL',
+  flying: (_w, u) => statsOf(u).flying,
+});
+
+/** Whether a unit stands on one of an area's tiles around a source (offsets from its tile). @param {Unit} src @param {Unit} u @param {import('./types.js').Cell[]} area */
+function onArea(src, u, area) {
+  const [r, col] = tileOf(src), [ur, uc] = tileOf(u);
+  return area.some((x) => r + x.row === ur && col + x.col === uc);
+}
+
+/**
+ * The in-range talents of one source (部署-6): the enemies (not neutral units), or the operators the talent is for
+ * (whoFits), with a tile in its attack range — or standing on its area's tiles around the source —, and for which its
+ * condition holds when it has one.
+ * @param {World} w @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
+ */
+function rangeTalents(w, c, src, units, want) {
   const talents = c.operators[src.key].rangeTalents ?? [];
   if (talents.length === 0) return;
   const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src);
   talents.forEach((t, i) => {
     for (const u of units) {
-      const fits = t.side === 'enemy' ? hostile(u) : u.kind === KIND.OPERATOR && (!t.ranged || c.operators[u.key].position === 'RANGED');
-      if (fits && inKeys(u, keys, grid)) want.get(u)?.set(`range:${src.id}:${i}`, { src: src.id, value: 0, mods: t.mods });
+      const fits = t.side === 'enemy' ? hostile(u) : u.kind === KIND.OPERATOR && whoFits(t, c.operators[u.key]);
+      const there = t.area ? onArea(src, u, t.area) : inKeys(u, keys, grid);
+      if (fits && there && (!t.when || UNIT_WHEN[t.when.when](w, u, t.when.value ?? 0))) want.get(u)?.set(`range:${src.id}:${i}`, { src: src.id, value: 0, mods: t.mods });
     }
   });
 }
@@ -154,7 +186,7 @@ function dollAura(c, src, units, want) {
 /**
  * The auras a module adds to an operator's trait (职业-20, 职业-21): the enemies (not neutral) it blocks, those its own
  * summons block, or those with a tile in its attack range; the operator on the tile in front of it; its own summons; the
- * operators (summons too, itself too) with a tile in its attack range —
+ * operators (summons too, itself too) with a tile in its attack range; every enemy any unit blocks (职业-25) —
  * each with the aura's modifiers and flags, some only while its skill runs — a buff `mod:<its id>:<n>`.
  * @param {World} w @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
  */
@@ -166,7 +198,7 @@ function moduleAuras(w, c, src, units, want) {
   const holds = {
     blocked: (u) => hostile(u) && u.blockedBy === src.id, summonBlocked: (u) => hostile(u) && bySummon(u), range: (u) => hostile(u) && inKeys(u, keys, grid),
     frontAlly: (u) => u.kind === KIND.OPERATOR && u !== src && tileOf(u)[0] === fr && tileOf(u)[1] === fc, summons: (u) => u.summoner === src.id,
-    rangeAllies: (u) => u.kind === KIND.OPERATOR && inKeys(u, keys, grid),
+    rangeAllies: (u) => u.kind === KIND.OPERATOR && inKeys(u, keys, grid), blockedAll: (u) => hostile(u) && u.blockedBy >= 0,
   };
   list.forEach((a, i) => {
     if (a.skill && !(src.skill && src.skill.active)) return;
@@ -266,7 +298,7 @@ export function auras(w, c) {
     regenAura(c, src, ops, want);
     fieldTalents(c, src, ops, want);
     fieldAspd(c, src, units, want);
-    rangeTalents(c, src, units, want);
+    rangeTalents(w, c, src, units, want);
     dollAura(c, src, units, want);
     moduleAuras(w, c, src, units, want);
     skillAllies(c, src, units, want);

@@ -32,6 +32,7 @@ import { fallIntoHoles } from './holes.js';
 import { tacticalFatal, tacticalBehaviors } from './tactical.js';
 import { dollFatal, dollBehaviors } from './doll.js';
 import { secondLifeFatal } from './riders.js';
+import { talentDeaths, TALENT_BEHAVIORS } from './talentfx.js';
 import { newFortress, setUpFortress, fortressHooks, tickFortress } from './fortress.js';
 import { fieldContent } from './facilities.js';
 
@@ -69,8 +70,8 @@ function gainCost(w, c) {
 }
 
 /**
- * Removes units with no HP left (伤害-9): enemies killed by attacks die — unless an ability keeps them (敌能-2) —, enemies
- * at the goal leave quietly; an operator that falls releases what it blocks (阻挡-3) and leaves the field without a
+ * Removes units with no HP left (伤害-9): enemies killed by attacks die — unless an ability keeps them (敌能-2) —, the
+ * talents that see one fall give their SP (职业-25), enemies at the goal leave quietly; an operator that falls releases what it blocks (阻挡-3) and leaves the field without a
  * refund (部署-3), its summons with it (召唤-5) — but a tactical summon in its summon form turns into its point (召唤-11).
  * @param {World} w @param {Content} c
  */
@@ -79,6 +80,7 @@ function removeDead(w, c) {
   for (const u of w.units) {
     if (stays(w, c, u, reachedGoal.has(u.id))) continue;
     announceDeath(w, u, reachedGoal.has(u.id));
+    if (!reachedGoal.has(u.id)) talentDeaths(w, c, u);
     u.anim = ANIM.DIE;
     if (!reachedGoal.has(u.id)) w.events.push({ type: 'death', id: u.id });
     if (!reachedGoal.has(u.id) && u.kind === KIND.ENEMY && u.base.neutral === true) neutralDown(w, c, u);
@@ -128,7 +130,7 @@ function announceDeath(w, u, leak) {
 }
 
 /** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12, 职业-15, 召唤-11, 装置-6); content cannot replace them. @param {Content} c */
-const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c) });
+const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...TALENT_BEHAVIORS, ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c) });
 
 /** Each content's buff behaviours, made once (they depend on the content alone), with the content's table they were made from. @type {WeakMap<Content, { from: unknown, table: Record<string, import('./buffs.js').Behavior> }>} */
 const buffTables = new WeakMap();

@@ -11,6 +11,7 @@ import { draw } from './rng.js';
 import { dealEp } from './elements.js';
 import { vsDamage, vsHeal, vsEp } from './vs.js';
 import { afterOwnHit } from './riders.js';
+import { talentKill, talentDealt, dotOnHit } from './talentfx.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').TraitDef} TraitDef @typedef {import('./types.js').OperatorDef} OperatorDef */
@@ -27,7 +28,7 @@ export const defaultTrait = (position) => ({
   rangedTiles: false, meleeTiles: false, skillArts: false, immuneBlocking: [], hpDrain: 0, costDrain: null, zone: null, chain: null, healOnHit: 0,
   attackInSkill: false, idleMods: {}, idleFlags: {}, idleAirOnly: false, skillSplash: null, liftoffBlock: 0, fortress: 0, charge: null, skillHeal: 0, bullets: null, store: 0, epHeal: 0, funnel: null, boomerang: null, noAttack: false, free: false, noInspire: false, spendAtk: null, regenAura: 0,
   summonBlocked: false, summonBlockedScale: 1, trapTiles: false, doll: null, vs: [], far: null, crowd: null, packed: null, whiles: [], extraArts: 0, counterArts: 0, epRider: null, burstHit: null, spOn: null, payStack: null, auras: [],
-  firstCost: 0, firstRetreatRespawn: 1, refundUncapped: false, freeSummons: 0, summonRangedTiles: false, summonBoost: null, aftershocks: 1, secondLife: null, pushBoost: null, pullBoost: null, pullTrauma: null, rangedRefund: 0, onHit: [], bb: {},
+  firstCost: 0, firstRetreatRespawn: 1, refundUncapped: false, freeSummons: 0, summonRangedTiles: false, summonBoost: null, aftershocks: 1, secondLife: null, pushBoost: null, pullBoost: null, pullTrauma: null, rangedRefund: 0, onHit: [], stacks: [], talentSp: [], grit: null, bb: {},
 });
 
 /**
@@ -58,9 +59,9 @@ function sameFields(o, fields) {
 }
 
 /**
- * A trait with what its operator's talents add (职业-24): their conditional modifiers, target 倍率 and hit effects after
- * the trait's own, their 法术伤害 on each hit added to its, their number of targets when it is more than a number the
- * trait has.
+ * A trait with what its operator's talents add (职业-24, 职业-25): their conditional modifiers, target 倍率, hit effects,
+ * stacks, SP and auras after the trait's own, their 法术伤害 on each hit added to its, their number of targets when it is
+ * more than a number the trait has, their 坚忍.
  * @param {TraitDef} t @param {Partial<TraitDef> | undefined} a @returns {TraitDef}
  */
 function withTalents(t, a) {
@@ -68,7 +69,8 @@ function withTalents(t, a) {
   const more = typeof a.targets === 'number' && typeof t.targets === 'number' && a.targets > t.targets;
   return {
     ...t, whiles: [...t.whiles, ...(a.whiles ?? [])], vs: [...t.vs, ...(a.vs ?? [])], onHit: [...t.onHit, ...(a.onHit ?? [])],
-    extraArts: t.extraArts + (a.extraArts ?? 0), ...(more ? { targets: a.targets } : {}),
+    stacks: [...t.stacks, ...(a.stacks ?? [])], talentSp: [...t.talentSp, ...(a.talentSp ?? [])], auras: [...t.auras, ...(a.auras ?? [])],
+    extraArts: t.extraArts + (a.extraArts ?? 0), ...(more ? { targets: a.targets } : {}), ...(a.grit ? { grit: a.grit } : {}),
   };
 }
 
@@ -233,14 +235,15 @@ export function traitHit(w, c, op, target) {
 }
 
 /**
- * A talent's effect on a target its operator's attack hit (职业-24), while the target has HP: once on each enemy for a
+ * A talent's effect on a target its operator's attack hit (职业-24, 职业-25), while the target has HP (and is blocked by no
+ * unit, for one that says so): once on each enemy for a
  * `first` one — the target keeps a buff `seen:<operator id>:<n>` without an end —; at its chance (one draw) when it has
  * one; its status (状态-5), or its modifiers for its seconds as a buff `talentHit:<operator id>:<n>`, the time starting
- * again at each hit.
+ * again at each hit; its damage over time (dotOnHit).
  * @param {World} w @param {Unit} op @param {Unit} target @param {{ h: import('./types.js').TalentHit, i: number }} at
  */
 function talentHit(w, op, target, { h, i }) {
-  if (target.hp <= 0) return;
+  if (target.hp <= 0 || (h.when === 'unblocked' && target.blockedBy >= 0)) return;
   if (h.first) {
     const seen = `seen:${op.id}:${i}`;
     if (target.buffs.some((b) => b.key === seen)) return;
@@ -253,16 +256,18 @@ function talentHit(w, op, target, { h, i }) {
     removeBuff(target, key);
     addBuff(target, makeBuff({ key, src: op.id, left: secondsToFrames(h.debuff.seconds), mods: h.debuff.mods }));
   }
+  if (h.dot) dotOnHit(op, target, h.dot, i);
 }
 
 /**
- * An operator's attack or skill killed an enemy (职业-5): the trait's cost, then its behaviour.
+ * An operator's attack or skill killed an enemy (职业-5, 职业-25): the trait's cost, its talents' kill (talentKill), then its behaviour.
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target
  */
 export function traitKill(w, c, op, target) {
   if (op.kind !== KIND.OPERATOR || target.kind !== KIND.ENEMY) return;
   const t = traitOf(c, op);
   if (t.killCost > 0) gainCost(w, c, op.owner, t.killCost);
+  talentKill(w, c, op);
   behaviorOf(c, op)?.kill?.(contextOf(w, c, op), target);
 }
 
@@ -283,11 +288,13 @@ export function creditedDamage(w, c, op, target, dmg) {
 /**
  * An operator's heal for a hit it dealt (职业-9): a trait that heals itself for every hit (`selfHealOn` 'damage', 武者)
  * restores its `selfHeal` once for each hit of its that took HP from an enemy — any hit with it as the source, an
- * attack's or not; 生命流失 and a sourceless hit (伤害-7) aside.
+ * attack's or not; 生命流失 and a sourceless hit (伤害-7) aside. Such a hit is also a step of its talents' damage stacks
+ * (职业-25).
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target @param {{ dmg: import('./damage.js').Damage, taken: number }} hit the hit and the HP it took
  */
 export function traitDealt(w, c, op, target, hit) {
   if (!(hit.taken > 0) || hit.dmg.hpLoss || hit.dmg.sourceless || target.kind !== KIND.ENEMY || op.hp <= 0) return;
   const t = traitOf(c, op);
   if (t.selfHealOn === 'damage' && t.selfHeal > 0) w.events.push({ type: 'heal', id: op.id, target: op.id, amount: heal(w, op, op, t.selfHeal, { trait: true }) });
+  if (t.stacks.length) talentDealt(c, op, hit.dmg);
 }

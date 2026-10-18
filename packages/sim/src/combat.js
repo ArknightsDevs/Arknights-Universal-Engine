@@ -28,6 +28,7 @@ import { dealEp, rampageAttack, restoreEp } from './elements.js';
 import { mayAttack, healsNow, healerNow, inSkill, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale, fortressTargets, fortressSplash } from './modes.js';
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitDealt, traitAsk, traitSkip, summonHeld, dollNow } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_CUT_FRAMES } from './swing.js';
+import { talentSp } from './talentfx.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell @typedef {import('./attrs.js').Stats} Stats */
@@ -142,8 +143,9 @@ function hitDamage(w, c, op, t, load) {
 const statusOf = (h, src) => ({ seconds: h.seconds, src, ...(h.value !== undefined ? { value: h.value } : {}) });
 
 /**
- * What rides on a hit of an attack, after the rest of it (职业-20): on an operator's, its trait's riders and the SP for
- * it on its main target; on an operator an enemy's attack hit, its trait's reply.
+ * What rides on a hit of an attack, after the rest of it (职业-20, 职业-25): on an operator's, its trait's riders and the SP
+ * for it on its main target; on an operator an enemy's attack hit, its trait's reply and, when it took HP, its talents'
+ * SP for it.
  * @param {World} w @param {Content} c @param {{ src: Unit | null, t: Unit, load: Load }} h @param {import('./damage.js').Damage} dmg @param {number} dealt
  */
 function ridesOn(w, c, h, dmg, dealt) {
@@ -151,7 +153,10 @@ function ridesOn(w, c, h, dmg, dealt) {
   if (src && src.kind === KIND.OPERATOR) {
     afterOwnHit(w, c, src, t, { dmg, taken: dealt });
     if (!load.hit) hitSp(c, src, t);
-  } else if (src && t.kind === KIND.OPERATOR) attacked(w, c, t, src, dmg);
+  } else if (src && t.kind === KIND.OPERATOR) {
+    attacked(w, c, t, src, dmg);
+    if (dealt > 0 && t.hp > 0) talentSp(w, c, t, 'attacked');
+  }
 }
 
 /**
@@ -311,7 +316,8 @@ function jumpHits(w, c, src, t, load) {
 
 /**
  * A healer's heals on one target (职业-2, 职业-11, 职业-12), then a heal chain's on each operator it jumps to, at the
- * chain's share of the one before; each heal also restores element values by the trait's share of it.
+ * chain's share of the one before; each heal also restores element values by the trait's share of it, and gives the one
+ * healed its talents' SP for it (职业-25).
  * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t @param {{ load: Load, jumps: Unit[] }} how
  */
 function heals(w, c, a, t, how) {
@@ -321,6 +327,7 @@ function heals(w, c, a, t, how) {
     for (let k = 0; k < how.load.times; k++) {
       w.events.push({ type: 'heal', id: a.id, target: u.id, amount: heal(w, a, u, amount * vsHeal(w, c, a, u)) });
       if (ep > 0 && !statsOf(u).flags.healFree) restoreEp(u, amount * ep);
+      talentSp(w, c, a, 'heal', u);
     }
     amount *= how.load.chain?.scale ?? 1;
   }
@@ -359,13 +366,14 @@ function land(w, c, a) {
 }
 
 /**
- * After an operator's attack landed (职业-9, 职业-12, 技能-2): its stored energy goes at the first target, it heals
- * itself for the enemies reached, its skill counts the attack.
+ * After an operator's attack landed (职业-9, 职业-12, 技能-2, 职业-25): its stored energy goes at the first target, its
+ * talents' SP for an attack that reached enemies, it heals itself for the enemies reached, its skill counts the attack.
  * @param {World} w @param {Content} c @param {Unit} a @param {{ sw: Swing, reached: number, heals: boolean, noAmmo: boolean }} how
  */
 function operatorLanded(w, c, a, how) {
   const first = w.units.find((u) => u.id === how.sw.targets[0] && u.hp > 0 && !u.hidden);
   if (first && !how.heals) releaseEnergy(w, a, first);
+  if (!how.heals && how.reached > 0) talentSp(w, c, a, 'attack');
   selfHeal(w, c, a, how.reached);
   afterAttack(w, c, a, how.sw.mods, how.noAmmo);
 }

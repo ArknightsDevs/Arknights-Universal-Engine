@@ -12,6 +12,7 @@ import { heal } from './damage.js';
 import { emit } from './bus.js';
 import { grantSummons, endSummons } from './summons.js';
 import { restartCharge } from './modes.js';
+import { talentSkillEnd } from './talentfx.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').SkillDef} SkillDef @typedef {import('./types.js').SkillState} SkillState */
@@ -138,8 +139,8 @@ function timingOf(w, c, op) {
 const contextOf = (w, c, op) => timingOf(w, c, op).ctx;
 
 /**
- * Ends a skill (技能-4): its behaviour's end, then the state at rest (a 解放者's charge back at 0, 职业-12), then the
- * `skillEnd` event (钩子-3) with why — `duration`, `instant`, `ammo` or `stopped` (closed, 技能-7).
+ * Ends a skill (技能-4): its behaviour's end, then the state at rest (a 解放者's charge back at 0, 职业-12), its talents'
+ * SP for it (职业-25), then the `skillEnd` event (钩子-3) with why — `duration`, `instant`, `ammo` or `stopped` (closed, 技能-7).
  * @param {World} w @param {Content} c @param {Unit} op @param {string} [reason]
  */
 export function endSkill(w, c, op, reason = 'duration') {
@@ -149,6 +150,7 @@ export function endSkill(w, c, op, reason = 'duration') {
   st.active = false; st.armed = false; st.dur = -1; st.ammo = 0;
   restartCharge(op);
   w.events.push({ type: 'skill', id: op.id, active: 0 });
+  talentSkillEnd(w, c, op);
   endSummons(w, c, op);
   grantSummons(w, c, op, 'end');
   emit(w, 'skillEnd', { unit: op, reason });

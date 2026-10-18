@@ -279,20 +279,39 @@
  * @property {{ hp: number, mods: Record<string, number> } | null} secondLife brought to 0 HP, once a deployment it stays with these
  *   modifiers and `hp` of its maximum HP (职业-22)
  * @property {TalentHit[]} onHit what each hit of its attack gives the target by its talents (干员-19, 职业-24)
+ * @property {TalentStack[]} stacks steps of modifiers its talents give it for kills or damage (干员-20, 职业-25)
+ * @property {TalentSp[]} talentSp SP its talents give on events (干员-21, 职业-25)
+ * @property {{ mods: Record<string, number>, full: number } | null} grit its talent's 坚忍: the modifiers × the share of its maximum HP
+ *   lost over `full`, at most 1 (干员-23, 职业-25)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
  */
 /**
+ * A talent's steps (干员-20, 职业-25): for its kills (its summons' too with `summons`) or the damage it deals (physical
+ * only with `phys`), a step every `every` of them (1 by default), at most `max` steps, each with `mods`; the steps last
+ * `seconds` from the last one when it has them.
+ * @typedef {{ on: 'kill' | 'dealt', mods: Record<string, number>, max: number, every?: number, seconds?: number, phys?: boolean, summons?: boolean }} TalentStack
+ */
+/**
+ * SP a talent gives on an event (干员-21, 职业-25): `sp` to the operator — or, on a heal, to the one healed —, `other`
+ * to another unit at random; `share` of the skill's cost at the chance `prob` when its skill ends; for its kills during
+ * its skill, `sp` each at its end, at most `max`.
+ * @typedef {{ on: 'attack' | 'kill' | 'heal' | 'enemyDown' | 'allyDown' | 'attacked' | 'skillEnd' | 'skillKills', sp?: number, other?: number,
+ *   prob?: number, share?: number, max?: number }} TalentSp
+ */
+/**
  * What a hit of an operator's attack gives the target by a talent (干员-19, 职业-24): a status (with its strength), or
- * modifiers for some seconds; at the chance `prob` when it has one; only on the first hit on each enemy with `first`.
+ * modifiers for some seconds, or arts damage each second for some seconds (`amount`, or `scale` × the attack: 职业-25);
+ * at the chance `prob` when it has one; only on the first hit on each enemy with `first`; only on a target blocked by no
+ * unit with `when` 'unblocked'.
  * @typedef {{ status?: { key: import('./status.js').StatusKey, seconds: number, value?: number }, debuff?: { seconds: number, mods: Record<string, number> },
- *   prob?: number, first?: boolean }} TalentHit
+ *   dot?: { amount?: number, scale?: number, seconds: number }, prob?: number, first?: boolean, when?: 'unblocked' }} TalentHit
  */
 /**
  * Modifiers or flags an operator's trait gives other units (职业-20): the enemies it blocks (`blocked`), those its own
  * summons block (`summonBlocked`), those with a tile in its attack range (`range`), the operator on the tile in front of
  * it (`frontAlly`), its own summons (`summons`), the operators with a tile in its attack range (`rangeAllies`) — a buff on
- * each while they are so; `skill`: only while its skill runs.
- * @typedef {{ to: 'blocked' | 'summonBlocked' | 'range' | 'frontAlly' | 'summons' | 'rangeAllies', skill?: boolean, mods?: Record<string, number>,
+ * each while they are so; `skill`: only while its skill runs; from talents, every enemy any unit blocks (`blockedAll`, 职业-25).
+ * @typedef {{ to: 'blocked' | 'summonBlocked' | 'range' | 'frontAlly' | 'summons' | 'rangeAllies' | 'blockedAll', skill?: boolean, mods?: Record<string, number>,
  *   flags?: Record<string, boolean> }} ModuleAura
  */
 /**
@@ -306,10 +325,10 @@
  * buff may carry flags too. From talents (职业-24): it blocks at least `value` enemies (`blockingAtLeast`); an enemy below
  * `value` of its maximum HP is in its range (`lowHpEnemies`); `burstEnemies` of the element `el` only; no enemy on the 4
  * tiles next to it (`noEnemies4`) or exactly one (`soleEnemy4`); no other friendly unit, summons too, on them
- * (`aloneUnits4`); its skill does not run (`notInSkill`).
+ * (`aloneUnits4`); its skill does not run (`notInSkill`); it has killed no enemy since its deployment (`noKills`).
  * @typedef {{ when: 'blocking' | 'notBlocking' | 'hpAbove' | 'hpBelow' | 'enemies' | 'groundEnemies' | 'eliteEnemies' | 'burstEnemies'
  *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always' | 'inSkill' | 'alchemy'
- *   | 'blockingAtLeast' | 'lowHpEnemies' | 'noEnemies4' | 'soleEnemy4' | 'aloneUnits4' | 'notInSkill', value?: number, el?: string,
+ *   | 'blockingAtLeast' | 'lowHpEnemies' | 'noEnemies4' | 'soleEnemy4' | 'aloneUnits4' | 'notInSkill' | 'noKills', value?: number, el?: string,
  *   mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
  */
 /**
@@ -390,8 +409,10 @@
  * @typedef {{ prob: number, scale: number, stun?: number, more?: number, atk?: number, ignoreDef?: number, times?: number }} CritTalent
  */
 /**
- * An in-range talent (部署-6): modifiers for the enemies, or the (ranged) operators, in the holder's attack range.
- * @typedef {{ side: 'enemy' | 'ally', ranged: boolean, mods: Record<string, number> }} RangeTalent
+ * An in-range talent (部署-6): modifiers for the enemies, or the (ranged, melee, of a profession) operators, in the
+ * holder's attack range — or on the tiles of `area` around it —, those for which `when` holds when it has one.
+ * @typedef {{ side: 'enemy' | 'ally', ranged: boolean, mods: Record<string, number>, melee?: boolean, profession?: string, area?: Cell[],
+ *   when?: { when: 'hpBelow' | 'hpAbove' | 'blocked' | 'normal' | 'flying', value?: number } }} RangeTalent
  */
 /**
  * A team talent (部署-5): for the operators of a profession, of a faction, or every friendly unit (`all`), its blackboard

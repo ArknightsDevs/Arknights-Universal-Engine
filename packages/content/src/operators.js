@@ -5,7 +5,7 @@ import index from '../data/operators/index.json' with { type: 'json' };
 import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
 import { unlockedAt, talentsAt, alwaysOnBb, alwaysModsOf, teamPart, rangePart, critPart, timedPart, deployPart, forSkill } from './talents.js';
-import { whileParts, targetPart, hitPart, attackPart } from './talentparts.js';
+import { whileParts, targetPart, hitPart, attackPart, stackPart, spParts, gritPart, auraParts } from './talentparts.js';
 import { dollOf } from './doll.js';
 import rangeTable from '../data/ranges.json' with { type: 'json' };
 
@@ -109,6 +109,13 @@ const moduleTalents = (b, mod) => (mod?.parts ?? []).filter((p) => p.target.star
   .flatMap((p) => p.talents.filter((c) => unlockedAt(c, b)));
 
 /**
+ * A talent as a module candidate that is it upgrades it (干员-7): the candidate's data, its upgrade text (or the talent's
+ * text), the talent's being hidden (or the candidate's), the candidate's range id (or the talent's).
+ * @param {ModuleTalent} c @param {import('./talents.js').Talent | null | undefined} cur @returns {import('./talents.js').Talent}
+ */
+const upgradeOf = (c, cur) => ({ description: c.upgrade || (cur?.description ?? null), bb: c.bb, hidden: cur ? cur.hidden : c.hidden, rangeId: c.rangeId ?? cur?.rangeId ?? null });
+
+/**
  * The talents at a training (干员-6, 干员-7), with its module's upgrades. A module candidate that is one of the
  * operator's talents (its prefabKey) upgrades it: the candidate's data, its upgrade text as the description; one more of
  * these for a talent, the last. Then a shown candidate that is none of them adds to the talent at its index: its upgrade
@@ -121,12 +128,12 @@ function upgradedTalents(t, b, mod) {
   const out = talentsAt(t, b), cands = moduleTalents(b, mod);
   const talentOf = (/** @type {ModuleTalent} */ c) => (c.prefab === null ? -1 : t.talents.findIndex((cs) => cs.some((x) => x.prefab === c.prefab)));
   for (const c of cands) {
-    const i = talentOf(c), cur = out[i];
-    if (i >= 0) out[i] = { description: c.upgrade || (cur?.description ?? null), bb: c.bb, hidden: cur ? cur.hidden : c.hidden };
+    const i = talentOf(c);
+    if (i >= 0) out[i] = upgradeOf(c, out[i]);
   }
   for (const c of cands) {
     const cur = c.index >= 0 && !c.hidden && talentOf(c) < 0 ? out[c.index] : null;
-    if (cur) out[c.index] = { description: c.upgrade || cur.description, bb: { ...c.bb, ...cur.bb }, hidden: cur.hidden };
+    if (cur) out[c.index] = { description: c.upgrade || cur.description, bb: { ...c.bb, ...cur.bb }, hidden: cur.hidden, rangeId: cur.rangeId ?? null };
   }
   return out.filter((c) => c !== null);
 }
@@ -164,17 +171,25 @@ export function teamTalentsAt(t, b) {
   return { deck: parts.filter((p) => p.when === 'deck'), field: parts.filter((p) => p.when === 'field').map(({ when, ...rest }) => rest) };
 }
 
+/** A list field when it has items. @param {string} k @param {unknown[]} v */
+const listed = (k, v) => (v.length ? { [k]: v } : {});
+
 /**
- * What a training's talents add to its trait (干员-17…干员-19, 职业-24): their conditional parts (`whiles`), target
- * parts (`vs`), hit parts (`onHit`), and what they add to the attacks — 法术伤害 riding on each hit (`extraArts`, summed),
- * more targets (`targets`, the most) —; null when there is none.
+ * What a training's talents add to its trait (干员-17…干员-23, 职业-24, 职业-25): their conditional parts (`whiles`),
+ * target parts (`vs`), hit parts (`onHit`), what they add to the attacks — 法术伤害 riding on each hit (`extraArts`,
+ * summed), more targets (`targets`, the most) —, their stacks (`stacks`), SP (`talentSp`), 坚忍 (`grit`, the first) and
+ * auras on blocked enemies (`auras`); null when there is none.
  * @param {import('./talents.js').Talent[]} talents @returns {Partial<import('@aue/sim').TraitDef> | null}
  */
 function talentTraitOf(talents) {
-  const whiles = talents.flatMap(whileParts), vs = talents.map(targetPart).filter((p) => p !== null), onHit = talents.map(hitPart).filter((p) => p !== null);
   const attacks = talents.map(attackPart).filter((p) => p !== null), extraArts = attacks.reduce((n, p) => n + (p.extraArts ?? 0), 0);
-  const targets = Math.max(0, ...attacks.map((p) => p.targets ?? 0));
-  const out = { ...(whiles.length ? { whiles } : {}), ...(vs.length ? { vs } : {}), ...(onHit.length ? { onHit } : {}), ...(extraArts > 0 ? { extraArts } : {}), ...(targets > 0 ? { targets } : {}) };
+  const targets = Math.max(0, ...attacks.map((p) => p.targets ?? 0)), grit = talents.map(gritPart).find((p) => p !== null);
+  const auras = talents.flatMap((c) => auraParts(c, rangeTable.ranges).auras);
+  const out = {
+    ...listed('whiles', talents.flatMap(whileParts)), ...listed('vs', talents.map(targetPart).filter((p) => p !== null)),
+    ...listed('onHit', talents.map(hitPart).filter((p) => p !== null)), ...(extraArts > 0 ? { extraArts } : {}), ...(targets > 0 ? { targets } : {}),
+    ...listed('stacks', talents.map(stackPart).filter((p) => p !== null)), ...listed('talentSp', talents.flatMap(spParts)), ...(grit ? { grit } : {}), ...listed('auras', auras),
+  };
   return Object.keys(out).length ? out : null;
 }
 
@@ -190,7 +205,7 @@ function talentFields(t, b, mod) {
   const talents = upgradedTalents(t, b, mod).map((c) => forSkill(c, b.skill)), { cost = 0, respawn_time: respawn = 0, ...talentBb } = alwaysOnBb(talents);
   const talentMods = alwaysModsOf(talents), talentTrait = talentTraitOf(talents);
   /** @type {[string, unknown[]][]} */
-  const lists = [['fieldTalents', teamTalentsAt(t, b).field], ['rangeTalents', talents.map(rangePart).filter((p) => p !== null)],
+  const lists = [['fieldTalents', teamTalentsAt(t, b).field], ['rangeTalents', [...talents.map(rangePart).filter((p) => p !== null), ...talents.flatMap((c) => auraParts(c, rangeTable.ranges).range)]],
     ['critTalents', talents.map(critPart).filter((p) => p !== null)], ['timedTalents', talents.map(timedPart).filter((p) => p !== null)],
     ['deployTalents', talents.map(deployPart).filter((p) => p !== null)]];
   const aspd = talents.find((x) => Number.isFinite(x.bb.attack_speed_ally) && Number.isFinite(x.bb.attack_speed_enemy))?.bb;

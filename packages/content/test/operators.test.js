@@ -5,7 +5,11 @@ import assert from 'node:assert/strict';
 import { loadTraining, operatorAt, skeletonContent, ROSTER } from '../src/index.js';
 import { traitAt, teamTalentsAt, upgradedTalentsAt, moduleOwnAt } from '../src/operators.js';
 import { talentsAt, alwaysOn, alwaysMods, teamPart, rangePart, critPart, timedPart, deployPart, forSkill } from '../src/talents.js';
-import { whileParts, targetPart, hitPart, attackPart } from '../src/talentparts.js';
+import { whileParts, targetPart, hitPart, attackPart, stackPart, spParts, gritPart, auraParts } from '../src/talentparts.js';
+import rangeTable from '../data/ranges.json' with { type: 'json' };
+
+/** The range table (干员-8). */
+const RANGES = /** @type {Record<string, { row: number, col: number }[]>} */ (rangeTable.ranges);
 import { matchContent } from '../src/index.js';
 
 /** @typedef {import('../src/operators.js').Build} Build */
@@ -353,4 +357,85 @@ test('[干员-16] [干员-17] [干员-19] a kitted operator leaves its talents t
   const ops = /** @type {Record<string, any>} */ ((await matchContent({ level: 'act1multi_01', difficulty: 'NORMAL', seed: 1, decks: [[{ id: 'char_279_excu', build: E2 }, { id: kitted, build: E2 }]] },
     undefined, { [kitted]: /** @type {any} */ (() => ({})) })).operators);
   assert.deepEqual([ops['char_279_excu#0'].talentMods, ops[`${kitted}#0`].talentMods, ops[`${kitted}#0`].talentTrait], [{ defIgnoreFlat: 160 }, undefined, undefined]);
+});
+
+test('[干员-20] stacking parts: steps for kills (a summon\'s too), after so many kills or hits, steps for damage that last some seconds', async () => {
+  const s = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => stackPart(talent(d, bb));
+  assert.deepEqual([
+    s('每击杀一名敌人后自身的生命上限提高50（+10），最多可以叠加30次', { max_hp: 50, max_stack_cnt: 30 }), s('每击杀一名敌人后获得+6攻击速度（最多叠加6次（+1））', { attack_speed: 6, max_stack_cnt: 6 }),
+    s('每击杀一个敌人+3攻速，最多叠加12次', { attack_speed: 3, max_stack_cnt: 12 }), s('夕与"小自在"击杀一名敌人时，夕获得2%攻击力，最多可叠加18层', { atk: 0.02, max_stack_cnt: 18 }),
+    s('击杀5个敌人后获得攻击速度+15和抵抗', { times: 5, attack_speed: 15, one_minus_status_resistance: -0.5 }), s('累计造成30次物理伤害后，攻击力+18%', { count: 30, atk: 0.18 }),
+    s('造成20次伤害后，获得38%物理闪避', { prob: 0.38, trigger_damage_count: 20 }), s('每次造成伤害使自身10秒内防御力+30，攻击速度+3，最多可叠加3层', { def: 30, attack_speed: 3, max_stack_cnt: 3, duration: 10 }),
+  ], [
+    { on: 'kill', mods: { hpFlat: 50 }, max: 30 }, { on: 'kill', mods: { aspd: 6 }, max: 6 }, { on: 'kill', mods: { aspd: 3 }, max: 12 },
+    { on: 'kill', summons: true, mods: { atkPct: 0.02 }, max: 18 }, { on: 'kill', every: 5, max: 1, mods: { aspd: 15, statusResFlat: -0.5 } },
+    { on: 'dealt', phys: true, every: 30, max: 1, mods: { atkPct: 0.18 } }, { on: 'dealt', every: 20, max: 1, mods: { dodgePhys: 0.38 } },
+    { on: 'dealt', seconds: 10, max: 3, mods: { defFlat: 30, aspd: 3 } },
+  ]);
+  assert.deepEqual([s('每击杀一名敌人后获得+6攻击速度', { attack_speed: 6 }), s('攻击相同目标时每次攻击可提高自身攻击力6%，最多可叠加5层', { atk: 0.06, max_stack_cnt: 5 })], [null, null]);
+  assert.deepEqual((await atE2('char_279_excu')).talentTrait?.stacks, undefined, 'none without such a talent');
+});
+
+test('[干员-21] SP parts: on attacks and kills, on heals for the one healed, for a fall in range, for a hit taken, at the skill\'s end', () => {
+  const p = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => spParts(talent(d, bb));
+  assert.deepEqual([
+    p('攻击敌人时额外回复3（+1）点技力，消灭敌人后额外获得10（+2）点技力', { 'amiya_t_1[atk].sp': 3, 'amiya_t_1[kill].sp': 10 }),
+    p('每次回复友方单位生命值时额外回复该单位1点技力', { sp: 1 }), p('治疗目标时使其获得+3技力', { sp: 3 }),
+    p('攻击范围内有敌人倒下时，为自身和范围内随机一名友方单位回复2点技力', { 'bldsk_t_1[self].sp': 2, 'bldsk_t_1[rand].sp': 2 }),
+    p('攻击范围内的友方干员被击倒时获得5点技力', { sp: 5 }), p('受到攻击时，回复自己和周围一格内随机一名友方角色1点技力', { sp: 1 }),
+    p('技能结束后，50%几率立即回复50%的最大技力', { prob: 0.5, sp: 0.5 }), p('技能期间每击倒1名敌人，技能结束时获得1点技力，至多回复17点', { sp: 1, max_sp: 17 }),
+  ], [
+    [{ on: 'attack', sp: 3 }, { on: 'kill', sp: 10 }], [{ on: 'heal', sp: 1 }], [{ on: 'heal', sp: 3 }], [{ on: 'enemyDown', sp: 2, other: 2 }], [{ on: 'allyDown', sp: 5 }],
+    [{ on: 'attacked', sp: 1, other: 1 }], [{ on: 'skillEnd', prob: 0.5, share: 0.5 }], [{ on: 'skillKills', sp: 1, max: 17 }],
+  ]);
+  assert.deepEqual([p('治疗目标时使其获得3点技力', { sp: 4 }), p('每秒回复1点技力', { sp: 1 })], [[], []], 'a number the blackboard does not have; another sentence');
+});
+
+test('[干员-22] aura parts: in range with a condition on the unit, around the operator, on blocked enemies; 「但」 after its own clauses', async () => {
+  const a = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb, /** @type {string | null} */ rangeId = null) => auraParts({ ...talent(d, bb), rangeId }, RANGES);
+  assert.deepEqual([
+    a('攻击范围内的敌人生命少于40%时，令其获得33%的脆弱效果', { hp_ratio: 0.4, damage_scale: 1.33 }).range,
+    a('攻击范围内的友军生命大于70%时，使其获得16%的庇护', { hp_ratio: 0.7, damage_resistance: 0.16 }).range,
+    a('攻击范围内被阻挡的敌人获得18%的脆弱效果', { damage_scale: 1.18 }).range, a('攻击范围内的非精英和领袖敌人获得18%的脆弱效果', { damage_scale: 1.18 }).range,
+    a('攻击范围内的所有空中单位获得22%的【法术脆弱】效果', { damage_scale: 1.22 }).range,
+    a('攻击范围内敌人的物理和法术命中率降低10%', { damage_hitrate_physical: -0.1, damage_hitrate_magical: -0.1 }).range,
+    a('自身攻击力-5%，但攻击范围内的友方干员受到的治疗效果提升17%', { atk: -0.05, heal_scale: 1.17 }).range,
+  ], [
+    [{ side: 'enemy', ranged: false, mods: { dmgTakenMul: 1.33 }, when: { when: 'hpBelow', value: 0.4 } }],
+    [{ side: 'ally', ranged: false, mods: { physTakenMul: 0.84, artsTakenMul: 0.84 }, when: { when: 'hpAbove', value: 0.7 } }],
+    [{ side: 'enemy', ranged: false, mods: { dmgTakenMul: 1.18 }, when: { when: 'blocked' } }], [{ side: 'enemy', ranged: false, mods: { dmgTakenMul: 1.18 }, when: { when: 'normal' } }],
+    [{ side: 'enemy', ranged: false, mods: { artsTakenMul: 1.22 }, when: { when: 'flying' } }], [{ side: 'enemy', ranged: false, mods: { hitRateMul: 0.9 } }],
+    [{ side: 'ally', ranged: false, mods: { healingTakenMul: 1.17 } }],
+  ]);
+  const cross = RANGES['x-5'], square = RANGES['x-4'];
+  assert.deepEqual([
+    a('自身与周围8格友方干员攻速+10', { attack_speed: 10 }, 'x-4').range, a('在场时周围8格内的近战友方单位攻击力+12%', { atk: 0.12 }).range,
+    a('自身和周围8格内的高台干员获得23%的物理闪避', { prob: 0.23 }).range, a('自身及相邻四格的【术师】干员攻击力+10%', { atk: 0.1 }, 'x-5').range,
+  ].map((r) => r.map((x) => ({ ...x, area: x.area?.length }))), [
+    [{ side: 'ally', ranged: false, mods: { aspd: 10 }, area: square.length }], [{ side: 'ally', ranged: false, mods: { atkPct: 0.12 }, area: 9, melee: true }],
+    [{ side: 'ally', ranged: true, mods: { dodgePhys: 0.23 }, area: 9 }], [{ side: 'ally', ranged: false, mods: { atkPct: 0.1 }, area: cross.length, profession: 'CASTER' }],
+  ]);
+  assert.deepEqual([a('自身阻挡的敌人攻击速度-7', { attack_speed: -7 }).auras, a('在场时，所有被阻挡的敌人受到法术伤害时伤害提升18%', { damage_scale: 1.18 }).auras,
+    a('在场时所有被阻挡的敌方单位受到的物理伤害提高16%', { damage_scale: 1.16 }).auras], [
+    [{ to: 'blocked', mods: { aspd: -7 } }], [{ to: 'blockedAll', mods: { artsTakenMul: 1.18 } }], [{ to: 'blockedAll', mods: { physTakenMul: 1.16 } }],
+  ]);
+  assert.deepEqual(a('攻击范围内的敌人生命少于40%时，令其获得33%的脆弱效果', { damage_scale: 1.33 }), { range: [], auras: [] }, 'a key missing');
+  assert.equal(alwaysOn(talent('自身攻击力-5%，但攻击范围内的友方干员受到的治疗效果提升17%', { atk: -0.05, heal_scale: 1.17 }))?.atk, -0.05, '治疗效果 is no 效果 of its own');
+  assert.deepEqual((await atE2('char_279_excu')).rangeTalents ?? null, null, 'none without such a talent');
+});
+
+test('[干员-23] 坚忍: the most of each attribute and the share of HP lost at which it is reached; [干员-19] damage over time', () => {
+  const g = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => gritPart(talent(d, bb));
+  assert.deepEqual([
+    g('在场时，自身获得最高+52%攻击力的坚忍（损失70%生命值时达最大加成）', { min_atk: 0.52, min_hp_ratio: 0.3 }),
+    g('在场时，自身获得最高+50攻击速度和最高+50%防御力的坚忍（损失70%生命值时达到最大加成）', { min_attack_speed: 50, min_hp_ratio: 0.3, min_def: 0.5 }),
+    g('在场时，自身获得最高+52%攻击力的坚忍', { min_atk: 0.52 }),
+  ], [{ mods: { atkPct: 0.52 }, full: 0.7 }, { mods: { aspd: 50, defPct: 0.5 }, full: 0.7 }, null]);
+  const h = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => hitPart(talent(d, bb));
+  assert.deepEqual([
+    h('攻击使目标中毒，在3秒内每秒受到85（+10）点法术伤害', { duration: 3.1, poison_damage: 85 }), h('攻击使目标在3秒内每秒受到90点法术伤害（对【海怪】敌人伤害加倍）', { duration: 3, damage: 90 }),
+    h('攻击使未被阻挡的敌人流血，每秒受到相当于奥斯塔攻击力20%的法术伤害（不受特性影响），持续3秒', { atk_scale: 0.2, duration: 3 }),
+  ], [{ dot: { amount: 85, seconds: 3.1 } }, { dot: { amount: 90, seconds: 3 } }, { dot: { scale: 0.2, seconds: 3 }, when: 'unblocked' }]);
+  assert.deepEqual(whileParts(talent('每次部署后击倒一名敌人之前，攻击速度+10，受到的所有伤害降低30%', { attack_speed: 10, damage_resistance: 0.3 })),
+    [{ when: 'noKills', mods: { aspd: 10, dmgTakenMul: 0.7 } }], '缄默德克萨斯');
 });

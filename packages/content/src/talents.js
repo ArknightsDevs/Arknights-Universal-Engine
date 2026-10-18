@@ -5,7 +5,7 @@
 import powerTable from '../data/powers.json' with { type: 'json' };
 
 /** @typedef {import('./operators.js').Build} Build @typedef {import('./operators.js').TalentCandidate} TalentCandidate */
-/** A talent candidate as far as 干员-6 reads it. @typedef {{ description: string | null, bb: Record<string, number>, hidden: boolean }} Talent */
+/** A talent candidate as far as 干员-6 reads it; its range id (干员-8) when it has one. @typedef {{ description: string | null, bb: Record<string, number>, hidden: boolean, rangeId?: string | null }} Talent */
 
 /**
  * Whether a candidate (of a trait, a talent or a module part) is unlocked at a training (干员-3): its elite phase and
@@ -70,6 +70,7 @@ const EFFECTS = Object.freeze([
   [/^(?:自身)?受到的元素损伤[-－]\d+(?:\.\d+)?%$/u, 'damage_resistance', (v) => ({ epTakenMul: left(v) })],
   [/^每秒(?:回复|恢复)\d+(?:\.\d+)?%的?(?:最大)?生命值?$/u, 'hp_recovery_per_sec_by_max_hp_ratio', (v) => ({ hpRegenRatio: v })],
   [/^每秒恢复最大生命值\d+(?:\.\d+)?%的生命$/u, 'hp_recovery_per_sec_by_max_hp_ratio', (v) => ({ hpRegenRatio: v })],
+  [/^(?:自身)?受到的(?:所有)?伤害降低\d+(?:\.\d+)?%$/u, 'damage_resistance', (v) => ({ dmgTakenMul: left(v) })],
 ]);
 
 /**
@@ -113,8 +114,8 @@ const DOUBLES = /效果翻倍/u;
  * The always-on clauses of a talent (干员-6, 干员-16): its description's rich-text tags and bracketed potential
  * differences removed, the leading clauses of the first sentence (up to 。 or ；) about the operator itself — at least
  * one, every key they use in the blackboard. When nothing follows them, every other key must be 0; the rest of their
- * sentence must not speak of an 效果 (it may change theirs), nor a later sentence of 「效果翻倍」. Null otherwise; hidden
- * talents have none.
+ * sentence must not speak of an 效果 (it may change theirs; 治疗效果 and 医疗效果 are attributes), nor a later sentence of
+ * 「效果翻倍」. Null otherwise; hidden talents have none.
  * @param {Talent} c @returns {{ attrs: Set<string>, mods: Record<string, number> } | null}
  */
 function alwaysParts(c) {
@@ -123,7 +124,8 @@ function alwaysParts(c) {
   const first = text.split(/[。；]/)[0], { attrs, keys, mods, n } = leadingParts(first, c.bb);
   if (!n || ![...keys].every((k) => has(c.bb, k))) return null;
   const lead = first.split('，').slice(0, n).join('，');
-  if (text.length > lead.length ? first.slice(lead.length).includes('效果') || DOUBLES.test(text.slice(first.length)) : !Object.entries(c.bb).every(([k, v]) => keys.has(k) || v === 0)) return null;
+  const rest = first.slice(lead.length).replace(/治疗效果|医疗效果/gu, '');
+  if (text.length > lead.length ? rest.includes('效果') || DOUBLES.test(text.slice(first.length)) : !Object.entries(c.bb).every(([k, v]) => keys.has(k) || v === 0)) return null;
   return { attrs, mods };
 }
 

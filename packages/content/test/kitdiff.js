@@ -182,7 +182,7 @@ function level(f) {
 }
 
 /** The engine's record without its talents: the kit applies them. @param {Record<string, any>} d */
-const bare = ({ talentBb, fieldTalents, rangeTalents, critTalents, timedTalents, deployTalents, ...rest }) => rest;
+const bare = ({ talentBb, talentMods, talentTrait, fieldTalents, rangeTalents, critTalents, timedTalents, deployTalents, ...rest }) => rest;
 
 /**
  * What our run records of the operator: the HP its hits take, its heals, its skill starts, the statuses it applies.
