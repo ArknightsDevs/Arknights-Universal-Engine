@@ -88,8 +88,10 @@ function alchemyAllies(text, bb) {
   return { ...(regen > 0 ? { regen } : {}), ...(/防御力\+\{def\}/u.test(text) && bb.def > 0 ? { allyMods: { defFlat: bb.def } } : {}) };
 }
 
+/** A description without its rich-text tags, its line breaks as such (the data may write them as \n). @param {SkillLevel} level */
+const textOf = (level) => (level.description ?? '').replace(/<[^>]*>/g, '').replace(/\\n/g, '\n');
 /** A description without its rich-text tags, its placeholders as {key}. @param {SkillLevel} level */
-const plainOf = (level) => (level.description ?? '').replace(/<[^>]*>/g, '').replace(/\{([^}:]*)(?::[^}]*)?\}/g, '{$1}');
+const plainOf = (level) => textOf(level).replace(/\{([^}:]*)(?::[^}]*)?\}/g, '{$1}');
 
 /** A description that says the skill has no end of its own (技能-4). */
 const FOREVER = /持续时间无限/u;
@@ -204,7 +206,60 @@ function phraseOf(s, bb) {
   if ((m = /^(?:并)?获得\{prob\}的?物理(和法术)?闪避$/.exec(s)) && Number.isFinite(bb.prob)) return { mods: { dodgePhys: bb.prob, ...(m[1] ? { dodgeArts: bb.prob } : {}) } };
   if (s === '阻挡数变为0') return { mods: { blockCntMul: 0 } };
   if (s === '防御力降至0') return { mods: { defMul: 0 } };
+  return hitPhraseOf(s, bb);
+}
+
+/** A status's word in a description (技能-9). @type {Record<string, NonNullable<import('@aue/sim').skills.AttackMods['hitStatus']>['key']>} */
+const STATUS_WORD = { 晕眩: 'stun', 停顿: 'sluggish', 沉睡: 'sleep', 寒冷: 'cold', 恐惧: 'fear' };
+/** An element's 损伤 in a description (技能-9, 元素-1). @type {Record<string, NonNullable<import('@aue/sim').skills.AttackMods['element']>>} */
+const ELEMENT_WORD = { 神经: 'SANITY', 侵蚀: 'WATER', 灼燃: 'FIRE', 凋亡: 'DARK', 狂躁: 'ANGER' };
+
+/**
+ * One sentence about what the skill's attacks do to their targets or to the operator (技能-9), or null: 失去特殊能力
+ * (沉默), 寒冷, 沉睡 on each hit; a chance of a status; the operator's own HP back for each attack; the 元素损伤 each hit
+ * carries (a share of its attack).
+ * @param {string} s @param {Record<string, number>} bb
+ * @returns {{ attack: NonNullable<NonNullable<SkillDef['extra']>['attack']> } | null}
+ */
+function hitPhraseOf(s, bb) {
+  let m;
+  const has = (/** @type {string} */ k) => Number.isFinite(bb[k]);
+  if ((m = /^(?:攻击后?|并)?使?(?:命中)?目标失去特殊能力\{((?:attack@)?silence)\}秒$/.exec(s)) && has(m[1])) return { attack: { hitStatus: { key: 'silence', seconds: bb[m[1]] } } };
+  if ((m = /^攻击对目标造成\{((?:attack@)?cold)\}秒寒冷$/.exec(s)) && has(m[1])) return { attack: { hitStatus: { key: 'cold', seconds: bb[m[1]] } } };
+  if ((m = /^(?:下一?次攻击|攻击)使(?:敌人|目标)陷入沉睡\{((?:attack@)?sleep)\}秒$/.exec(s)) && has(m[1])) return { attack: { hitStatus: { key: 'sleep', seconds: bb[m[1]] } } };
+  if ((m = /^(?:另外还|每次攻击)?有\{((?:attack@)?prob)\}的?(?:概率|几率)使(?:目标|其)(晕眩|停顿|沉睡|寒冷|恐惧)\{((?:attack@)?(?:stun|sluggish|sleep|cold|fear))\}秒$/.exec(s))
+    && has(m[1]) && has(m[3])) return { attack: { hitStatus: { key: STATUS_WORD[m[2]], seconds: bb[m[3]], prob: bb[m[1]] } } };
+  if ((m = /^(?:每次攻击恢复自身最大生命值的|下次攻击时回复自身|并回复自身)\{((?:attack@)?hp_ratio)\}(?:的最大生命|的生命)?$/.exec(s)) && has(m[1])) return { attack: { selfHeal: bb[m[1]] } };
+  if ((m = /造成相当于攻击力\{(?:attack@)?atk_scale\}的(法术|物理)伤害并附带\{((?:attack@)?ep_damage_ratio)\}攻击力的(神经|侵蚀|灼燃|凋亡|狂躁)损伤$/.exec(s)) && has(m[2])) {
+    return { attack: { element: ELEMENT_WORD[m[3]], epScale: bb[m[2]], ...(m[1] === '法术' ? { type: /** @type {const} */ ('arts') } : {}) } };
+  }
   return null;
+}
+
+/** An attribute a hit lowers for some seconds (技能-9): its word, its key, its modifier as a share and as a number. */
+const DEBUFF_ATTR = Object.freeze([['防御力', 'def', 'defPct', 'defFlat'], ['移动速度', 'move_speed', 'movePct', 'movePct'], ['攻击速度', 'attack_speed', 'aspd', 'aspd'], ['攻击力', 'atk', 'atkPct', 'atkFlat']]);
+
+/**
+ * What the skill's hits lower for some seconds (技能-9): a sentence with 「{duration}秒内」 (or `attack@duration`) about the
+ * target and 「<attribute>-{-key}」 — the target's 防御力 or 攻击力 (a share when shown with a percent, else a number),
+ * 移动速度 or 攻击速度 that much for that long; the keys it uses, which are not the operator's own.
+ * @param {SkillLevel} level @param {Record<string, number>} bb @returns {{ debuff: { seconds: number, mods: Record<string, number> } | null, keys: string[] }}
+ */
+function hitDebuffOf(level, bb) {
+  for (const s of textOf(level).split(/[，。；\n]/)) {
+    const d = /\{((?:attack@)?duration)(?::[^}]*)?\}秒内/.exec(s);
+    if (!d || !/目标/.test(s) || !Number.isFinite(bb[d[1]])) continue;
+    /** @type {Record<string, number>} */
+    const mods = {}, keys = [];
+    for (const [word, key, pct, flat] of DEBUFF_ATTR) {
+      const m = new RegExp(`${word}-\\{-((?:attack@)?${key})(?::([^}]*))?\\}`).exec(s);
+      if (!m || !Number.isFinite(bb[m[1]])) continue;
+      mods[(m[2] ?? '').includes('%') ? pct : flat] = bb[m[1]];
+      keys.push(m[1]);
+    }
+    if (keys.length) return { debuff: { seconds: bb[d[1]], mods }, keys };
+  }
+  return { debuff: null, keys: [] };
 }
 
 /**
@@ -214,12 +269,18 @@ function phraseOf(s, bb) {
  * @param {SkillLevel} level @param {Record<string, number>} own @returns {{ extra?: NonNullable<SkillDef['extra']> }}
  */
 function extraOf(level, own) {
-  const bb = Object.fromEntries(level.blackboard.map((b) => [b.key, b.value]));
+  const bb = Object.fromEntries(level.blackboard.map((b) => [b.key, b.value])), hit = hitDebuffOf(level, bb);
   const parts = plainOf(level).split(/[，。；\n]/).map((s) => phraseOf(s.trim(), bb)).filter((p) => p !== null);
-  const mods = Object.assign({ ...own }, ...parts.map((p) => p.mods ?? {})), attack = Object.assign({}, ...parts.map((p) => p.attack ?? {}));
+  const mods = Object.assign({ ...own, ...selfZeros(hit.keys) }, ...parts.map((p) => p.mods ?? {}));
+  const attack = Object.assign({}, ...parts.map((p) => p.attack ?? {}), hit.debuff ? { hitDebuff: hit.debuff } : {});
   const has = (/** @type {object} */ o) => Object.keys(o).length > 0;
   return has(mods) || has(attack) ? { extra: { ...(has(mods) ? { mods } : {}), ...(has(attack) ? { attack } : {}) } } : {};
 }
+
+/** The operator's own modifier of each attribute key a hit can lower (技能-5). @type {Record<string, string>} */
+const SELF_MOD = { def: 'defPct', move_speed: 'movePct', attack_speed: 'aspd', atk: 'atkPct' };
+/** The operator's own modifiers of keys a description gives its targets: 0 (技能-5, 技能-9). @param {string[]} keys */
+const selfZeros = (keys) => Object.fromEntries(keys.filter((k) => k in SELF_MOD).map((k) => [SELF_MOD[k], 0]));
 
 /** A description that says the attack range changes (技能-8). */
 const NEW_RANGE = /攻击范围(?:扩大|改变|缩小)/u;

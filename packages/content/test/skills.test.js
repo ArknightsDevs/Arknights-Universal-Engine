@@ -134,3 +134,21 @@ test('[技能-13] the 炼金师\' skills from the real data: where each 炼金�
   assert.deepEqual([th2.alchemy.drift.speed, th2.alchemy.drift.seconds, Math.round(th2.alchemy.drift.grow * 1000) / 1000, th2.alchemy.foeMods], [0.1, 15, 0.143, { healingTakenMul: 0.5 }], '引星棘刺 S2');
   assert.deepEqual([th3.alchemy, skills.kindOf(tin1)], [undefined, 'instant'], 'S3 throws several: not read');
 });
+
+test('[技能-9] hit effects from the real data: 沉默, 寒冷, 沉睡, a status at a chance, timed modifiers, HP back, 元素损伤; line breaks written as \n', async () => {
+  const { ROSTER: roster } = await import('../src/index.js');
+  const id = (/** @type {string} */ name) => /** @type {string} */ (Object.entries(roster).find(([, r]) => r.name === name)?.[0]);
+  const at = async (/** @type {string} */ name, /** @type {number} */ s) => {
+    const { loadTraining, operatorAt } = await import('../src/index.js'), t = await loadTraining(id(name));
+    return /** @type {any} */ (operatorAt(t, { elite: t.phases.length - 1, level: 1, potential: 1, trust: 0, skill: s, skillLevel: 7 }).skill).extra;
+  };
+  const [jie, aurora, erato, tippi, may, vulcan, linshi, meteor, frost] = await Promise.all([at('孑', 0), at('极光', 1), at('埃拉托', 0), at('缇缇', 0), at('梅', 1), at('火神', 1),
+    at('凛视', 0), at('陨星', 1), at('霜叶', 0)]);
+  assert.deepEqual(jie.attack.hitStatus, { key: 'silence', seconds: 1 }, '孑 S1: 攻击目标失去特殊能力{attack@silence}秒\n持续时间无限');
+  assert.deepEqual([aurora.attack.hitStatus.key, erato.attack.hitStatus.key], ['cold', 'sleep']);
+  assert.deepEqual([tippi.attack.hitStatus, may.attack.hitStatus], [{ key: 'sleep', seconds: 2.4, prob: 0.4 }, { key: 'stun', seconds: 1, prob: 0.3 }]);
+  assert.equal(vulcan.attack.selfHeal, 0.07, '火神 S2: 每次攻击恢复自身最大生命值的{hp_ratio}');
+  assert.deepEqual([linshi.attack.element, linshi.attack.epScale, linshi.attack.type], ['DARK', 0.5, 'arts'], '凛视 S1: 附带{ep_damage_ratio}攻击力的凋亡损伤');
+  assert.deepEqual([meteor.attack.hitDebuff, meteor.mods.defPct], [{ seconds: 10, mods: { defFlat: -210 } }, 0], '陨星 S2: 防御力-{-def} (a number), none of hers');
+  assert.deepEqual(frost.attack.hitDebuff, { seconds: 2.5, mods: { movePct: -0.35 } }, '霜叶 S1');
+});

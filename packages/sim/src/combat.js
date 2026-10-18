@@ -18,7 +18,7 @@ import { afterOwnHit, attacked, hitSp, caughtSp } from './riders.js';
 import { reachKeys } from './reach.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
 import { foeTargets, foeAttack, foeHit, isFoeOf } from './foes.js';
-import { makeBuff } from './buffs.js';
+import { makeBuff, addBuff, removeBuff } from './buffs.js';
 import { tileOf } from './body.js';
 import { tickSkill, beforeAttack, attackMods, afterAttack } from './skills.js';
 import { palsyInterrupts, inflict } from './status.js';
@@ -76,7 +76,8 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * What an attack carries to one target: its damage type and amount, hits, 元素损伤, and an operator's splash and
  * aftershock (职业-8) and chain (职业-11); whether the skill makes it, and which of its hits this is (钩子-3).
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
- *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number, value?: number } | null,
+ *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number, value?: number, prob?: number } | null,
+ *   hitDebuff?: { seconds: number, mods: Record<string, number> },
  *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number }, aftershocks?: number }} Load
  */
 
@@ -148,10 +149,32 @@ function oneHit(w, c, src, t, load) {
   if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
   if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
   if (el && load.ep > 0) dealEp(w, t, el, load.ep * vsEp(w, c, src, t), src);
-  if (load.hitStatus && alive && t.hp > 0) inflict(w, t, load.hitStatus.key, statusOf(load.hitStatus, src));
+  if (alive && t.hp > 0) hitEffects(w, t, load, src);
   if (op && alive) traitHit(w, c, op, t);
   ridesOn(w, c, { src, t, load }, dmg, dealt);
   return dealt;
+}
+
+/**
+ * What a hit gives a target that is still up (状态-5, 技能-9): its status — at its chance when it has one —, its timed
+ * modifiers.
+ * @param {World} w @param {Unit} t @param {Load} load @param {Unit | null} src
+ */
+function hitEffects(w, t, load, src) {
+  const h = load.hitStatus;
+  if (h && !(h.prob !== undefined && draw(w) >= h.prob)) inflict(w, t, h.key, statusOf(h, src));
+  if (load.hitDebuff) debuffOnHit(t, load.hitDebuff, src);
+}
+
+/**
+ * A skill's modifiers on a target its hit reached, for some seconds (技能-9): one buff per source, `hitDebuff:<its id>`,
+ * the time starting again at each hit.
+ * @param {Unit} t @param {{ seconds: number, mods: Record<string, number> }} d @param {Unit | null} src
+ */
+function debuffOnHit(t, d, src) {
+  const key = `hitDebuff:${src ? src.id : -1}`;
+  removeBuff(t, key);
+  addBuff(t, makeBuff({ key, src: src ? src.id : -1, left: secondsToFrames(d.seconds), mods: d.mods }));
 }
 
 /**
@@ -181,8 +204,9 @@ const atkOf = (a, pct) => (pct ? computeStats({ base: a.base, buffs: [...a.buffs
  * hits, 元素损伤. @param {Unit} a @param {AttackMods} mods @returns {Load}
  */
 const loadOf = (a, mods) => ({
-  type: mods.type ?? a.base.dmgType, amount: atkOf(a, mods.atkPct) * mods.scale * statsOf(a).atkScaleMul, times: mods.times, element: mods.element ?? '', ep: mods.ep ?? 0,
-  ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.skill ? { skill: true } : {}), ...(mods.mark ? { mark: mods.mark } : {}),
+  type: mods.type ?? a.base.dmgType, amount: atkOf(a, mods.atkPct) * mods.scale * statsOf(a).atkScaleMul, times: mods.times, element: mods.element ?? '',
+  ep: (mods.ep ?? 0) + (mods.epScale ? statsOf(a).atk * mods.epScale : 0),
+  ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.hitDebuff ? { hitDebuff: mods.hitDebuff } : {}), ...(mods.skill ? { skill: true } : {}), ...(mods.mark ? { mark: mods.mark } : {}),
   ...(mods.frozen ? { frozen: mods.frozen } : {}),
 });
 

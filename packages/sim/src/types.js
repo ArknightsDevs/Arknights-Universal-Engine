@@ -92,9 +92,12 @@
 
 /**
  * What a skill's description adds (技能-9): modifiers while it runs; and for its attacks, every enemy the operator blocks
- * as targets, `more` targets than it would have, `times` hits, the damage type, a status each hit gives.
+ * as targets, `more` targets than it would have, `times` hits, the damage type, a status each hit gives (at a chance
+ * `prob`), modifiers each hit gives its target for some seconds (`hitDebuff`), the operator's own HP back for each attack
+ * (`selfHeal`, a share of its maximum), the 元素损伤 each hit carries (`element`, `epScale` × its attack).
  * @typedef {{ mods?: Record<string, number>, attack?: { blocked?: boolean, more?: number, times?: number, type?: DamageType,
- *   hitStatus?: { key: import('./status.js').StatusKey, seconds: number } } }} SkillExtra
+ *   hitStatus?: { key: import('./status.js').StatusKey, seconds: number, prob?: number }, hitDebuff?: { seconds: number, mods: Record<string, number> },
+ *   selfHeal?: number, element?: import('./elements.js').Element, epScale?: number } }} SkillExtra
  */
 /**
  * An enemy's skill (敌能-1): its name (prefabKey), first and later cooldowns in seconds, SP cost (spCost; 0 for none),
