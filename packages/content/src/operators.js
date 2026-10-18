@@ -220,6 +220,17 @@ function moduleRangeAt(b, mod) {
 }
 
 /**
+ * A skill with what its operator's talents add to its 炼金单元 (技能-13): 锡人's 凋敝魂灵 `skill@damage_scale` (its damage ×),
+ * 引星棘刺's 心相 `projectile_extend` (seconds more while another operator is in her range).
+ * @param {import('@aue/sim').SkillDef} skill @param {{ bb: Record<string, number> }[]} talents
+ */
+function withAlchemyTalents(skill, talents) {
+  if (!skill.alchemy) return skill;
+  const bb = Object.assign({}, ...talents.map((x) => x.bb)), mul = bb['skill@damage_scale'], extend = bb.projectile_extend;
+  return { ...skill, alchemy: { ...skill.alchemy, ...(mul > 0 ? { dmgMul: mul } : {}), ...(extend > 0 ? { extend } : {}) } };
+}
+
+/**
  * A training's record (operatorAt) with the module level given: the operator's own, or what its owner's module gives a
  * summon (召唤-2).
  * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @param {string} [type] the module's type, for the branch trait (职业-7)
@@ -236,7 +247,7 @@ export function recordAt(t, b, mod, type) {
     name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: moduleRangeAt(b, mod) ?? phase.range, traitBb, hiddenBb: hiddenAt(b, mod), ...(mod && type ? { moduleType: type, moduleText: moduleTextAt(b, mod) } : {}),
     maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: Math.max(0, s.cost + cost), blockCnt: s.blockCnt, baseAttackTime: s.baseAttackTime,
     respawnTime: Math.max(0, s.respawnTime + respawn), aspd: s.aspd, tauntLevel: s.tauntLevel, massLevel: s.massLevel,
-    ...fields, ...(slot && level ? { skill: skillDefOf(slot.id, level) } : {}),
+    ...fields, ...(slot && level ? { skill: withAlchemyTalents(skillDefOf(slot.id, level), upgradedTalents(t, b, mod)) } : {}),
   });
   // a 傀儡师's 替身: its own range, flying units, its attack and aura (职业-16)
   return rec.trait?.doll ? { ...rec, trait: { ...rec.trait, doll: { ...rec.trait.doll, ...dollOf(t, b, mod, traitBb) } } } : rec;

@@ -301,3 +301,8 @@ test('[职业-13] [职业-20] 鼓舞 does not reach a 吟游者; 佣兵 MCN-X: a
   const [catap, sora] = await Promise.all([withModule('雷狼龙S空爆', 'MCN-X'), real('char_101_sora')]);
   assert.deepEqual([catap.spendAtk, traits.traitOfDef(sora).noInspire], [{ atk: 0.02, max: 10 }, true]);
 });
+
+test('[职业-18] [技能-13] 炼金师 ALC-X: SP recovery while a 炼金单元 it threw is on the field, from the real data', async () => {
+  const tin = await withModule('锡人', 'ALC-X');
+  assert.deepEqual(tin.whiles, [{ when: 'alchemy', mods: { spRecoveryFlat: 0.1 } }]);
+});

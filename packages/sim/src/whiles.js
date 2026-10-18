@@ -56,6 +56,7 @@ const WHEN = Object.freeze({
   energy: (_w, _c, op) => (op.buffs.find((b) => b.key === 'energy')?.value ?? 0) > 0,
   always: () => true,
   inSkill: (_w, _c, op) => !!op.skill && op.skill.active,
+  alchemy: (w, _c, op) => (w.alchemy ?? []).some((a) => a.src === op.id),
 });
 
 /**

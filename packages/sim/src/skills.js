@@ -7,6 +7,7 @@ import { statsOf } from './attrs.js';
 import { timeSp, gainSp, spendSp } from './sp.js';
 import { actorContext, traitOf } from './traits.js';
 import { addBuff, makeBuff, removeBuff } from './buffs.js';
+import { throwAlchemy } from './alchemy.js';
 import { emit } from './bus.js';
 import { grantSummons, endSummons } from './summons.js';
 import { restartCharge } from './modes.js';
@@ -61,13 +62,14 @@ export const STAT_KEYS = Object.freeze({
 const ATTACK_KEYS = Object.freeze(['atk_scale', 'attack@atk_scale', 'times', 'attack@times', 'max_target', 'attack@max_target']);
 
 /**
- * A skill's kind (技能-1): passive; ammo; with a duration, or running until it is closed (技能-4); a next-attack skill
- * (no duration, attack keys); instant.
+ * A skill's kind (技能-1): passive; ammo; one that throws a 炼金单元 is instant (技能-13); with a duration, or running until it
+ * is closed (技能-4); a next-attack skill (no duration, attack keys); instant.
  * @param {SkillDef} def @returns {SkillKind}
  */
 export function kindOf(def) {
   if (def.type === 'PASSIVE') return 'passive';
   if (def.ammo) return 'ammo';
+  if (def.alchemy) return 'instant';
   if (def.duration > 0 || def.forever) return 'duration';
   return ATTACK_KEYS.some((k) => k in def.bb) ? 'next' : 'instant';
 }
@@ -185,6 +187,7 @@ export function activate(w, c, op, reason = 'auto', free = false) {
   st.ammo = kind === 'ammo' ? Math.max(1, def.bb['attack@trigger_time'] ?? def.bb.trigger_time ?? def.bb.cnt ?? 1) : 0;
   w.events.push({ type: 'skill', id: op.id, active: 1 });
   behaviorOf(c, st.id).start?.(contextOf(w, c, op));
+  if (def.alchemy) throwAlchemy(w, c, op, def.alchemy);
   grantSummons(w, c, op, 'start');
   emit(w, 'skillStart', { unit: op, reason });
   if (kind === 'instant') endSkill(w, c, op, 'instant');
@@ -234,13 +237,15 @@ export function canClose(c, op) {
 /**
  * When an AUTO skill starts (技能-3): as its behaviour says — or as its behaviour works out now —, else an instant one,
  * or one of an operator that makes no normal attacks (职业-13), as soon as it is ready and the others as the operator is
- * about to attack.
+ * about to attack — one that throws a 炼金单元 at the enemies needs a target (技能-13).
  * @param {World} w @param {Content} c @param {Unit} op @returns {'ready' | 'attack'}
  */
 function triggerOf(w, c, op) {
   const t = behaviorOf(c, defOf(c, op).id).trigger;
   if (typeof t === 'function') return t(contextOf(w, c, op));
-  return t ?? (kindOf(defOf(c, op)) === 'instant' || traitOf(c, op).noAttack ? 'ready' : 'attack');
+  const def = defOf(c, op);
+  if (t === undefined && def.alchemy) return def.alchemy.at === 'enemy' ? 'attack' : 'ready';
+  return t ?? (kindOf(def) === 'instant' || traitOf(c, op).noAttack ? 'ready' : 'attack');
 }
 
 /**

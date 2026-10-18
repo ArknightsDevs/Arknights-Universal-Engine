@@ -323,7 +323,8 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
     ...whileOf('alone4', { atkPct: bb.atk }), ...(bb.withdraw_cost_recover_ratio ? { refund: bb.withdraw_cost_recover_ratio, refundUncapped: true } : {}),
   }) },
   // its 炼金单元 are its skills' (职业-7)
-  alchemist: {},
+  // ALC-X: SP recovery + sp_recovery_per_sec while a 炼金单元 it threw is on the field (the module's own data; 职业-18, 技能-13)
+  alchemist: { trait: (bb, own, type) => (type === 'ALC-X' && own?.sp_recovery_per_sec ? whileOf('alchemy', { spRecoveryFlat: own.sp_recovery_per_sec }) : {}) },
   // at 0 HP in its own form, a switch to its 替身 for duration seconds, attack and HP + atk, max_hp; switches take 1 s (职业-15)
   dollkeeper: { trait: (bb) => ({ doll: { duration: bb.duration ?? 20, switch: DOLL_SWITCH, atk: bb.atk ?? 0, maxHp: bb.max_hp ?? 0 } }) },
   // its summons (traps) not on a tile a ground enemy stands on (职业-14)

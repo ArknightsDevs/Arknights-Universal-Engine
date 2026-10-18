@@ -38,8 +38,54 @@ export function skillDefOf(id, level) {
     id, type, sp, cost: level.spData.spCost, init: level.spData.initSp, charges: Math.max(1, level.spData.maxChargeTime),
     duration: level.duration, ammo: level.durationType === 'AMMO', bb,
     stoppable: level.stoppable ?? CLOSABLE.test(level.description ?? ''), ...rangeOf(level), ...extraOf(level, ownMods(level, bb, allies.keys)),
-    ...foreverOf(level), ...spendOf(level, bb), ...(allies.def ? { allies: allies.def } : {}),
+    ...foreverOf(level), ...spendOf(level, bb), ...(allies.def ? { allies: allies.def } : {}), ...alchemyOf(level, bb),
   };
+}
+
+/**
+ * The 炼金单元 a skill throws (技能-13), when its description says 「投掷一个炼金单元，在{projectile_delay_time}秒内使落点…」:
+ * at a friendly unit for 「向友方单位投掷」; `projectile_range` its radius (0 with 「落点和周围8格」: those tiles); the ground
+ * enemies' arts damage a second (`atk_scale`), 虚弱 (`atk`), slow (`move_speed`) and less healing (`heal_scale`); the
+ * heavy ones' (「重量大于等于{value}的敌人」) slow and more damage (`heavy_atk_scale`); the friendly units' regeneration
+ * (`hp_recovery_per_sec_ratio`, or `…_chr`) and defence (「防御力+{def}」, 直接加算); a drift (「缓慢沿投掷方向移动且影响范围持续扩大」:
+ * `projectile_move_speed`, `remaining_time`, the radius × `value` a second). A skill that throws several (「向…名干员投掷炼金单元」) is
+ * not read.
+ * @param {SkillLevel} level @param {Record<string, number>} bb @returns {{ alchemy?: NonNullable<SkillDef['alchemy']> }}
+ */
+function alchemyOf(level, bb) {
+  const text = plainOf(level);
+  if (!/投掷一个炼金单元/u.test(text) || !Number.isFinite(bb.projectile_delay_time)) return {};
+  const radius = bb.projectile_range ?? 1;
+  return { alchemy: {
+    at: /向友方单位投掷/u.test(text) ? 'ally' : 'enemy', seconds: bb.projectile_delay_time, radius, ...(radius === 0 && /周围8格/u.test(text) ? { square: true } : {}),
+    ...(bb.interval > 0 ? { interval: bb.interval } : {}), ...alchemyFoes(text, bb), ...alchemyAllies(text, bb),
+    ...(/缓慢沿投掷方向移动/u.test(text) && bb.projectile_move_speed > 0
+      ? { drift: { speed: bb.projectile_move_speed, seconds: bb.remaining_time ?? bb.projectile_delay_time, grow: radius * (bb.value ?? 0) } } : {}),
+  } };
+}
+
+/**
+ * What a 炼金单元 does to the ground enemies in it (技能-13): arts damage a second (`atk_scale`), 虚弱 (`atk`, 最终乘算),
+ * slow (`move_speed`, the heavy ones' only when it is written after 「重量大于等于{value}（或 3）的敌人」), less healing taken
+ * (`heal_scale`); the heavy ones' more damage (`heavy_atk_scale`).
+ * @param {string} text @param {Record<string, number>} bb @returns {Partial<NonNullable<SkillDef['alchemy']>>}
+ */
+function alchemyFoes(text, bb) {
+  const heavyAt = /重量大于等于(?:\{value\}|\d+)的敌人/u.test(text) ? text.indexOf('重量大于等于') : -1;
+  const slow = Number.isFinite(bb.move_speed) ? { movePct: bb.move_speed } : null, slowHeavy = !!slow && heavyAt >= 0 && text.indexOf('{move_speed}') > heavyAt;
+  const foeMods = { ...(bb.atk < 0 ? { atkMul: 1 + bb.atk } : {}), ...(slowHeavy ? {} : slow), ...(bb.heal_scale > 0 ? { healingTakenMul: 1 - bb.heal_scale } : {}) };
+  const heavy = heavyAt < 0 ? null : { weight: bb.value, ...(bb.heavy_atk_scale > 0 ? { scale: bb.heavy_atk_scale } : {}), ...(slowHeavy ? { mods: slow } : {}) };
+  return { ...(bb.atk_scale > 0 ? { scale: bb.atk_scale } : {}), ...(Object.keys(foeMods).length ? { foeMods } : {}), ...(heavy ? { heavy } : {}) };
+}
+
+/**
+ * What a 炼金单元 does for the friendly units in it (技能-13): regeneration (`hp_recovery_per_sec_ratio`, or `…_chr`) and
+ * 「防御力+{def}」 (直接加算).
+ * @param {string} text @param {Record<string, number>} bb @returns {Partial<NonNullable<SkillDef['alchemy']>>}
+ */
+function alchemyAllies(text, bb) {
+  const regen = bb.hp_recovery_per_sec_ratio ?? bb.hp_recovery_per_sec_ratio_chr;
+  return { ...(regen > 0 ? { regen } : {}), ...(/防御力\+\{def\}/u.test(text) && bb.def > 0 ? { allyMods: { defFlat: bb.def } } : {}) };
 }
 
 /** A description without its rich-text tags, its placeholders as {key}. @param {SkillLevel} level */

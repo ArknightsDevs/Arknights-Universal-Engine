@@ -128,6 +128,25 @@
  * @property {number} [spend] the deployment cost its owner pays to start it; it starts only while the owner holds that
  *   much (技能-10)
  * @property {SkillAllies} [allies] what it gives the friendly units in its attack range while it runs (技能-11)
+ * @property {AlchemyDef} [alchemy] the 炼金单元 it throws as it starts; it is then an instant skill (技能-13)
+ */
+/**
+ * What a skill's 炼金单元 does (技能-13). `at`: thrown at the enemies (the operator's target, else the farthest tile ahead in
+ * its range) or the friendly units (the one in its range with the lowest HP share); `seconds` it lasts, `radius` in tiles
+ * — `square`: its tile and the 8 around instead —; every `interval` seconds (1) the ground enemies in it take arts damage
+ * of `scale` × the thrower's attack × `dmgMul` (天赋); `foeMods` the ground enemies in it have, `heavy` those of 重量 at
+ * least `weight` more damage and their own modifiers; `regen` × the thrower's attack of 生命回复速度 and `allyMods` for the
+ * friendly units in it; `drift`: it moves away from the thrower at `speed` tiles a second, its radius growing `grow` a
+ * second, for `seconds`; `extend` seconds more when another operator is in the thrower's range as it throws (天赋).
+ * @typedef {{ at: 'enemy' | 'ally', seconds: number, radius: number, square?: boolean, interval?: number, scale?: number, dmgMul?: number,
+ *   foeMods?: Record<string, number>, heavy?: { weight: number, scale?: number, mods?: Record<string, number> }, regen?: number,
+ *   allyMods?: Record<string, number>, drift?: { speed: number, seconds: number, grow: number }, extend?: number }} AlchemyDef
+ */
+/**
+ * A 炼金单元 on the field (技能-13): its id, its thrower's record key, unit and seat, its centre (`cx` the column, `cy` the
+ * row) and radius, the frames it landed and ends, the thrower's attack then; drifting, its speed (tiles a second) until a frame.
+ * @typedef {{ id: number, key: string, src: number, owner: number, cx: number, cy: number, r: number, born: number, end: number, atk: number,
+ *   vx?: number, vy?: number, until?: number }} Alchemy
  */
 /**
  * What a skill gives the friendly units (summons too) in its operator's attack range while it runs (技能-11): its
@@ -264,9 +283,10 @@
  * an element burst (`burstEnemies`); at least `value` other operators are in it (`allies`), or a wounded friendly unit
  * (`injuredAllies`), or one with element damage (`epAllies`), or another operator whose skill runs (`skillAllies`); no
  * other operator stands on the 4 tiles next to it (`alone4`) or the 8 around it (`alone8`); it holds stored attack energy
- * (`energy`); its skill runs (`inSkill`); always (`always`). The buff may carry flags too.
+ * (`energy`); its skill runs (`inSkill`); a 炼金单元 it threw is on the field (`alchemy`, 技能-13); always (`always`). The
+ * buff may carry flags too.
  * @typedef {{ when: 'blocking' | 'notBlocking' | 'hpAbove' | 'hpBelow' | 'enemies' | 'groundEnemies' | 'eliteEnemies' | 'burstEnemies'
- *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always' | 'inSkill', value?: number,
+ *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always' | 'inSkill' | 'alchemy', value?: number,
  *   mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
  */
 /**
@@ -568,6 +588,7 @@
  * @property {number} bornThisFrame units created so far in this frame
  * @property {FortressState} [fortress] 堡垒守御's progress (守御-1), only in its levels
  * @property {Shot[]} shots projectiles in flight, in launch order (攻击-3)
+ * @property {Alchemy[]} [alchemy] the 炼金单元 on the field (技能-13), once there has been one
  * @property {Record<string, string | number>[]} events this frame's presentation events (not part of the state)
  * @property {import('./bus.js').Bus} [bus] the hook bus and timers (钩子-1, 钩子-2; not part of the state)
  */

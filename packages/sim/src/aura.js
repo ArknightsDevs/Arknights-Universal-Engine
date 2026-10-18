@@ -13,6 +13,7 @@ import { traitOf, dollNow, summonHeld } from './traits.js';
 import { statMods } from './skills.js';
 import { tileOf } from './body.js';
 import { frontOf } from './dir.js';
+import { alchemyDef, inAlchemy, groundFoe } from './alchemy.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /**
@@ -21,7 +22,7 @@ import { frontOf } from './dir.js';
  */
 
 /** The keys of the aura buffs. */
-const AURA_KEYS = /^(?:aura|field|range|doll|mod|ally|inspire):/;
+const AURA_KEYS = /^(?:aura|field|range|doll|mod|ally|inspire|alchemy):/;
 /** Whether a buff is an aura's. @param {{ key: string }} b */
 const isAura = (b) => AURA_KEYS.test(b.key);
 
@@ -152,6 +153,25 @@ function inspire(w, src, ratios, s) {
 }
 
 /**
+ * What a 炼金单元 gives the units in it (技能-13), one buff `alchemy:<id>` each: the ground enemies its `foeMods` — with
+ * `heavy.mods` for one of 重量 at least `heavy.weight` —, the friendly units (summons too) its `allyMods` and 生命回复速度
+ * of `regen` × the attack it keeps.
+ * @param {Content} c @param {import('./types.js').Alchemy} a @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
+ */
+function alchemyAura(c, a, units, want) {
+  const def = alchemyDef(c, a), key = `alchemy:${a.id}`, regen = (def.regen ?? 0) * a.atk;
+  for (const u of units) {
+    if (!inAlchemy(a, def, u)) continue;
+    if (groundFoe(u)) {
+      const heavy = def.heavy && statsOf(u).massLevel >= def.heavy.weight ? def.heavy.mods : undefined, mods = { ...def.foeMods, ...heavy };
+      if (Object.keys(mods).length) want.get(u)?.set(key, { src: a.src, value: 0, mods });
+    } else if (u.kind === KIND.OPERATOR && (def.allyMods || regen > 0)) {
+      want.get(u)?.set(key, { src: a.src, value: regen, mods: { ...def.allyMods, ...(regen > 0 ? { hpRegen: regen } : {}) } });
+    }
+  }
+}
+
+/**
  * A device's modifiers for every enemy on the field, neutral units aside (装置-4): one buff per device, so the devices'
  * modifiers stack.
  * @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
@@ -165,7 +185,7 @@ function deviceAura(c, src, units, want) {
 /**
  * Every aura this frame, before the operators' turns (职业-13, 职业-16, 职业-20, 部署-5, 部署-6, 装置-4, 技能-11): each
  * operator on the field gives its regen aura, its on-field team talents, its in-range talents, its 替身's slow, its
- * module's auras and its running skill's effects on its allies as buffs, each device
+ * module's auras and its running skill's effects on its allies as buffs, each 炼金单元 its modifiers (技能-13), each device
  * its modifiers for the enemies; a unit out of an aura's reach, or whose source left, loses its buff.
  * @param {World} w @param {Content} c
  */
@@ -182,6 +202,7 @@ export function auras(w, c) {
     skillAllies(c, src, units, want);
   }
   for (const src of units) if (src.kind === KIND.DEVICE) deviceAura(c, src, units, want);
+  for (const a of w.alchemy ?? []) alchemyAura(c, a, units, want);
   for (const u of w.units) sync(u, want.get(u) ?? new Map());
 }
 

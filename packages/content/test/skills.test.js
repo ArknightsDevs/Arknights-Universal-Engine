@@ -121,3 +121,15 @@ test('[技能-12] 史尔特尔 S3 黄昏: her whole maximum HP healed at its sta
   for (let i = 0; i < 6; i++) step(w, c, []);
   assert.ok(Math.abs(before - g.hp - max * 0.2 * 0.2) < 1e-6, 'past 60 s: 20 % a second, a fifth of it every 0.2 s');
 });
+
+test('[技能-13] the 炼金师\' skills from the real data: where each 炼金单元 goes, how long and wide, what it does; the talents\' additions', async () => {
+  const [tin1, tin2, hb1, hb2, th1, th2, th3] = await Promise.all([skillAt('char_4151_tinman', 0), skillAt('char_4151_tinman', 1), skillAt('char_4232_hbound', 0),
+    skillAt('char_4232_hbound', 1), skillAt('char_1039_thorn2', 0), skillAt('char_1039_thorn2', 1), skillAt('char_1039_thorn2', 2)]);
+  assert.deepEqual(tin1.alchemy, { at: 'enemy', seconds: 8, radius: 1, scale: 0.6, foeMods: { atkMul: 0.75 }, dmgMul: 1.2 }, '锡人 S1 “老科利”: 虚弱, 凋敝魂灵');
+  assert.deepEqual(tin2.alchemy, { at: 'enemy', seconds: 12, radius: 2, scale: 0.8, regen: 0.2, dmgMul: 1.2 }, '锡人 S2 “大拉里”');
+  assert.deepEqual(hb1.alchemy, { at: 'enemy', seconds: 9, radius: 1.5, interval: 1, scale: 0.6, foeMods: { movePct: -0.4 } }, '旅骨 S1 触礁');
+  assert.deepEqual(hb2.alchemy, { at: 'enemy', seconds: 32, radius: 2, interval: 1, scale: 0.17, heavy: { weight: 3, scale: 1.5, mods: { movePct: -0.7 } } }, '旅骨 S2 座浅: 重量大于等于3');
+  assert.deepEqual(th1.alchemy, { at: 'ally', seconds: 7, radius: 0, square: true, regen: 0.14, allyMods: { defFlat: 75 }, extend: 3 }, '引星棘刺 S1: 落点和周围8格, 心相');
+  assert.deepEqual([th2.alchemy.drift.speed, th2.alchemy.drift.seconds, Math.round(th2.alchemy.drift.grow * 1000) / 1000, th2.alchemy.foeMods], [0.1, 15, 0.143, { healingTakenMul: 0.5 }], '引星棘刺 S2');
+  assert.deepEqual([th3.alchemy, skills.kindOf(tin1)], [undefined, 'instant'], 'S3 throws several: not read');
+});
