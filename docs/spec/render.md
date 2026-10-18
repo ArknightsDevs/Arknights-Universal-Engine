@@ -231,3 +231,14 @@
 页面可以只载入一场对局要用的贴图：战斗界面的五张（血条、影子、攻击范围、朝向指示的圆环和箭头），关卡用到的地块，每名干员（按角色 ID）的头像、每种敌人的图标、每种装置的图标；素材清单没有的不载入。画面与载入全部贴图时相同。
 
 - 来源：设计决定（素材清单列出全部干员的头像和全部敌人的图标，一场对局只用到其中十几张；渲染器只按这些键取贴图：渲染-1、渲染-5、渲染-6、渲染-7、渲染-8、渲染-9、渲染-14、渲染-16）
+
+### 渲染-24 傀儡师的替身动画
+
+渲染状态第 6 版起，每个单位带 `form`：傀儡师的形态（职业-15）——0 本体、1 切换到替身、2 替身、3 切换回本体；其他单位为 0。
+
+- **替身的动画**：干员模型里替身的动画是以 Doll_ 开头的（技能的 Doll_Skill_… 除外）；没有时是第一个技能的（Doll_Skill_1_…）；再没有时是以 _B 结尾的。去掉这个前缀或后缀后，按 渲染-3 找待机、移动、攻击、死亡。没有这些动画的模型没有替身动画，`form` 不影响它。
+- **本体的动画**：其余不是替身的动画（以 _A 结尾的去掉 _A），按 渲染-3 找。
+- **切换的动画**：切换到替身用 Doll_SwitchIn（第一个技能的 Doll_Skill_1_SwitchIn、Start_B）；切换回本体用 Doll_SwitchOut（第一个技能的 Doll_Skill_1_SwitchOut；都没有时用本体的入场动画）。
+- **播放**：`form` 变为 1 时播一次切换到替身的动画，变为 3 时播一次切换回本体的动画，同入场动画（渲染-3：播完接视图的状态）。`form` 为 2、3 时用替身的动画，为 0、1 时用本体的。替身战斗中死亡播替身的死亡动画。
+
+- 来源：HX0922/ArknightsSpine@dc788e3 的 7 名傀儡师的战斗骨骼（`packages/spine` 读出的动画名）：贝娜 Attack_A、Attack_B、Idle_A、Idle_B、Start_A、Start_B、Die_A、Die_B；风丸、归溟幽灵鲨 Idle、Idle_B、Start、Start_B、Die_B；若叶睦、维荻、双月 Doll_Idle、Doll_Attack（双月 Doll_Attack_Loop）、Doll_Die、Doll_SwitchIn（若叶睦 Doll_Switchin，双月 Doll_Skill_1_SwitchIn、Doll_Skill_2_SwitchIn）、Doll_SwitchOut；结城理 Doll_Skill_1_…、Doll_Skill_2_…、Doll_Skill_3_P1_…；形态的划分与切换动画的选择为推断 INF-0236

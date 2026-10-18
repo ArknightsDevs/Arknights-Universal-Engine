@@ -3,9 +3,9 @@
 // hit frame, idle once an attack is over, the die clip after the unit dies; a model with forms (A_…, B_…) takes its next
 // form's clips after its first attack.
 import * as THREE from 'three';
-import { KIND } from '@aue/schema';
+import { KIND, FORM } from '@aue/schema';
 import { createFigure } from './spine.js';
-import { formRoles, roleOf, operatorFacing, enemyFacing } from './roles.js';
+import { formRoles, dollRoles, roleOf, operatorFacing, enemyFacing } from './roles.js';
 
 /** Simulation frames per second (the engine's 时间-1). */
 export const FPS = 30;
@@ -15,8 +15,8 @@ export const FPS = 30;
  * mirroring, the role playing (and the clip of an attack playing), the frame it began and its pace, the role the view
  * last gave, the x it was last at, and whether it is dying.
  * @typedef {{ group: THREE.Group, sides: Record<string, ReturnType<typeof createFigure>>, roles: Record<string, import('./roles.js').Roles>,
- *   forms: Record<string, import('./roles.js').Roles[]>, side: string, flip: boolean, role: string, clip: string, since: number, rate: number,
- *   view: string, x: number, dying: boolean }} Figure
+ *   forms: Record<string, import('./roles.js').Roles[]>, dolls: Record<string, ReturnType<typeof dollRoles>>, form: number, side: string, flip: boolean,
+ *   role: string, clip: string, since: number, rate: number, view: string, x: number, dying: boolean }} Figure
  */
 
 /**
@@ -28,13 +28,14 @@ export const FPS = 30;
 export function newFigure(m, u, frame) {
   if (!m?.front) return null;
   /** @type {Figure} */
-  const f = { group: new THREE.Group(), sides: {}, roles: {}, forms: {}, side: 'front', flip: false, role: '', clip: '', since: frame, rate: 1, view: 'idle', x: u.x, dying: false };
+  const f = { group: new THREE.Group(), sides: {}, roles: {}, forms: {}, dolls: {}, form: FORM.OWN, side: 'front', flip: false, role: '', clip: '', since: frame, rate: 1, view: 'idle', x: u.x, dying: false };
   for (const side of /** @type {const} */ (['front', 'back'])) {
     const model = m[side];
     if (!model) continue;
     f.sides[side] = createFigure(model);
+    f.dolls[side] = u.kind === KIND.OPERATOR ? dollRoles(f.sides[side].animations) : null;
     f.forms[side] = formRoles(f.sides[side].animations);
-    f.roles[side] = f.forms[side][0];
+    f.roles[side] = f.dolls[side]?.own ?? f.forms[side][0];
     f.group.add(f.sides[side].object);
   }
   if (u.kind === KIND.OPERATOR && f.roles.front.start) f.role = 'start';
@@ -50,6 +51,7 @@ const play = (f, role, frame, rate, clip = '') => { f.role = role; f.since = fra
  * @param {Figure} f @param {import('@aue/schema').ViewUnit} u @param {number} frame
  */
 export function follow(f, u, frame) {
+  if ((u.form ?? FORM.OWN) !== f.form) switched(f, u.form ?? FORM.OWN, frame);
   const role = roleOf(u.anim), held = f.role === 'start' || f.role === 'attack';
   f.view = role;
   if (role === 'attack' && !held) play(f, 'attack', frame, 1);
@@ -57,6 +59,19 @@ export function follow(f, u, frame) {
   const back = { back: !!f.sides.back, backDies: !!f.roles.back?.die, dying: role === 'die' };
   const facing = u.kind === KIND.OPERATOR ? operatorFacing(u.dir, back) : { side: 'front', flip: enemyFacing(f.flip, u.x - f.x) };
   f.side = facing.side; f.flip = facing.flip; f.x = u.x;
+}
+
+/**
+ * A 傀儡师's form changed (渲染-24): the 替身's roles while it fights and while it switches back, its own the rest of the
+ * time; the switch to the 替身 plays its `in` clip once, the switch back its `out` clip, as a deploy clip plays.
+ * @param {Figure} f @param {number} form @param {number} frame
+ */
+function switched(f, form, frame) {
+  f.form = form;
+  const doll = form === FORM.DOLL || form === FORM.SWITCH_OUT;
+  for (const [side, d] of Object.entries(f.dolls)) if (d) f.roles[side] = doll ? d.doll : d.own;
+  const d = f.dolls[f.side] ?? f.dolls.front, clip = form === FORM.SWITCH_IN ? d?.doll.in : form === FORM.SWITCH_OUT ? d?.doll.out : null;
+  if (clip) play(f, 'start', frame, 1, clip);
 }
 
 /**
@@ -96,7 +111,7 @@ export function clipAt(f, frame) {
   const fig = f.sides[f.side], roles = f.roles[f.side], t = ((frame - f.since) / FPS) * f.rate;
   const of = (/** @type {string} */ role) => roles[/** @type {'idle'} */ (role)] ?? roles.idle;
   if (f.role === 'start' || f.role === 'attack') {
-    const name = (f.role === 'attack' && f.clip) || of(f.role), d = fig.duration(name);
+    const name = f.clip || of(f.role), d = fig.duration(name);
     if (t < d) return { name, time: t, loop: false };
     return { name: of(f.role === 'start' ? f.view : 'idle'), time: t - d, loop: true };
   }

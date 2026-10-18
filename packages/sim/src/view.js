@@ -1,15 +1,16 @@
-// The world as the renderer sees it (schema render state v5), written straight into the array the worker transfers.
+// The world as the renderer sees it (schema render state v6), written straight into the array the worker transfers.
 import { VIEW_VERSION, VIEW_HEADER, VIEW_PLAYER, VIEW_UNIT, viewLength, SKILL_STATE, STATUS_BIT } from '@aue/schema';
 import { codeOfDir } from './dir.js';
 import { currentElement, epOf, ELEMENTS } from './elements.js';
 import { statsOf } from './attrs.js';
+import { dollPhase } from './traits.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').SkillState} SkillState @typedef {import('./types.js').Unit} Unit */
 
 /** The layout toView writes, field by field; it must be the schema's. */
 const LAYOUT = Object.freeze({
   header: ['version', 'frame', 'units', 'players'], player: ['life', 'cost'],
-  unit: ['id', 'kind', 'owner', 'x', 'y', 'z', 'dir', 'hp', 'maxHp', 'anim', 'sp', 'spCost', 'skill', 'skillLeft', 'status', 'element', 'ep', 'burst'],
+  unit: ['id', 'kind', 'owner', 'x', 'y', 'z', 'dir', 'hp', 'maxHp', 'anim', 'sp', 'spCost', 'skill', 'skillLeft', 'status', 'element', 'ep', 'burst', 'form'],
 });
 if (LAYOUT.header.join() !== VIEW_HEADER.join() || LAYOUT.player.join() !== VIEW_PLAYER.join() || LAYOUT.unit.join() !== VIEW_UNIT.join()) {
   throw new Error(`toView writes render state v${VIEW_VERSION} in an older layout: update sim/src/view.js with the schema`);
@@ -75,7 +76,8 @@ function writeUnit(a, i, u) {
   a[i + 10] = st ? st.sp : -1; a[i + 11] = st ? st.cost : 0; a[i + 12] = skillState(st); a[i + 13] = st && st.active ? st.dur : -1;
   a[i + 14] = statusBits(u);
   writeElement(a, i + 15, u);
-  return i + 18;
+  a[i + 18] = dollPhase(u);
+  return i + 19;
 }
 
 /**

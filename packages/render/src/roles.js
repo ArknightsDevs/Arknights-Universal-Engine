@@ -44,6 +44,47 @@ export function formRoles(names) {
 }
 
 /**
+ * A 傀儡师's 替身 clips (渲染-24): those named Doll_… (not a skill's), else its first skill's (Doll_Skill_1_…), else those
+ * ending in _B; each with its name without that prefix or suffix. Empty for a model with none.
+ * @param {string[]} names @returns {Map<string, string>}
+ */
+function dollSet(names) {
+  const plain = names.filter((n) => /^doll_/i.test(n) && !/^doll_skill/i.test(n));
+  if (plain.length) return new Map(plain.map((n) => [n.replace(/^doll_/i, ''), n]));
+  const first = names.filter((n) => /^doll_skill_1_/i.test(n));
+  if (first.length) return new Map(first.map((n) => [n.replace(/^doll_skill_1_/i, ''), n]));
+  return new Map(names.filter((n) => /_b$/i.test(n)).map((n) => [n.replace(/_b$/i, ''), n]));
+}
+
+/**
+ * Roles found among names given without a prefix or suffix (渲染-3), back to their full names.
+ * @param {Map<string, string>} named the full name by its bare one @returns {Roles}
+ */
+function rolesIn(named) {
+  const r = animationRoles([...named.keys()]), full = (/** @type {string | null} */ n) => (n ? named.get(n) ?? n : n);
+  return { idle: full(r.idle) ?? '', move: full(r.move) ?? '', attack: full(r.attack) ?? '', die: full(r.die), start: full(r.start) };
+}
+
+/**
+ * A 傀儡师's clips by form (渲染-24), or null for a model with no 替身 clips: the 替身's roles among its own clips
+ * (dollSet), `in` the clip of the switch to it (Doll_SwitchIn, its first skill's, Start_B) and `out` the one of the
+ * switch back (Doll_SwitchOut, its first skill's, else its own form's start); its own form's roles among the other clips
+ * (not a 替身 one), a suffix _A dropped.
+ * @param {string[]} names @returns {{ own: Roles, doll: Roles & { in: string | null, out: string | null } } | null}
+ */
+export function dollRoles(names) {
+  const set = dollSet(names);
+  if (set.size === 0) return null;
+  const doll = new Set(set.values()), rest = names.filter((n) => !doll.has(n) && !/^doll_/i.test(n));
+  const own = rolesIn(new Map(rest.map((n) => [n.replace(/_a$/i, ''), n]))), find = (/** @type {RegExp} */ re) => names.find((n) => re.test(n)) ?? null;
+  return {
+    own,
+    doll: { ...rolesIn(set), start: null, in: find(/^doll_switchin$/i) ?? find(/^doll_skill_1_switchin$/i) ?? find(/^start_b$/i),
+      out: find(/^doll_switchout$/i) ?? find(/^doll_skill_1_switchout$/i) ?? own.start },
+  };
+}
+
+/**
  * The die animation: Die, else the first ending in Die that is not an attack, else the first with die in its name.
  * @param {(n: string) => string | null} find @param {(re: RegExp, ok?: (n: string) => boolean) => string | null} like
  */

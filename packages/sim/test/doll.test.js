@@ -11,6 +11,8 @@ import { dealDamage, setHp } from '../src/damage.js';
 import { dollPhase, DOLL_PHASE } from '../src/doll.js';
 import { applyStatus } from '../src/status.js';
 import { targetsOf } from '../src/combat.js';
+import { toView } from '../src/view.js';
+import { readView } from '@aue/schema';
 
 /** @typedef {import('../src/types.js').Unit} Unit @typedef {import('../src/types.js').World} World */
 
@@ -158,4 +160,13 @@ test('[职业-16] a 替身 whose attacks deal arts damage and that takes less ph
   const hp = guard.hp;
   dealDamage(w, e, guard, { type: 'phys', amount: 100 + statsOf(guard).def }, c);
   assert.equal(hp - guard.hp, 60);
+});
+
+test('[职业-15] [渲染-24] the render state shows a 傀儡师\'s form: its own, switching in, the 替身, switching back', () => {
+  const { w, c, guard } = arena();
+  const form = () => readView(toView(w)).units.find((u) => u.id === guard.id)?.form;
+  const seen = [form()];
+  setHp(guard, 0);
+  for (let i = 0; i < 160; i++) { step(w, c, []); if (seen.at(-1) !== form()) seen.push(form()); }
+  assert.deepEqual(seen, [0, 1, 2, 3, 0]);
 });

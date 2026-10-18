@@ -25,3 +25,14 @@ export function formsModel() {
   /** @type {any} */ (m.skeleton).animations = ['A', 'B'].flatMap((l) => base.map((/** @type {any} */ a) => ({ ...a, name: `${l}_${a.name}` })));
   return m;
 }
+
+/**
+ * The tiny model of a 傀儡师 (渲染-24): its own clips, its 替身's (Doll_Idle, Doll_Attack 0.5 s, Doll_Die) and the
+ * switches (Doll_SwitchIn 0.4 s, Doll_SwitchOut 0.4 s). @returns {import('../src/spine.js').SpineModel}
+ */
+export function dollModel() {
+  const m = tinyModel(), base = /** @type {any} */ (m.skeleton).animations, of = (/** @type {string} */ n) => base.find((/** @type {any} */ a) => a.name === n);
+  /** @type {any} */ (m.skeleton).animations = [...base, ...['Idle', 'Attack', 'Die'].map((n) => ({ ...of(n), name: `Doll_${n}` })),
+    { ...of('Start'), name: 'Doll_SwitchIn' }, { ...of('Start'), name: 'Doll_SwitchOut' }];
+  return m;
+}
