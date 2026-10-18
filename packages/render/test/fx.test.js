@@ -187,3 +187,29 @@ test('[渲染-12] co-op goals by the viewer: their own goal and one of no single
   only.dispose();
 });
 
+
+test('[渲染-25] a 炼金单元: its trail flies to the landing tile, its effects loop there, drift and grow with it, and stop at its end', () => {
+  const tex = new Map([['a', new THREE.Texture()]]), lasting = () => ({ d: 0.5, ps: [sys({ loop: true, rate: C(5), bursts: [] })], tr: [] });
+  const data = { by: { alc: { z: { 2: { t: 'trail', v: 2, arc: 0.5, r: ['range', 'token'] } } } }, fx: { trail: lasting(), range: lasting(), token: lasting() } };
+  const fx = createEffects({ data, textures: tex }, { width: 4, height: 2 }, { skills: { alc: 2 } });
+  const unit = { id: 1, kind: KIND.OPERATOR, owner: 0, x: 0, y: 0, z: 0, dir: DIR.RIGHT, hp: 1, maxHp: 1, anim: 0, sp: -1, spCost: 0, skill: 0, skillLeft: -1, status: 0 };
+  const view = /** @type {any} */ ({ frame: 1, players: [], units: [unit] }), cam = new THREE.PerspectiveCamera();
+  cam.updateMatrixWorld();
+  fx.update(view, { 1: 'alc' }, [{ type: 'alchemy', id: 9, src: 1, x: 2, y: 0, r: 1, frames: 120, vx: 0.5, vy: 0, grow: 1, drift: 90 }]);
+  const named = (/** @type {string} */ n) => fx.live.filter((i) => i.e === data.fx[/** @type {keyof typeof data.fx} */ (n)] && !i.stopped);
+  assert.deepEqual([named('trail').length, named('range').length], [1, 0], 'thrown: the trail, nothing landed yet');
+  const t0 = named('trail')[0].R.o[0];
+  fx.step(0.5, cam);
+  assert.ok(named('trail')[0].R.o[0] > t0, 'it flies east');
+  fx.step(0.6, cam);
+  assert.deepEqual([named('trail').length, named('range').length, named('token').length], [0, 1, 1], 'two tiles at 2 a second: landed after a second');
+  const range = named('range')[0], o0 = range.R.o[0];
+  fx.step(0.5, cam);
+  assert.ok(range.R.o[0] > o0 && Math.hypot(...range.R.ex) > 1, 'it drifts east and grows');
+  fx.step(2.5, cam);
+  assert.deepEqual([range.stopped, fx.pots.length], [true, 0], 'four seconds: over');
+  const none = createEffects({ data: { by: {}, fx: {} }, textures: tex }, { width: 4, height: 2 });
+  none.update(view, { 1: 'op' }, [{ type: 'alchemy', id: 9, src: 1, x: 2, y: 0, r: 1, frames: 90, vx: 0, vy: 0, grow: 0, drift: 0 }]);
+  assert.equal(none.pots.length, 0, 'no throw in the pack: nothing');
+  fx.dispose(); none.dispose();
+});
