@@ -229,12 +229,35 @@ function hitPhraseOf(s, bb) {
   if ((m = /^(?:下一?次攻击|攻击)使(?:敌人|目标)陷入沉睡\{((?:attack@)?sleep)\}秒$/.exec(s)) && has(m[1])) return { attack: { hitStatus: { key: 'sleep', seconds: bb[m[1]] } } };
   if ((m = /^(?:另外还|每次攻击)?有\{((?:attack@)?prob)\}的?(?:概率|几率)使(?:目标|其)(晕眩|停顿|沉睡|寒冷|恐惧)\{((?:attack@)?(?:stun|sluggish|sleep|cold|fear))\}秒$/.exec(s))
     && has(m[1]) && has(m[3])) return { attack: { hitStatus: { key: STATUS_WORD[m[2]], seconds: bb[m[3]], prob: bb[m[1]] } } };
+  return effectPhraseOf(s, bb);
+}
+
+/**
+ * One sentence about what else the skill's attacks do (技能-9), or null: the operator's own HP back for each attack; a
+ * push or pull of the blackboard's `force` (`attack@force`) on each target; the 元素损伤 each
+ * hit carries.
+ * @param {string} s @param {Record<string, number>} bb
+ * @returns {{ attack: NonNullable<NonNullable<SkillDef['extra']>['attack']> } | null}
+ */
+function effectPhraseOf(s, bb) {
+  let m;
+  const has = (/** @type {string} */ k) => Number.isFinite(bb[k]), force = bb.force ?? bb['attack@force'];
   if ((m = /^(?:每次攻击恢复自身最大生命值的|下次攻击时回复自身|并回复自身)\{((?:attack@)?hp_ratio)\}(?:的最大生命|的生命)?$/.exec(s)) && has(m[1])) return { attack: { selfHeal: bb[m[1]] } };
+  if ((m = DISPLACE.exec(s)) && Number.isFinite(force)) {
+    const pull = /拖拽|牵引|拉至/.test(m[4]), along = !pull && !!(m[1] || m[3]);
+    return { attack: { displace: { pull, force, ...(along ? { along: true } : {}) } } };
+  }
   if ((m = /造成相当于攻击力\{(?:attack@)?atk_scale\}的(法术|物理)伤害并附带\{((?:attack@)?ep_damage_ratio)\}攻击力的(神经|侵蚀|灼燃|凋亡|狂躁)损伤$/.exec(s)) && has(m[2])) {
     return { attack: { element: ELEMENT_WORD[m[3]], epScale: bb[m[2]], ...(m[1] === '法术' ? { type: /** @type {const} */ ('arts') } : {}) } };
   }
   return null;
 }
+
+/**
+ * A push or pull a sentence says the skill's hits make (技能-9): an optional way along the operator's facing (「往攻击方向」
+ * 「朝部署方向」「向前」), a 力度 word, and 推开、推动、弹开、击退 (a push) or 拖拽、牵引、拉至面前 (a pull).
+ */
+const DISPLACE = /(往攻击方向|朝部署方向|向前)?(微小力|小力|中等力度|中力|较大力|大力|特大力)地?(往攻击方向|朝部署方向|向前)?(推开|推动|弹开|击退|拖拽至面前|牵引至面前|拉至面前)/u;
 
 /** An attribute a hit lowers for some seconds (技能-9): its word, its key, its modifier as a share and as a number. */
 const DEBUFF_ATTR = Object.freeze([['防御力', 'def', 'defPct', 'defFlat'], ['移动速度', 'move_speed', 'movePct', 'movePct'], ['攻击速度', 'attack_speed', 'aspd', 'aspd'], ['攻击力', 'atk', 'atkPct', 'atkFlat']]);
@@ -270,7 +293,9 @@ function hitDebuffOf(level, bb) {
  */
 function extraOf(level, own) {
   const bb = Object.fromEntries(level.blackboard.map((b) => [b.key, b.value])), hit = hitDebuffOf(level, bb);
-  const parts = plainOf(level).split(/[，。；\n]/).map((s) => phraseOf(s.trim(), bb)).filter((p) => p !== null);
+  // what closing the skill does (「主动关闭技能时……」) is not what its attacks do
+  const said = plainOf(level).split(/[。；\n]/).filter((seg) => !/关闭技能时/.test(seg)).join('。');
+  const parts = said.split(/[，。；\n]/).map((s) => phraseOf(s.trim(), bb)).filter((p) => p !== null);
   const mods = Object.assign({ ...own, ...selfZeros(hit.keys) }, ...parts.map((p) => p.mods ?? {}));
   const attack = Object.assign({}, ...parts.map((p) => p.attack ?? {}), hit.debuff ? { hitDebuff: hit.debuff } : {});
   const has = (/** @type {object} */ o) => Object.keys(o).length > 0;

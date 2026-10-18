@@ -29,7 +29,8 @@ import { restartCharge } from './modes.js';
  * @typedef {{ scale: number, times: number, targets: number, skill: boolean, element?: import('./elements.js').Element, ep?: number,
  *   type?: import('./types.js').DamageType, cross?: boolean, atkPct?: number, channel?: { hits: number, duration: number, after: number }, heal?: boolean, square?: boolean, blocked?: boolean, more?: number,
  *   hitStatus?: { key: import('./status.js').StatusKey, seconds: number, prob?: number }, mark?: number, splashScale?: number, direct?: boolean, frozen?: number,
- *   hitDebuff?: { seconds: number, mods: Record<string, number> }, selfHeal?: number, epScale?: number }} AttackMods
+ *   hitDebuff?: { seconds: number, mods: Record<string, number> }, selfHeal?: number, epScale?: number,
+ *   displace?: { pull: boolean, force: number, along?: boolean } }} AttackMods
  */
 
 /**
@@ -315,7 +316,7 @@ function hitExtra(mods, def) {
   const a = def.extra?.attack;
   if (!a) return mods;
   return { ...mods, ...(a.hitStatus ? { hitStatus: a.hitStatus } : {}), ...(a.hitDebuff ? { hitDebuff: a.hitDebuff } : {}), ...(a.selfHeal ? { selfHeal: a.selfHeal } : {}),
-    ...(a.element && a.epScale ? { element: a.element, epScale: a.epScale } : {}) };
+    ...(a.element && a.epScale ? { element: a.element, epScale: a.epScale } : {}), ...(a.displace ? { displace: a.displace } : {}) };
 }
 
 /** The attack keys of a blackboard as mods (技能-5). @param {Readonly<Record<string, number>>} bb @returns {AttackMods} */

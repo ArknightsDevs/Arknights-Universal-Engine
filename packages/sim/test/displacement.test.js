@@ -1,9 +1,9 @@
-// Displacement (docs/spec/displacement.md 位移-1…位移-3): pushes by 受力等级, 失衡's friction slide against PRTS 推与拉's
+// Displacement (docs/spec/displacement.md 位移-1…位移-4): pushes and pulls by 受力等级, 失衡's friction slide against PRTS 推与拉's
 // ideal distances and 游戏数据基础's 位移时间, the direction rules, walls, who cannot be moved, and what 失衡 holds back.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step } from '../src/index.js';
-import { push, slideStep, displaceable, forceLevel } from '../src/displacement.js';
+import { push, pull, slideStep, displaceable, forceLevel, PULL_STOP } from '../src/displacement.js';
 import { makeEnemy, makeOperator } from '../src/units.js';
 import { makeBuff } from '../src/buffs.js';
 
@@ -104,4 +104,23 @@ test('[位移-3] [地图-2] a wall or a closed edge stops the slide; 失衡 hold
   const xs = e.x;
   for (let f = 0; f < 30; f++) step(w, c);
   assert.ok(e.x > xs, 'walks on after 失衡');
+});
+
+test('[位移-4] a pull toward 0.5 tiles in front of the puller: PRTS 推与拉\'s ideal distances at 受力等级 −1 and −2 from 2 and 3 tiles; ≥ 0 it reaches the puller and stops', () => {
+  const cases = [[-1, 2, 0.5699], [-1, 3, 0.9240], [-2, 2, 0.0320], [-2, 3, 0.0325]];
+  for (const [force, d, want] of cases) {
+    const { c, e } = field(['........', '........', '........']);
+    e.x = d;
+    assert.equal(pull(/** @type {any} */ ({}), c, e, force, { to: { x: 0.5, y: 1 }, by: { x: 0, y: 1 } }), true);
+    rest(c, e);
+    assert.ok(Math.abs(d - e.x - want) < 0.0005, `${force} from ${d}: ${d - e.x}`);
+  }
+  const { c, e } = field(['........', '........', '........']);
+  e.x = 5;
+  pull(/** @type {any} */ ({}), c, e, 2, { to: { x: 0.5, y: 1 }, by: { x: 0, y: 1 } });
+  const frames = rest(c, e);
+  assert.ok(e.x <= PULL_STOP + 0.25 && e.x > 0, `a 较大力 pull brings it to the puller: at ${e.x}`);
+  assert.ok(frames >= 30, 'in 失衡 to the end of its second');
+  const heavy = field(['........', '........', '........'], 5).e;
+  assert.equal(pull(/** @type {any} */ ({}), c, heavy, 2, { to: { x: 0.5, y: 1 }, by: { x: 0, y: 1 } }), false, '受力等级 −3: none');
 });

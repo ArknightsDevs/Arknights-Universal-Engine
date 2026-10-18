@@ -1,7 +1,8 @@
 // Displacement (docs/spec/displacement.md 位移-1…位移-4): a push gives an enemy a speed at once by its 受力等级 — the
-// force's 力度 less its 重量等级 — away from the pusher or along a direction; the enemy is then in 失衡 (UNBALANCE): each
-// frame friction takes μg·dt off its speed before it moves, a wall stops it, and the state ends once its speed is at
-// most 0.1 and its 0.1 s 失衡硬直 is over. In 失衡 it neither walks, attacks nor is blocked.
+// force's 力度 less its 重量等级 — away from the pusher or along a direction; a pull drags it for a second toward a
+// point in front of the puller with a force that falls off as it nears; the enemy is then in 失衡 (UNBALANCE): each
+// frame friction takes μg·dt off its speed, a pull adds its force, then it moves, a wall stops it, and the state ends
+// once its speed is at most 0.1, its 0.1 s 失衡硬直 and its pull are over. In 失衡 it neither walks, attacks nor is blocked.
 import { FPS } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
@@ -28,6 +29,44 @@ export const STOP_SPEED = 0.1;
 
 /** The 失衡硬直 in frames (位移-3: 0.1 s). */
 export const HARD_FRAMES = 3;
+
+/** A pull's force at its start (N on a mass of 1) by 受力等级 −2…3 (位移-4): ≤ −3 none, ≥ 3 as 3. */
+export const PULL_FORCE = Object.freeze({ '-2': 2, '-1': 10, 0: 40, 1: 42, 2: 44, 3: 46 });
+
+/** A pull's point: this far in front of its puller (位移-4). */
+export const PULL_POINT = 0.5;
+
+/** Within this distance of its puller's centre a pulled enemy stops (位移-4: 急停). */
+export const PULL_STOP = 0.6708;
+
+/**
+ * A pull (位移-4) of 力度 `force` on `t` toward `to` (a point in front of the puller at `by`): none at a 受力等级 of −3 or
+ * below; else for 1 s (0.5 s below −1) it is pulled each frame by the 受力等级's force × (its distance to `to` ÷ that
+ * distance as the pull began)⁴; it is released from its blocker and its swing cut. Whether it is pulled.
+ * @param {World} w @param {Content} c @param {Unit} t @param {number} force @param {{ to: { x: number, y: number }, by: { x: number, y: number } }} o
+ */
+export function pull(w, c, t, force, o) {
+  const level = displaceable(t) ? forceLevel(t, force) : -3, x0 = len(t.x - o.to.x, t.y - o.to.y);
+  if (level <= -3 || !(x0 > 0)) return false;
+  const s = t.slide ?? { vx: 0, vy: 0, hard: 0 }, f = PULL_FORCE[/** @type {keyof typeof PULL_FORCE} */ (String(Math.min(3, level)))];
+  t.slide = { vx: s.vx, vy: s.vy, hard: HARD_FRAMES, pull: { x: o.to.x, y: o.to.y, bx: o.by.x, by: o.by.y, f, x0, left: level < -1 ? FPS / 2 : FPS, stop: false } };
+  release(t);
+  t.swing = null;
+  return true;
+}
+
+/**
+ * The speed a pull gives this frame (位移-4): its force toward its point, dt long; none once its target came within
+ * PULL_STOP of its puller, which stops it.
+ * @param {Unit} t @param {NonNullable<NonNullable<Unit['slide']>['pull']>} p @param {number} vx @param {number} vy @returns {[number, number]}
+ */
+function pulled(t, p, vx, vy) {
+  if (p.stop || len(t.x - p.bx, t.y - p.by) <= PULL_STOP) { p.stop = true; return [0, 0]; }
+  const dx = p.x - t.x, dy = p.y - t.y, d = len(dx, dy), k = d / p.x0;
+  if (!(d > 0)) return [vx, vy];
+  const a = (p.f * k * k * k * k) / FPS;
+  return [vx + (dx / d) * a, vy + (dy / d) * a];
+}
 
 /** A directional push nearer than this, or more than 45° off its direction, turns radial with 受力等级 −2 (位移-2). */
 const DIRECTIONAL_MIN = 0.25;
@@ -103,18 +142,20 @@ function step(c, t, dx, dy) {
 }
 
 /**
- * One frame of 失衡 (位移-3): friction first, then the move; the state ends — the slide gone, its way planned afresh —
- * once its speed is at most 0.1 with its 硬直 over, or when it is lifted (浮空). Whether it is still in 失衡.
+ * One frame of 失衡 (位移-3, 位移-4): friction first, then a pull's force, then the move; the state ends — the slide gone,
+ * its way planned afresh — once its speed is at most 0.1 with its 硬直 and pull over, or when it is lifted (浮空). Whether
+ * it is still in 失衡.
  * @param {Content} c @param {Unit} t
  */
 export function slideStep(c, t) {
   const s = t.slide;
   if (!s) return false;
-  const v = len(s.vx, s.vy), nv = Math.max(0, v - FRICTION / FPS), k = v > 0 ? nv / v : 0;
-  t.slide = { vx: s.vx * k, vy: s.vy * k, hard: Math.max(0, s.hard - 1) };
+  const v = len(s.vx, s.vy), nv = Math.max(0, v - FRICTION / FPS), k = v > 0 ? nv / v : 0, p = s.pull && s.pull.left > 0 ? s.pull : undefined;
+  const [vx, vy] = p ? pulled(t, p, s.vx * k, s.vy * k) : [s.vx * k, s.vy * k];
+  t.slide = { vx, vy, hard: Math.max(0, s.hard - 1), ...(p ? { pull: { ...p, left: p.left - 1 } } : {}) };
   if (statsOf(t).flags.levitate) return settle(t);
   step(c, t, t.slide.vx / FPS, t.slide.vy / FPS);
-  return len(t.slide.vx, t.slide.vy) <= STOP_SPEED && t.slide.hard === 0 ? settle(t) : true;
+  return len(t.slide.vx, t.slide.vy) <= STOP_SPEED && t.slide.hard === 0 && !t.slide.pull ? settle(t) : true;
 }
 
 /** 失衡 ends: no slide, the way planned afresh from where it stands (路线-5). Always false. @param {Unit} t */

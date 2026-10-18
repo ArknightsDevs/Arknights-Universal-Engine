@@ -94,10 +94,12 @@
  * What a skill's description adds (技能-9): modifiers while it runs; and for its attacks, every enemy the operator blocks
  * as targets, `more` targets than it would have, `times` hits, the damage type, a status each hit gives (at a chance
  * `prob`), modifiers each hit gives its target for some seconds (`hitDebuff`), the operator's own HP back for each attack
- * (`selfHeal`, a share of its maximum), the 元素损伤 each hit carries (`element`, `epScale` × its attack).
+ * (`selfHeal`, a share of its maximum), the 元素损伤 each hit carries (`element`, `epScale` × its attack), a push or
+ * pull of 力度 `force` on each target (`displace`; along the operator's facing for `along`).
  * @typedef {{ mods?: Record<string, number>, attack?: { blocked?: boolean, more?: number, times?: number, type?: DamageType,
  *   hitStatus?: { key: import('./status.js').StatusKey, seconds: number, prob?: number }, hitDebuff?: { seconds: number, mods: Record<string, number> },
- *   selfHeal?: number, element?: import('./elements.js').Element, epScale?: number } }} SkillExtra
+ *   selfHeal?: number, element?: import('./elements.js').Element, epScale?: number,
+ *   displace?: { pull: boolean, force: number, along?: boolean } } }} SkillExtra
  */
 /**
  * An enemy's skill (敌能-1): its name (prefabKey), first and later cooldowns in seconds, SP cost (spCost; 0 for none),
@@ -479,7 +481,9 @@
  * @property {Cell[]} [range] an operator's own attack range when content changed it, over its record's (攻击-1)
  * @property {number[]} [reachExtra] extra tile keys content gave an operator's attack (攻击-1)
  * @property {Swing | null} swing the attack it is in the wind-up of, null for none (攻击-2)
- * @property {{ vx: number, vy: number, hard: number }} [slide] its 失衡 slide: speed (tiles/s) and 硬直 frames left (位移-3)
+ * @property {{ vx: number, vy: number, hard: number, pull?: { x: number, y: number, bx: number, by: number, f: number, x0: number, left: number, stop: boolean } }} [slide]
+ *   its 失衡 slide: speed (tiles/s) and 硬直 frames left (位移-3); a pull on it — its point, its puller's centre, its force,
+ *   the distance it began at, its frames left, whether it stopped (位移-4)
  * @property {number} anim schema ANIM
  * @property {number} [summoner] the id of the unit that summoned it (召唤-4, 召唤-6); left out for others
  * @property {number} [expires] the frame a summon with a time leaves at (召唤-9); left out for others

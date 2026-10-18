@@ -3,7 +3,8 @@
 // attacker's attack — a healer's heals, a ranged attacker's projectiles — and the attacker waits out its interval.
 import { FPS, secondsToFrames } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
-import { offsetTile } from './dir.js';
+import { offsetTile, dirVec } from './dir.js';
+import { push, pull, PULL_POINT } from './displacement.js';
 import { statsOf, computeStats, intervalFrames } from './attrs.js';
 import { inKeys, selectable, sortEnemies, sortAllies, firstN, evadesGround, hostile, friendly } from './targeting.js';
 import { dealDamage, heal } from './damage.js';
@@ -77,7 +78,7 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * aftershock (职业-8) and chain (职业-11); whether the skill makes it, and which of its hits this is (钩子-3).
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
  *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number, value?: number, prob?: number } | null,
- *   hitDebuff?: { seconds: number, mods: Record<string, number> },
+ *   hitDebuff?: { seconds: number, mods: Record<string, number> }, displace?: { pull: boolean, force: number, along?: boolean },
  *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number }, aftershocks?: number }} Load
  */
 
@@ -105,7 +106,19 @@ function damageOf(load, t) {
 function hitTarget(w, c, src, t, load) {
   let total = 0;
   for (let k = 0; k < load.times; k++) total += oneHit(w, c, src, t, load);
+  if (src && load.displace && t.hp > 0) displaceOnHit(w, c, src, t, load.displace);
   if (src) emit(w, 'attackHit', { attacker: src, target: t, dealt: total, kind: load.hit ?? 'main', isSkill: !!load.skill, mark: load.mark ?? 0 });
+}
+
+/**
+ * A skill's push or pull on a target its attack reached, once per attack (技能-9, 位移-2, 位移-4): a pull toward 0.5
+ * tiles in front of the attacker; a push along its facing (`along`), else away from it.
+ * @param {World} w @param {Content} c @param {Unit} src @param {Unit} t @param {{ pull: boolean, force: number, along?: boolean }} d
+ */
+function displaceOnHit(w, c, src, t, d) {
+  const [dr, dc] = dirVec(src.dir), at = { x: src.x, y: src.y };
+  if (d.pull) pull(w, c, t, d.force, { to: { x: src.x + dc * PULL_POINT, y: src.y + dr * PULL_POINT }, by: at });
+  else push(w, c, t, d.force, { from: at, ...(d.along ? { dir: { x: dc, y: dr } } : {}) });
 }
 
 /**
@@ -206,7 +219,7 @@ const atkOf = (a, pct) => (pct ? computeStats({ base: a.base, buffs: [...a.buffs
 const loadOf = (a, mods) => ({
   type: mods.type ?? a.base.dmgType, amount: atkOf(a, mods.atkPct) * mods.scale * statsOf(a).atkScaleMul, times: mods.times, element: mods.element ?? '',
   ep: (mods.ep ?? 0) + (mods.epScale ? statsOf(a).atk * mods.epScale : 0),
-  ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.hitDebuff ? { hitDebuff: mods.hitDebuff } : {}), ...(mods.skill ? { skill: true } : {}), ...(mods.mark ? { mark: mods.mark } : {}),
+  ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.hitDebuff ? { hitDebuff: mods.hitDebuff } : {}), ...(mods.displace ? { displace: mods.displace } : {}), ...(mods.skill ? { skill: true } : {}), ...(mods.mark ? { mark: mods.mark } : {}),
   ...(mods.frozen ? { frozen: mods.frozen } : {}),
 });
 

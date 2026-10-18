@@ -152,3 +152,14 @@ test('[技能-9] hit effects from the real data: 沉默, 寒冷, 沉睡, a statu
   assert.deepEqual([meteor.attack.hitDebuff, meteor.mods.defPct], [{ seconds: 10, mods: { defFlat: -210 } }, 0], '陨星 S2: 防御力-{-def} (a number), none of hers');
   assert.deepEqual(frost.attack.hitDebuff, { seconds: 2.5, mods: { movePct: -0.35 } }, '霜叶 S1');
 });
+
+test('[技能-9] pushes and pulls from the real data: 拖拽至面前 a pull, 往攻击方向…推开 along the facing, 弹开 away; none for closing a skill', async () => {
+  const { ROSTER: roster, loadTraining, operatorAt } = await import('../src/index.js');
+  const at = async (/** @type {string} */ name, /** @type {number} */ s) => {
+    const t = await loadTraining(/** @type {string} */ (Object.entries(roster).find(([, r]) => r.name === name)?.[0]));
+    return /** @type {any} */ (operatorAt(t, { elite: t.phases.length - 1, level: 1, potential: 1, trust: 0, skill: s, skillLevel: 7 }).skill).extra;
+  };
+  const [cliff, shaw, croissant, swire] = await Promise.all([at('崖心', 0), at('阿消', 0), at('可颂', 1), at('琳琅诗怀雅', 2)]);
+  assert.deepEqual([cliff.attack.displace.pull, shaw.attack.displace.along, croissant.attack.displace.pull, croissant.attack.displace.along], [true, true, false, undefined]);
+  assert.equal(swire?.attack?.displace, undefined, '琳琅诗怀雅 S3: 主动关闭技能时……推开');
+});

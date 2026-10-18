@@ -72,3 +72,14 @@ test('[技能-9] [技能-5] a passive skill\'s hit effects ride on every attack;
   const r = arena(sk({ bb: { hp_recovery_per_sec_by_max_hp_ratio: 0.05 } }));
   assert.equal(statsOf(r.op).hpRecoveryPerSec, 50, '5 % of 1000 a second');
 });
+
+test('[技能-9] [位移-2] [位移-4] a skill\'s push along the facing and its pull toward 0.5 tiles in front, once per attack on each target', () => {
+  const p = arena(sk({ extra: { attack: { displace: { pull: false, force: 2, along: true } } } }));
+  assert.ok(p.e.slide && p.e.slide.vx > 0 && p.e.slide.vy === 0, 'pushed east, along the facing');
+  run(p.w, p.c, 20);
+  assert.ok(p.e.x > 3, `slid on: at ${p.e.x}`);
+  const q = arena(sk({ extra: { attack: { displace: { pull: true, force: 2 } } } }));
+  assert.ok(q.e.slide?.pull, 'pulled');
+  run(q.w, q.c, 10);
+  assert.ok(q.e.x < 2 && q.e.x > 1, `toward the guard, not past it: at ${q.e.x}`);
+});
