@@ -9,7 +9,7 @@ import rangeTable from '../data/ranges.json' with { type: 'json' };
 /**
  * A covered branch: its normal attack's damage type, and its trait as data, made from the trait's blackboard and its
  * module's hidden talents' (干员-7).
- * @typedef {{ dmgType?: 'phys' | 'arts', trait?: (bb: Readonly<Record<string, number>>, hidden?: Readonly<Record<string, number>>, type?: string) => Partial<TraitDef> }} Branch
+ * @typedef {{ dmgType?: 'phys' | 'arts', trait?: (bb: Readonly<Record<string, number>>, hidden?: Readonly<Record<string, number>>, type?: string, text?: string) => Partial<TraitDef> }} Branch
  */
 
 const ARTS = /** @type {const} */ ('arts');
@@ -55,6 +55,13 @@ function joinWhiles(...parts) {
 /** The share of damage taken that a reduction (庇护) of `r` leaves (职业-18). @param {number | undefined} r */
 const taken = (r) => (r ? 1 - r : undefined);
 /**
+ * 术战者 AFT-Y's auras (职业-20): the enemies it blocks take × `scale` arts damage (法术脆弱); 维娜·维多利亚's (its text names
+ * its summons) × `scale` all damage (脆弱), on the enemies its summons block too.
+ * @param {number} scale @param {boolean} summons @returns {import('@aue/sim').ModuleAura[]}
+ */
+const blockedFragile = (scale, summons) => (summons
+  ? [{ to: 'blocked', mods: { dmgTakenMul: scale } }, { to: 'summonBlocked', mods: { dmgTakenMul: scale } }] : [{ to: 'blocked', mods: { artsTakenMul: scale } }]);
+/**
  * A blackboard key that ends so — the operator's own name before it (阵法术师 PLX-X: `lin_e_002[buff].def`) —, or ''.
  * @param {Readonly<Record<string, number>>} bb @param {string} end
  */
@@ -99,9 +106,9 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // AFT-X: attack speed + attack_speed while it blocks none (职业-18)
   // AFT-D: elemental damage of ep_damage_ratio of its attack on a target in a 灼燃 burst; AFT-Y: the enemies it blocks 法术脆弱
   // damage_scale (职业-20)
-  artsfghter: { dmgType: ARTS, trait: (bb, _own, type) => ({
+  artsfghter: { dmgType: ARTS, trait: (bb, _own, type, text = '') => ({
     ...whileOf('notBlocking', { aspd: bb.attack_speed }), ...(type === 'AFT-D' && bb.ep_damage_ratio ? { burstHit: { el: 'FIRE', scale: bb.ep_damage_ratio } } : {}),
-    ...(type === 'AFT-Y' && bb.damage_scale ? { auras: [{ to: 'blocked', mods: { artsTakenMul: bb.damage_scale } }] } : {}),
+    ...(type === 'AFT-Y' && bb.damage_scale ? { auras: blockedFragile(bb.damage_scale, text.includes('召唤物')) } : {}),
   }) },
   // SWO-X: its skill's damage × damage_scale (职业-17); SWO-Y: def_penetrate_fixed of the target's defence ignored (职业-18)
   sword: { trait: (bb) => ({ hits: 2, ...vsWhen('skill', 'dmg', bb.damage_scale), ...whileOf('always', { defIgnoreFlat: bb.def_penetrate_fixed }) }) },
@@ -280,10 +287,12 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // DEC-X: SP recovery + sp_recovery_per_sec while an enemy is in its range (the module's own data; 职业-18)
   slower: { dmgType: ARTS, trait: (bb, own) => ({ hitStatus: { key: 'sluggish', seconds: bb.sluggish ?? 0.8 }, ...whileOf('enemies', { spRecoveryFlat: own?.sp_recovery_per_sec }, 1) }) },
   // no attacks, outside the deploy limit; the operators in its range regenerate a share of its attack a second (职业-13)
-  // BAR-X: attack + atk while cnt other operators are in its range (the module's own data; 职业-18)
-  bard: { trait: (bb, own) => ({
+  // BAR-X: attack + atk while cnt other operators are in its range (the module's own data; 职业-18); BAR-Y: while its skill
+  // runs, the operators in its range take −damage_resistance (30) of each physical and arts hit (伤害减免; 职业-20)
+  bard: { trait: (bb, own, type) => ({
     noAttack: true, free: true, regenAura: bb['attack@atk_to_hp_recovery_ratio'] ?? bb.atk_to_hp_recovery_ratio ?? 0.1,
     ...(own?.cnt ? whileOf('allies', { atkPct: own.atk }, own.cnt) : {}),
+    ...(type === 'BAR-Y' && own?.damage_resistance ? { auras: [{ to: 'rangeAllies', skill: true, mods: { dmgReduceFlat: Math.abs(own.damage_resistance) } }] } : {}),
   }) },
   // arts; while its skill runs, its attacks heal at heal_scale (职业-12)
   // BLS-Y: attacks and heals attack@max_target (2) (职业-19)
@@ -316,10 +325,10 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   // at 0 HP in its own form, a switch to its 替身 for duration seconds, attack and HP + atk, max_hp; switches take 1 s (职业-15)
   dollkeeper: { trait: (bb) => ({ doll: { duration: bb.duration ?? 20, switch: DOLL_SWITCH, atk: bb.atk ?? 0, maxHp: bb.max_hp ?? 0 } }) },
   // its summons (traps) not on a tile a ground enemy stands on (职业-14)
-  // TRP-D: itself on melee tiles too (the module's own data buildable_type 3; 职业-19); TRP-Y: a trap at the chance prob
-  // deals × atk_scale damage (职业-21)
+  // TRP-D: itself on melee tiles too, its traps on ranged tiles too (the module's own data buildable_type 3; 职业-19, 职业-21);
+  // TRP-Y: a trap at the chance prob deals × atk_scale damage (职业-21)
   traper: { trait: (bb, own) => ({
-    trapTiles: true, ...(own?.buildable_type === 3 ? { meleeTiles: true } : {}), ...(bb.prob && bb.atk_scale ? { summonBoost: { prob: bb.prob, scale: bb.atk_scale } } : {}),
+    trapTiles: true, ...(own?.buildable_type === 3 ? { meleeTiles: true, summonRangedTiles: true } : {}), ...(bb.prob && bb.atk_scale ? { summonBoost: { prob: bb.prob, scale: bb.atk_scale } } : {}),
   }) },
   // every enemy in range; half of the physical and arts hits dodged (blackboard prob)
   // AMB-X: the enemies in its range move − move_speed (直接乘算; the module's own data; 职业-20)
@@ -347,12 +356,13 @@ export const coveredBranch = (branch) => Object.hasOwn(BRANCHES, branch);
 /**
  * An operator record with its branch's trait (职业-7): the damage type and the trait data from the branch table and the
  * trait's blackboard (`traitBb`), its module's hidden talents' (`hiddenBb`, 干员-7) and its module's type (`moduleType`,
- * such as `SPT-X`); an uncovered branch adds nothing.
- * @param {OperatorDef & { traitBb?: Record<string, number>, hiddenBb?: Record<string, number>, moduleType?: string }} op @returns {OperatorDef}
+ * such as `SPT-X`) and the text it adds to the trait (`moduleText`); an uncovered branch adds nothing.
+ * @param {OperatorDef & { traitBb?: Record<string, number>, hiddenBb?: Record<string, number>, moduleType?: string, moduleText?: string }} op
+ * @returns {OperatorDef}
  */
 export function withTrait(op) {
-  const { traitBb = {}, hiddenBb = {}, moduleType, ...rest } = op;
+  const { traitBb = {}, hiddenBb = {}, moduleType, moduleText, ...rest } = op;
   const b = op.branch && coveredBranch(op.branch) ? BRANCHES[op.branch] : null;
   if (!b) return rest;
-  return { ...rest, ...(b.dmgType ? { dmgType: b.dmgType } : {}), trait: { ...b.trait?.(traitBb, hiddenBb, moduleType), bb: { ...traitBb } } };
+  return { ...rest, ...(b.dmgType ? { dmgType: b.dmgType } : {}), trait: { ...b.trait?.(traitBb, hiddenBb, moduleType, moduleText), bb: { ...traitBb } } };
 }

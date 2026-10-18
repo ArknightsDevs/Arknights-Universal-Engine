@@ -11,6 +11,7 @@ import { statsOf } from '../src/attrs.js';
 import { makeOperator } from '../src/units.js';
 import { auras } from '../src/aura.js';
 import { traitWhiles } from '../src/whiles.js';
+import { dealDamage } from '../src/damage.js';
 
 /** @typedef {import('../src/types.js').Unit} Unit @typedef {import('../src/types.js').OperatorDef} OperatorDef */
 
@@ -94,4 +95,22 @@ test('[职业-21] while its skill runs: the operator in front of it, and flags o
   auras(w, c);
   traitWhiles(w, c, g);
   assert.deepEqual([keys(front), statsOf(front).blockCnt, statsOf(g).flags.camou], [['0'], c.operators.sniper.blockCnt + 1, true]);
+});
+
+test('[职业-21] [部署-1] a summon whose owner\'s trait allows it may stand on a ranged tile', () => {
+  const plain = arena({}), allowed = arena({ summonRangedTiles: true });
+  for (const { w, c } of [plain, allowed]) step(w, c, [[0, deploy({})]]);
+  assert.deepEqual([deployProblem(plain.w, plain.c, 0, deploy({ op: 'tentacle', row: 0, col: 2 })), deployProblem(allowed.w, allowed.c, 0, deploy({ op: 'tentacle', row: 0, col: 2 }))],
+    ['tile not buildable for this operator', null]);
+});
+
+test('[职业-20] [伤害-8] while its skill runs, the operators in its range take less of each physical and arts hit', () => {
+  const { w, c } = arena({ auras: [{ to: 'rangeAllies', skill: true, mods: { dmgReduceFlat: 30 } }] });
+  c.operators.guard.range = [{ row: 0, col: 0 }, { row: 0, col: 1 }];
+  step(w, c, [[0, deploy({})]]);
+  const g = unitOf(w, 'guard');
+  g.skill = /** @type {any} */ ({ active: true });
+  auras(w, c);
+  const hit = (/** @type {'phys' | 'arts' | 'true'} */ type) => { const hp = g.hp; dealDamage(w, null, g, { type, amount: 100 + (type === 'phys' ? statsOf(g).def : 0) }, c); return hp - g.hp; };
+  assert.deepEqual([hit('phys'), hit('arts'), hit('true')], [70, 70, 100]);
 });

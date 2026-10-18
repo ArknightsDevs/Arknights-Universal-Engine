@@ -153,11 +153,13 @@ test('[职业-7] [职业-14] 塑灵术师, 陷阱师 and 战术家 from the real
 });
 
 test('[职业-7] [职业-15] 傀儡师 from the real data: a 20 s 替身, 1 s switches; PUM-Y raises its HP', async () => {
-  // 贝娜's 替身 has her talent's range (职业-16)
-  const doll = { range: /** @type {any} */ (rangeTable.ranges)['x-4'], antiAir: true, attack: true, aura: null };
-  assert.deepEqual(traits.traitOfDef(await real('char_369_bena')).doll, { duration: 20, switch: 1, atk: 0, maxHp: 0, ...doll });
-  const t = await loadTraining('char_369_bena'), y = traits.traitOfDef(operatorAt(t, { elite: 2, level: 60, potential: 1, trust: 0, skill: 0, skillLevel: 7, module: 0, moduleLevel: 1 }));
-  assert.deepEqual(y.doll, { duration: 20, switch: 1, atk: 0, maxHp: 0.2, ...doll });
+  // 贝娜's 替身 has her talent's range, its attacks arts and the damage it takes less (职业-16)
+  const doll = { range: /** @type {any} */ (rangeTable.ranges)['x-4'], antiAir: true, attack: true, aura: null, arts: true };
+  const plain = /** @type {any} */ (traits.traitOfDef(await real('char_369_bena')).doll);
+  assert.deepEqual(plain, { duration: 20, switch: 1, atk: 0, maxHp: 0, ...doll }, 'elite 0: no reduction yet');
+  const t = await loadTraining('char_369_bena'), y = /** @type {any} */ (traits.traitOfDef(operatorAt(t, { elite: 2, level: 60, potential: 1, trust: 0, skill: 0, skillLevel: 7, module: 0, moduleLevel: 1 }))).doll;
+  assert.deepEqual({ ...y, taken: 0 }, { duration: 20, switch: 1, atk: 0, maxHp: 0.2, ...doll, taken: 0 });
+  assert.ok(y.taken > 0.5 && y.taken < 1, 'elite 2: less damage taken');
 });
 
 /** The trait of an operator (by name) at elite 2, max level, with its module of a type at level 1 (职业-7, 干员-7). @param {string} name @param {string} type */
@@ -282,5 +284,15 @@ test('[职业-7] [职业-22] the modules\' second lives, aftershocks, bullets an
     withModule('冰酿', 'HUN-X'), withModule('林', 'PLX-X')]);
   assert.deepEqual([skadi.secondLife, hellagur.secondLife, rosmontis.aftershocks, hunter.bullets.extra, lin.whiles], [
     { hp: 1, mods: { hpMul: 1 - 0.6, aspd: 30 } }, { hp: 0.3, mods: {} }, 2, 1, [{ when: 'inSkill', mods: { defPct: 1, resFlat: 10 } }],
+  ]);
+});
+
+test('[职业-16] [职业-20] [职业-21] 贝娜\'s 替身, BAR-Y\'s 伤害减免, 维娜\'s AFT-Y, 艾拉\'s traps, from the real data', async () => {
+  const bena = await loadTraining('char_369_bena'), doll = /** @type {any} */ (traits.traitOfDef(operatorAt(bena, { elite: 2, level: 90, potential: 1, trust: 0, skill: 0, skillLevel: 1 }))).doll;
+  assert.deepEqual([doll.arts, doll.attack, Math.round(doll.taken * 100) / 100], [true, true, 0.6], '「<替身>攻击造成法术伤害且受到的物理与法术伤害减少40%」');
+  const [skadi, vina, cast, ela] = await Promise.all([withModule('浊心斯卡蒂', 'BAR-Y'), withModule('维娜·维多利亚', 'AFT-Y'), withModule('铸铁', 'AFT-Y'), withModule('艾拉', 'TRP-D')]);
+  assert.deepEqual([skadi.auras, vina.auras, cast.auras, ela.summonRangedTiles], [
+    [{ to: 'rangeAllies', skill: true, mods: { dmgReduceFlat: 30 } }],
+    [{ to: 'blocked', mods: { dmgTakenMul: 1.1 } }, { to: 'summonBlocked', mods: { dmgTakenMul: 1.1 } }], [{ to: 'blocked', mods: { artsTakenMul: 1.1 } }], true,
   ]);
 });

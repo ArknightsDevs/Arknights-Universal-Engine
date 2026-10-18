@@ -91,7 +91,8 @@ function dollAura(c, src, units, want) {
 
 /**
  * The auras a module adds to an operator's trait (职业-20, 职业-21): the enemies (not neutral) it blocks, those its own
- * summons block, or those with a tile in its attack range; the operator on the tile in front of it; its own summons —
+ * summons block, or those with a tile in its attack range; the operator on the tile in front of it; its own summons; the
+ * operators (summons too, itself too) with a tile in its attack range —
  * each with the aura's modifiers and flags, some only while its skill runs — a buff `mod:<its id>:<n>`.
  * @param {World} w @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
  */
@@ -103,6 +104,7 @@ function moduleAuras(w, c, src, units, want) {
   const holds = {
     blocked: (u) => hostile(u) && u.blockedBy === src.id, summonBlocked: (u) => hostile(u) && bySummon(u), range: (u) => hostile(u) && inKeys(u, keys, grid),
     frontAlly: (u) => u.kind === KIND.OPERATOR && u !== src && tileOf(u)[0] === fr && tileOf(u)[1] === fc, summons: (u) => u.summoner === src.id,
+    rangeAllies: (u) => u.kind === KIND.OPERATOR && inKeys(u, keys, grid),
   };
   list.forEach((a, i) => {
     if (a.skill && !(src.skill && src.skill.active)) return;

@@ -300,17 +300,24 @@ export function deployPart(c) {
 const DOLL_AURA = /^<替身>使周围敌人移动速度-\d+(?:\.\d+)?%且每秒造成相当于\d+(?:\.\d+)?%攻击力的法术伤害/u;
 /** A 替身 that does not attack (干员-15): 「<替身>不攻击」. */
 const DOLL_IDLE = /<替身>不攻击/u;
+/** A 替身 whose attacks deal arts damage (干员-15): 「<替身>攻击造成法术伤害」. */
+const DOLL_ARTS = /^<替身>攻击造成法术伤害/u;
+/** A 替身 that takes less physical and arts damage (干员-15): 「受到的物理与法术伤害减少N%」. */
+const DOLL_GUARD = /受到的物理与法术伤害减少\d+(?:\.\d+)?%/u;
 
 /**
  * The 替身 part of a talent (干员-15), read with 「<替身>」 kept and the other rich-text tags and bracketed potential
  * differences removed: an aura (its description begins as DOLL_AURA, the blackboard having `move_speed` and
  * `atk_scale`) — the enemies around it at move speed × (1 + `move_speed`), `atk_scale` × its attack as arts damage each
- * second, and no attack of its own —, or no attack (「<替身>不攻击」 anywhere). Null otherwise; hidden talents have none.
- * @param {Talent} c @returns {{ attack: false, aura: { moveMul: number, scale: number } | null } | null}
+ * second, and no attack of its own —, or no attack (「<替身>不攻击」 anywhere); or its attacks dealing arts damage
+ * (「<替身>攻击造成法术伤害」), with the physical and arts damage it takes × (1 − `damage_resistance`) when it says so
+ * (贝娜). Null otherwise; hidden talents have none.
+ * @param {Talent} c @returns {{ attack?: false, aura?: { moveMul: number, scale: number } | null, arts?: true, taken?: number } | null}
  */
 export function dollPart(c) {
   if (c.hidden || !c.description) return null;
   const text = c.description.replace(/<(?!替身>)[^>]*>/gu, '').replace(/（[^）]*）/gu, '');
   if (DOLL_AURA.test(text) && Number.isFinite(c.bb.move_speed) && Number.isFinite(c.bb.atk_scale)) return { attack: false, aura: { moveMul: 1 + c.bb.move_speed, scale: c.bb.atk_scale } };
+  if (DOLL_ARTS.test(text)) return { arts: true, ...(DOLL_GUARD.test(text) && Number.isFinite(c.bb.damage_resistance) ? { taken: 1 - c.bb.damage_resistance } : {}) };
   return DOLL_IDLE.test(text) ? { attack: false, aura: null } : null;
 }

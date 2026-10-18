@@ -34,6 +34,19 @@ function clearBuffs(w, c, u) {
 }
 
 /**
+ * A phase's modifiers (职业-15, 职业-16): 阻挡数 × 0 but while switching back; the 替身's attack, HP and the damage it takes.
+ * @param {import('./types.js').Doll} d @param {number} phase @returns {Record<string, number>}
+ */
+function phaseMods(d, phase) {
+  const mods = /** @type {Record<string, number>} */ (phase === DOLL_PHASE.OUT ? {} : { blockCntMul: 0 });
+  if (phase !== DOLL_PHASE.DOLL) return mods;
+  if (d.atk) mods.atkPct = d.atk;
+  if (d.maxHp) mods.hpPct = d.maxHp;
+  if (d.taken !== undefined) { mods.physTakenMul = d.taken; mods.artsTakenMul = d.taken; }
+  return mods;
+}
+
+/**
  * A 傀儡师 enters a phase (职业-15): its buffs cleared, the phase's buff — a switch's flags for the trait's switch time, or
  * the 替身's 阻回, attack and HP for its time; nothing blocked from the switch to the 替身 until the switch back — and its
  * HP at its maximum. Back in its own form after the switch back, without a phase buff.
@@ -45,9 +58,7 @@ function enterPhase(w, c, u, phase) {
   removeBuff(u, DOLL);
   clearBuffs(w, c, u);
   if (phase !== 0) {
-    const doll = phase === DOLL_PHASE.DOLL, mods = /** @type {Record<string, number>} */ (phase === DOLL_PHASE.OUT ? {} : { blockCntMul: 0 });
-    if (doll && d.atk) mods.atkPct = d.atk;
-    if (doll && d.maxHp) mods.hpPct = d.maxHp;
+    const doll = phase === DOLL_PHASE.DOLL, mods = phaseMods(d, phase);
     const flags = doll ? { noSp: true, ...(d.attack === false ? { noAttack: true } : {}) } : SWITCHING;
     addBuff(u, makeBuff({ key: DOLL, src: u.id, value: phase, left: Math.max(1, secondsToFrames(doll ? d.duration : d.switch)), every: doll && d.aura ? FPS : 0, mods, flags }));
   }

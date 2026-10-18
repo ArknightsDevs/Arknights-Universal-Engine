@@ -23,13 +23,14 @@ import { nextToFacility, facilityOf } from './facilities.js';
 
 /**
  * Whether an operator may stand on a tile (部署-1): a tile of its position or of both; a melee one whose trait allows it
- * (职业-10) also on a ranged tile, a ranged one whose trait allows it (职业-19) also on a melee tile; a summon of 全部位 on
- * either (召唤-4).
+ * (职业-10) also on a ranged tile, a ranged one whose trait allows it (职业-19) also on a melee tile, a summon whose
+ * owner's trait allows it (职业-21) also on a ranged tile; a summon of 全部位 on either (召唤-4).
  * @param {Content} c @param {import('./types.js').OperatorDef} d @param {number} row @param {number} col
  */
 export function fits(c, d, row, col) {
   const tile = tileAt(c.level, row, col), melee = buildableFor(tile, 'MELEE'), ranged = buildableFor(tile, 'RANGED');
-  return d.position === 'ALL' ? melee || ranged : buildableFor(tile, d.position) || (traitOfDef(d).rangedTiles && ranged) || (traitOfDef(d).meleeTiles && melee);
+  const t = traitOfDef(d), byOwner = !!d.summoner && Object.hasOwn(c.operators, d.summoner) && traitOfDef(c.operators[d.summoner]).summonRangedTiles;
+  return d.position === 'ALL' ? melee || ranged : buildableFor(tile, d.position) || ((t.rangedTiles || byOwner) && ranged) || (t.meleeTiles && melee);
 }
 
 /**

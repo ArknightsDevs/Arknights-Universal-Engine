@@ -144,3 +144,18 @@ test('[职业-16] a 替身\'s aura: the ground enemies in its range slowed (最�
   run(w, c, 1);
   assert.deepEqual([dollPhase(guard), statsOf(near).moveSpeed, near.buffs.some((b) => b.key.startsWith('doll:'))], [DOLL_PHASE.OUT, 1, false], 'the 替身 gone, the slow too');
 });
+
+test('[职业-16] a 替身 whose attacks deal arts damage and that takes less physical and arts damage', () => {
+  const { w, c, guard } = arena({ arts: true, taken: 0.6 });
+  setHp(guard, 0);
+  run(w, c, 31);
+  assert.equal(dollPhase(guard), DOLL_PHASE.DOLL);
+  const e = foe(w, c, 1, 1, { def: 1000, res: 0 });
+  /** @type {any[]} */
+  const ev = [];
+  for (let i = 0; i < 40 && !ev.some((x) => x.type === 'hit'); i++) ev.push(...step(w, c, []));
+  assert.equal(ev.find((x) => x.type === 'hit' && x.target === e.id)?.damage, statsOf(guard).atk, 'arts: no defence');
+  const hp = guard.hp;
+  dealDamage(w, e, guard, { type: 'phys', amount: 100 + statsOf(guard).def }, c);
+  assert.equal(hp - guard.hp, 60);
+});

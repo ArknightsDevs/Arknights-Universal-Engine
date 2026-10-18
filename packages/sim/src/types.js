@@ -138,6 +138,8 @@
  * @property {boolean} [attack] false: it makes no normal attack
  * @property {{ moveMul: number, scale: number } | null} [aura] the ground enemies in its range move at × `moveMul` (最终乘算)
  *   and take `scale` × its attack as arts damage each second
+ * @property {boolean} [arts] its normal attacks deal arts damage
+ * @property {number} [taken] the physical and arts damage it takes × this
  */
 /**
  * A branch trait as the simulation reads it (职业-1…职业-6): anything left out takes the default of the operator's
@@ -226,6 +228,7 @@
  * @property {number} firstRetreatRespawn × its 再部署时间 after its first retreat (职业-21)
  * @property {boolean} refundUncapped a retreat's refund is not capped at its initial cost (撤退-1, 职业-21)
  * @property {number} freeSummons this many of its summons on the field take no place in the deploy limit (部署-2, 职业-21)
+ * @property {boolean} summonRangedTiles its summons may also be deployed on ranged tiles (部署-1, 职业-21)
  * @property {{ prob: number, scale: number } | null} summonBoost a summon deployed from its card deals × `scale` damage at the
  *   chance `prob` (职业-21)
  * @property {number} aftershocks how many aftershocks its attack has when it has one (职业-8, 职业-22)
@@ -236,8 +239,10 @@
 /**
  * Modifiers or flags an operator's trait gives other units (职业-20): the enemies it blocks (`blocked`), those its own
  * summons block (`summonBlocked`), those with a tile in its attack range (`range`), the operator on the tile in front of
- * it (`frontAlly`), its own summons (`summons`) — a buff on each while they are so; `skill`: only while its skill runs.
- * @typedef {{ to: 'blocked' | 'summonBlocked' | 'range' | 'frontAlly' | 'summons', skill?: boolean, mods?: Record<string, number>, flags?: Record<string, boolean> }} ModuleAura
+ * it (`frontAlly`), its own summons (`summons`), the operators with a tile in its attack range (`rangeAllies`) — a buff on
+ * each while they are so; `skill`: only while its skill runs.
+ * @typedef {{ to: 'blocked' | 'summonBlocked' | 'range' | 'frontAlly' | 'summons' | 'rangeAllies', skill?: boolean, mods?: Record<string, number>,
+ *   flags?: Record<string, boolean> }} ModuleAura
  */
 /**
  * A trait's modifiers while a condition on the operator holds (职业-18): it blocks an enemy (`blocking`) or none

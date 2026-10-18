@@ -170,8 +170,9 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 
 - 以「<替身>使周围敌人移动速度-N%且每秒造成相当于M%攻击力的法术伤害」开头、blackboard 有 `move_speed` 和 `atk_scale` 时，是替身的**光环**：`moveMul` = 1 + `move_speed`，`scale` = `atk_scale`；替身不攻击。
 - 描述里有「<替身>不攻击」时，替身**不攻击**。
+- 以「<替身>攻击造成法术伤害」开头时，替身的攻击造成**法术伤害**（`arts`）；描述里还有「受到的物理与法术伤害减少N%」、blackboard 有 `damage_resistance` 时，替身受到的物理、法术伤害 × (1 − `damage_resistance`)（`taken`）。
 - 隐藏候选没有替身天赋。
 
-读替身天赋（和替身的范围，职业-16）时，模组同一级里对同一个天赋的几个候选（干员-7）按顺序合并：后面的候选有升级描述、范围编号时取它的，blackboard 盖在前面的上。这样，归溟幽灵鲨的模组 PUM-X 2、3 级里，只改数据的部件给出光环的新数值和范围，另一个部件给出描述和「替换时」的技力。替身天赋作为 `doll` 的 `attack`、`aura`，由模拟按 职业-16 生效。
+读替身天赋（和替身的范围，职业-16）时，模组同一级里对同一个天赋的几个候选（干员-7）按顺序合并：后面的候选有升级描述、范围编号时取它的，blackboard 盖在前面的上。这样，归溟幽灵鲨的模组 PUM-X 2、3 级里，只改数据的部件给出光环的新数值和范围，另一个部件给出描述和「替换时」的技力。替身天赋作为 `doll` 的 `attack`、`aura`、`arts`、`taken`，由模拟按 职业-16 生效。
 
-- 来源：数据：character_table 的天赋文字与 blackboard，如归溟幽灵鲨「<替身>使周围敌人移动速度-20%且每秒造成相当于20%攻击力的法术伤害」（`move_speed` −0.2、`atk_scale` 0.2）、若叶睦「<替身>不攻击」；battle_equip_table 中归溟幽灵鲨模组 2、3 级的 `TALENT_DATA_ONLY` 与 `TALENT` 部件；[PRTS「归溟幽灵鲨」oldid=361755](https://prts.wiki/index.php?title=%E5%BD%92%E6%BA%9F%E5%B9%BD%E7%81%B5%E9%B2%A8&oldid=361755)「※<替身>不进行普通攻击」、移动速度为最终乘算；模组候选的合并为推断 INF-0199，光环天赋即替身不攻击为推断 INF-0200
+- 来源：数据：character_table 的天赋文字与 blackboard，如归溟幽灵鲨「<替身>使周围敌人移动速度-20%且每秒造成相当于20%攻击力的法术伤害」（`move_speed` −0.2、`atk_scale` 0.2）、若叶睦「<替身>不攻击」、贝娜「<替身>攻击造成法术伤害且受到的物理与法术伤害减少43%」（`damage_resistance` 0.43，精英 0 的描述没有减伤）；battle_equip_table 中归溟幽灵鲨模组 2、3 级的 `TALENT_DATA_ONLY` 与 `TALENT` 部件；[PRTS「归溟幽灵鲨」oldid=361755](https://prts.wiki/index.php?title=%E5%BD%92%E6%BA%9F%E5%B9%BD%E7%81%B5%E9%B2%A8&oldid=361755)「※<替身>不进行普通攻击」、移动速度为最终乘算；模组候选的合并为推断 INF-0199，光环天赋即替身不攻击为推断 INF-0200

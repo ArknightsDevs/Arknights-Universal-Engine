@@ -109,8 +109,8 @@ export function setShield(u, b, amount) {
 
 /**
  * One buff's 伤判 effects on a hit, in a fixed order within the buff: dodge, taken multipliers, shield, barrier
- * (伤害-8); a hit from a unit it blocks also takes its 受到伤害倍率 for that. Returns the damage left — 0 ends the step,
- * −1 when the hit is dodged.
+ * (伤害-8); a hit from a unit it blocks also takes its 受到伤害倍率 for that, a physical or arts hit its 伤害减免 (a
+ * number off, 职业-20). Returns the damage left — 0 ends the step, −1 when the hit is dodged.
  * @param {World} w @param {Unit} u @param {Buff} b @param {number} amount @param {{ dmg: Damage, src: Unit | null }} hit
  */
 function judge(w, u, b, amount, { dmg, src }) {
@@ -120,6 +120,7 @@ function judge(w, u, b, amount, { dmg, src }) {
     if (draw(w) < miss) return -1;
   }
   let left = amount * takenMul(b, dmg.type) * blockedMul(u, b, src);
+  if (b.mods.dmgReduceFlat && (dmg.type === 'phys' || dmg.type === 'arts')) left = Math.max(0, left - b.mods.dmgReduceFlat * b.stacks);
   if (b.shieldHits > 0 && absorbs(b, dmg.type)) {
     b.shieldHits--;
     dropIfSpent(u, b);

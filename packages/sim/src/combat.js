@@ -424,12 +424,12 @@ function operatorAttack(w, c, op) {
 
 /**
  * An operator's attack with these mods (攻击-1, 职业-3): the first targets — as many as the mods or the trait allow,
- * whichever is more — and the mods with the trait's hits (and its skill's arts) on them.
+ * whichever is more — and the mods with the trait's hits (and its skill's arts, or a 替身's arts, 职业-16) on them.
  * @param {World} w @param {Content} c @param {Unit} op @param {AttackMods} mods @returns {{ targets: Unit[], mods: AttackMods }}
  */
 function armed(w, c, op, mods) {
   const t = traitOf(c, op), most = mods.blocked ? Math.max(1, statsOf(op).blockCnt) : Math.max(mods.targets, traitTargets(t, op)) + (mods.more ?? 0);
-  const arts = t.skillArts && op.skill?.active && !mods.type ? { type: /** @type {const} */ ('arts') } : {};
+  const arts = ((t.skillArts && op.skill?.active) || dollNow(c, op)?.arts) && !mods.type ? { type: /** @type {const} */ ('arts') } : {};
   return { targets: firstN(targetsOf(w, c, op), most), mods: modeMods(c, op, { ...mods, times: mods.times * t.hits, ...arts }) };
 }
 

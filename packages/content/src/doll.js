@@ -52,12 +52,15 @@ export function dollRangeId(t, b, mod, traitBb) {
 /**
  * What a 傀儡师's 替身 adds to its trait's `doll` (职业-16): its own range (the range table's cells, 干员-8) or null, and
  * whether it can select flying units — it can when it has one —; from its talents' 替身 parts (干员-15), whether it
- * attacks and its aura.
+ * attacks, its aura, whether its attacks deal arts damage and the share of physical and arts damage it takes.
  * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @param {Readonly<Record<string, number>>} traitBb
- * @returns {{ range: { row: number, col: number }[] | null, antiAir: boolean, attack: boolean, aura: { moveMul: number, scale: number } | null }}
+ * @returns {{ range: { row: number, col: number }[] | null, antiAir: boolean, attack: boolean, aura: { moveMul: number, scale: number } | null, arts?: true, taken?: number }}
  */
 export function dollOf(t, b, mod, traitBb) {
   const id = dollRangeId(t, b, mod, traitBb), cells = id ? /** @type {Record<string, { row: number, col: number }[]>} */ (rangeTable.ranges)[id] : undefined;
-  const parts = mergedTalentsAt(t, b, mod).map((c) => (c ? dollPart(c) : null)).filter((x) => x !== null);
-  return { range: cells ? cells.map((x) => ({ row: x.row, col: x.col })) : null, antiAir: !!cells, attack: parts.length === 0, aura: parts.find((x) => x.aura)?.aura ?? null };
+  const parts = mergedTalentsAt(t, b, mod).map((c) => (c ? dollPart(c) : null)).filter((x) => x !== null), taken = parts.find((x) => x.taken)?.taken;
+  return {
+    range: cells ? cells.map((x) => ({ row: x.row, col: x.col })) : null, antiAir: !!cells, attack: !parts.some((x) => x.attack === false), aura: parts.find((x) => x.aura)?.aura ?? null,
+    ...(parts.some((x) => x.arts) ? { arts: /** @type {const} */ (true) } : {}), ...(taken !== undefined ? { taken } : {}),
+  };
 }

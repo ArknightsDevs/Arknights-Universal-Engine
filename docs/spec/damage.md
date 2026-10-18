@@ -68,7 +68,7 @@
 目标生效的 Buff（状态-2）先按事件优先级从高到低、再按获取顺序，逐个处理。每个 Buff 内依次是：
 
 1. **闪避**：物理伤害看 `dodgePhys`，法术伤害看 `dodgeArts`，概率 p（限制在 0–1；n 层为 1 − (1 − p)ⁿ）。从对局随机数（随机-1）抽一个 [0, 1) 的数，小于这个概率就闪避，伤害取消。不可闪避的伤害、概率为 0 时不抽。
-2. **伤害修改**：乘以受到伤害倍率。`dmgTakenMul`（脆弱）作用于物理、法术、真实伤害；`physTakenMul`、`artsTakenMul`、`trueTakenMul`、`elementalTakenMul` 各自作用于对应类型；伤害来源被目标阻挡着时再乘 `blockedTakenMul`（职业-18）；n 层取 n 次方。
+2. **伤害修改**：乘以受到伤害倍率。`dmgTakenMul`（脆弱）作用于物理、法术、真实伤害；`physTakenMul`、`artsTakenMul`、`trueTakenMul`、`elementalTakenMul` 各自作用于对应类型；伤害来源被目标阻挡着时再乘 `blockedTakenMul`（职业-18）；n 层取 n 次方。物理、法术伤害再减去伤害减免 `dmgReduceFlat`（n 层减 n 倍，不低于 0；职业-20）。
 3. **护盾**：有护盾层数且吸收这类伤害时，消耗一层，伤害取消。
 4. **屏障**：有屏障量且吸收这类伤害时，吸收 min(屏障量, 伤害)。
 
