@@ -8,6 +8,8 @@ import { kindOf } from '../src/skills.js';
 import { forceSp } from '../src/sp.js';
 import { makeOperator } from '../src/units.js';
 import { statsOf } from '../src/attrs.js';
+import { toView } from '../src/view.js';
+import { readView, SKILL_STATE } from '@aue/schema';
 
 /** @typedef {import('../src/types.js').SkillDef} SkillDef @typedef {import('../src/types.js').Unit} Unit */
 
@@ -64,6 +66,10 @@ test('[技能-10] a skill that costs deployment cost starts only while the owner
   assert.equal(w.players[0].cost, 5, 'the guard took 5 of 10');
   cast(op);
   assert.deepEqual([op.skill?.active, op.skill?.sp, w.players[0].cost], [false, 5, 5], 'not enough: the command is ignored');
+  const shown = () => readView(toView(w)).units.find((u) => u.id === op.id)?.skill;
+  assert.equal(shown(), SKILL_STATE.CHARGING, 'the view: not ready while the owner holds less');
+  w.players[0].cost = 8;
+  assert.equal(shown(), SKILL_STATE.READY);
   w.players[0].cost = 9;
   cast(op);
   assert.deepEqual([op.skill?.active, w.players[0].cost, statsOf(op).atk], [true, 1, 60]);

@@ -17,10 +17,11 @@ if (LAYOUT.header.join() !== VIEW_HEADER.join() || LAYOUT.player.join() !== VIEW
 }
 
 /**
- * A skill's state for the view: none, gathering SP, ready (holds its cost), running (技能-2…技能-4).
- * @param {SkillState | null} st
+ * A skill's state for the view: none, gathering SP, ready (holds its SP cost, and the deployment cost it takes while the
+ * owner has less: 技能-10), running (技能-2…技能-4).
+ * @param {SkillState | null} st @param {number} cost the owner's deployment cost
  */
-const skillState = (st) => (!st ? SKILL_STATE.NONE : st.active ? SKILL_STATE.RUNNING : st.sp >= st.cost ? SKILL_STATE.READY : SKILL_STATE.CHARGING);
+const skillState = (st, cost) => (!st ? SKILL_STATE.NONE : st.active ? SKILL_STATE.RUNNING : st.sp >= st.cost && !((st.spend ?? 0) > cost) ? SKILL_STATE.READY : SKILL_STATE.CHARGING);
 
 /** Whether a unit has no element value recorded: every value at its maximum (元素-1). @param {Unit} u */
 function allFull(u) {
@@ -68,12 +69,15 @@ export function statusBits(u) {
   return bits;
 }
 
-/** Writes one unit's fields (schema VIEW_UNIT) at `i`; returns the index after them. @param {Float64Array} a @param {number} i @param {Unit} u */
-function writeUnit(a, i, u) {
+/**
+ * Writes one unit's fields (schema VIEW_UNIT) at `i`; returns the index after them.
+ * @param {Float64Array} a @param {number} i @param {Unit} u @param {number} cost its owner's deployment cost
+ */
+function writeUnit(a, i, u, cost) {
   const st = u.skill;
   a[i] = u.id; a[i + 1] = u.kind; a[i + 2] = u.owner; a[i + 3] = u.x; a[i + 4] = u.y; a[i + 5] = u.z; a[i + 6] = codeOfDir(u.dir);
   a[i + 7] = u.hp; a[i + 8] = u.maxHp; a[i + 9] = u.anim;
-  a[i + 10] = st ? st.sp : -1; a[i + 11] = st ? st.cost : 0; a[i + 12] = skillState(st); a[i + 13] = st && st.active ? st.dur : -1;
+  a[i + 10] = st ? st.sp : -1; a[i + 11] = st ? st.cost : 0; a[i + 12] = skillState(st, cost); a[i + 13] = st && st.active ? st.dur : -1;
   a[i + 14] = statusBits(u);
   writeElement(a, i + 15, u);
   a[i + 18] = dollPhase(u);
@@ -89,6 +93,6 @@ export function toView(w, out) {
   a[0] = VIEW_VERSION; a[1] = w.frame; a[2] = w.units.length; a[3] = w.players.length;
   let i = 4;
   for (const p of w.players) { a[i] = p.life; a[i + 1] = p.cost; i += 2; }
-  for (const u of w.units) i = writeUnit(a, i, u);
+  for (const u of w.units) i = writeUnit(a, i, u, w.players[u.owner]?.cost ?? 0);
   return a;
 }

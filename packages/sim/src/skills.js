@@ -72,10 +72,10 @@ export function kindOf(def) {
   return ATTACK_KEYS.some((k) => k in def.bb) ? 'next' : 'instant';
 }
 
-/** A skill's state when its operator is deployed: the initial SP (技能-2). @param {SkillDef} def @returns {SkillState} */
+/** A skill's state when its operator is deployed: the initial SP (技能-2); the cost it takes to start (技能-10). @param {SkillDef} def @returns {SkillState} */
 export function makeSkillState(def) {
   const cap = def.cost * Math.max(1, def.charges);
-  return { id: def.id, spType: def.sp, cost: def.cost, cap, sp: Math.min(def.init, cap), slot: 0, active: false, armed: false, dur: -1, ammo: 0, at: -1 };
+  return { id: def.id, spType: def.sp, cost: def.cost, cap, sp: Math.min(def.init, cap), slot: 0, active: false, armed: false, dur: -1, ammo: 0, at: -1, ...(def.spend ? { spend: def.spend } : {}) };
 }
 
 /** The mods of the blackboard's attribute keys (技能-5). @param {Readonly<Record<string, number>>} bb */

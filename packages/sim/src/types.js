@@ -505,6 +505,7 @@
  * @property {number} dur frames left of its duration, −1 for none
  * @property {number} ammo shots left of an ammo skill
  * @property {number} at the frame it started
+ * @property {number} [spend] the deployment cost it takes to start (技能-10)
  */
 
 /**
