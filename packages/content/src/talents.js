@@ -71,6 +71,7 @@ const EFFECTS = Object.freeze([
   [/^每秒(?:回复|恢复)\d+(?:\.\d+)?%的?(?:最大)?生命值?$/u, 'hp_recovery_per_sec_by_max_hp_ratio', (v) => ({ hpRegenRatio: v })],
   [/^每秒恢复最大生命值\d+(?:\.\d+)?%的生命$/u, 'hp_recovery_per_sec_by_max_hp_ratio', (v) => ({ hpRegenRatio: v })],
   [/^(?:自身)?受到的(?:所有)?伤害降低\d+(?:\.\d+)?%$/u, 'damage_resistance', (v) => ({ dmgTakenMul: left(v) })],
+  [/^(?:自身)?造成的伤害(?:提升|提高|[+＋])\d+(?:\.\d+)?%$/u, 'damage_scale', (v) => ({ dmgDealtMul: v })],
 ]);
 
 /**
@@ -229,6 +230,7 @@ const ALL_HEAD = /^(?:全场友方单位|在场时[，,]?(?:所有友方单位�
 const TEAM_EFFECTS = Object.freeze([
   [/^获得\d+(?:\.\d+)?%的物理闪避$/u, 'prob', (v) => ({ dodgePhys: v })],
   [/^医疗效果提高\d+(?:\.\d+)?%$/u, 'heal_scale', (v) => ({ healingDealtMul: v })],
+  [/^获得抵抗$/u, 'one_minus_status_resistance', (v) => ({ statusResFlat: v })],
 ]);
 
 /**
@@ -259,14 +261,39 @@ function whomOf(name) {
   return Object.hasOwn(POWERS, name) ? { power: POWERS[name] } : null;
 }
 
+/** A team talent that holds only while its holder's skill runs, or does not (干员-9). */
+const SKILL_HEAD = /^(技能未开启时|技能开启时|开启技能时)[，,]?/u;
+/** Whom such a talent names: 全场友方单位, or 【names】 joined by 和, then (职业 / 势力的) 干员 (的). */
+const SKILL_WHOM = /^(?:全场友方单位|(?:所有)?((?:【[^】]+】和?)+)(?:职业|势力的?)?干员的?)/u;
+
+/**
+ * Whom a team talent of its holder's skill names (干员-9): 「技能开启时 / 开启技能时 / 技能未开启时」, then 全场友方单位 or
+ * 【profession or faction】s joined by 和; null for another, or a name that is neither.
+ * @param {string} first
+ * @returns {{ when: 'field', skill: boolean, whom: { profession: string } | { power: string } | { all: true } | { professions: string[] }, rest: string } | null}
+ */
+function skillHead(first) {
+  const s = SKILL_HEAD.exec(first), m = s ? SKILL_WHOM.exec(first.slice(s[0].length)) : null;
+  if (!s || !m) return null;
+  const rest = first.slice(s[0].length + m[0].length), skill = s[1] !== '技能未开启时';
+  if (!m[1]) return { when: 'field', skill, whom: { all: true }, rest };
+  const names = [...m[1].matchAll(/【([^】]+)】/gu)].map((x) => x[1]), whoms = names.map(whomOf);
+  if (whoms.some((x) => x === null)) return null;
+  const profs = /** @type {{ profession: string }[]} */ (whoms.filter((x) => x && 'profession' in x));
+  if (whoms.length > 1) return profs.length === whoms.length ? { when: 'field', skill, whom: { professions: profs.map((x) => x.profession) }, rest } : null;
+  return { when: 'field', skill, whom: /** @type {{ profession: string } | { power: string }} */ (whoms[0]), rest };
+}
+
 /**
  * Whom a team talent's first sentence names and the rest of it (干员-9): 「编入队伍时」 (the deck) or 「在场时」 (on the
  * field), then 「所有（友方）【profession or faction】（职业 / 势力的）干员（的）」; or every friendly unit on the field
- * (ALL_HEAD). Null for another beginning.
+ * (ALL_HEAD); or one of its holder's skill (skillHead). Null for another beginning.
  * @param {string} first
- * @returns {{ when: 'deck' | 'field', whom: { profession: string } | { power: string } | { all: true }, rest: string } | null}
+ * @returns {{ when: 'deck' | 'field', skill?: boolean, whom: { profession: string } | { power: string } | { all: true } | { professions: string[] }, rest: string } | null}
  */
 function teamHead(first) {
+  const byskill = skillHead(first);
+  if (byskill) return byskill;
   const all = ALL_HEAD.exec(first);
   if (all) return { when: 'field', whom: { all: true }, rest: first.slice(all[0].length) };
   const head = TEAM_HEAD.exec(first), whom = head ? whomOf(head[2] ?? head[3]) : null;
@@ -278,20 +305,22 @@ function teamHead(first) {
  * in 干员-6 — attributes with a signed number (or 提升 and a number), 「每秒回复N点生命」, or an effect (TEAM_EFFECTS:
  * 物理闪避, 医疗效果) — every key they use in the blackboard, the rest of the sentence not speaking of an 效果. An on-field
  * one carries only attributes a buff can hold, a deck one no effect; 「同类效果取最高」 in the description makes it
- * `max`. Null otherwise; hidden talents have none.
+ * `max`; one of its holder's skill holds only while the skill runs (`skill` true) or does not (false), a trailing
+ * 「持续至技能结束」 aside. Null otherwise; hidden talents have none.
  * @param {Talent} c
- * @returns {({ when: 'deck' | 'field', bb: Record<string, number>, mods?: Record<string, number>, max?: true }
- *   & ({ profession: string } | { power: string } | { all: true })) | null}
+ * @returns {({ when: 'deck' | 'field', bb: Record<string, number>, mods?: Record<string, number>, max?: true, skill?: boolean }
+ *   & ({ profession: string } | { power: string } | { all: true } | { professions: string[] })) | null}
  */
 export function teamPart(c) {
   if (c.hidden || !c.description) return null;
   const plain = c.description.replace(/<[^>]*>/g, ''), head = teamHead(plain.replace(/（[^）]*）/g, '').split(/[。；]/)[0]);
   if (!head) return null;
-  const clauses = head.rest.split('，'), { keys, mods, n } = teamKeys(clauses, c.bb), when = head.when, effects = Object.keys(mods).length > 0;
+  const clauses = head.rest.split('，').filter((x) => !(head.skill && x === '持续至技能结束')), { keys, mods, n } = teamKeys(clauses, c.bb), when = head.when, effects = Object.keys(mods).length > 0;
   if (!n || ![...keys].every((k) => Number.isFinite(c.bb[k])) || clauses.slice(n).join('，').includes('效果')) return null;
   if (when === 'field' ? ![...keys].every((k) => FIELD_KEYS.includes(k)) : effects || 'all' in head.whom) return null;
   return {
     when, ...head.whom, bb: Object.fromEntries([...keys].map((k) => [k, c.bb[k]])), ...(effects ? { mods } : {}), ...(/同类效果取最高/u.test(plain) ? { max: /** @type {const} */ (true) } : {}),
+    ...(head.skill !== undefined ? { skill: head.skill } : {}),
   };
 }
 

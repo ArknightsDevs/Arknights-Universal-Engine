@@ -15,7 +15,7 @@ import { traitWhiles } from '../src/whiles.js';
 import { vsDamage } from '../src/vs.js';
 import { auras } from '../src/aura.js';
 import { regenAll } from '../src/damage.js';
-import { talentKill, talentDealt, talentSp, talentSkillEnd, talentDeaths } from '../src/talentfx.js';
+import { talentKill, talentDealt, talentSp, talentSkillEnd, talentSkillStart, talentDeaths } from '../src/talentfx.js';
 
 /** @typedef {import('../src/types.js').Unit} Unit */
 
@@ -266,4 +266,42 @@ test('[部署-6] in-range talents with a condition on the unit, around the opera
   assert.deepEqual([keys(low), keys(boss), keys(far), keys(caster), keys(other)], [
     [`range:${op.id}:0`, `range:${op.id}:1`], [], [`mod:${op.id}:0`], [`range:${op.id}:2`, `range:${op.id}:3`], [`range:${op.id}:2`],
   ], 'a wounded ordinary one in range, not the leader; a blocked one anywhere; the casters around it, the ranged one below it');
+});
+
+test('[职业-25] conditions on its skill\'s starts, flags while a condition holds, steps by the enemies in its range', () => {
+  const { w, c, op, foe, on } = arena({ talentTrait: { whiles: [
+    { when: 'fewStarts', value: 2, mods: { spRecoveryFlat: 1 } }, { when: 'laterSkill', mods: { dmgDealtMul: 1.16 } },
+    { when: 'notInSkill', mods: {}, flags: { camou: true } }, { when: 'enemies', value: 1, per: 2, mods: { atkPct: 0.04 } },
+  ] } });
+  op.skill = /** @type {any} */ ({ active: false });
+  assert.deepEqual([on(), statsOf(op).flags.camou], [[0, 2], true]);
+  talentSkillStart(c, op);
+  op.skill = /** @type {any} */ ({ active: true });
+  assert.deepEqual(on(), [0], 'one start; its skill runs');
+  talentSkillStart(c, op);
+  assert.deepEqual(on(), [1], 'the second start');
+  for (const col of [1, 2, 3]) foe(1, col);
+  on();
+  assert.deepEqual(op.buffs.find((b) => b.key === 'while:3')?.mods, { atkPct: 0.08 }, 'three enemies in range, at most two steps');
+  for (const u of w.units) if (u.kind === 1) u.hp = 0;
+  assert.deepEqual(on(), [1], 'none in range: no steps');
+});
+
+test('[部署-5] [职业-25] team talents of the holder\'s skill and of several professions; a heal at the skill\'s end; the splash\'s 倍率 from a talent', () => {
+  const { w, c, op, ally } = arena({ fieldTalents: [{ professions: ['CASTER', 'MEDIC'], bb: { attack_speed: 5 }, skill: true }, { all: true, bb: { hp_recovery_per_sec: 25 }, skill: false }],
+    talentTrait: { talentSp: [{ on: 'skillEnd', heal: 0.6 }], packed: { cnt: 3, atk: 1.25 } } });
+  c.operators.sniper = { ...c.operators.sniper, profession: 'MEDIC' };
+  const mate = ally(1, 2);
+  op.skill = /** @type {any} */ ({ active: false, cost: 10, sp: 0, cap: 10 });
+  auras(w, c);
+  const field = (/** @type {Unit} */ u) => u.buffs.filter((b) => b.key.startsWith('field:')).map((b) => b.key);
+  assert.deepEqual([field(op), field(mate)], [[`field:${op.id}:1`], [`field:${op.id}:1`]], 'not in its skill: the regen for all');
+  /** @type {any} */ (op.skill).active = true;
+  auras(w, c);
+  assert.deepEqual([field(op), field(mate)], [[], [`field:${op.id}:0`]], 'in its skill: the medic\'s attack speed, no regen');
+  op.hp = 100;
+  talentSkillEnd(w, c, op);
+  assert.equal(op.hp, 100 + 0.6 * statsOf(op).maxHp, '60% of its maximum HP back');
+  assert.deepEqual([traitOfDef(c.operators.guard).packed, traitOfDef({ ...c.operators.guard, trait: { packed: { cnt: 2, atk: 1.1 } } }).packed],
+    [{ cnt: 3, atk: 1.25 }, { cnt: 2, atk: 1.1 }], 'the trait\'s own first');
 });

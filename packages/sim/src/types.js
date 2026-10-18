@@ -293,10 +293,10 @@
  */
 /**
  * SP a talent gives on an event (干员-21, 职业-25): `sp` to the operator — or, on a heal, to the one healed —, `other`
- * to another unit at random; `share` of the skill's cost at the chance `prob` when its skill ends; for its kills during
- * its skill, `sp` each at its end, at most `max`.
+ * to another unit at random; `share` of the skill's cost at the chance `prob` when its skill ends, or a heal of `heal` of
+ * its maximum HP; for its kills during its skill, `sp` each at its end, at most `max`.
  * @typedef {{ on: 'attack' | 'kill' | 'heal' | 'enemyDown' | 'allyDown' | 'attacked' | 'skillEnd' | 'skillKills', sp?: number, other?: number,
- *   prob?: number, share?: number, max?: number }} TalentSp
+ *   prob?: number, share?: number, max?: number, heal?: number }} TalentSp
  */
 /**
  * What a hit of an operator's attack gives the target by a talent (干员-19, 职业-24): a status (with its strength), or
@@ -325,11 +325,13 @@
  * buff may carry flags too. From talents (职业-24): it blocks at least `value` enemies (`blockingAtLeast`); an enemy below
  * `value` of its maximum HP is in its range (`lowHpEnemies`); `burstEnemies` of the element `el` only; no enemy on the 4
  * tiles next to it (`noEnemies4`) or exactly one (`soleEnemy4`); no other friendly unit, summons too, on them
- * (`aloneUnits4`); its skill does not run (`notInSkill`); it has killed no enemy since its deployment (`noKills`).
+ * (`aloneUnits4`); its skill does not run (`notInSkill`); it has killed no enemy since its deployment (`noKills`); its skill
+ * has started fewer than `value` times since its deployment (`fewStarts`), or runs a second time or later (`laterSkill`).
+ * With `per`, an `enemies` part's modifiers are × the enemies in its own range, at most `per` (职业-25).
  * @typedef {{ when: 'blocking' | 'notBlocking' | 'hpAbove' | 'hpBelow' | 'enemies' | 'groundEnemies' | 'eliteEnemies' | 'burstEnemies'
  *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always' | 'inSkill' | 'alchemy'
- *   | 'blockingAtLeast' | 'lowHpEnemies' | 'noEnemies4' | 'soleEnemy4' | 'aloneUnits4' | 'notInSkill' | 'noKills', value?: number, el?: string,
- *   mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
+ *   | 'blockingAtLeast' | 'lowHpEnemies' | 'noEnemies4' | 'soleEnemy4' | 'aloneUnits4' | 'notInSkill' | 'noKills' | 'fewStarts' | 'laterSkill',
+ *   value?: number, el?: string, per?: number, mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
  */
 /**
  * A trait's 倍率 against a target (职业-17): × `atk` on a hit's attack 倍率 (before the target's 防御), × `dmg` on its 伤害倍率,
@@ -415,9 +417,11 @@
  *   when?: { when: 'hpBelow' | 'hpAbove' | 'blocked' | 'normal' | 'flying', value?: number } }} RangeTalent
  */
 /**
- * A team talent (部署-5): for the operators of a profession, of a faction, or every friendly unit (`all`), its blackboard
- * and the modifiers of its effects; `max`: of several such talents, the strongest (同类效果取最高).
- * @typedef {({ profession: string } | { power: string } | { all: true }) & { bb: Record<string, number>, mods?: Record<string, number>, max?: boolean }} TeamTalent
+ * A team talent (部署-5): for the operators of a profession, of one of several (`professions`), of a faction, or every
+ * friendly unit (`all`), its blackboard and the modifiers of its effects; `max`: of several such talents, the strongest
+ * (同类效果取最高); `skill`: only while its holder's skill runs (true) or does not (false).
+ * @typedef {({ profession: string } | { professions: string[] } | { power: string } | { all: true })
+ *   & { bb: Record<string, number>, mods?: Record<string, number>, max?: boolean, skill?: boolean }} TeamTalent
  */
 /**
  * Behaviours by key (ADR 0054, 0055): what a skill or a buff does beyond its data. Content brings them; the default is

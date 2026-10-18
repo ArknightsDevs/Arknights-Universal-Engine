@@ -12,7 +12,7 @@ import { heal } from './damage.js';
 import { emit } from './bus.js';
 import { grantSummons, endSummons } from './summons.js';
 import { restartCharge } from './modes.js';
-import { talentSkillEnd } from './talentfx.js';
+import { talentSkillEnd, talentSkillStart } from './talentfx.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').SkillDef} SkillDef @typedef {import('./types.js').SkillState} SkillState */
@@ -195,6 +195,7 @@ export function activate(w, c, op, reason = 'auto', free = false) {
   st.dur = runFrames(kind, seconds);
   st.ammo = kind === 'ammo' ? Math.max(1, def.bb['attack@trigger_time'] ?? def.bb.trigger_time ?? def.bb.cnt ?? 1) : 0;
   w.events.push({ type: 'skill', id: op.id, active: 1 });
+  talentSkillStart(c, op);
   behaviorOf(c, st.id).start?.(contextOf(w, c, op));
   if (def.alchemy) throwAlchemy(w, c, op, def.alchemy);
   grantSummons(w, c, op, 'start');

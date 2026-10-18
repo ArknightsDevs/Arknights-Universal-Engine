@@ -6,7 +6,7 @@ import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune, setLeft, count as countUp } from './buffs.js';
 import { gainSp } from './sp.js';
 import { draw } from './rng.js';
-import { dealDamage } from './damage.js';
+import { dealDamage, heal } from './damage.js';
 import { reachKeys } from './reach.js';
 import { inKeys } from './targeting.js';
 import { tileOf } from './body.js';
@@ -58,6 +58,15 @@ function tally(op, key) {
 }
 
 /**
+ * An operator's skill started, for its talents (职业-25): the count of its starts since its deployment (buff `starts`),
+ * when a condition asks for it.
+ * @param {Content} c @param {Unit} op
+ */
+export function talentSkillStart(c, op) {
+  if (traitOf(c, op).whiles.some((x) => x.when === 'fewStarts' || x.when === 'laterSkill')) tally(op, 'starts');
+}
+
+/**
  * Damage an operator dealt for its talents' steps (职业-25): a step of each damage stack (physical damage only for those
  * that say so).
  * @param {Content} c @param {Unit} op @param {import('./damage.js').Damage} dmg
@@ -106,13 +115,15 @@ export function talentSp(w, c, op, on, target) {
 }
 
 /**
- * An operator's skill ended, for its talents' SP (职业-25): at a talent's chance (one draw), its `share` of the skill's
- * cost (whole points, down); its kills during the skill × `sp`, at most `max`, and the count gone.
+ * An operator's skill ended, for its talents (职业-25): a heal of `heal` of its maximum HP; at a talent's chance (one
+ * draw), its `share` of the skill's cost (whole points, down); its kills during the skill × `sp`, at most `max`, and the
+ * count gone.
  * @param {World} w @param {Content} c @param {Unit} op
  */
 export function talentSkillEnd(w, c, op) {
   for (const x of traitOf(c, op).talentSp) {
-    if (x.on === 'skillEnd' && op.skill && draw(w) < (x.prob ?? 1)) spTo(op, Math.floor(op.skill.cost * (x.share ?? 0)));
+    if (x.on === 'skillEnd' && x.heal && op.hp > 0) w.events.push({ type: 'heal', id: op.id, target: op.id, amount: heal(w, op, op, x.heal * statsOf(op).maxHp) });
+    if (x.on === 'skillEnd' && x.share && op.skill && draw(w) < (x.prob ?? 1)) spTo(op, Math.floor(op.skill.cost * x.share));
     if (x.on === 'skillKills') {
       const b = op.buffs.find((y) => y.key === 'skillKills');
       if (b) { spTo(op, Math.min(x.max ?? Infinity, b.value * (x.sp ?? 0))); removeBuff(op, b); }

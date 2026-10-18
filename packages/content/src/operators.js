@@ -5,7 +5,7 @@ import index from '../data/operators/index.json' with { type: 'json' };
 import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
 import { unlockedAt, talentsAt, alwaysOnBb, alwaysModsOf, teamPart, rangePart, critPart, timedPart, deployPart, forSkill } from './talents.js';
-import { whileParts, targetPart, hitPart, attackPart, stackPart, spParts, gritPart, auraParts } from './talentparts.js';
+import { whileParts, targetPart, hitPart, attackPart, stackPart, spParts, gritPart, auraParts, perParts } from './talentparts.js';
 import { dollOf } from './doll.js';
 import rangeTable from '../data/ranges.json' with { type: 'json' };
 
@@ -183,12 +183,13 @@ const listed = (k, v) => (v.length ? { [k]: v } : {});
  */
 function talentTraitOf(talents) {
   const attacks = talents.map(attackPart).filter((p) => p !== null), extraArts = attacks.reduce((n, p) => n + (p.extraArts ?? 0), 0);
-  const targets = Math.max(0, ...attacks.map((p) => p.targets ?? 0)), grit = talents.map(gritPart).find((p) => p !== null);
+  const targets = Math.max(0, ...attacks.map((p) => p.targets ?? 0)), grit = talents.map(gritPart).find((p) => p !== null), packed = attacks.find((p) => p.packed)?.packed;
   const auras = talents.flatMap((c) => auraParts(c, rangeTable.ranges).auras);
   const out = {
-    ...listed('whiles', talents.flatMap(whileParts)), ...listed('vs', talents.map(targetPart).filter((p) => p !== null)),
+    ...listed('whiles', [...talents.flatMap(whileParts), ...talents.flatMap(perParts)]), ...listed('vs', talents.map(targetPart).filter((p) => p !== null)),
     ...listed('onHit', talents.map(hitPart).filter((p) => p !== null)), ...(extraArts > 0 ? { extraArts } : {}), ...(targets > 0 ? { targets } : {}),
     ...listed('stacks', talents.map(stackPart).filter((p) => p !== null)), ...listed('talentSp', talents.flatMap(spParts)), ...(grit ? { grit } : {}), ...listed('auras', auras),
+    ...(packed ? { packed } : {}),
   };
   return Object.keys(out).length ? out : null;
 }

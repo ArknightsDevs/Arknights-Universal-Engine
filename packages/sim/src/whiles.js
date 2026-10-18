@@ -4,7 +4,7 @@
 // runs or not — a buff each, given and taken back at its turn.
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
-import { makeBuff, addBuff, removeBuff } from './buffs.js';
+import { makeBuff, addBuff, removeBuff, retune } from './buffs.js';
 import { bursting, ELEMENTS, epOf } from './elements.js';
 import { tileOf } from './body.js';
 import { rangeKeys, inKeys, hostile } from './targeting.js';
@@ -46,6 +46,9 @@ function onCross(w, op, which) {
   });
 }
 
+/** How many times an operator's skill started since its deployment, as its talents count them (职业-25). @param {Unit} op */
+const starts = (op) => op.buffs.find((b) => b.key === 'starts')?.value ?? 0;
+
 /** How many enemies with HP an operator blocks. @param {World} w @param {Unit} op */
 const blockedBy = (w, op) => w.units.filter((e) => e.blockedBy === op.id && e.hp > 0).length;
 /** Whether a unit is in a burst of an element, or of any without one (元素-3). @param {Unit} u @param {string | undefined} el */
@@ -80,8 +83,23 @@ const WHEN = Object.freeze({
   inSkill: (_w, _c, op) => !!op.skill && op.skill.active,
   notInSkill: (_w, _c, op) => !(op.skill && op.skill.active),
   noKills: (_w, _c, op) => !op.buffs.some((b) => b.key === 'kills' && b.value > 0),
+  fewStarts: (_w, _c, op, v) => starts(op) < v,
+  laterSkill: (_w, _c, op) => !!op.skill && op.skill.active && starts(op) >= 2,
   alchemy: (w, _c, op) => (w.alchemy ?? []).some((a) => a.src === op.id),
 });
+
+/**
+ * A part by the enemies in an operator's own range (职业-25): its buff with the modifiers × their number, at most `per`;
+ * none while there are none.
+ * @param {World} w @param {Content} c @param {Unit} op @param {WhileMods} x @param {string} key
+ */
+function perWhile(w, c, op, x, key) {
+  const n = Math.min(x.per ?? 0, inOwnRange(w, c, op).filter(hostile).length), b = op.buffs.find((y) => y.key === key);
+  const mods = Object.fromEntries(Object.entries(x.mods).map(([k, v]) => [k, v * n]));
+  if (n === 0) { if (b) removeBuff(op, key); return; }
+  if (!b) addBuff(op, makeBuff({ key, src: op.id, value: n, mods }));
+  else if (b.value !== n) retune(op, b, n, mods);
+}
 
 /**
  * At the start of an operator's turn (职业-18, 职业-25): its 坚忍 (gritTurn), then each of its trait's `whiles` is a buff
@@ -92,7 +110,9 @@ export function traitWhiles(w, c, op) {
   gritTurn(c, op);
   const list = traitOf(c, op).whiles;
   for (let i = 0; i < list.length; i++) {
-    const x = list[i], key = `while:${i}`, on = WHEN[x.when](w, c, op, x.value ?? 0, x), has = op.buffs.some((b) => b.key === key);
+    const x = list[i], key = `while:${i}`;
+    if (x.per) { perWhile(w, c, op, x, key); continue; }
+    const on = WHEN[x.when](w, c, op, x.value ?? 0, x), has = op.buffs.some((b) => b.key === key);
     if (on && !has) addBuff(op, makeBuff({ key, src: op.id, mods: { ...x.mods }, ...(x.flags ? { flags: { ...x.flags } } : {}) }));
     else if (!on && has) removeBuff(op, key);
   }

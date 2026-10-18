@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { loadTraining, operatorAt, skeletonContent, ROSTER } from '../src/index.js';
 import { traitAt, teamTalentsAt, upgradedTalentsAt, moduleOwnAt } from '../src/operators.js';
 import { talentsAt, alwaysOn, alwaysMods, teamPart, rangePart, critPart, timedPart, deployPart, forSkill } from '../src/talents.js';
-import { whileParts, targetPart, hitPart, attackPart, stackPart, spParts, gritPart, auraParts } from '../src/talentparts.js';
+import { whileParts, targetPart, hitPart, attackPart, stackPart, spParts, gritPart, auraParts, perParts } from '../src/talentparts.js';
 import rangeTable from '../data/ranges.json' with { type: 'json' };
 
 /** The range table (干员-8). */
@@ -346,7 +346,7 @@ test('[干员-9] team parts for every friendly unit, with effects, and 同类效
     { when: 'field', all: true, bb: { attack_speed: 8 } }, { when: 'field', all: true, bb: { sp_recovery_per_sec: 0.3 }, max: true },
     { when: 'field', all: true, bb: {}, mods: { healingDealtMul: 1.12 } }, { when: 'field', profession: 'PIONEER', bb: {}, mods: { dodgePhys: 0.25 } },
   ]);
-  assert.deepEqual([c('编入队伍时，所有【先锋】职业干员获得25%的物理闪避', { prob: 0.25 }), c('技能未开启时，全场友方单位每秒回复25点生命', { hp_recovery_per_sec: 25 })], [null, null],
+  assert.deepEqual([c('编入队伍时，所有【先锋】职业干员获得25%的物理闪避', { prob: 0.25 }), c('阻挡敌人时，全场友方单位每秒回复25点生命', { hp_recovery_per_sec: 25 })], [null, null],
     'no effect for the deck; a condition first');
   const [mostma, plosis] = await Promise.all([atE2('char_213_mostma'), atE2('char_128_plosis')]);
   assert.deepEqual([mostma.fieldTalents, plosis.fieldTalents], [[{ profession: 'CASTER', bb: { sp_recovery_per_sec: 0.4 }, max: true }], [{ all: true, bb: { sp_recovery_per_sec: 0.3 }, max: true }]]);
@@ -438,4 +438,35 @@ test('[干员-23] 坚忍: the most of each attribute and the share of HP lost at
   ], [{ dot: { amount: 85, seconds: 3.1 } }, { dot: { amount: 90, seconds: 3 } }, { dot: { scale: 0.2, seconds: 3 }, when: 'unblocked' }]);
   assert.deepEqual(whileParts(talent('每次部署后击倒一名敌人之前，攻击速度+10，受到的所有伤害降低30%', { attack_speed: 10, damage_resistance: 0.3 })),
     [{ when: 'noKills', mods: { aspd: 10, dmgTakenMul: 0.7 } }], '缄默德克萨斯');
+});
+
+test('[干员-17] conditions on its skill: running, not running, before its second start, a later one; flags and whole changes; steps by the enemies in range', () => {
+  const w = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => whileParts(talent(d, bb));
+  assert.deepEqual([
+    w('被动技能触发期间攻击力+18%（+3%），阻挡数降至0且获得迷彩', { atk: 0.18 }), w('未开启技能时，获得迷彩，开启技能后攻击间隔略微缩短', { base_attack_time: -0.15 }),
+    w('被动技能持续时间内攻击力+20%；首次击倒敌人时回复所有生命并重新释放被动技能', { atk: 0.2, hp_ratio: 1 }),
+    w('部署后第2次开启技能之前，技力自然回复速度+1/秒', { sp_recovery_per_sec: 1, cnt: 2 }), w('首次释放技能后，后续技能期间造成的伤害提升16%', { damage_scale: 1.16 }),
+    w('技能开启时不容易成为敌人的目标', { taunt_level: -1 }),
+  ], [
+    [{ when: 'inSkill', mods: { atkPct: 0.18, blockCntMul: 0 }, flags: { camou: true } }],
+    [{ when: 'notInSkill', mods: {}, flags: { camou: true } }, { when: 'inSkill', mods: { batFlat: -0.15 } }], [{ when: 'inSkill', mods: { atkPct: 0.2 } }],
+    [{ when: 'fewStarts', value: 2, mods: { spRecoveryFlat: 1 } }], [{ when: 'laterSkill', mods: { dmgDealtMul: 1.16 } }], [{ when: 'inSkill', mods: { taunt: -1 } }],
+  ]);
+  assert.deepEqual(w('技能开启时，每秒恢复最大生命值5%的生命，同时获得30%的近战物理闪避', { hp_recovery_per_sec_by_max_hp_ratio: 0.05, prob: 0.3 }), [], 'a clause it cannot read');
+  assert.deepEqual([perParts(talent('攻击范围内每有一个敌人，自身攻击力+4%（最多可叠加6层（+1））', { atk: 0.04, max_valid_stack_cnt: 6 })), perParts(talent('攻击范围内每有一个敌人，自身攻击力+4%', { atk: 0.04 }))],
+    [[{ when: 'enemies', value: 1, per: 6, mods: { atkPct: 0.04 } }], []]);
+});
+
+test('[干员-9] [干员-19] [干员-21] team talents of the holder\'s skill; the splash\'s 倍率; a heal at the skill\'s end', () => {
+  const t = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => teamPart(talent(d, bb));
+  assert.deepEqual([
+    t('技能未开启时，全场友方单位每秒回复25（+5）点生命', { hp_recovery_per_sec: 25 }), t('开启技能时，【乌萨斯学生自治团】干员攻击速度+24（+3），持续至技能结束', { attack_speed: 24 }),
+    t('技能开启时，所有【医疗】和【辅助】干员获得抵抗', { one_minus_status_resistance: -0.5, max_hp: 0 }),
+  ], [
+    { when: 'field', all: true, bb: { hp_recovery_per_sec: 25 }, skill: false }, { when: 'field', power: 'student', bb: { attack_speed: 24 }, skill: true },
+    { when: 'field', professions: ['MEDIC', 'SUPPORT'], bb: {}, mods: { statusResFlat: -0.5 }, skill: true },
+  ]);
+  assert.equal(t('技能开启时，所有【医疗】和【萨卡兹】干员获得抵抗', { one_minus_status_resistance: -0.5 }), null, 'a profession and a faction together');
+  assert.deepEqual(attackPart(talent('攻击溅射范围内有大于或等于3个敌人时，使当次攻击造成的伤害提升至125%（+5%）', { damage_scale: 1.25, min_target_cnt: 3 })), { packed: { cnt: 3, atk: 1.25 } });
+  assert.deepEqual(spParts(talent('技能结束时恢复自身60%（+10%）最大生命值', { hp_ratio: 0.6 })), [{ on: 'skillEnd', heal: 0.6 }]);
 });

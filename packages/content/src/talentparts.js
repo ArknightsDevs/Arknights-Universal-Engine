@@ -41,7 +41,10 @@ const SELF_WHEN = Object.freeze(/** @type {[RegExp, (m: RegExpExecArray, bb: Rec
   [/^当?周围(?:四|4)格内?没有其他友方单位时[，,]?/u, () => ({ when: 'aloneUnits4' })],
   [/^周围(?:八|8)格(?:内)?没有友方干员时[，,]?/u, () => ({ when: 'alone8' })],
   [/^每次部署后击倒一名敌人之前[，,]?/u, () => ({ when: 'noKills' })],
-  [/^技能未开启时[，,]?/u, () => ({ when: 'notInSkill' })],
+  [/^(?:技能未开启时|未开启技能时)[，,]?/u, () => ({ when: 'notInSkill' })],
+  [/^(?:被动技能(?:触发期间|持续时间内)|技能开启时|开启技能后)[，,]?/u, () => ({ when: 'inSkill' })],
+  [/^部署后第(\d)次开启技能之前[，,]?/u, (m, bb) => ({ when: 'fewStarts', value: bb.cnt ?? Number(m[1]) })],
+  [/^首次释放技能后后续技能期间/u, () => ({ when: 'laterSkill' })],
   [/^生命值(高于|低于)\d+(?:\.\d+)?%时[，,]?/u, (m, bb) => (has(bb, 'hp_ratio') ? { when: m[1] === '高于' ? 'hpAbove' : 'hpBelow', value: bb.hp_ratio } : null)],
 ]));
 
@@ -63,6 +66,30 @@ function condOf(clause, bb) {
 
 /** An attribute key's modifier and value (技能-5), as the skills' attribute keys. @param {string} k @param {number} v */
 const attrMods = (k, v) => skills.statMods({ [k]: v });
+
+/** @typedef {{ mods: Record<string, number>, flags?: Record<string, boolean> }} Gain */
+/**
+ * The clauses after a condition that are flags or whole-number changes (干员-17): 获得迷彩 (`camou`), 阻挡数降至0, 攻击间隔略微
+ * 缩短 / 增大 (`base_attack_time`), 不容易成为敌人的目标 / 受到敌人（的）攻击 (`taunt_level`).
+ */
+const STATE = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>) => Gain | null][]} */ ([
+  [/^获得迷彩$/u, () => ({ mods: {}, flags: { camou: true } })],
+  [/^阻挡数降至0$/u, () => ({ mods: { blockCntMul: 0 } })],
+  [/^攻击间隔略微(?:缩短|增大)$/u, (bb) => (has(bb, 'base_attack_time') ? { mods: { batFlat: bb.base_attack_time } } : null)],
+  [/^(?:自身)?不容易(?:成为敌人的目标|受到敌人的?攻击)$/u, (bb) => (has(bb, 'taunt_level') ? { mods: { taunt: bb.taunt_level } } : null)],
+]));
+
+/**
+ * What one clause after a condition gives (干员-17): a flag or whole change (STATE), what a 「改为」 one adds (insteadMods),
+ * or the operator's own modifiers (condMods); null when it reads as none.
+ * @param {string} rest @param {Record<string, number>} bb @returns {Gain | null}
+ */
+function gainOf(rest, bb) {
+  const state = STATE.find(([re]) => re.test(rest));
+  if (state) return state[1](bb);
+  const mods = rest.startsWith('改为') ? insteadMods(rest.slice(2), bb) : condMods(rest, bb);
+  return mods ? { mods } : null;
+}
 
 /**
  * One clause after a condition as modifiers (干员-17): the operator's own attributes or effects (selfClause), every key
@@ -95,15 +122,16 @@ function insteadMods(clause, bb) {
 /**
  * The conditional parts of a talent (干员-17): its first sentence's clauses (split at ，) — those before the first
  * condition are the always-on part's (干员-6) and left out; a clause that begins with a condition (SELF_WHEN) starts
- * its part, the clauses after it up to the next condition are about the operator itself (condMods) — or 「改为」 one,
- * the part giving what it adds to the always-on one (insteadMods) — and add to the part's modifiers. Every clause from
+ * its part, the clauses after it (split at ，and 且) up to the next condition are about the operator itself (condMods),
+ * a flag or a whole change (STATE) — or 「改为」 one, the part giving what it adds to the always-on one (insteadMods) —
+ * and add to the part's modifiers and flags. Every clause from
  * the first condition on must read so, and no later sentence speak of an 效果. None when it has no condition; hidden
  * talents have none.
  * @param {Talent} c @returns {WhileMods[]}
  */
 export function whileParts(c) {
   if (c.hidden || !c.description) return [];
-  const { first, laterEffect } = firstOf(c), clauses = first.split('，').map((x) => x.trim()).filter((x) => x);
+  const { first, laterEffect } = firstOf(c), clauses = first.replace(/^首次释放技能后[，,]/u, '首次释放技能后').split(/，|且/u).map((x) => x.trim()).filter((x) => x);
   const start = clauses.findIndex((x) => condOf(x, c.bb) !== undefined);
   if (start < 0 || laterEffect) return [];
   /** @type {WhileMods[]} */
@@ -112,13 +140,12 @@ export function whileParts(c) {
     const at = condOf(clause, c.bb);
     if (at === null) return [];
     if (at) out.push({ ...at.cond, mods: {} });
-    const rest = at ? at.rest : clause;
-    if (!rest) continue;
-    const mods = rest.startsWith('改为') ? insteadMods(rest.slice(2), c.bb) : condMods(rest, c.bb);
-    if (!mods) return [];
-    Object.assign(/** @type {WhileMods} */ (out.at(-1)).mods, mods);
+    const rest = at ? at.rest : clause, gain = rest ? gainOf(rest, c.bb) : { mods: {} };
+    if (!gain) return [];
+    const part = /** @type {WhileMods} */ (out.at(-1));
+    out[out.length - 1] = { ...part, mods: { ...part.mods, ...gain.mods }, ...(gain.flags || part.flags ? { flags: { ...part.flags, ...gain.flags } } : {}) };
   }
-  return out.every((x) => Object.keys(x.mods).length > 0) ? out : [];
+  return out.every((x) => Object.keys(x.mods).length > 0 || x.flags) ? out : [];
 }
 
 /** The enemies' tags by the names a description gives them in 【】 (关卡-1). */
@@ -240,9 +267,10 @@ export function hitPart(c) {
 
 /**
  * What a talent adds to its operator's attacks (干员-19): 「攻击额外造成攻击力N%的法术伤害」 (`extraArts` from
- * `attack@atk_scale_1` or `atk_scale`, 职业-20), 「攻击时同时攻击两个目标」 (two targets, 职业-3) — as its whole first
- * sentence. Null otherwise; hidden talents have none.
- * @param {Talent} c @returns {{ extraArts?: number, targets?: number } | null}
+ * `attack@atk_scale_1` or `atk_scale`, 职业-20), 「攻击时同时攻击两个目标」 (two targets, 职业-3), 「攻击溅射范围内有大于或等于N个
+ * 敌人时，使当次攻击造成的伤害提升至M%」 (`packed`: `min_target_cnt`, `damage_scale`, 职业-17) — as its whole first sentence.
+ * Null otherwise; hidden talents have none.
+ * @param {Talent} c @returns {{ extraArts?: number, targets?: number, packed?: { cnt: number, atk: number } } | null}
  */
 export function attackPart(c) {
   if (c.hidden || !c.description) return null;
@@ -250,7 +278,9 @@ export function attackPart(c) {
   if (laterEffect) return null;
   if (/^攻击额外造成攻击力\d+(?:\.\d+)?%的法术伤害$/u.test(first) && arts !== undefined) return { extraArts: arts };
   const n = /^攻击时同时攻击(两|三|2|3)个目标$/u.exec(first);
-  return n ? { targets: firstKey(c.bb, ['attack@max_target', 'max_target']) ?? COUNT[n[1]] } : null;
+  if (n) return { targets: firstKey(c.bb, ['attack@max_target', 'max_target']) ?? COUNT[n[1]] };
+  const packed = /^攻击溅射范围内有大于或等于\d+个敌人时[，,]使当次攻击造成的伤害提升至\d+(?:\.\d+)?%$/u.test(first);
+  return packed && has(c.bb, 'min_target_cnt') && has(c.bb, 'damage_scale') ? { packed: { cnt: c.bb.min_target_cnt, atk: c.bb.damage_scale } } : null;
 }
 
 /** The attribute words of a step or an aura (干员-20, 干员-22), the blackboard key and the modifier without % and with %. */
@@ -355,6 +385,7 @@ const SPS = Object.freeze(/** @type {[RegExp, (m: RegExpExecArray, bb: Record<st
   }],
   [/^技能结束后[，,]\d+%几率立即回复\d+%的最大技力$/u, (_m, bb) => (has(bb, 'prob') && has(bb, 'sp') ? [{ on: 'skillEnd', prob: bb.prob, share: bb.sp }] : null)],
   [/^技能期间每击倒1名敌人[，,]技能结束时获得\d+点技力[，,]至多回复\d+点$/u, (_m, bb) => (has(bb, 'sp') && has(bb, 'max_sp') ? [{ on: 'skillKills', sp: bb.sp, max: bb.max_sp }] : null)],
+  [/^技能结束时恢复自身\d+(?:\.\d+)?%最大生命值$/u, (_m, bb) => (has(bb, 'hp_ratio') ? [{ on: 'skillEnd', heal: bb.hp_ratio }] : null)],
 ]));
 
 /**
@@ -476,4 +507,18 @@ export function auraParts(c, ranges) {
     if (got) return { range: [], auras: [got] };
   }
   return none;
+}
+
+/**
+ * The steps by the enemies in range of a talent (干员-17): 「攻击范围内每有一个敌人，」 then an attribute clause (stepMods),
+ * the most steps the blackboard's `max_valid_stack_cnt` (or `max_stack_cnt`) — as a conditional part `enemies` whose
+ * modifiers are × the enemies in the operator's own attack range, at most that many (`per`). None otherwise; hidden
+ * talents have none.
+ * @param {Talent} c @returns {WhileMods[]}
+ */
+export function perParts(c) {
+  if (c.hidden || !c.description) return [];
+  const { first, laterEffect } = firstOf(c), m = /^攻击范围内每有一个敌人[，,](.+)$/u.exec(first);
+  const mods = m && !laterEffect ? stepMods(m[1], c.bb) : null, max = firstKey(c.bb, ['max_valid_stack_cnt', 'max_stack_cnt']);
+  return mods && max !== undefined ? [{ when: 'enemies', value: 1, per: max, mods }] : [];
 }

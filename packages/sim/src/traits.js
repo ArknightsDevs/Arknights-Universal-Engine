@@ -61,7 +61,7 @@ function sameFields(o, fields) {
 /**
  * A trait with what its operator's talents add (职业-24, 职业-25): their conditional modifiers, target 倍率, hit effects,
  * stacks, SP and auras after the trait's own, their 法术伤害 on each hit added to its, their number of targets when it is
- * more than a number the trait has, their 坚忍.
+ * more than a number the trait has, their 坚忍, their 倍率 by the enemies a splash reaches when the trait has none.
  * @param {TraitDef} t @param {Partial<TraitDef> | undefined} a @returns {TraitDef}
  */
 function withTalents(t, a) {
@@ -71,6 +71,7 @@ function withTalents(t, a) {
     ...t, whiles: [...t.whiles, ...(a.whiles ?? [])], vs: [...t.vs, ...(a.vs ?? [])], onHit: [...t.onHit, ...(a.onHit ?? [])],
     stacks: [...t.stacks, ...(a.stacks ?? [])], talentSp: [...t.talentSp, ...(a.talentSp ?? [])], auras: [...t.auras, ...(a.auras ?? [])],
     extraArts: t.extraArts + (a.extraArts ?? 0), ...(more ? { targets: a.targets } : {}), ...(a.grit ? { grit: a.grit } : {}),
+    ...(a.packed && !t.packed ? { packed: a.packed } : {}),
   };
 }
 

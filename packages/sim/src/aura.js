@@ -48,11 +48,12 @@ function regenAura(c, src, ops, want) {
 }
 
 /**
- * Whether a team talent is for an operator (部署-5): its profession, or one of its factions, is the talent's; every one
- * for a talent for all.
+ * Whether a team talent is for an operator (部署-5): its profession (one of the talent's), or one of its factions, is the
+ * talent's; every one for a talent for all.
  * @param {import('./types.js').TeamTalent} t @param {import('./types.js').OperatorDef} d
  */
-export const teamFits = (t, d) => ('all' in t ? true : 'profession' in t ? d.profession === t.profession : (d.powers ?? []).includes(t.power));
+export const teamFits = (t, d) => ('all' in t ? true : 'professions' in t ? t.professions.includes(d.profession ?? '')
+  : 'profession' in t ? d.profession === t.profession : (d.powers ?? []).includes(t.power));
 
 /** A team talent's strength (部署-5): the sum of its modifiers' sizes. @param {Record<string, number>} mods */
 const sizeOf = (mods) => Object.values(mods).reduce((n, v) => n + Math.abs(v), 0);
@@ -60,11 +61,13 @@ const sizeOf = (mods) => Object.values(mods).reduce((n, v) => n + Math.abs(v), 0
 /**
  * The on-field team talents of one source (部署-5): every operator on the field the talent is for, any player's — its
  * attribute keys' and its effects' modifiers, a buff `field:<source id>:<n>`; one of 同类效果取最高 (`max`) a buff
- * `field:max:<its keys>` shared by every such talent with those keys, the strongest kept.
+ * `field:max:<its keys>` shared by every such talent with those keys, the strongest kept; one of the source's skill only
+ * while that runs (or does not).
  * @param {Content} c @param {Unit} src @param {Unit[]} ops @param {Map<Unit, Map<string, Want>>} want
  */
 function fieldTalents(c, src, ops, want) {
   (c.operators[src.key].fieldTalents ?? []).forEach((t, i) => {
+    if (t.skill !== undefined && t.skill !== !!src.skill?.active) return;
     const mods = { ...statMods(t.bb), ...t.mods }, size = sizeOf(mods), key = t.max ? `field:max:${Object.keys(mods).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join(',')}` : `field:${src.id}:${i}`;
     for (const u of ops) {
       const w = want.get(u);
