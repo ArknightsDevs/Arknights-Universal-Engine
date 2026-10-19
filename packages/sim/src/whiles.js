@@ -13,6 +13,7 @@ import { gritTurn } from './talentfx.js';
 import { quiet, idleShieldTurn } from './talenttime.js';
 import { lifeTurn } from './talentlife.js';
 import { foeTurn } from './talentfoe.js';
+import { pulseTurn } from './talentelem.js';
 import { tileAt } from './level.js';
 import { rotateOffset } from './dir.js';
 
@@ -104,6 +105,7 @@ const WHEN = Object.freeze({
   unhurt: (w, _c, op, _v, x) => quiet(w, op, x),
   calm: (w, _c, op, _v, x) => quiet(w, op, x),
   highSide: (_w, c, op, v) => highSides(c, op) >= v,
+  fieldOps: (w, _c, _op, v) => w.units.filter((u) => isOperator(u) && u.hp > 0 && !u.hidden).length >= v,
 });
 
 /**
@@ -121,7 +123,8 @@ function perWhile(w, c, op, x, key) {
 
 /**
  * At the start of an operator's turn (职业-18, 职业-25…职业-28): its 坚忍 (gritTurn), its talents on its life (lifeTurn),
- * its 屏障 after a while without attacking (idleShieldTurn), its talents on the enemies (foeTurn), then each of its
+ * its 屏障 after a while without attacking (idleShieldTurn), its talents on the enemies (foeTurn) and their pulses
+ * (pulseTurn, 职业-29), then each of its
  * trait's `whiles` is a buff `while:<n>` with
  * its modifiers while its condition holds; when it no longer does, the buff goes.
  * @param {World} w @param {Content} c @param {Unit} op
@@ -131,6 +134,7 @@ export function traitWhiles(w, c, op) {
   lifeTurn(w, c, op);
   idleShieldTurn(w, c, op);
   foeTurn(w, c, op);
+  pulseTurn(w, c, op);
   const list = traitOf(c, op).whiles;
   for (let i = 0; i < list.length; i++) {
     const x = list[i], key = `while:${i}`;

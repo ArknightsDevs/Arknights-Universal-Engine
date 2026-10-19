@@ -597,3 +597,48 @@ test('[干员-27] talents on the enemies: targets preferred and their 倍率, sl
   assert.deepEqual([blitz.talentTrait.prefer, ines.talentTrait.vs.find((/** @type {any} */ v) => v.steal)?.inflict, mizuki.talentTrait.lowestArts?.n, titi.talentTrait.hurtSleeping],
     [[{ status: 'stun' }], { key: 'root', seconds: 5 }, 1, true], '闪击, 伊内丝, 水月, 缇缇 from the real data');
 });
+
+test('[干员-28] talents on elements: answers to bursts, steps for them, damage while one lasts, 元素损伤 over time, pulses, 麻痹, element values back, heals over time', async () => {
+  const s = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => specialParts(talent(d, bb));
+  const tr = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => s(d, bb).trait;
+  assert.deepEqual([
+    tr('攻击范围内的敌人灼燃损伤爆发开始时立即受到相当于攻击力320%（+20%）的元素伤害', { ep_damage_scale: 3.2 }),
+    tr('全场有敌人灼燃损伤爆发开始时，立即对其造成相当于攻击力380%（+30%）的元素伤害并回复15%（+3%）最大生命', { ep_damage_scale: 3.8, hp_ratio: 0.15 }),
+    tr('攻击处于凋亡损伤爆发期间的敌人时使其每秒受到相当于攻击力40%的元素伤害，持续至凋亡损伤爆发结束', { element_atk_scale: 0.4 }),
+    tr('每当自身攻击范围内敌人凋亡损伤爆发，攻击力+2%，最多可叠加12（+2）层', { atk: 0.02, max_stack_cnt: 12 }),
+    tr('攻击范围内有敌人侵蚀损伤爆发时攻击速度+7（+1），最多可叠加3层', { attack_speed: 7, max_stack_cnt: 3 }),
+    tr('攻击范围内的敌人触发麻痹时立即受到相当于攻击力130%（+10%）的元素伤害', { atk_scale: 1.3 }),
+    tr('对每个敌人首次攻击时，使其在接下来的5秒内每秒受到相当于攻击力18%（+2%）的灼燃损伤', { 'attack@ep_damage_ratio_talent': 0.18, 'attack@dmg_duration': 5 }),
+  ], [
+    { burstOn: [{ el: 'FIRE', where: 'range', dmg: 3.2 }] }, { burstOn: [{ el: 'FIRE', where: 'field', dmg: 3.8, heal: 0.15 }] },
+    { vs: [{ when: 'burstOf', el: 'DARK', on: 'attack', post: true, burstDot: 0.4 }] },
+    { stacks: [{ on: 'burst', el: 'DARK', max: 12, mods: { atkPct: 0.02 } }] }, { stacks: [{ on: 'burst', el: 'WATER', max: 3, mods: { aspd: 7 } }] },
+    { palsyHit: 1.3 }, { vs: [{ when: 'first', seen: 'attack', on: 'attack', epDot: { el: 'FIRE', scale: 0.18, seconds: 5 } }] },
+  ]);
+  assert.deepEqual([
+    tr('使攻击范围内敌人每秒受到相当于攻击力10%的凋亡损伤并停顿0.2秒', { ep_damage_ratio: 0.1, sluggish: 0.2 }),
+    tr('阻挡敌人时自身获得30%（+5%）的庇护，并使阻挡的目标每秒受到相当于攻击力40%的法术伤害和相当于攻击力12%的灼燃损伤',
+      { damage_resistance: 0.3, 'yu_t_1[enemy].atk_scale': 0.4, 'yu_t_1[enemy].ep_damage_ratio': 0.12, 'yu_t_1[enemy].interval': 1 }),
+    tr('场上干员数量不低于4时，自身每秒回复相当于生命上限2%（+0.5%）的生命与元素损伤', { cnt: 4, ep_heal_ratio: 0.02, hp_recovery_per_sec_by_max_hp_ratio: 0.02, interval: 1 }),
+    tr('对自身阻挡的敌人每秒造成相当于攻击力10%（+1%）的神经损伤', { ep_damage_ratio: 0.1 }),
+    tr('自身受到的元素损伤-12%（+2%），受到的侵蚀损伤额外-12%（+2%）', { 'ep_damage_resistance[other]': 0.12, 'ep_damage_resistance[water]': 0.12 }),
+    tr('每攻击到一个敌人回复自身35（+5）元素损伤，最大生效数等于阻挡数', { value: 35 }),
+    tr('普通治疗使目标每秒额外受到一次治疗量和元素损伤回复量为10%的增益治疗，持续6秒（最多叠加3层）', { heal_scale: 0.1, duration: 6, max_stack_cnt: 3 }),
+  ], [
+    { pulses: [{ who: 'range', every: 1, ep: { el: 'DARK', scale: 0.1 }, status: { key: 'sluggish', seconds: 0.2 } }] },
+    { whiles: [{ when: 'blocking', mods: { physTakenMul: 0.7, artsTakenMul: 0.7 } }], pulses: [{ who: 'blocked', every: 1, ep: { el: 'FIRE', scale: 0.12 }, arts: 0.4 }] },
+    { whiles: [{ when: 'fieldOps', value: 4, mods: { hpRegenRatio: 0.02, epRegenRatio: 0.02 } }] },
+    { pulses: [{ who: 'blocked', every: 1, ep: { el: 'SANITY', scale: 0.1 } }] },
+    { whiles: [{ when: 'always', mods: { epTakenMul: 0.88, WATERTakenMul: 0.88 } }] },
+    { epOnHit: 35 }, { healDot: { share: 0.1, seconds: 6, max: 3 } },
+  ]);
+  assert.deepEqual([s('使攻击范围内敌人受到的凋亡损伤提高22%（+2%）', { ep_damage_scale: 1.22 }), s('攻击范围内元素损伤累计超过一半的目标受到的元素损伤降低18%（+3%）', { ep_damage_resistance: 0.18 })], [
+    { trait: null, range: [{ side: 'enemy', ranged: false, mods: { DARKTakenMul: 1.22 } }] },
+    { trait: null, range: [{ side: 'ally', ranged: false, when: { when: 'epHalf' }, mods: { epTakenMul: 0.82 } }] },
+  ], 'in-range parts');
+  assert.deepEqual([tr('攻击范围内的敌人灼燃损伤爆发开始时立即受到相当于攻击力320%的元素伤害', {}), tr('攻击处于凋亡损伤爆发期间的敌人时使其每秒受到相当于攻击力40%的元素伤害，持续至灼燃损伤爆发结束', { element_atk_scale: 0.4 })],
+    [null, null], 'without its key; a burst that is not the same');
+  const [warmy, cello, yu] = [await atE2('char_4081_warmy'), await atE2('char_245_cello'), await atE2('char_2026_yu')];
+  assert.deepEqual([warmy.talentTrait.burstOn[0].el, cello.rangeTalents.some((/** @type {any} */ r) => r.mods.DARKTakenMul > 1), yu.talentTrait.pulses[0].who],
+    ['FIRE', true, 'blocked'], '温米, 塑心, 余 from the real data');
+});

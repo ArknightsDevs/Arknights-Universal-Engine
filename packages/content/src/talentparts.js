@@ -651,12 +651,69 @@ const FOES = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>, m: R
   }],
 ]));
 
+/** An element's word in a talent (干员-28): 神经, 侵蚀, 灼燃, 凋亡, 狂躁. */
+const EL_WORD = '(神经|侵蚀|灼燃|凋亡|狂躁)';
+/** A number in a talent's text. */
+const NUM = '\\d+(?:\\.\\d+)?';
+/** A whole description of the talents on elements (干员-28), its words (EL_WORD, NUM) filled in. @param {string} src */
+const elText = (src) => new RegExp(`^${src.replaceAll('<EL>', EL_WORD).replaceAll('<N>', NUM)}$`, 'u');
+/** The element of a word (干员-28). @param {string} w */
+const elOf = (w) => ELEMENT_WORD[w];
+/** 1 − a share, without the float's tail (干员-28). @param {number} v */
+const less = (v) => Math.round((1 - v) * 1e9) / 1e9;
+
+/**
+ * The talents on elements (干员-28): a whole description, the blackboard keys it needs, and what it adds to the trait
+ * (职业-29) — answers to bursts (`burstOn`), steps for bursts (`stacks`), elemental damage while a burst lasts and
+ * 元素损伤 over time (`vs`), pulses each second (`pulses`), 麻痹 cutting an attack (`palsyHit`), element values restored
+ * on hits (`epOnHit`), heals over time (`healDot`), conditional parts (`whiles`) — or its in-range part (`range`).
+ */
+const ELEMS = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>, m: RegExpExecArray) => { trait?: Partial<TraitDef>, range?: RangeTalent[] } | null][]} */ ([
+  [elText('攻击范围内的敌人<EL>损伤爆发开始时立即受到相当于攻击力<N>%的元素伤害'), (bb, m) => (all([bb.ep_damage_scale])
+    ? { trait: { burstOn: [{ el: elOf(m[1]), where: 'range', dmg: bb.ep_damage_scale }] } } : null)],
+  [elText('全场有敌人<EL>损伤爆发开始时[，,]立即对其造成相当于攻击力<N>%的元素伤害并回复<N>%最大生命'), (bb, m) => (all([bb.ep_damage_scale, bb.hp_ratio])
+    ? { trait: { burstOn: [{ el: elOf(m[1]), where: 'field', dmg: bb.ep_damage_scale, heal: bb.hp_ratio }] } } : null)],
+  [elText('攻击处于<EL>损伤爆发期间的敌人时使其每秒受到相当于攻击力<N>%的元素伤害[，,]持续至\\1损伤爆发结束'), (bb, m) => (all([bb.element_atk_scale])
+    ? { trait: { vs: [{ when: 'burstOf', el: elOf(m[1]), on: 'attack', post: true, burstDot: bb.element_atk_scale }] } } : null)],
+  [elText('每当自身攻击范围内敌人<EL>损伤爆发[，,]攻击力[+＋]<N>%[，,]最多可叠加<N>层'), (bb, m) => (all([bb.atk, bb.max_stack_cnt])
+    ? { trait: { stacks: [{ on: 'burst', el: elOf(m[1]), max: bb.max_stack_cnt, mods: { atkPct: bb.atk } }] } } : null)],
+  [elText('攻击范围内有敌人<EL>损伤爆发时攻击速度[+＋]<N>[，,]最多可叠加<N>层'), (bb, m) => (all([bb.attack_speed, bb.max_stack_cnt])
+    ? { trait: { stacks: [{ on: 'burst', el: elOf(m[1]), max: bb.max_stack_cnt, mods: { aspd: bb.attack_speed } }] } } : null)],
+  [elText('攻击范围内的敌人触发麻痹时立即受到相当于攻击力<N>%的元素伤害'), (bb) => (all([bb.atk_scale]) ? { trait: { palsyHit: bb.atk_scale } } : null)],
+  [elText('使攻击范围内敌人每秒受到相当于攻击力<N>%的<EL>损伤并停顿<N>秒'), (bb, m) => (all([bb.ep_damage_ratio, bb.sluggish])
+    ? { trait: { pulses: [{ who: 'range', every: 1, ep: { el: elOf(m[1]), scale: bb.ep_damage_ratio }, status: { key: 'sluggish', seconds: bb.sluggish } }] } } : null)],
+  [elText('使攻击范围内敌人受到的<EL>损伤提高<N>%'), (bb, m) => (all([bb.ep_damage_scale])
+    ? { range: [{ side: 'enemy', ranged: false, mods: { [`${elOf(m[1])}TakenMul`]: bb.ep_damage_scale } }] } : null)],
+  [elText('对每个敌人首次攻击时[，,]使其在接下来的<N>秒内每秒受到相当于攻击力<N>%的<EL>损伤'), (bb, m) => {
+    const scale = byEnd(bb, 'ep_damage_ratio_talent'), seconds = byEnd(bb, 'dmg_duration');
+    return all([scale, seconds]) ? { trait: { vs: [{ when: 'first', seen: 'attack', on: 'attack', epDot: { el: elOf(m[1]), scale: /** @type {number} */ (scale), seconds: /** @type {number} */ (seconds) } }] } } : null;
+  }],
+  [elText('阻挡敌人时自身获得<N>%的庇护[，,]并使阻挡的目标每秒受到相当于攻击力<N>%的法术伤害和相当于攻击力<N>%的<EL>损伤'), (bb, m) => {
+    const arts = byEnd(bb, '[enemy].atk_scale'), ep = byEnd(bb, '[enemy].ep_damage_ratio'), every = byEnd(bb, '[enemy].interval') ?? 1;
+    return all([bb.damage_resistance, arts, ep]) ? { trait: { whiles: [{ when: 'blocking', mods: shelter(bb.damage_resistance) }],
+      pulses: [{ who: 'blocked', every, ep: { el: elOf(m[1]), scale: /** @type {number} */ (ep) }, arts }] } } : null;
+  }],
+  [elText('场上干员数量不低于<N>时[，,]自身每秒回复相当于生命上限<N>%的生命与元素损伤'), (bb) => (all([bb.cnt, bb.hp_recovery_per_sec_by_max_hp_ratio, bb.ep_heal_ratio])
+    ? { trait: { whiles: [{ when: 'fieldOps', value: bb.cnt, mods: { hpRegenRatio: bb.hp_recovery_per_sec_by_max_hp_ratio, epRegenRatio: bb.ep_heal_ratio } }] } } : null)],
+  [elText('对自身阻挡的敌人每秒造成相当于攻击力<N>%的<EL>损伤'), (bb, m) => (all([bb.ep_damage_ratio])
+    ? { trait: { pulses: [{ who: 'blocked', every: 1, ep: { el: elOf(m[1]), scale: bb.ep_damage_ratio } }] } } : null)],
+  [elText('自身受到的元素损伤[-－]<N>%[，,]受到的<EL>损伤额外[-－]<N>%'), (bb, m) => {
+    const el = elOf(m[1]), all1 = byEnd(bb, '[other]'), own = byEnd(bb, `[${el.toLowerCase()}]`);
+    return all([all1, own]) ? { trait: { whiles: [{ when: 'always', mods: { epTakenMul: less(/** @type {number} */ (all1)), [`${el}TakenMul`]: less(/** @type {number} */ (own)) } }] } } : null;
+  }],
+  [elText('攻击范围内元素损伤累计超过一半的目标受到的元素损伤降低<N>%'), (bb) => (all([bb.ep_damage_resistance])
+    ? { range: [{ side: 'ally', ranged: false, when: { when: 'epHalf' }, mods: { epTakenMul: less(bb.ep_damage_resistance) } }] } : null)],
+  [elText('每攻击到一个敌人回复自身<N>元素损伤[，,]最大生效数等于阻挡数'), (bb) => (all([bb.value]) ? { trait: { epOnHit: bb.value } } : null)],
+  [elText('普通治疗使目标每秒额外受到一次治疗量和元素损伤回复量为<N>%的增益治疗[，,]持续<N>秒'), (bb) => (all([bb.heal_scale, bb.duration, bb.max_stack_cnt])
+    ? { trait: { healDot: { share: bb.heal_scale, seconds: bb.duration, max: bb.max_stack_cnt } } } : null)],
+]));
+
 /** The tiles of 周围四格 around an operator, its own left out (干员-26). */
 const AROUND_OTHERS = Object.freeze(AROUND[4].filter((t) => t.row !== 0 || t.col !== 0));
 
 /**
- * The special parts of a talent (干员-24…干员-27): its whole description (plainOf) one of TIME, LIFE or FOES with the keys
- * it needs — what it adds to the trait —, or 可颂's 抵挡 (「有N%的几率抵挡物理和法术伤害。周围四格内的友方单位获得一半该效果」:
+ * The special parts of a talent (干员-24…干员-28): its whole description (plainOf) one of TIME, LIFE or FOES with the keys
+ * it needs — what it adds to the trait —, or of ELEMS — what it adds to the trait or its in-range part —, or 可颂's 抵挡 (「有N%的几率抵挡物理和法术伤害。周围四格内的友方单位获得一半该效果」:
  * its own `blockPA` always, the other units on the 4 tiles next to it the blackboard's `[aura].prob`). Hidden talents have
  * none.
  * @param {Talent} c @returns {{ trait: Partial<TraitDef> | null, range: RangeTalent[] }}
@@ -668,6 +725,10 @@ export function specialParts(c) {
   for (const [re, make] of [...TIME, ...LIFE, ...FOES]) {
     const m = re.exec(text);
     if (m) return { trait: make(c.bb, m), range: [] };
+  }
+  for (const [re, make] of ELEMS) {
+    const m = re.exec(text), got = m ? make(c.bb, m) : null;
+    if (m) return got ? { trait: got.trait ?? null, range: got.range ?? [] } : none;
   }
   const self = byEnd(c.bb, '[self].prob'), aura = byEnd(c.bb, '[aura].prob');
   if (!/^有\d+(?:\.\d+)?%的几率抵挡物理和法术伤害。周围四格内的友方单位获得一半该效果$/u.test(text) || !all([self, aura])) return none;

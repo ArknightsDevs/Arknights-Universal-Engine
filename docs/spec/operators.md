@@ -454,3 +454,30 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 「异常状态」按术语释义取可抵抗的状态（状态-5）。由模拟按 职业-28 生效。
 
 - 来源：数据：character_table 的天赋文字与 blackboard，如闪击「优先攻击晕眩的敌人且攻击晕眩敌人时攻击力提升至165%」、瑕光、埃拉托、格劳克斯「优先攻击【无人机】单位，且攻击【无人机】时攻击力提升至155%」、仇白、缇缇（`extra_atk_scale`、`damage_atk_scale`）、诺威尔（`heal_scale_up`）、谜图、异客（`pasngr_t_1[enhance].damage_scale`）、忍冬、阿罗玛（`damage_scale`、`levitate_duration`）、伊内丝（`steal_atk`、`steal_atk_max`）、水月（`attack@mizuki_t_1.atk_scale`、`attack@max_target`）；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 异常状态「包括晕眩、寒冷、冻结等 ※生效范围请参考页面可抵抗状态」；[PRTS「伊内丝」oldid=435241](https://prts.wiki/index.php?title=%E4%BC%8A%E5%86%85%E4%B8%9D&oldid=435241)「偷取效果实际具有加成量上限，上限等同于文本所述量的200倍」「<Y模组>上述加成量上限固定为20000」；阿罗玛的倍率按伤害倍率读为推断 INF-0268
+
+### 干员-28 元素的天赋
+
+天赋（含模组的升级）的整段描述（去掉标签和括号里的部分）是下列之一、blackboard 有它要的键时，它加到特性（`talentTrait`）或加一条范围天赋（`rangeTalents`，部署-6）。<元素> 是 神经 `SANITY`、侵蚀 `WATER`、灼燃 `FIRE`、凋亡 `DARK`、狂躁 `ANGER` 之一：
+
+| 描述 | 加到 |
+|---|---|
+| 攻击范围内的敌人<元素>损伤爆发开始时立即受到相当于攻击力N%的元素伤害 | 回应爆发（`burstOn`）：这种元素、攻击范围内，元素伤害 `ep_damage_scale` |
+| 全场有敌人<元素>损伤爆发开始时，立即对其造成相当于攻击力N%的元素伤害并回复M%最大生命 | 回应爆发：这种元素、全场，元素伤害 `ep_damage_scale`，回复 `hp_ratio` |
+| 攻击处于<元素>损伤爆发期间的敌人时使其每秒受到相当于攻击力N%的元素伤害，持续至<元素>损伤爆发结束（两处同一元素） | 目标倍率（`vs`）`burstOf` 这种元素，`on` 'attack'，命中后判断（`post`）：爆发期间的元素伤害（`burstDot`）`element_atk_scale` |
+| 每当自身攻击范围内敌人<元素>损伤爆发，攻击力+N%，最多可叠加M层 | 叠加（`stacks`，干员-20）`burst` 这种元素：攻击力直接乘算 + `atk`，至多 `max_stack_cnt` 层 |
+| 攻击范围内有敌人<元素>损伤爆发时攻击速度+N，最多可叠加M层 | 叠加 `burst` 这种元素：攻击速度 + `attack_speed`，至多 `max_stack_cnt` 层 |
+| 攻击范围内的敌人触发麻痹时立即受到相当于攻击力N%的元素伤害 | 麻痹打断时的元素伤害（`palsyHit`）`atk_scale` |
+| 使攻击范围内敌人每秒受到相当于攻击力N%的<元素>损伤并停顿M秒 | 脉冲（`pulses`）：攻击范围内，每 1 秒，这种元素的损伤 `ep_damage_ratio`，停顿 `sluggish` 秒 |
+| 使攻击范围内敌人受到的<元素>损伤提高N% | 范围天赋：敌人，这种元素的受到倍率（`<元素>TakenMul`）`ep_damage_scale` |
+| 对每个敌人首次攻击时，使其在接下来的N秒内每秒受到相当于攻击力M%的<元素>损伤 | 目标倍率 `first`（`attack`），`on` 'attack'：损伤持续（`epDot`）这种元素、以 `ep_damage_ratio_talent` 结尾的值、以 `dmg_duration` 结尾的值秒 |
+| 阻挡敌人时自身获得N%的庇护，并使阻挡的目标每秒受到相当于攻击力M%的法术伤害和相当于攻击力K%的<元素>损伤 | 条件增益 `blocking`：庇护（干员-22）`damage_resistance`；脉冲：阻挡的敌人，每以 `[enemy].interval` 结尾的值秒（没有时 1），这种元素的损伤以 `[enemy].ep_damage_ratio` 结尾的值，法术伤害以 `[enemy].atk_scale` 结尾的值 |
+| 场上干员数量不低于N时，自身每秒回复相当于生命上限M%的生命与元素损伤 | 条件增益 `fieldOps` `cnt`：生命回复（百分比）`hpRegenRatio` 为 `hp_recovery_per_sec_by_max_hp_ratio`，元素回复 `epRegenRatio` 为 `ep_heal_ratio` |
+| 对自身阻挡的敌人每秒造成相当于攻击力N%的<元素>损伤 | 脉冲：阻挡的敌人，每 1 秒，这种元素的损伤 `ep_damage_ratio` |
+| 自身受到的元素损伤-N%，受到的<元素>损伤额外-M% | 条件增益 `always`：`epTakenMul` 1 − 以 `[other]` 结尾的值，`<元素>TakenMul` 1 − 以 `[<元素的小写>]` 结尾的值 |
+| 攻击范围内元素损伤累计超过一半的目标受到的元素损伤降低N% | 范围天赋：友方，条件 `epHalf`，`epTakenMul` 1 − `ep_damage_resistance` |
+| 每攻击到一个敌人回复自身N元素损伤，最大生效数等于阻挡数 | 命中回复元素（`epOnHit`）`value` |
+| 普通治疗使目标每秒额外受到一次治疗量和元素损伤回复量为N%的增益治疗，持续M秒 | 治疗后的增益治疗（`healDot`）：`heal_scale`、`duration` 秒、至多 `max_stack_cnt` 层 |
+
+由模拟按 职业-29 生效。
+
+- 来源：数据：character_table 的天赋文字与 blackboard，如温米、烛煌、妮芙（`element_atk_scale`）、伯塔尼、Miss.Christine、塑心、波卜（`attack@ep_damage_ratio_talent`、`attack@dmg_duration`）、余（`yu_t_1[enemy].ep_damage_ratio`、`ep_heal_ratio`）、响石、裂响（`ep_damage_resistance[other]`、`ep_damage_resistance[water]`）、哈洛德、海沫、纯烬艾雅法拉（`heal_scale`、`max_stack_cnt`）；两个倍率相乘、「降低N%」作 × (1 − N%) 为推断 INF-0270

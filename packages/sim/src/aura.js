@@ -15,6 +15,7 @@ import { statMods } from './skills.js';
 import { tileOf } from './body.js';
 import { frontOf } from './dir.js';
 import { alchemyDef, inAlchemy, groundFoe } from './alchemy.js';
+import { ELEMENTS, epOf } from './elements.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /**
@@ -139,7 +140,7 @@ const inBlock = (w, u) => u.blockedBy >= 0 || w.units.some((x) => x.blockedBy ==
 
 /**
  * The conditions an in-range talent may ask of a unit (部署-6): below or above a share of its maximum HP, blocked (or
- * blocking), an ordinary enemy (not elite nor leader), flying.
+ * blocking), an ordinary enemy (not elite nor leader), flying, an element value below half its maximum (职业-29).
  * @type {Readonly<Record<NonNullable<import('./types.js').RangeTalent['when']>['when'], (w: World, u: Unit, v: number) => boolean>>}
  */
 const UNIT_WHEN = Object.freeze({
@@ -148,6 +149,7 @@ const UNIT_WHEN = Object.freeze({
   blocked: (w, u) => inBlock(w, u),
   normal: (_w, u) => u.base.levelType === 'NORMAL',
   flying: (_w, u) => statsOf(u).flying,
+  epHalf: (_w, u) => ELEMENTS.some((el) => epOf(u, el) < statsOf(u).maxEp / 2),
 });
 
 /** Whether a unit stands on one of an area's tiles around a source (offsets from its tile). @param {Unit} src @param {Unit} u @param {import('./types.js').Cell[]} area */

@@ -284,6 +284,16 @@
  * @property {number} sleepDot every second, arts damage of this share of its attack on each enemy asleep (职业-28)
  * @property {{ scale: number, n: number } | null} lowestArts after each attack, arts damage of `scale` × its attack on its
  *   `n` targets with the least HP (职业-28)
+ * @property {{ el: string, where: 'range' | 'field', dmg?: number, heal?: number }[]} burstOn what answers an enemy's
+ *   burst of `el` as it begins, in its attack range or on the field: elemental damage of `dmg` × its attack, a heal of
+ *   `heal` × its maximum HP (职业-29)
+ * @property {{ who: 'blocked' | 'range', every: number, ep?: { el: string, scale: number }, arts?: number,
+ *   status?: { key: string, seconds: number } }[]} pulses every `every` seconds, on the enemies it blocks or in its range (职业-29)
+ * @property {number} palsyHit elemental damage of this share of its attack on an enemy in its range whose attack 麻痹
+ *   cuts (职业-29)
+ * @property {number} epOnHit element values restored for each enemy its attack reaches, at most its block count (职业-29)
+ * @property {{ share: number, seconds: number, max: number } | null} healDot what its normal heals leave: each second
+ *   a heal of `share` × its attack and the element values back by that × `epHeal`, a layer each heal (职业-29)
  * @property {TalentStack[]} stacks steps of modifiers its talents give it for kills or damage (干员-20, 职业-25)
  * @property {TalentSp[]} talentSp SP its talents give on events (干员-21, 职业-25)
  * @property {{ mods: Record<string, number>, full: number } | null} grit its talent's 坚忍: the modifiers × the share of its maximum HP
@@ -320,8 +330,8 @@
 /**
  * A talent's steps (干员-20, 职业-25): for its kills (its summons' too with `summons`) or the damage it deals (physical
  * only with `phys`), a step every `every` of them (1 by default), at most `max` steps, each with `mods`; the steps last
- * `seconds` from the last one when it has them.
- * @typedef {{ on: 'kill' | 'dealt', mods: Record<string, number>, max: number, every?: number, seconds?: number, phys?: boolean, summons?: boolean }} TalentStack
+ * `seconds` from the last one when it has them; for an enemy's burst of `el` in its attack range (`burst`, 职业-29).
+ * @typedef {{ on: 'kill' | 'dealt' | 'burst', mods: Record<string, number>, max: number, every?: number, seconds?: number, phys?: boolean, summons?: boolean, el?: string }} TalentStack
  */
 /**
  * SP a talent gives on an event (干员-21, 职业-25): `sp` to the operator — or, on a heal, to the one healed —, `other`
@@ -362,11 +372,11 @@
  * With `per`, an `enemies` part's modifiers are × the enemies in its own range, at most `per` (职业-25). In time (职业-26):
  * no attack of its ended for `value` seconds (`idle`), no hit took its HP (`unhurt`), no hit's 伤判 began on it (`calm`) —
  * the deployment counting as such an event, or not with `fresh` —; at least `value` 高台 tiles are behind it and at its
- * sides (`highSide`).
+ * sides (`highSide`); at least `value` operators on the field, summons left out (`fieldOps`, 职业-29).
  * @typedef {{ when: 'blocking' | 'notBlocking' | 'hpAbove' | 'hpBelow' | 'enemies' | 'groundEnemies' | 'eliteEnemies' | 'burstEnemies'
  *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always' | 'inSkill' | 'alchemy'
  *   | 'blockingAtLeast' | 'lowHpEnemies' | 'noEnemies4' | 'soleEnemy4' | 'aloneUnits4' | 'notInSkill' | 'noKills' | 'fewStarts' | 'laterSkill'
- *   | 'idle' | 'unhurt' | 'calm' | 'highSide',
+ *   | 'idle' | 'unhurt' | 'calm' | 'highSide' | 'fieldOps',
  *   value?: number, el?: string, per?: number, fresh?: boolean, mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
  */
 /**
@@ -383,12 +393,15 @@
  * `statuses` (`statusAny`), or the operator's record has not met it yet (`first`, the 非首次标记 `seen`); `on` which
  * damage counts ('attack' a hit of an attack, 'damage' any but a rider's); after the hit: `inflict` a status, `steal`
  * 攻击力 (`atk`, at most `max` in all), `sp`, a `mark` for `seconds` (the operator's later damage × `dmg`, or arts damage of
- * `arts` × its attack), arts damage of `arts` × its attack (at once, or a moment `later`).
+ * `arts` × its attack), arts damage of `arts` × its attack (at once, or a moment `later`). From talents on elements (职业-29):
+ * the target is in the burst of `el` (`burstOf`); `post` its condition checked after the hit; after the hit elemental
+ * damage of `burstDot` × the attack each second while that burst lasts, or 元素损伤 over time `epDot`.
  * @typedef {{ when: 'blocked' | 'flying' | 'skillGround' | 'hpBelow' | 'heavy' | 'front' | 'near' | 'burst' | 'onGround' | 'skill' | 'elite'
- *   | 'unblocked' | 'notOwnBlocked' | 'hpAbove' | 'light' | 'tag' | 'rangedFoe' | 'status' | 'abnormal' | 'hpFull' | 'still' | 'statusAny' | 'first',
+ *   | 'unblocked' | 'notOwnBlocked' | 'hpAbove' | 'light' | 'tag' | 'rangedFoe' | 'status' | 'abnormal' | 'hpFull' | 'still' | 'statusAny' | 'first' | 'burstOf',
  *   atk?: number, dmg?: number, heal?: number, ep?: number, value?: number, noDodge?: boolean, tag?: string, status?: string, defFlat?: number, defPct?: number,
  *   statuses?: string[], seen?: string, on?: 'attack' | 'damage', inflict?: { key: string, seconds: number }, steal?: { atk: number, max: number }, sp?: number,
- *   mark?: { seconds: number, dmg?: number, arts?: number }, arts?: number, later?: boolean }} VsScale
+ *   mark?: { seconds: number, dmg?: number, arts?: number }, arts?: number, later?: boolean,
+ *   el?: string, post?: boolean, burstDot?: number, epDot?: { el: string, scale: number, seconds: number } }} VsScale
  */
 /**
  * A chain (职业-11): at most `max` targets in all, each jump at `scale` × the one before; a damage chain jumps to the
@@ -457,7 +470,7 @@
  * An in-range talent (部署-6): modifiers for the enemies, or the (ranged, melee, of a profession) operators, in the
  * holder's attack range — or on the tiles of `area` around it —, those for which `when` holds when it has one.
  * @typedef {{ side: 'enemy' | 'ally', ranged: boolean, mods: Record<string, number>, melee?: boolean, profession?: string, area?: Cell[],
- *   when?: { when: 'hpBelow' | 'hpAbove' | 'blocked' | 'normal' | 'flying', value?: number } }} RangeTalent
+ *   when?: { when: 'hpBelow' | 'hpAbove' | 'blocked' | 'normal' | 'flying' | 'epHalf', value?: number } }} RangeTalent
  */
 /**
  * A team talent (部署-5): for the operators of a profession, of one of several (`professions`), of a faction, or every

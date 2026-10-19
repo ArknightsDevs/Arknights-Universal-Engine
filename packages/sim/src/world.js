@@ -20,7 +20,7 @@ import { coolSummons, dismissSummons, expireSummons } from './summons.js';
 import { tickRevival, tickRequests, neutralDown } from './coop.js';
 import { tickBuffs } from './buffs.js';
 import { STATUS_BEHAVIORS } from './status.js';
-import { BURST_BEHAVIORS } from './elements.js';
+import { BURST_BEHAVIORS, epRegenAll } from './elements.js';
 import { upkeepBehaviors, timedBehaviors } from './upkeep.js';
 import { chargeBehavior } from './modes.js';
 import { auras } from './aura.js';
@@ -34,6 +34,7 @@ import { dollFatal, dollBehaviors } from './doll.js';
 import { secondLifeFatal } from './riders.js';
 import { talentDeaths, TALENT_BEHAVIORS } from './talentfx.js';
 import { foeBehaviors } from './talentfoe.js';
+import { elementHooks, elementBehaviors } from './talentelem.js';
 import { holds } from './vs.js';
 import { lifeFatal, lifeBehaviors } from './talentlife.js';
 import { newFortress, setUpFortress, fortressHooks, tickFortress } from './fortress.js';
@@ -132,8 +133,8 @@ function announceDeath(w, u, leak) {
   emit(w, 'death', { unit: u, reason: leak ? 'leak' : 'killed', killer });
 }
 
-/** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12, 职业-15, 职业-27, 职业-28, 召唤-11, 装置-6); content cannot replace them. @param {Content} c */
-const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...TALENT_BEHAVIORS, ...lifeBehaviors(c), ...foeBehaviors(c, holds), ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c) });
+/** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12, 职业-15, 职业-27…职业-29, 召唤-11, 装置-6); content cannot replace them. @param {Content} c */
+const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...TALENT_BEHAVIORS, ...lifeBehaviors(c), ...foeBehaviors(c, holds), ...elementBehaviors(), ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c) });
 
 /** Each content's buff behaviours, made once (they depend on the content alone), with the content's table they were made from. @type {WeakMap<Content, { from: unknown, table: Record<string, import('./buffs.js').Behavior> }>} */
 const buffTables = new WeakMap();
@@ -156,6 +157,7 @@ function buffBehaviors(c) {
 export function step(w, level, commands = []) {
   const c = fieldContent(w, level);
   fortressHooks(w, level);
+  elementHooks(w, level);
   w.events = [];
   w.bornThisFrame = 0;
   for (const [seat, cmd] of commands) applyCommand(w, c, seat, cmd);
@@ -171,6 +173,7 @@ export function step(w, level, commands = []) {
   tickFortress(w, c);
   tickBuffs(w, buffBehaviors(c));
   regenAll(w);
+  epRegenAll(w);
   enemiesAct(w, c);
   fallIntoHoles(w, c);
   tickAlchemy(w, c);

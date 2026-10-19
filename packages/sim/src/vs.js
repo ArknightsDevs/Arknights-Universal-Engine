@@ -62,6 +62,7 @@ const WHEN = Object.freeze({
   still: (_w, _op, t) => standsStill(t),
   statusAny: (_w, _op, t, v) => (v.x.statuses ?? []).some((k) => hasStatus(t, k)),
   first: (_w, op, t, v) => !t.buffs.some((b) => b.key === seenKey(op, v.x)),
+  burstOf: (_w, _op, t, v) => !!v.x.el && t.buffs.some((b) => b.key === `burst:${v.x.el}`),
 });
 
 /**
@@ -86,7 +87,13 @@ function crowdOf(w, c, op) {
 }
 
 /** Whether a 倍率 does anything to a damage (职业-17, 职业-28): a 倍率 or 无视防御 on the hit, or an effect after it. @param {VsScale} v */
-const acts = (v) => !!(v.atk || v.dmg || v.defFlat || v.defPct || v.inflict || v.steal || v.sp || v.mark || v.arts);
+const acts = (v) => !!(v.atk || v.dmg || v.defFlat || v.defPct || v.inflict || v.steal || v.sp || v.mark || v.arts || v.burstDot || v.epDot);
+
+/**
+ * Whether a 倍率's condition lets it on before a hit (职业-17, 职业-29): it holds, or it is checked `later` or `post`.
+ * @param {World} w @param {Content} c @param {{ op: Unit, t: Unit, dmg: Damage }} at @param {VsScale} v
+ */
+const checkedNow = (w, c, at, v) => !!(v.later || v.post) || holds(w, c, at, v);
 
 /** A 倍率 whose condition holds on a hit (职业-17, 职业-28): its 倍率 (scaleHit), then what it leaves for after the hit. @param {Unit} op @param {Unit} t @param {Damage} dmg @param {VsScale} v */
 function heldOn(op, t, dmg, v) {
@@ -106,7 +113,7 @@ function scaleHit(dmg, v) {
 /**
  * An operator's hit on a target, by its trait's 倍率 for the target (职业-17), before the hit is dealt: through 沉睡 when
  * its trait hurts sleeping enemies (职业-28), × the marks it left on the target (markedHit); every 倍率 that counts the
- * damage (职业-28) and whose condition holds (one checked `later` waits for its check) — its attack 倍率 on the amount,
+ * damage (职业-28) and whose condition holds (one checked `later` or `post` waits for its check, 职业-29) — its attack 倍率 on the amount,
  * its 伤害倍率 on the hit's `mul`, physical dodge ignored, then what it leaves for after the hit (heldBefore) —, the
  * distance's and the enemies in range's 伤害倍率.
  * A sourceless hit, 生命流失 and elemental damage take none; nor a hit of a unit that is not an operator.
@@ -117,7 +124,7 @@ export function vsDamage(w, c, op, t, dmg) {
   const tr = traitOf(c, op);
   if (tr.hurtSleeping) dmg.throughSleep = true;
   markedHit(op, t, dmg);
-  for (const v of tr.vs) if (acts(v) && counts(v, dmg) && (v.later || holds(w, c, { op, t, dmg }, v))) heldOn(op, t, dmg, v);
+  for (const v of tr.vs) if (acts(v) && counts(v, dmg) && checkedNow(w, c, { op, t, dmg }, v)) heldOn(op, t, dmg, v);
   if (tr.far) dmg.mul = (dmg.mul ?? 1) * farMul(op, t, tr.far);
   if (tr.crowd) dmg.mul = (dmg.mul ?? 1) * (1 + tr.crowd.step * Math.min(tr.crowd.cap, crowdOf(w, c, op)));
 }

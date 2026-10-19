@@ -175,9 +175,10 @@ export function teamTalentsAt(t, b) {
 const listed = (k, v) => (v.length ? { [k]: v } : {});
 
 /**
- * What a training's talents add to its trait (干员-17…干员-27, 职业-24…职业-28): their conditional parts (`whiles`, the
- * special parts' too), target parts (`vs`, the special parts' too), preferred targets (`prefer`), hit parts (`onHit`), what they add to the attacks — 法术伤害 riding on each
- * hit (`extraArts`, summed), more targets (`targets`, the most) —, their stacks (`stacks`), SP (`talentSp`), 坚忍 (`grit`,
+ * What a training's talents add to its trait (干员-17…干员-28, 职业-24…职业-29): their conditional parts (`whiles`, the
+ * special parts' too), target parts (`vs`, the special parts' too), preferred targets (`prefer`), answers to bursts
+ * (`burstOn`), pulses (`pulses`), hit parts (`onHit`), what they add to the attacks — 法术伤害 riding on each
+ * hit (`extraArts`, summed), more targets (`targets`, the most) —, their stacks (`stacks`, the special parts' too), SP (`talentSp`), 坚忍 (`grit`,
  * the first), auras on blocked enemies (`auras`), next attacks (`nextAttack`) and the special parts' single fields (the
  * first of each); null when there is none.
  * @param {import('./talents.js').Talent[]} talents @returns {Partial<import('@aue/sim').TraitDef> | null}
@@ -186,13 +187,14 @@ function talentTraitOf(talents) {
   const attacks = talents.map(attackPart).filter((p) => p !== null), extraArts = attacks.reduce((n, p) => n + (p.extraArts ?? 0), 0);
   const targets = Math.max(0, ...attacks.map((p) => p.targets ?? 0)), grit = talents.map(gritPart).find((p) => p !== null), packed = attacks.find((p) => p.packed)?.packed;
   const auras = talents.flatMap((c) => auraParts(c, rangeTable.ranges).auras), special = talents.map((c) => specialParts(c).trait).filter((p) => p !== null);
-  const singles = Object.assign({}, ...special.map(({ whiles, nextAttack, vs, prefer, ...rest }) => rest).reverse());
+  const singles = Object.assign({}, ...special.map(({ whiles, nextAttack, vs, prefer, stacks, burstOn, pulses, ...rest }) => rest).reverse());
   const out = {
     ...singles, ...listed('whiles', [...talents.flatMap(whileParts), ...talents.flatMap(perParts), ...special.flatMap((p) => p.whiles ?? [])]),
     ...listed('nextAttack', special.flatMap((p) => p.nextAttack ?? [])), ...listed('vs', [...talents.map(targetPart).filter((p) => p !== null), ...special.flatMap((p) => p.vs ?? [])]),
-    ...listed('prefer', special.flatMap((p) => p.prefer ?? [])),
+    ...listed('prefer', special.flatMap((p) => p.prefer ?? [])), ...listed('burstOn', special.flatMap((p) => p.burstOn ?? [])),
+    ...listed('pulses', special.flatMap((p) => p.pulses ?? [])),
     ...listed('onHit', talents.map(hitPart).filter((p) => p !== null)), ...(extraArts > 0 ? { extraArts } : {}), ...(targets > 0 ? { targets } : {}),
-    ...listed('stacks', talents.map(stackPart).filter((p) => p !== null)), ...listed('talentSp', talents.flatMap(spParts)), ...(grit ? { grit } : {}), ...listed('auras', auras),
+    ...listed('stacks', [...talents.map(stackPart).filter((p) => p !== null), ...special.flatMap((p) => p.stacks ?? [])]), ...listed('talentSp', talents.flatMap(spParts)), ...(grit ? { grit } : {}), ...listed('auras', auras),
     ...(packed ? { packed } : {}),
   };
   return Object.keys(out).length ? out : null;

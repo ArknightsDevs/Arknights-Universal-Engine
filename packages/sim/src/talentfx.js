@@ -50,6 +50,14 @@ export function talentKill(w, c, op) {
   for (const x of t.talentSp) if (x.on === 'kill' && op.skill) gainSp(op.skill, x.sp ?? 0);
 }
 
+/**
+ * An enemy's burst of an element in an operator's attack range (职业-29): a step of each of its `burst` stacks of that
+ * element. @param {Content} c @param {Unit} op @param {string} el
+ */
+export function burstStep(c, op, el) {
+  traitOf(c, op).stacks.forEach((s, i) => { if (s.on === 'burst' && s.el === el) stepUp(op, s, i); });
+}
+
 /** One more in an operator's count buff (its strength), without an end. @param {Unit} op @param {string} key */
 function tally(op, key) {
   const b = op.buffs.find((x) => x.key === key);

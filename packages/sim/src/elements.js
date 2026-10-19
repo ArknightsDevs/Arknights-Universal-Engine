@@ -53,14 +53,17 @@ export function currentElement(u) {
   return best;
 }
 
+/** The key of a unit's 元素损伤 multiplier for one element (元素-2, 职业-29): `<元素>TakenMul`, a product. @param {Element} el */
+export const epTakenKey = (el) => `${el}TakenMul`;
+
 /**
  * The 元素损伤 a unit takes of an amount (元素-2): A with no 损伤抵抗, max(0.05A, A·(1 − 0.01·D)) with D > 0, then
- * times its 元素损伤 multiplier.
- * @param {number} amount A @param {import('./attrs.js').Stats} s
+ * times its 元素损伤 multiplier and, for an element, that element's (职业-29).
+ * @param {number} amount A @param {import('./attrs.js').Stats} s @param {Element} [el]
  */
-export function epTaken(amount, s) {
+export function epTaken(amount, s, el) {
   const d = s.epResistance, a = d > 0 ? Math.max(MIN_DAMAGE_RATIO * amount, amount * (1 - 0.01 * d)) : amount;
-  return a * s.epTakenMul;
+  return a * s.epTakenMul * (el ? s.prod[epTakenKey(el)] ?? 1 : 1);
 }
 
 /** The units whose burst is beginning (its `elementBurst` handlers run): they take no 元素损伤 meanwhile (元素-3). @type {WeakSet<Unit>} */
@@ -83,7 +86,7 @@ export function dealEp(w, u, el, amount, src = null) {
   if (!(amount > 0) || unaffected(u)) return 0;
   const dmg = emit(w, 'elementHit', { source: src, target: u, dmg: { type: 'element', element: el, amount, mul: 1, cancel: false } }).dmg;
   if (dmg.cancel || unaffected(u) || !(dmg.amount * dmg.mul > 0)) return 0;
-  const taken = epTaken(dmg.amount * dmg.mul, statsOf(u)), left = epOf(u, el) - taken;
+  const taken = epTaken(dmg.amount * dmg.mul, statsOf(u), el), left = epOf(u, el) - taken;
   u.ep[el] = Math.max(0, left);
   if (left <= 0) burst(w, u, el, src);
   return taken;
@@ -102,6 +105,19 @@ export function restoreEp(u, amount) {
     const v = u.ep[el] + amount;
     if (v >= max) delete u.ep[el];
     else u.ep[el] = v;
+  }
+}
+
+/**
+ * Every unit's 元素回复 this frame (元素-2, 职业-29): one on the field with HP restores its element values (restoreEp) by
+ * its 元素回复速度 — `epRegen` and `epRegenRatio` × its maximum HP, summed — ÷ 30.
+ * @param {World} w
+ */
+export function epRegenAll(w) {
+  for (const u of w.units) {
+    if (u.hp <= 0 || Object.keys(u.ep).length === 0) continue;
+    const s = statsOf(u), per = (s.sum.epRegen ?? 0) + (s.sum.epRegenRatio ?? 0) * s.maxHp;
+    if (per > 0) restoreEp(u, per / FPS);
   }
 }
 
@@ -154,7 +170,7 @@ const BURSTS = Object.freeze({
  * The burst (元素-3, 元素-4): the `elementBurst` event (钩子-3; a unit it leaves at 0 HP, or in another burst, has its
  * values back at their maximum and nothing more), then a burst buff that locks the element values for the burst's time
  * and carries what lasts as long — with the burst's source, the unit whose 元素损伤 set it off —, then the effects that
- * come at once.
+ * come at once, then the `burstStart` event (钩子-3: the talents that answer a burst, 职业-29).
  * @param {World} w @param {Unit} u @param {Element} el @param {Unit | null} src
  */
 function burst(w, u, el, src) {
@@ -165,6 +181,7 @@ function burst(w, u, el, src) {
   addBuff(u, makeBuff({ key: burstKey(el), src: src ? src.id : -1, left: frames, value: frames, every: s.ticks ? FPS : 0, fixed: true, mods: s.mods }));
   w.events.push({ type: 'burst', id: u.id, el: ELEMENTS.indexOf(el) + 1 });
   s.start(w, u, frames, src);
+  emit(w, 'burstStart', { source: src, target: u, element: el });
 }
 
 /**

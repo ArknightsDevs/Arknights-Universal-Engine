@@ -417,13 +417,13 @@ export function setHp(u, hp) {
  * Heals (伤害-11): the amount times the healer's 治疗倍率 and the target's 受到治疗倍率, nothing under 禁疗, never above
  * the maximum HP; a `heal` handler may change the amount before it is applied (钩子-3) and sees whether it is the
  * healer's trait's self-heal (`trait`, 职业-9). A unit no ally may heal (`noAllyHeal`, 职业-9) takes heals only from
- * itself, and those even under 禁疗. Returns the HP restored.
- * @param {World} w @param {Unit | null} src @param {Unit} target @param {number} amount @param {{ trait?: boolean }} [how]
+ * itself, and those even under 禁疗; one that is `free` of 禁疗 (职业-29) heals under it. Returns the HP restored.
+ * @param {World} w @param {Unit | null} src @param {Unit} target @param {number} amount @param {{ trait?: boolean, free?: boolean }} [how]
  */
 export function heal(w, src, target, amount, how = {}) {
   if (target.hp <= 0) return 0;
   const ts = statsOf(target), own = src === target && ts.flags.noAllyHeal === true;
-  if ((ts.flags.noAllyHeal && src !== target) || (ts.flags.healFree && !own)) return 0;
+  if ((ts.flags.noAllyHeal && src !== target) || (ts.flags.healFree && !own && !how.free)) return 0;
   let amt = amount * (src ? statsOf(src).healingDealtMul : 1) * ts.healingTakenMul;
   if (hasHook(w, 'heal')) {
     const k = emit(w, 'heal', { source: src, target, amount: amt, trait: how.trait === true });

@@ -31,6 +31,7 @@ import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_C
 import { talentSp } from './talentfx.js';
 import { timedAttack, attackEnded } from './talenttime.js';
 import { lowestArts } from './talentfoe.js';
+import { palsyCut, epOnHit, healDotOn } from './talentelem.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell @typedef {import('./attrs.js').Stats} Stats */
@@ -320,8 +321,8 @@ function jumpHits(w, c, src, t, load) {
 
 /**
  * A healer's heals on one target (职业-2, 职业-11, 职业-12), then a heal chain's on each operator it jumps to, at the
- * chain's share of the one before; each heal also restores element values by the trait's share of it, and gives the one
- * healed its talents' SP for it (职业-25).
+ * chain's share of the one before; each heal also restores element values by the trait's share of it, gives the one
+ * healed its talents' SP for it (职业-25) and leaves their heal over time (职业-29).
  * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t @param {{ load: Load, jumps: Unit[] }} how
  */
 function heals(w, c, a, t, how) {
@@ -332,6 +333,7 @@ function heals(w, c, a, t, how) {
       w.events.push({ type: 'heal', id: a.id, target: u.id, amount: heal(w, a, u, amount * vsHeal(w, c, a, u)) });
       if (ep > 0 && !statsOf(u).flags.healFree) restoreEp(u, amount * ep);
       talentSp(w, c, a, 'heal', u);
+      healDotOn(c, a, u);
     }
     amount *= how.load.chain?.scale ?? 1;
   }
@@ -352,7 +354,8 @@ function deliverAll(w, c, a, sw, heals) {
 }
 
 /**
- * An attack lands at the end of its wind-up (攻击-2, 攻击-3): 麻痹 may interrupt an enemy's (状态-8); the locked
+ * An attack lands at the end of its wind-up (攻击-2, 攻击-3): 麻痹 may interrupt an enemy's (状态-8, and the talents
+ * that answer it, 职业-29); the locked
  * targets still on the field and alive take it — out of range or not — as hits, a healer's heals (职业-2), or the
  * projectiles a ranged attacker launches; then an operator's skill counts the attack (技能-2, 技能-4).
  * @param {World} w @param {Content} c @param {Unit} a
@@ -360,7 +363,7 @@ function deliverAll(w, c, a, sw, heals) {
 function land(w, c, a) {
   const sw = /** @type {Swing} */ (a.swing);
   a.swing = null;
-  if (palsyInterrupts(a)) { a.anim = ANIM.IDLE; return; }
+  if (palsyInterrupts(a)) { a.anim = ANIM.IDLE; palsyCut(w, c, a); return; }
   const op = a.kind === KIND.OPERATOR, heals = op && (healerNow(c, a) || !!sw.mods.heal);
   if (op) attackEnded(w, a);
   const reached = deliverAll(w, c, a, sw, !!heals);
@@ -381,6 +384,7 @@ function operatorLanded(w, c, a, how) {
   if (!how.heals && how.reached > 0) talentSp(w, c, a, 'attack');
   if (!how.heals) lowestArts(w, c, a, how.sw.targets);
   selfHeal(w, c, a, how.reached);
+  if (!how.heals) epOnHit(c, a, how.reached);
   afterAttack(w, c, a, how.sw.mods, how.noAmmo);
 }
 
@@ -457,7 +461,7 @@ function advanceSwing(w, c, a) {
   sw.wind--;
   sw.since++;
   if (sw.wind <= 0) { land(w, c, a); return; }
-  if (sw.since >= PALSY_CUT_FRAMES && palsyInterrupts(a)) { a.swing = null; a.anim = ANIM.IDLE; }
+  if (sw.since >= PALSY_CUT_FRAMES && palsyInterrupts(a)) { a.swing = null; a.anim = ANIM.IDLE; palsyCut(w, c, a); }
 }
 
 /**
