@@ -5,12 +5,12 @@
 
 ![license](https://img.shields.io/badge/code%20license-GPL--3.0--or--later-blue)
 ![node](https://img.shields.io/badge/node-22%20%7C%2024-339933)
-[![CI](https://github.com/Cloudnyco/Arknights-Universal-Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Cloudnyco/Arknights-Universal-Engine/actions/workflows/ci.yml)
-[![跨引擎一致](https://github.com/Cloudnyco/Arknights-Universal-Engine/actions/workflows/simcheck.yml/badge.svg)](https://github.com/Cloudnyco/Arknights-Universal-Engine/actions/workflows/simcheck.yml)
+[![CI](https://github.com/ArknightsDevs/Arknights-Universal-Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/ArknightsDevs/Arknights-Universal-Engine/actions/workflows/ci.yml)
+[![跨引擎一致](https://github.com/ArknightsDevs/Arknights-Universal-Engine/actions/workflows/simcheck.yml/badge.svg)](https://github.com/ArknightsDevs/Arknights-Universal-Engine/actions/workflows/simcheck.yml)
 
 一个开源的《明日方舟》战斗引擎。同样的操作，在每一台机器上都会算出完全相同的战斗，所以适合用来做联机玩法。它在浏览器和 Node.js 上运行，战场是 three.js 绘制的真 3D 画面。
 
-第一个用它做的作品是 [促融共竞 · Icebreaker-Games](https://github.com/Cloudnyco/Icebreaker-Games)：两名玩家在局域网里实时合作的双人比赛，可以在那里下载开服。
+第一个用它做的作品是 [促融共竞 · Icebreaker-Games](https://github.com/ArknightsDevs/Icebreaker-Games)：两名玩家在局域网里实时合作的双人比赛，可以在那里下载开服。
 
 ## 引擎能做什么
 

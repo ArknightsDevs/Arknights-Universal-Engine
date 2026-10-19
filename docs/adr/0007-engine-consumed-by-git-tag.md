@@ -10,7 +10,7 @@
 
 ## 决定
 
-平台按 `github:Cloudnyco/Arknights-Universal-Engine#vX.Y.Z&path:/packages/<包>` 引用引擎。这种"标签 + 子目录"的写法要先用一个小仓库实测可行，再采用；实测放在起步里程碑，完成标准是平台能从 git 标签装上引擎的子包。
+平台按 `github:ArknightsDevs/Arknights-Universal-Engine#vX.Y.Z&path:/packages/<包>` 引用引擎。这种"标签 + 子目录"的写法要先用一个小仓库实测可行，再采用；实测放在起步里程碑，完成标准是平台能从 git 标签装上引擎的子包。
 
 ## 理由
 
