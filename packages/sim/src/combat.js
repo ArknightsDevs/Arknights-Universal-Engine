@@ -13,7 +13,7 @@ import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
 import { blockingImmunity } from './upkeep.js';
 import { zoneScale, chainOf, woundedInRange } from './chain.js';
-import { vsDamage, vsHeal, vsEp } from './vs.js';
+import { vsDamage, vsHeal, vsEp, tagsOf } from './vs.js';
 import { traitWhiles } from './whiles.js';
 import { afterOwnHit, attacked, hitSp, caughtSp } from './riders.js';
 import { reachKeys } from './reach.js';
@@ -30,6 +30,7 @@ import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitDealt, tra
 import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_CUT_FRAMES } from './swing.js';
 import { talentSp } from './talentfx.js';
 import { timedAttack, attackEnded } from './talenttime.js';
+import { lowestArts } from './talentfoe.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell @typedef {import('./attrs.js').Stats} Stats */
@@ -56,11 +57,13 @@ export function targetsOf(w, c, op) {
   const grid = { rows: c.level.height, cols: c.level.width }, d = c.operators[op.key], t = traitOfDef(d);
   const keys = reachKeys(c, op);
   if (healsNow(c, op)) return healOrder(c, op, w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && inKeys(u, keys, grid) && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal));
-  const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id, air = t.idleAirOnly && !inSkill(op), any = { canHitFly: true }, sel = { canHitFly: t.antiAir || !!dollNow(c, op)?.antiAir };
+  const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id, air = t.idleAirOnly && !inSkill(op), sleep = t.hurtSleeping;
+  const any = { canHitFly: true, canHitSleep: sleep }, sel = { canHitFly: t.antiAir || !!dollNow(c, op)?.antiAir, canHitSleep: sleep };
   const bySummon = t.summonBlocked ? summonHeld(w, op) : () => false, skip = traitSkip(w, c, op);
   const cands = w.units.filter((u) => hostile(u)
     && ((held(u) && selectable(u, any)) || ((bySummon(u) || (inKeys(u, keys, grid) && (!air || statsOf(u).flying))) && selectable(u, sel))) && !skip?.(u));
-  return fortressTargets(w, c, op, sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary }));
+  const prefer = t.prefer.map((p) => (/** @type {Unit} */ e) => (p.status ? !!statsOf(e).flags[p.status] : !!p.tag && tagsOf(c, e).includes(p.tag)));
+  return fortressTargets(w, c, op, sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary, prefer }));
 }
 
 /**
@@ -376,6 +379,7 @@ function operatorLanded(w, c, a, how) {
   const first = w.units.find((u) => u.id === how.sw.targets[0] && u.hp > 0 && !u.hidden);
   if (first && !how.heals) releaseEnergy(w, a, first);
   if (!how.heals && how.reached > 0) talentSp(w, c, a, 'attack');
+  if (!how.heals) lowestArts(w, c, a, how.sw.targets);
   selfHeal(w, c, a, how.reached);
   afterAttack(w, c, a, how.sw.mods, how.noAmmo);
 }

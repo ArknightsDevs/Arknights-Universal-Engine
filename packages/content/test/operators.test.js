@@ -552,3 +552,48 @@ test('[干员-26] the damage by its source and 抵挡: 伤害抵挡, 远程物�
   const [glady, moeshd] = [await atE2('char_474_glady'), await atE2('char_201_moeshd')];
   assert.deepEqual([glady.fieldTalents, moeshd.talentTrait.whiles, moeshd.rangeTalents[0].mods], [[{ power: 'abyssal', bb: {}, mods: { hpRegenRatio: 0.025, 'fromPA:seamonster': 0.75 } }], [{ when: 'always', mods: { blockPA: 0.2 } }], { blockPA: 0.1 }], '歌蕾蒂娅, 可颂');
 });
+
+test('[干员-27] talents on the enemies: targets preferred and their 倍率, sleeping enemies, 停顿/束缚 checked later, the first hit on each enemy, marks, 偷取, the weakest targets', async () => {
+  const s = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => specialParts(talent(d, bb)).trait;
+  assert.deepEqual([
+    s('优先攻击晕眩的敌人且攻击晕眩敌人时攻击力提升至165%（+5%）', { atk_scale: 1.65 }),
+    s('自身可以攻击并优先攻击沉睡的目标且攻击力提升至144%（+4%）', { atk_scale: 1.44 }),
+    s('自身可以攻击沉睡的敌人', {}),
+    s('自身可以攻击沉睡的敌人，并且攻击沉睡敌人时无视其防御力的50%', { def_penetrate: 0.5 }),
+    s('优先攻击【无人机】单位，且攻击【无人机】时攻击力提升至155%（+5%）', { atk_scale: 1.55 }),
+    s('攻击处于停顿、束缚的敌人时，额外造成相当于攻击力43%（+3%）的法术伤害', { atk_scale: 0.43 }),
+    s('自身可以攻击沉睡的敌人，且攻击非移动敌人时对其额外造成相当于攻击力16%（+1%）的法术伤害，在场时沉睡中的敌人每秒受到缇缇攻击力32%（+2%）的法术伤害', { damage_atk_scale: 0.32, extra_atk_scale: 0.16 }),
+    s('治疗处于异常状态中的友方干员时治疗量提升至123%（+3%）', { heal_scale_up: 1.23 }),
+  ], [
+    { prefer: [{ status: 'stun' }], vs: [{ when: 'status', status: 'stun', atk: 1.65 }] },
+    { hurtSleeping: true, prefer: [{ status: 'sleep' }], vs: [{ when: 'status', status: 'sleep', atk: 1.44 }] },
+    { hurtSleeping: true },
+    { hurtSleeping: true, vs: [{ when: 'status', status: 'sleep', defPct: 0.5 }] },
+    { prefer: [{ tag: 'drone' }], vs: [{ when: 'tag', tag: 'drone', atk: 1.55 }] },
+    { vs: [{ when: 'statusAny', statuses: ['sluggish', 'root'], on: 'damage', arts: 0.43, later: true }] },
+    { hurtSleeping: true, vs: [{ when: 'still', on: 'damage', arts: 0.16 }], sleepDot: 0.32 },
+    { vs: [{ when: 'abnormal', heal: 1.23 }] },
+  ]);
+  assert.deepEqual([
+    s('攻击命中生命值为满的敌人时攻击力提升至125%（+5%），并额外回复2点技力', { hp_ratio: 1, atk_scale: 1.25, sp: 2 }),
+    s('攻击命中生命值在80%以上的敌人时，3秒内异客对其造成的伤害提升25%（+5%）', { hp_ratio: 0.8, 'pasngr_t_1[enhance].damage_scale': 1.25, 'pasngr_t_1[enhance].duration': 3 }),
+    s('对每个敌人造成首次伤害后，10秒内忍冬对该敌人造成伤害时额外造成攻击力30%的法术伤害', { atk_scale: 0.3, interval: 10 }),
+    s('对每个敌人首次进行攻击时攻击力提升至115%（+5%），并使目标浮空2.5秒', { levitate_duration: 2.5, damage_scale: 1.15 }),
+    s('对每个敌人首次造成伤害后，使目标束缚5秒并偷取其100（+10）点攻击力（持续至目标被击倒或伊内丝离场）', { steal_atk: 100, duration: 5 }),
+    s('攻击时对攻击目标中生命值最少的敌人额外造成相当于攻击力50%的法术伤害', { 'attack@mizuki_t_1.atk_scale': 0.5, 'attack@max_target': 1 }),
+    s('攻击时对攻击目标中生命值最少的2名敌人额外造成相当于攻击力55%的法术伤害', { 'attack@mizuki_t_1.atk_scale': 0.55 }),
+  ], [
+    { vs: [{ when: 'hpFull', on: 'attack', atk: 1.25, sp: 2 }] },
+    { vs: [{ when: 'hpAbove', value: 0.8, on: 'attack', mark: { seconds: 3, dmg: 1.25 } }] },
+    { vs: [{ when: 'first', seen: 'damage', on: 'damage', mark: { seconds: 10, arts: 0.3 } }] },
+    { vs: [{ when: 'first', seen: 'attack', on: 'attack', dmg: 1.15, inflict: { key: 'levitate', seconds: 2.5 } }] },
+    { vs: [{ when: 'first', seen: 'damage', on: 'damage', inflict: { key: 'root', seconds: 5 }, steal: { atk: 100, max: 20000 } }] },
+    { lowestArts: { scale: 0.5, n: 1 } }, { lowestArts: { scale: 0.55, n: 2 } },
+  ], '偷取 at most 200 times the amount when the blackboard has no cap');
+  assert.deepEqual([s('优先攻击【乌萨斯】单位，且攻击【乌萨斯】时攻击力提升至155%', { atk_scale: 1.55 }), s('攻击命中生命值为满的敌人时攻击力提升至125%', { atk_scale: 1.25 }),
+    s('攻击处于停顿、束缚的敌人时，额外造成相当于攻击力45%的法术伤害，目标同时处于停顿和束缚时该伤害提升至原本的1.1倍', { atk_scale: 0.45 })], [null, null, null], 'a tag it does not know, a sentence more or less');
+  assert.equal(targetPart(talent('攻击处于停顿、束缚的敌人时，额外造成相当于攻击力43%的法术伤害', { atk_scale: 0.43 })), null, 'not a target part too');
+  const [blitz, ines, mizuki, titi] = [await atE2('char_457_blitz'), await atE2('char_4087_ines'), await atE2('char_437_mizuki'), await atE2('char_4056_titi')];
+  assert.deepEqual([blitz.talentTrait.prefer, ines.talentTrait.vs.find((/** @type {any} */ v) => v.steal)?.inflict, mizuki.talentTrait.lowestArts?.n, titi.talentTrait.hurtSleeping],
+    [[{ status: 'stun' }], { key: 'root', seconds: 5 }, 1, true], '闪击, 伊内丝, 水月, 缇缇 from the real data');
+});

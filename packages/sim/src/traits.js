@@ -31,7 +31,7 @@ export const defaultTrait = (position) => ({
   attackInSkill: false, idleMods: {}, idleFlags: {}, idleAirOnly: false, skillSplash: null, liftoffBlock: 0, fortress: 0, charge: null, skillHeal: 0, bullets: null, store: 0, epHeal: 0, funnel: null, boomerang: null, noAttack: false, free: false, noInspire: false, spendAtk: null, regenAura: 0,
   summonBlocked: false, summonBlockedScale: 1, trapTiles: false, doll: null, vs: [], far: null, crowd: null, packed: null, whiles: [], extraArts: 0, counterArts: 0, epRider: null, burstHit: null, spOn: null, payStack: null, auras: [],
   firstCost: 0, firstRetreatRespawn: 1, refundUncapped: false, freeSummons: 0, summonRangedTiles: false, summonBoost: null, aftershocks: 1, secondLife: null, pushBoost: null, pullBoost: null, pullTrauma: null, rangedRefund: 0, onHit: [], stacks: [], talentSp: [], grit: null, nextAttack: [], rhythm: null, idleShield: null, layers: null, lowHp: null,
-  lastStand: null, frostLife: null, costLife: null, hurt: null, reflect: null, bb: {},
+  lastStand: null, frostLife: null, costLife: null, hurt: null, reflect: null, prefer: [], hurtSleeping: false, sleepDot: 0, lowestArts: null, bb: {},
 });
 
 /**
@@ -61,8 +61,8 @@ function sameFields(o, fields) {
   return i === fields.length;
 }
 
-/** The single fields only talents give (职业-26, 职业-27): each the talents' when they have it. */
-const TALENT_ONLY = Object.freeze(/** @type {const} */ (['rhythm', 'idleShield', 'layers', 'lowHp', 'lastStand', 'frostLife', 'costLife', 'hurt', 'reflect']));
+/** The single fields only talents give (职业-26…职业-28): each the talents' when they have it. */
+const TALENT_ONLY = Object.freeze(/** @type {const} */ (['rhythm', 'idleShield', 'layers', 'lowHp', 'lastStand', 'frostLife', 'costLife', 'hurt', 'reflect', 'hurtSleeping', 'sleepDot', 'lowestArts']));
 
 /**
  * A trait with what its operator's talents add (职业-24…职业-27): their conditional modifiers, target 倍率, hit effects,
@@ -81,10 +81,11 @@ function withTalents(t, a) {
   };
 }
 
-/** The trait's lists with its talents' after them (职业-24…职业-26). @param {TraitDef} t @param {Partial<TraitDef>} a */
+/** The trait's lists with its talents' after them (职业-24…职业-26, 职业-28). @param {TraitDef} t @param {Partial<TraitDef>} a */
 const talentLists = (t, a) => ({
   whiles: [...t.whiles, ...(a.whiles ?? [])], vs: [...t.vs, ...(a.vs ?? [])], onHit: [...t.onHit, ...(a.onHit ?? [])], stacks: [...t.stacks, ...(a.stacks ?? [])],
   talentSp: [...t.talentSp, ...(a.talentSp ?? [])], auras: [...t.auras, ...(a.auras ?? [])], nextAttack: [...t.nextAttack, ...(a.nextAttack ?? [])],
+  prefer: [...t.prefer, ...(a.prefer ?? [])],
 });
 
 /**

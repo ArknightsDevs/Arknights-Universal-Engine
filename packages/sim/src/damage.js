@@ -34,7 +34,9 @@ import { inflict } from './status.js';
  * @property {boolean} [sourceless] 无来源 though credited to its source: the events see no source, the kill is its source's,
  *   without the source's penetration and multiplier (伤害-7)
  * @property {boolean} [throughSleep] 沉睡's invincibility does not stop it (伤害-7: a skill that damages the enemies it puts
- *   to sleep); 无敌 still does
+ *   to sleep; 职业-28: an operator that can attack sleeping enemies); 无敌 still does, and so does 沉睡 on a unit also
+ *   隐匿 or 无法选中
+ * @property {import('./types.js').VsScale[]} [foe] the target 倍率 that held before the hit, for after it (职业-28)
  */
 
 /** @typedef {{ defIgnorePct: number, defIgnoreFlat: number, resIgnorePct: number, resIgnoreFlat: number }} Penetration */
@@ -310,12 +312,13 @@ function settle(dmg) {
 }
 
 /**
- * Whether a unit's invincibility stops a hit (伤害-7, 状态-5): 无敌 always, 沉睡 unless the hit goes through it.
+ * Whether a unit's invincibility stops a hit (伤害-7, 状态-5): 无敌 always, 沉睡 unless the hit goes through it and the
+ * unit is neither 隐匿 nor 无法选中 (with those it counts as invincible anyway).
  * @param {Unit} target @param {Damage} dmg
  */
 function untouchable(target, dmg) {
   const f = statsOf(target).flags;
-  return !!(f.invincible || (f.sleep && !dmg.throughSleep));
+  return !!(f.invincible || (f.sleep && !(dmg.throughSleep && !f.stealth && !f.untargetable)));
 }
 
 /**

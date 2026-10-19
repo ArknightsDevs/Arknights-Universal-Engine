@@ -609,12 +609,54 @@ const LIFE = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>, m: R
   }],
 ]));
 
+/** The statuses a talent on the enemies names (干员-27), by its word. */
+const FOE_STATUS = Object.freeze(/** @type {Record<string, string>} */ ({ 晕眩: 'stun', 沉睡: 'sleep', 停顿: 'sluggish', 束缚: 'root' }));
+
+/**
+ * The talents on the enemies they meet (干员-27): a whole description, the blackboard keys it needs, and what it adds to
+ * the trait (职业-28) — target 倍率 (`vs`), preferred targets (`prefer`), sleeping enemies attacked (`hurtSleeping`) and
+ * hurt every second (`sleepDot`), arts damage on an attack's weakest targets (`lowestArts`).
+ */
+const FOES = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>, m: RegExpExecArray) => Partial<TraitDef> | null][]} */ ([
+  [/^优先攻击(晕眩)的敌人且攻击\1敌人时攻击力提升至\d+(?:\.\d+)?%$/u, (bb, m) => (all([bb.atk_scale])
+    ? { prefer: [{ status: FOE_STATUS[m[1]] }], vs: [{ when: 'status', status: FOE_STATUS[m[1]], atk: bb.atk_scale }] } : null)],
+  [/^自身可以攻击并优先攻击沉睡的目标且攻击力提升至\d+(?:\.\d+)?%$/u, (bb) => (all([bb.atk_scale])
+    ? { hurtSleeping: true, prefer: [{ status: 'sleep' }], vs: [{ when: 'status', status: 'sleep', atk: bb.atk_scale }] } : null)],
+  [/^自身可以攻击沉睡的敌人$/u, () => ({ hurtSleeping: true })],
+  [/^自身可以攻击沉睡的敌人[，,]并且攻击沉睡敌人时无视其防御力的\d+(?:\.\d+)?%$/u, (bb) => (all([bb.def_penetrate])
+    ? { hurtSleeping: true, vs: [{ when: 'status', status: 'sleep', defPct: bb.def_penetrate }] } : null)],
+  [/^优先攻击【([^】]+)】单位[，,]且攻击【\1】时攻击力提升至\d+(?:\.\d+)?%$/u, (bb, m) => (Object.hasOwn(TAGS, m[1]) && all([bb.atk_scale])
+    ? { prefer: [{ tag: TAGS[m[1]] }], vs: [{ when: 'tag', tag: TAGS[m[1]], atk: bb.atk_scale }] } : null)],
+  [/^攻击处于(停顿)、(束缚)的敌人时[，,]额外造成相当于攻击力\d+(?:\.\d+)?%的法术伤害$/u, (bb, m) => (all([bb.atk_scale])
+    ? { vs: [{ when: 'statusAny', statuses: [FOE_STATUS[m[1]], FOE_STATUS[m[2]]], on: 'damage', arts: bb.atk_scale, later: true }] } : null)],
+  [/^自身可以攻击沉睡的敌人[，,]且攻击非移动敌人时对其额外造成相当于攻击力\d+(?:\.\d+)?%的法术伤害[，,]在场时沉睡中的敌人每秒受到\S+?攻击力\d+(?:\.\d+)?%的法术伤害$/u,
+    (bb) => (all([bb.extra_atk_scale, bb.damage_atk_scale])
+      ? { hurtSleeping: true, vs: [{ when: 'still', on: 'damage', arts: bb.extra_atk_scale }], sleepDot: bb.damage_atk_scale } : null)],
+  [/^治疗处于异常状态中的友方干员时治疗量提升至\d+(?:\.\d+)?%$/u, (bb) => (all([bb.heal_scale_up]) ? { vs: [{ when: 'abnormal', heal: bb.heal_scale_up }] } : null)],
+  [/^攻击命中生命值为满的敌人时攻击力提升至\d+(?:\.\d+)?%[，,]并额外回复\d+点技力$/u, (bb) => (all([bb.atk_scale, bb.sp])
+    ? { vs: [{ when: 'hpFull', on: 'attack', atk: bb.atk_scale, sp: bb.sp }] } : null)],
+  [/^攻击命中生命值在\d+(?:\.\d+)?%以上的敌人时[，,]\d+(?:\.\d+)?秒内\S+?对其造成的伤害提升\d+(?:\.\d+)?%$/u, (bb) => {
+    const dmg = byEnd(bb, '[enhance].damage_scale'), seconds = byEnd(bb, '[enhance].duration');
+    return all([bb.hp_ratio, dmg, seconds]) ? { vs: [{ when: 'hpAbove', value: bb.hp_ratio, on: 'attack', mark: { seconds: /** @type {number} */ (seconds), dmg } }] } : null;
+  }],
+  [/^对每个敌人造成首次伤害后[，,]\d+(?:\.\d+)?秒内\S+?对该敌人造成伤害时额外造成攻击力\d+(?:\.\d+)?%的法术伤害$/u, (bb) => (all([bb.atk_scale, bb.interval])
+    ? { vs: [{ when: 'first', seen: 'damage', on: 'damage', mark: { seconds: bb.interval, arts: bb.atk_scale } }] } : null)],
+  [/^对每个敌人首次进行攻击时攻击力提升至\d+(?:\.\d+)?%[，,]并使目标浮空\d+(?:\.\d+)?秒$/u, (bb) => (all([bb.damage_scale, bb.levitate_duration])
+    ? { vs: [{ when: 'first', seen: 'attack', on: 'attack', dmg: bb.damage_scale, inflict: { key: 'levitate', seconds: bb.levitate_duration } }] } : null)],
+  [/^对每个敌人首次造成伤害后[，,]使目标束缚\d+(?:\.\d+)?秒并偷取其\d+点攻击力$/u, (bb) => (all([bb.duration, bb.steal_atk])
+    ? { vs: [{ when: 'first', seen: 'damage', on: 'damage', inflict: { key: 'root', seconds: bb.duration }, steal: { atk: bb.steal_atk, max: bb.steal_atk_max ?? 200 * bb.steal_atk } }] } : null)],
+  [/^攻击时对攻击目标中生命值最少的(?:(\d+)名)?敌人额外造成相当于攻击力\d+(?:\.\d+)?%的法术伤害$/u, (bb, m) => {
+    const scale = byEnd(bb, '.atk_scale') ?? bb.atk_scale, n = bb['attack@max_target'] ?? (m[1] ? Number(m[1]) : 1);
+    return all([scale, n]) ? { lowestArts: { scale: /** @type {number} */ (scale), n } } : null;
+  }],
+]));
+
 /** The tiles of 周围四格 around an operator, its own left out (干员-26). */
 const AROUND_OTHERS = Object.freeze(AROUND[4].filter((t) => t.row !== 0 || t.col !== 0));
 
 /**
- * The special parts of a talent (干员-24…干员-26): its whole description (plainOf) one of TIME or LIFE with the keys it
- * needs — what it adds to the trait —, or 可颂's 抵挡 (「有N%的几率抵挡物理和法术伤害。周围四格内的友方单位获得一半该效果」:
+ * The special parts of a talent (干员-24…干员-27): its whole description (plainOf) one of TIME, LIFE or FOES with the keys
+ * it needs — what it adds to the trait —, or 可颂's 抵挡 (「有N%的几率抵挡物理和法术伤害。周围四格内的友方单位获得一半该效果」:
  * its own `blockPA` always, the other units on the 4 tiles next to it the blackboard's `[aura].prob`). Hidden talents have
  * none.
  * @param {Talent} c @returns {{ trait: Partial<TraitDef> | null, range: RangeTalent[] }}
@@ -623,7 +665,7 @@ export function specialParts(c) {
   const none = { trait: null, range: [] };
   if (c.hidden || !c.description) return none;
   const text = plainOf(c);
-  for (const [re, make] of [...TIME, ...LIFE]) {
+  for (const [re, make] of [...TIME, ...LIFE, ...FOES]) {
     const m = re.exec(text);
     if (m) return { trait: make(c.bb, m), range: [] };
   }

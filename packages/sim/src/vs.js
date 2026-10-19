@@ -10,6 +10,7 @@ import { reachKeys } from './reach.js';
 import { inKeys, hostile } from './targeting.js';
 import { inSkill } from './modes.js';
 import { traitOf } from './traits.js';
+import { counts, seenKey, hasStatus, standsStill, markedHit, heldBefore } from './talentfoe.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').VsScale} VsScale @typedef {import('./damage.js').Damage} Damage */
@@ -30,7 +31,7 @@ function nearBy(op, t) {
 }
 
 /** The tags of an enemy's record (关卡-1); none for another unit. @param {Content} c @param {Unit} t @returns {string[]} */
-const tagsOf = (c, t) => (t.kind === KIND.ENEMY ? /** @type {{ tags?: string[] }} */ (c.enemies[t.key] ?? {}).tags ?? [] : []);
+export const tagsOf = (c, t) => (t.kind === KIND.ENEMY ? /** @type {{ tags?: string[] }} */ (c.enemies[t.key] ?? {}).tags ?? [] : []);
 
 /**
  * The target conditions (职业-17, 职业-24), each asked of the operator and the target as the hit (when there is one) or
@@ -56,13 +57,18 @@ const WHEN = Object.freeze({
   tag: (_w, _op, t, v) => !!v.x.tag && tagsOf(v.c, t).includes(v.x.tag),
   rangedFoe: (_w, _op, t) => t.kind === KIND.ENEMY && t.base.applyWay === 'RANGED',
   status: (_w, _op, t, v) => !!v.x.status && !!statsOf(t).flags[v.x.status],
+  abnormal: (_w, _op, t) => t.buffs.some((b) => b.resist),
+  hpFull: (_w, _op, t) => t.hp >= statsOf(t).maxHp,
+  still: (_w, _op, t) => standsStill(t),
+  statusAny: (_w, _op, t, v) => (v.x.statuses ?? []).some((k) => hasStatus(t, k)),
+  first: (_w, op, t, v) => !t.buffs.some((b) => b.key === seenKey(op, v.x)),
 });
 
 /**
  * Whether a 倍率's condition holds for the target (and the hit). @param {World} w @param {Content} c
  * @param {{ op: Unit, t: Unit, dmg?: Damage }} at @param {VsScale} v
  */
-const holds = (w, c, at, v) => WHEN[v.when](w, at.op, at.t, { value: v.value ?? 0, dmg: at.dmg, c, x: v });
+export const holds = (w, c, at, v) => WHEN[v.when](w, at.op, at.t, { value: v.value ?? 0, dmg: at.dmg, c, x: v });
 
 /**
  * The 伤害倍率 by the distance to the target (职业-17): 1 up to `min` tiles, rising in a line to 1 + `dmg` at `max` and on.
@@ -79,6 +85,15 @@ function crowdOf(w, c, op) {
   return w.units.filter((u) => hostile(u) && u.hp > 0 && !u.hidden && inKeys(u, keys, grid)).length;
 }
 
+/** Whether a 倍率 does anything to a damage (职业-17, 职业-28): a 倍率 or 无视防御 on the hit, or an effect after it. @param {VsScale} v */
+const acts = (v) => !!(v.atk || v.dmg || v.defFlat || v.defPct || v.inflict || v.steal || v.sp || v.mark || v.arts);
+
+/** A 倍率 whose condition holds on a hit (职业-17, 职业-28): its 倍率 (scaleHit), then what it leaves for after the hit. @param {Unit} op @param {Unit} t @param {Damage} dmg @param {VsScale} v */
+function heldOn(op, t, dmg, v) {
+  if (v.atk || v.dmg || v.defFlat || v.defPct) scaleHit(dmg, v);
+  heldBefore(op, t, dmg, v);
+}
+
 /** One 倍率 on a hit whose condition holds (职业-17, 职业-24). @param {Damage} dmg @param {VsScale} v */
 function scaleHit(dmg, v) {
   if (v.atk) dmg.amount *= v.atk;
@@ -89,16 +104,20 @@ function scaleHit(dmg, v) {
 }
 
 /**
- * An operator's hit on a target, by its trait's 倍率 for the target (职业-17), before the hit is dealt: every one whose
- * condition holds — its attack 倍率 on the amount, its 伤害倍率 on the hit's `mul`, physical dodge ignored —, the
- * distance's and the enemies in range's 伤害倍率. A sourceless hit, 生命流失 and elemental damage take none; nor a
- * hit of a unit that is not an operator.
+ * An operator's hit on a target, by its trait's 倍率 for the target (职业-17), before the hit is dealt: through 沉睡 when
+ * its trait hurts sleeping enemies (职业-28), × the marks it left on the target (markedHit); every 倍率 that counts the
+ * damage (职业-28) and whose condition holds (one checked `later` waits for its check) — its attack 倍率 on the amount,
+ * its 伤害倍率 on the hit's `mul`, physical dodge ignored, then what it leaves for after the hit (heldBefore) —, the
+ * distance's and the enemies in range's 伤害倍率.
+ * A sourceless hit, 生命流失 and elemental damage take none; nor a hit of a unit that is not an operator.
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} t @param {Damage} dmg
  */
 export function vsDamage(w, c, op, t, dmg) {
   if (op.kind !== KIND.OPERATOR || dmg.sourceless || dmg.hpLoss || dmg.type === 'elemental') return;
   const tr = traitOf(c, op);
-  for (const v of tr.vs) if ((v.atk || v.dmg || v.defFlat || v.defPct) && holds(w, c, { op, t, dmg }, v)) scaleHit(dmg, v);
+  if (tr.hurtSleeping) dmg.throughSleep = true;
+  markedHit(op, t, dmg);
+  for (const v of tr.vs) if (acts(v) && counts(v, dmg) && (v.later || holds(w, c, { op, t, dmg }, v))) heldOn(op, t, dmg, v);
   if (tr.far) dmg.mul = (dmg.mul ?? 1) * farMul(op, t, tr.far);
   if (tr.crowd) dmg.mul = (dmg.mul ?? 1) * (1 + tr.crowd.step * Math.min(tr.crowd.cap, crowdOf(w, c, op)));
 }

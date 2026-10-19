@@ -279,6 +279,11 @@
  * @property {{ hp: number, mods: Record<string, number> } | null} secondLife brought to 0 HP, once a deployment it stays with these
  *   modifiers and `hp` of its maximum HP (职业-22)
  * @property {TalentHit[]} onHit what each hit of its attack gives the target by its talents (干员-19, 职业-24)
+ * @property {{ status?: string, tag?: string }[]} prefer the targets its talents prefer, each a 二次过滤器 (职业-28)
+ * @property {boolean} hurtSleeping it can select sleeping enemies and its damage goes through 沉睡 (职业-28)
+ * @property {number} sleepDot every second, arts damage of this share of its attack on each enemy asleep (职业-28)
+ * @property {{ scale: number, n: number } | null} lowestArts after each attack, arts damage of `scale` × its attack on its
+ *   `n` targets with the least HP (职业-28)
  * @property {TalentStack[]} stacks steps of modifiers its talents give it for kills or damage (干员-20, 职业-25)
  * @property {TalentSp[]} talentSp SP its talents give on events (干员-21, 职业-25)
  * @property {{ mods: Record<string, number>, full: number } | null} grit its talent's 坚忍: the modifiers × the share of its maximum HP
@@ -373,10 +378,17 @@
  * `noDodge`: such a physical hit cannot be dodged; × `ep` on the 元素损伤 it deals the target, an elite or leader (`elite`).
  * From talents (职业-24): the target is blocked by no unit (`unblocked`), not by the operator (`notOwnBlocked`), has more
  * than `value` of its maximum HP (`hpAbove`), a 重量等级 of at most `value` (`light`), the tag `tag` (`tag`), a ranged
- * attack (`rangedFoe`), the status `status` (`status`); `defFlat`, `defPct` more 无视防御 for the hit.
+ * attack (`rangedFoe`), the status `status` (`status`); `defFlat`, `defPct` more 无视防御 for the hit. From talents on the
+ * enemies (职业-28): the target has a 可抵抗 status (`abnormal`), full HP (`hpFull`), stands still (`still`), any status of
+ * `statuses` (`statusAny`), or the operator's record has not met it yet (`first`, the 非首次标记 `seen`); `on` which
+ * damage counts ('attack' a hit of an attack, 'damage' any but a rider's); after the hit: `inflict` a status, `steal`
+ * 攻击力 (`atk`, at most `max` in all), `sp`, a `mark` for `seconds` (the operator's later damage × `dmg`, or arts damage of
+ * `arts` × its attack), arts damage of `arts` × its attack (at once, or a moment `later`).
  * @typedef {{ when: 'blocked' | 'flying' | 'skillGround' | 'hpBelow' | 'heavy' | 'front' | 'near' | 'burst' | 'onGround' | 'skill' | 'elite'
- *   | 'unblocked' | 'notOwnBlocked' | 'hpAbove' | 'light' | 'tag' | 'rangedFoe' | 'status',
- *   atk?: number, dmg?: number, heal?: number, ep?: number, value?: number, noDodge?: boolean, tag?: string, status?: string, defFlat?: number, defPct?: number }} VsScale
+ *   | 'unblocked' | 'notOwnBlocked' | 'hpAbove' | 'light' | 'tag' | 'rangedFoe' | 'status' | 'abnormal' | 'hpFull' | 'still' | 'statusAny' | 'first',
+ *   atk?: number, dmg?: number, heal?: number, ep?: number, value?: number, noDodge?: boolean, tag?: string, status?: string, defFlat?: number, defPct?: number,
+ *   statuses?: string[], seen?: string, on?: 'attack' | 'damage', inflict?: { key: string, seconds: number }, steal?: { atk: number, max: number }, sp?: number,
+ *   mark?: { seconds: number, dmg?: number, arts?: number }, arts?: number, later?: boolean }} VsScale
  */
 /**
  * A chain (职业-11): at most `max` targets in all, each jump at `scale` × the one before; a damage chain jumps to the

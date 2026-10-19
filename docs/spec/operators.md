@@ -429,3 +429,28 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 整段描述是「有N%的几率抵挡物理和法术伤害。周围四格内的友方单位获得一半该效果」、blackboard 有以 `[self].prob` 和 `[aura].prob` 结尾的键时：条件增益 `always` 带 `blockPA`（前者的值）；一条周围四格（不含自己所在格）的光环（`rangeTalents`，部署-6）给友方 `blockPA`（后者的值）。
 
 - 来源：数据：character_table 的天赋文字与 blackboard，如星熊「获得28%的伤害抵挡」、导火索「获得30%的远程物理抵挡」、闪击「身侧或身后存在高台时获得25%的物理抵挡」、火神「技能开启时，每秒恢复最大生命值5%的生命，同时获得30%的近战物理闪避」、泥岩「受到来自【萨卡兹】敌人的伤害降低30%」、魔王「上阵时，所有友方单位受到【萨卡兹】敌人的伤害降低15%」、歌蕾蒂娅「在场时，所有【深海猎人】干员每秒回复2.5%最大生命值且受到【海怪】敌人的物理与法术伤害降低25%」、嘉辛塔「部署后，嘉辛塔自身与周围八格的友方单位获得15%的对空庇护」、可颂（`moeshd_t_1[self].prob`、`moeshd_t_1[aura].prob`）；[PRTS「导火索」oldid=434903](https://prts.wiki/index.php?title=%E5%AF%BC%E7%81%AB%E7%B4%A2&oldid=434903)「描述中的“远程物理抵挡”实际是指抵挡来源为“图鉴中【攻击方式】包含远程的敌人”的物理伤害」，[PRTS「魔王」oldid=435073](https://prts.wiki/index.php?title=%E9%AD%94%E7%8E%8B&oldid=435073) 把「上阵时」修正为「在场时」，[PRTS「歌蕾蒂娅」oldid=441567](https://prts.wiki/index.php?title=%E6%AD%8C%E8%95%BE%E8%92%82%E5%A8%85&oldid=441567)「生命恢复的提供方式为增加所有【深海猎人】干员的“生命回复速度（百分比）”属性，不受治疗加成和禁疗影响」；海怪的标签名、可颂的光环不含自己为推断 INF-0266
+
+### 干员-27 对敌人的天赋
+
+天赋（含模组的升级）的整段描述（去掉标签和括号里的部分）是下列之一、blackboard 有它要的键时，它加到特性（`talentTrait`）：
+
+| 描述 | 加到特性 |
+|---|---|
+| 优先攻击晕眩的敌人且攻击晕眩敌人时攻击力提升至N% | 优先攻击（`prefer`）晕眩；目标倍率（`vs`，职业-17）`status` 晕眩：攻击倍率 × `atk_scale` |
+| 自身可以攻击并优先攻击沉睡的目标且攻击力提升至N% | 可以攻击沉睡的敌人（`hurtSleeping`）；优先攻击沉睡；目标倍率 `status` 沉睡：攻击倍率 × `atk_scale` |
+| 自身可以攻击沉睡的敌人 | 可以攻击沉睡的敌人 |
+| 自身可以攻击沉睡的敌人，并且攻击沉睡敌人时无视其防御力的N% | 可以攻击沉睡的敌人；目标倍率 `status` 沉睡：无视防御 `def_penetrate` |
+| 优先攻击【标签】单位，且攻击【标签】时攻击力提升至N% | 优先攻击带这个标签的（标签见 干员-26）；目标倍率 `tag`：攻击倍率 × `atk_scale`。标签不认识时不算 |
+| 攻击处于停顿、束缚的敌人时，额外造成相当于攻击力N%的法术伤害 | 目标倍率 `statusAny` 停顿、束缚，`on` 'damage'：稍后检查（`later`），法术伤害 `atk_scale` |
+| 自身可以攻击沉睡的敌人，且攻击非移动敌人时对其额外造成相当于攻击力N%的法术伤害，在场时沉睡中的敌人每秒受到<名字>攻击力M%的法术伤害 | 可以攻击沉睡的敌人；目标倍率 `still`，`on` 'damage'：法术伤害 `extra_atk_scale`；每秒的沉睡伤害（`sleepDot`）`damage_atk_scale` |
+| 治疗处于异常状态中的友方干员时治疗量提升至N% | 目标倍率 `abnormal`：治疗 × `heal_scale_up` |
+| 攻击命中生命值为满的敌人时攻击力提升至N%，并额外回复M点技力 | 目标倍率 `hpFull`，`on` 'attack'：攻击倍率 × `atk_scale`，技力 `sp` |
+| 攻击命中生命值在N%以上的敌人时，K秒内<名字>对其造成的伤害提升M% | 目标倍率 `hpAbove` `hp_ratio`，`on` 'attack'：标记（`mark`）伤害倍率 × 以 `[enhance].damage_scale` 结尾的值，以 `[enhance].duration` 结尾的值秒 |
+| 对每个敌人造成首次伤害后，K秒内<名字>对该敌人造成伤害时额外造成攻击力N%的法术伤害 | 目标倍率 `first`（非首次标记 `damage`），`on` 'damage'：标记 法术伤害 `atk_scale`，`interval` 秒 |
+| 对每个敌人首次进行攻击时攻击力提升至N%，并使目标浮空K秒 | 目标倍率 `first`（`attack`），`on` 'attack'：伤害倍率 × `damage_scale`，浮空 `levitate_duration` 秒 |
+| 对每个敌人首次造成伤害后，使目标束缚K秒并偷取其N点攻击力 | 目标倍率 `first`（`damage`），`on` 'damage'：束缚 `duration` 秒，偷取（`steal`）`steal_atk`，合计至多 `steal_atk_max`（没有时 200 × `steal_atk`） |
+| 攻击时对攻击目标中生命值最少的（K名）敌人额外造成相当于攻击力N%的法术伤害 | 最弱目标的法术伤害（`lowestArts`）：以 `.atk_scale` 结尾的值（没有时 `atk_scale`），`attack@max_target` 名（没有时 K，再没有时 1） |
+
+「异常状态」按术语释义取可抵抗的状态（状态-5）。由模拟按 职业-28 生效。
+
+- 来源：数据：character_table 的天赋文字与 blackboard，如闪击「优先攻击晕眩的敌人且攻击晕眩敌人时攻击力提升至165%」、瑕光、埃拉托、格劳克斯「优先攻击【无人机】单位，且攻击【无人机】时攻击力提升至155%」、仇白、缇缇（`extra_atk_scale`、`damage_atk_scale`）、诺威尔（`heal_scale_up`）、谜图、异客（`pasngr_t_1[enhance].damage_scale`）、忍冬、阿罗玛（`damage_scale`、`levitate_duration`）、伊内丝（`steal_atk`、`steal_atk_max`）、水月（`attack@mizuki_t_1.atk_scale`、`attack@max_target`）；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 异常状态「包括晕眩、寒冷、冻结等 ※生效范围请参考页面可抵抗状态」；[PRTS「伊内丝」oldid=435241](https://prts.wiki/index.php?title=%E4%BC%8A%E5%86%85%E4%B8%9D&oldid=435241)「偷取效果实际具有加成量上限，上限等同于文本所述量的200倍」「<Y模组>上述加成量上限固定为20000」；阿罗玛的倍率按伤害倍率读为推断 INF-0268

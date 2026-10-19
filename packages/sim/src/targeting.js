@@ -37,18 +37,19 @@ export function inKeys(u, keys, grid) {
  * @typedef {object} Selector what an attack can select
  * @property {boolean} [canHitFly] it can select flying units
  * @property {boolean} [ignoreCamou] it ignores 迷彩
+ * @property {boolean} [canHitSleep] it can select sleeping units (职业-28)
  */
 
 /**
  * Whether a unit can be selected by the other side (索敌-2): on the field and not disappeared (路线-4), not 无法选中,
- * not 隐匿, not asleep, not camouflaged (unless the attack ignores 迷彩), not flying (unless the attack can hit flying
- * units).
+ * not 隐匿, not asleep (unless the attack can select sleeping units, 职业-28), not camouflaged (unless the attack ignores
+ * 迷彩), not flying (unless the attack can hit flying units).
  * @param {Unit} u @param {Selector} [sel]
  */
 export function selectable(u, sel = {}) {
   if (u.hp <= 0 || u.hidden) return false;
   const s = statsOf(u), f = s.flags;
-  if (f.untargetable || f.stealth || f.sleep || f.sidelined) return false;
+  if (f.untargetable || f.stealth || (f.sleep && !sel.canHitSleep) || f.sidelined) return false;
   if (f.camou && !sel.ignoreCamou) return false;
   return !s.flying || !!sel.canHitFly;
 }
@@ -138,12 +139,13 @@ export const SECONDARY = Object.freeze({ FLY_FIRST: (e) => statsOf(e).flying });
  * @property {(e: Unit) => number} pathDist the enemy's 路径距离, in tiles
  * @property {FilterName} [filter] the 仇恨过滤器 (default HATRED_DES)
  * @property {SecondaryName} [secondary] the 二次过滤器, if any
+ * @property {((e: Unit) => boolean)[]} [prefer] the targets its talents prefer, each a 二次过滤器 after it (职业-28)
  */
 
 /**
  * An operator's candidates in the official order (索敌-3): the 仇恨过滤器 by a stable insertion sort (by default 仇恨值
- * high to low at a precision of 0.1, then who appeared first), the 二次过滤器, then the enemies it blocks moved to the
- * front in that order.
+ * high to low at a precision of 0.1, then who appeared first), the 二次过滤器, its talents' preferred targets each the
+ * same way (职业-28), then the enemies it blocks moved to the front in that order.
  * @param {Unit} attacker @param {readonly Unit[]} cands in the order they appeared @param {EnemyOrder} o @returns {Unit[]}
  */
 export function sortEnemies(attacker, cands, o) {
@@ -151,6 +153,7 @@ export function sortEnemies(attacker, cands, o) {
   const rows = cands.map((e) => ({ e, k: f ? f(e, enemyHatred(statsOf(e).taunt, o.pathDist(e))) : [] }));
   const list = insertionSort(rows, (a, b) => compareKeys(a.k, b.k)).map((r) => r.e);
   if (o.secondary) swapForward(list, SECONDARY[o.secondary]);
+  for (const meets of o.prefer ?? []) swapForward(list, meets);
   if (!o.blockedFirst) return list;
   const mine = (/** @type {Unit} */ e) => e.blockedBy === attacker.id;
   return [...list.filter(mine), ...list.filter((e) => !mine(e))];
