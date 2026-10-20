@@ -2,6 +2,7 @@
 // talents' additions that last while it blocks or does not, while its HP is above or below a share, while enemies or
 // allies in its range are so, while no ally or enemy stands around it, while it holds stored energy, while its skill
 // runs or not — a buff each, given and taken back at its turn.
+import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune } from './buffs.js';
@@ -16,6 +17,7 @@ import { foeTurn } from './talentfoe.js';
 import { pulseTurn } from './talentelem.js';
 import { tileAt } from './level.js';
 import { rotateOffset } from './dir.js';
+import { shareTurn } from './talentaround.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').WhileMods} WhileMods */
@@ -48,6 +50,46 @@ function enemiesNear(w, op) {
     return Math.max(Math.abs(ur - r), Math.abs(uc - col)) <= 1;
   }).length;
 }
+
+/** How many friendly units (summons too, devices not) stand on the 8 tiles around an operator (职业-32). @param {World} w @param {Unit} op */
+function alliesNear(w, op) {
+  const [r, col] = tileOf(op);
+  return w.units.filter((u) => {
+    if (u === op || u.hp <= 0 || u.hidden || u.kind !== KIND.OPERATOR) return false;
+    const [ur, uc] = tileOf(u);
+    return Math.max(Math.abs(ur - r), Math.abs(uc - col)) <= 1;
+  }).length;
+}
+
+/**
+ * The other operators (not summons) on a tile of an operator's own range or of one of its summons' (职业-32: 「自身或
+ * <召唤物>攻击范围内」). @param {World} w @param {Content} c @param {Unit} op
+ */
+function rangeAllies(w, c, op) {
+  const grid = { rows: c.level.height, cols: c.level.width };
+  const keys = [op, ...w.units.filter((u) => u.summoner === op.id && u.hp > 0)].map((u) => rangeKeys(grid, u, u.range ?? c.operators[u.key].range, statsOf(u).rangeExtend));
+  return w.units.filter((u) => u !== op && isOperator(u) && u.hp > 0 && !u.hidden && keys.some((k) => inKeys(u, k, grid)));
+}
+/** Whether a unit's record is of a faction. @param {Content} c @param {Unit} u @param {string | undefined} power */
+const ofPower = (c, u, power) => !!power && (c.operators[u.key].powers ?? []).includes(power);
+
+/** How many of the 4 tiles next to an operator are 高地 (职业-32: 暴行). @param {Content} c @param {Unit} op */
+function highAround(c, op) {
+  const [r, col] = tileOf(op);
+  return [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dr, dc]) => tileAt(c.level, r + dr, col + dc)?.height === 'HIGHLAND').length;
+}
+
+/** Whether each level has a water tile, once worked out (职业-32: 锡兰). @type {WeakMap<object, boolean>} */
+const WATER = new WeakMap();
+/** Whether a level has a tile of water (its key names water). @param {Content['level']} level */
+function hasWater(level) {
+  let v = WATER.get(level);
+  if (v === undefined) WATER.set(level, (v = level.tiles.some((row) => row.some((t) => /water/u.test(t?.key ?? '')))));
+  return v;
+}
+
+/** How many operators (not summons) of a faction are on the field (职业-32). @param {World} w @param {Content} c @param {string | undefined} power */
+const powerOnField = (w, c, power) => w.units.filter((u) => isOperator(u) && u.hp > 0 && !u.hidden && ofPower(c, u, power)).length;
 
 /** Whether a unit has an element value below its maximum. @param {Unit} u */
 const epDamaged = (u) => ELEMENTS.some((el) => epOf(u, el) < statsOf(u).maxEp);
@@ -124,15 +166,39 @@ const WHEN = Object.freeze({
   lowSp: (_w, _c, op, v) => !!op.skill && !op.skill.active && op.skill.sp <= v * op.skill.cap,
   enemiesNear: (w, _c, op, v) => enemiesNear(w, op) >= v,
   fewEnemiesNear: (w, _c, op, v) => enemiesNear(w, op) < v,
+  rangeAlly: (w, c, op, _v, x) => rangeAllies(w, c, op).some((u) => ofPower(c, u, x.power)),
+  rangeAllyOnly: (w, c, op, _v, x) => { const list = rangeAllies(w, c, op); return list.length > 0 && !list.some((u) => ofPower(c, u, x.power)); },
+  alliesNear: (w, _c, op, v) => alliesNear(w, op) >= Math.max(1, v),
+  blockedExtra: (w, _c, op, v) => blockedBy(w, op) - 1 >= Math.max(1, v),
+  powerOnField: (w, c, _op, v, x) => powerOnField(w, c, x.power) >= Math.max(1, v),
+  highAround: (_w, c, op, v) => highAround(c, op) >= v,
+  waterMap: (_w, c) => hasWater(c.level),
+  noWaterMap: (_w, c) => !hasWater(c.level),
+  onFieldFor: (w, _c, op, v) => w.frame - op.born >= secondsToFrames(v),
+});
+
+/** Whether a condition on an operator holds now, its value 0 (职业-32: an in-range talent's `srcWhen`). @param {World} w @param {Content} c @param {Unit} op @param {WhileMods['when']} when */
+export const holdsWhen = (w, c, op, when) => WHEN[when](w, c, op, 0, { when, mods: {} });
+
+/**
+ * What a part with `per` counts (职业-25, 职业-32): the enemies in its own range, the friendly units on the 8 tiles
+ * around it (`alliesNear`), the enemies it blocks beyond the first (`blockedExtra`), the operators of a faction on the
+ * field (`powerOnField`). @type {Record<string, (w: World, c: Content, op: Unit, x: WhileMods) => number>}
+ */
+const PER = Object.freeze({
+  enemies: (w, c, op) => inOwnRange(w, c, op).filter(hostile).length,
+  alliesNear: (w, _c, op) => alliesNear(w, op),
+  blockedExtra: (w, _c, op) => Math.max(0, blockedBy(w, op) - 1),
+  powerOnField: (w, c, _op, x) => powerOnField(w, c, x.power),
 });
 
 /**
- * A part by the enemies in an operator's own range (职业-25): its buff with the modifiers × their number, at most `per`;
- * none while there are none.
+ * A part by a count (职业-25, 职业-32: PER, the enemies in its own range unless its condition names another): its buff
+ * with the modifiers × the count, at most `per`; none while it is 0.
  * @param {World} w @param {Content} c @param {Unit} op @param {WhileMods} x @param {string} key
  */
 function perWhile(w, c, op, x, key) {
-  const n = Math.min(x.per ?? 0, inOwnRange(w, c, op).filter(hostile).length), b = op.buffs.find((y) => y.key === key);
+  const n = Math.min(x.per ?? 0, (Object.hasOwn(PER, x.when) ? PER[x.when] : PER.enemies)(w, c, op, x)), b = op.buffs.find((y) => y.key === key);
   const mods = Object.fromEntries(Object.entries(x.mods).map(([k, v]) => [k, v * n]));
   if (n === 0) { if (b) removeBuff(op, key); return; }
   if (!b) addBuff(op, makeBuff({ key, src: op.id, value: n, mods }));
@@ -142,7 +208,7 @@ function perWhile(w, c, op, x, key) {
 /**
  * At the start of an operator's turn (职业-18, 职业-25…职业-28): its 坚忍 (gritTurn), its talents on its life (lifeTurn),
  * its 屏障 after a while without attacking (idleShieldTurn), its talents on the enemies (foeTurn) and their pulses
- * (pulseTurn, 职业-29), its SP pulses (spPulseTurn, 职业-30), then each of its
+ * (pulseTurn, 职业-29), its SP pulses (spPulseTurn, 职业-30), its share after a while (shareTurn, 职业-32), then each of its
  * trait's `whiles` is a buff `while:<n>` with
  * its modifiers while its condition holds; when it no longer does, the buff goes.
  * @param {World} w @param {Content} c @param {Unit} op
@@ -154,6 +220,7 @@ export function traitWhiles(w, c, op) {
   foeTurn(w, c, op);
   pulseTurn(w, c, op);
   spPulseTurn(w, c, op);
+  shareTurn(w, c, op);
   const list = traitOf(c, op).whiles;
   for (let i = 0; i < list.length; i++) {
     const x = list[i], key = `while:${i}`;

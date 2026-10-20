@@ -18,6 +18,7 @@ import { restReady, poolCount, usePool } from './fortress.js';
 import { nextToFacility, facilityOf } from './facilities.js';
 import { talentDeploy } from './talentfx.js';
 import { moreDeploy, keepsLast } from './talentmore.js';
+import { shareArrive } from './talentaround.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -153,7 +154,7 @@ function deploy(w, c, seat, cmd) {
 
 /**
  * An operator's deployment takes hold (部署-2, 部署-9): the `enter` event, its trait, its attack mode, its deployment
- * talents, its talents' SP and cost on deployments, their other effects (职业-31) and its cuts for the deck (职业-30,
+ * talents, its talents' SP and cost on deployments, their other effects (职业-31), the shares (职业-32) and its cuts for the deck (职业-30,
  * 部署-10) — a 移动 never a first deployment —, a carried unit's effect (装置-6), its passive skill, its summon cards, then the `deploy` event — `move`
  * for a 移动.
  * @param {World} w @param {Content} c @param {import('./types.js').Unit} u @param {boolean} [move]
@@ -166,6 +167,7 @@ export function arrive(w, c, u, move = false) {
   deployTalents(w, c, u);
   talentDeploy(w, c, u, first);
   moreDeploy(w, c, u);
+  shareArrive(w, c, u);
   giveCuts(w, c, u);
   carriedDeploy(w, c, u);
   onDeploy(w, c, u);

@@ -35,7 +35,7 @@ export const defaultTrait = (position) => ({
   lastStand: null, frostLife: null, costLife: null, hurt: null, reflect: null, prefer: [], hurtSleeping: false, sleepDot: 0, lowestArts: null,
   burstOn: [], pulses: [], palsyHit: 0, epOnHit: 0, healDot: null, startCost: 0, costCuts: [], retreatCut: 0, deployCut: null, costRate: 1, aloneCost: 0, deploySp: [],
   allySkill: null, spPulse: null, hurtAttackSp: 0, deployPick: [], downHeal: [], deployBuff: null, fieldRegen: 0, healGives: null, groundEpHeal: 1, seeStealth: false,
-  minDamage: null, deployStun: null, deployBlast: null, bb: {},
+  minDamage: null, deployStun: null, deployBlast: null, fieldBuffs: [], shareGain: null, stackShare: null, bb: {},
 });
 
 /**
@@ -65,10 +65,10 @@ function sameFields(o, fields) {
   return i === fields.length;
 }
 
-/** The single fields only talents give (职业-26…职业-31): each the talents' when they have it. */
+/** The single fields only talents give (职业-26…职业-32): each the talents' when they have it. */
 const TALENT_ONLY = Object.freeze(/** @type {const} */ (['rhythm', 'idleShield', 'layers', 'lowHp', 'lastStand', 'frostLife', 'costLife', 'hurt', 'reflect', 'hurtSleeping', 'sleepDot', 'lowestArts', 'palsyHit', 'epOnHit', 'healDot',
   'startCost', 'costCuts', 'retreatCut', 'deployCut', 'costRate', 'aloneCost', 'deploySp', 'allySkill', 'spPulse', 'hurtAttackSp', 'deployPick', 'downHeal', 'deployBuff',
-  'fieldRegen', 'healGives', 'groundEpHeal', 'seeStealth', 'minDamage', 'deployStun', 'deployBlast']));
+  'fieldRegen', 'healGives', 'groundEpHeal', 'seeStealth', 'minDamage', 'deployStun', 'deployBlast', 'fieldBuffs', 'shareGain', 'stackShare']));
 
 /**
  * A trait with what its operator's talents add (职业-24…职业-27, 职业-30): their conditional modifiers, target 倍率, hit

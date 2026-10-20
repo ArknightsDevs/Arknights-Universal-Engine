@@ -112,10 +112,10 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 
 分句用到的键都要在 blackboard 里，第一句其余部分不能提到「效果」。队伍部分就是 职业、势力或所有友方单位 + 这些键和值，效果的修饰器另记为 `mods`；描述里有「同类效果取最高」时带 `max`。在场上的队伍部分只能有 Buff 能带的属性（`atk`、`def`、`max_hp`、`attack_speed`、`magic_resistance`、`sp_recovery_per_sec`、`hp_recovery_per_sec`），对卡组的不能带效果、不能是所有友方单位，否则不算。
 
-- **对卡组**：组装对局（同步-9）时，一名玩家卡组里每个干员的对卡组的队伍部分，作用于同一卡组里这个职业、或有这个势力的每个干员（包括它自己）：`cost` 加到部署费用（不低于 0），`sp` 加到技能的初始技力，其余的键加到 `talentBb`（部署-4）。
+- **对卡组**：组装对局（同步-9）时，一名玩家卡组里每个干员的对卡组的队伍部分，作用于同一卡组里这个职业、或有这个势力的每个干员（包括它自己；带 `maxCost` 的只对部署费用不超过它的，干员-31）：`cost` 加到部署费用（不低于 0），`sp` 加到技能的初始技力，其余的键加到 `talentBb`（部署-4），效果 `mods` 加到 `talentMods`（以 Mul 结尾的相乘）。
 - **在场上**：干员数据的 `fieldTalents`（职业或势力，和 blackboard），干员数据带着自己的势力 `powers`，由模拟按 部署-5 生效。
 
-干员-29 读出的天赋也可以给出对卡组和在场上的队伍部分（缪尔赛思、极境），排在这些之后，同样生效。
+干员-29、干员-31 读出的天赋也可以给出对卡组和在场上的队伍部分（缪尔赛思、极境、苏苏洛），排在这些之后，同样生效。
 
 天赋的其余内容（只对自身的额外加成、按分支或稀有度的加成、触发类效果）还没有实现。
 
@@ -542,3 +542,38 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 由模拟按 职业-31 生效。
 
 - 来源：数据：character_table 的天赋文字与 blackboard，如冬时、远山、白雪、霜叶（范围 id `3-1`）、卡达、艾丝黛尔、露托（`hp_ratio`）、嘉维尔（`atk`、`def`、`duration`）、调香师（`atk_to_hp_recovery_ratio`）、清流（`status_resistance[limit]`、`one_minus_status_resistance`）、流明（`lumen_t_1[special].status_resistance[limit]`）、褐果（`ep_heal_scale`）、铅踝、红、酸糖（`atk_scale_2`）、麒麟R夜刀、极光（`sp_ratio`）、玛恩纳（`atk_scale_base`、`atk_scale_up`）、百炼嘉维尔（`heal_scale_1`、`heal_scale_2`）、灰烬、耀骑士临光；[PRTS「霜叶」oldid=435143](https://prts.wiki/index.php?title=%E9%9C%9C%E5%8F%B6&oldid=435143)「携带时生效，将覆写霜叶的默认攻击范围」；[PRTS「白雪」oldid=434866](https://prts.wiki/index.php?title=%E7%99%BD%E9%9B%AA&oldid=434866)「攻击间隔略微增大(+0.2)」；PRTS 的其余页面见 职业-31
+
+### 干员-31 周围、范围与场上的天赋
+
+天赋（含模组的升级）的整段描述（去掉标签和括号里的部分）是下列之一、blackboard 有它要的键时，它加到特性（`talentTrait`）、范围天赋（`rangeTalents`，部署-6）或对卡组的队伍部分（干员-9）。<职业> 是 干员-9 的职业名称，<势力> 是 干员-10 的势力名称；「周围8格」是自己格子外的 8 格，「周围四格」是上下左右 4 格：
+
+| 描述 | 加到 |
+|---|---|
+| 自身或<召唤物>攻击范围内存在我方干员时，自身攻击力+N%；存在【<势力>】干员时改为攻击力+M% | 条件增益 `rangeAllyOnly`（这个势力）：攻击力直接乘算 + 以 `[1].atk` 结尾的值；`rangeAlly`（这个势力）：+ 以 `[2].atk` 结尾的值 |
+| 自身与周围8格友方单位受到的物理伤害减少N%，且此范围内每个友方单位使<名字>攻击力+M% | 条件增益 `always`：物理受到倍率 1 − `damage_resistance`；`alliesNear` 每个（至多 8）：攻击力直接乘算 + `atk`；范围天赋：周围8格的友方，物理受到倍率同上 |
+| 使攻击范围内除自身外当前生命比例小于等于自身的友军获得N%的庇护 | 范围天赋：攻击范围内的友方，不含自己（`others`），条件 `hpRatioAtMostSrc`：庇护（干员-22）`damage_resistance` |
+| 攻击力和防御力提升N%，每再阻挡一个敌人提升M% | 条件增益 `always`：攻击力、防御直接乘算 + `atk`、`def`；`blockedExtra` 每个（至多 9）：+ `atk_add`、`def_add` |
+| 周围四格中有两格以上的高地地形时攻击力和防御力+N% | 条件增益 `highAround` `cnt`：攻击力、防御直接乘算 + `atk`、`def` |
+| 在场时阻挡数大于等于N的友方近战单位攻速+M，防御+K% | 场上的增益（`fieldBuffs`）：近战（`melee`），阻挡数至少 N（`minBlock`）：攻击速度 + `attack_speed`，防御直接乘算 + `def` |
+| 在场时，所有<几>星干员的攻击力+N% | 场上的增益：这个稀有度（`rarity`）：攻击力直接乘算 + `atk` |
+| 场上存在<名字>和另外至少一名【<职业>】干员时，所有【同一职业】干员的攻击力+N% | 场上的增益：这个职业，另有一名这个职业的干员在场时（`needOther`）：攻击力直接乘算 + `atk` |
+| 在场时，携带弹药类技能的干员攻击力+N%，对【<势力>】干员的效果翻倍 | 场上的增益：带弹药类技能的（`ammo`）：攻击力直接乘算 + `atk`；这个势力的 × `mult`（`double`） |
+| 场上的【<势力>】或【<势力>】干员生命值高于N%时，获得+M攻速的精力充沛 | 场上的增益：两个势力之一（`powers`），生命高于 `hp_ratio`（`hpAbove`）：攻击速度 + `attack_speed` |
+| 在场时，【<势力>】干员免疫冻结，防御力+N且每秒回复M%最大生命值；<名字>在场K秒后，防御力和生命回复效果翻倍 | 场上的增益：这个势力：防御直接加算 + `def`，生命回复（百分比）+ `hp_recovery_per_sec_by_max_hp_ratio`，标记免疫冻结；在场 `interval` 秒后 × 2（`after`、`afterMul`） |
+| 在场时自身防御力+N，自己身后的如果是【<职业>】或【<职业>】干员也能享受到相同效果 | 条件增益 `always`：防御直接加算 + `def`；范围天赋：身后一格（随朝向转动，`rotate`），这两个职业之一（`professions`）：同上 |
+| 攻击力+N%，当场地中存在水地形时改为攻击力+M% | 条件增益 `waterMap`：攻击力直接乘算 + 以 `[common].atk` 与以 `[map].atk` 结尾的值之和；`noWaterMap`：+ 前者 |
+| 技能未开启时，周围四格友方单位的防御力+N%；技能开启时，自身不容易受到敌人攻击 | 范围天赋：周围四格的友方，来源的技能不运行时（`srcWhen` `notInSkill`）：防御直接乘算 + `def`；条件增益 `inSkill`：嘲讽等级 + `taunt_level` |
+| 未阻挡敌人时使周围8格内近战干员防御力+N%，阻挡敌人时自身防御力+M% | 范围天赋：周围8格的近战友方，来源不阻挡时（`srcWhen` `notBlocking`）：防御直接乘算 + 以 `_ally.def` 结尾的值；条件增益 `blocking`：+ 以 `_self.def` 结尾的值 |
+| 法术抗性+N，周围8格有友方干员时，法术抗性额外+M | 条件增益 `always`：法抗直接加算 + 以 `[self].magic_resistance` 结尾的值；`alliesNear` 1：+ 以 `[ally].magic_resistance` 结尾的值 |
+| 周围8格的干员最大生命值+N%，若部署方向与<名字>相同，改为+M% | 范围天赋：自己的格子和周围8格的友方：生命上限直接乘算 + 以 `[hp_common].max_hp` 结尾的值；其中朝向相同的（`sameDir`）再 + 以 `[hp_extra].max_hp` 结尾的值 |
+| 使攻击范围内除自己外N名友军获得M%的庇护 | 共享增益（`shareGain`）：攻击范围内（`inRange`），N 名：庇护 `damage_resistance` |
+| 编入队伍时，所有初始费用不超过N的干员受到的治疗效果提升M% | 对卡组的队伍部分：所有干员，部署费用至多 `cost`（`maxCost`）：受到治疗倍率 × `heal_scale`（效果 `mods`） |
+| 每次击倒一名敌人时，自身的生命上限提高N，攻击力提高M，最多叠加K次，其他【<势力>】干员获得L%的提高效果 | 叠加（干员-20）`kill`：生命上限 + `max_hp`、攻击力 + `atk`（直接加算），至多 `max_stack_cnt` 层，标为共享（`shared`）；叠加共享（`stackShare`）：这个势力，生命上限 + 以 `].max_hp` 结尾的值、攻击力 + 以 `].atk` 结尾的值 |
+| 每有一个【<势力>】干员在场，自身的弹药类技能弹药上限+N | 条件增益 `powerOnField`（这个势力）每个（至多 `add_count_max_stack`）：弹药上限（`ammoFlat`，部署-7）+ `add_count` |
+| 在场停留N秒后，自身弹药类技能弹药上限+M，其他随机一名【<势力>】干员的弹药类技能弹药上限+K | 条件增益 `onFieldFor` `duration`：弹药上限 + `self_ammo`；共享增益：这个势力、带弹药类技能、1 名、在场 `duration` 秒后（`after`）：弹药上限 + `ally_ammo` |
+| 攻击速度+N，置入战场后这个效果会同样赋予给一名随机【<势力>】干员 | 条件增益 `always`：攻击速度 + `attack_speed`；共享增益：这个势力、1 名：同上 |
+| 部署后随机选择一名在场的【<职业>】干员，自身和其的攻击力+N% | 共享增益：这个职业、1 名，自己也有（`self`）：攻击力直接乘算 + `atk` |
+
+干员数据还带着自己的稀有度 `rarity`（星级）。由模拟按 职业-32 生效；范围天赋按 部署-6，对卡组的队伍部分按 干员-9。
+
+- 来源：数据：character_table 的天赋文字与 blackboard，如浊心斯卡蒂（`skadi2_t_2[atk][1].atk`）、维娜·维多利亚、撷英调香师、百炼嘉维尔（`atk_add`、`def_add`）、暴行（`cnt`）、鞭刃、杜宾、桑葚、新约能天使（`mult`）、缇缇、凛御银灰（`interval`）、拜松、锡兰（`ceylon_t_1[common].atk`、`celyon_t_1[map].atk`）、薄绿（`taunt_level`）、苍苔（`bryota_t_ally.def`）、深律、万顷、行箸、苏苏洛（`heal_scale`）、乌尔比安（`ulpia_t_1[abyssal].max_hp`）、圣约送葬人（`add_count_max_stack`）、隐现（`self_ammo`、`ally_ammo`）、但书、迷迭香；PRTS 页面见 职业-32

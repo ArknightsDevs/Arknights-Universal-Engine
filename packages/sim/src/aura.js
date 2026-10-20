@@ -13,9 +13,11 @@ import { reachKeys } from './reach.js';
 import { traitOf, dollNow, summonHeld } from './traits.js';
 import { statMods } from './skills.js';
 import { tileOf } from './body.js';
-import { frontOf } from './dir.js';
+import { frontOf, rotateOffset, normDir } from './dir.js';
 import { alchemyDef, inAlchemy, groundFoe } from './alchemy.js';
 import { ELEMENTS, epOf } from './elements.js';
+import { holdsWhen } from './whiles.js';
+import { fieldBuffs, stackShare } from './talentaround.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /**
@@ -24,7 +26,7 @@ import { ELEMENTS, epOf } from './elements.js';
  */
 
 /** The keys of the aura buffs. */
-const AURA_KEYS = /^(?:aura|field|range|doll|mod|ally|inspire|alchemy|aspd):/;
+const AURA_KEYS = /^(?:aura|field|range|doll|mod|ally|inspire|alchemy|aspd|fieldRegen|fieldBuff|stackShare):/;
 /** Whether a buff is an aura's. @param {{ key: string }} b */
 const isAura = (b) => AURA_KEYS.test(b.key);
 
@@ -145,15 +147,16 @@ function fieldAspd(c, src, units, want) {
  * @param {import('./types.js').RangeTalent} t @param {import('./types.js').OperatorDef} d
  */
 const whoFits = (t, d) => (!t.ranged || d.position === 'RANGED' || d.position === 'ALL') && (!t.melee || d.position === 'MELEE' || d.position === 'ALL')
-  && (!t.profession || d.profession === t.profession);
+  && (!t.profession || d.profession === t.profession) && (!t.professions || t.professions.includes(d.profession ?? ''));
 
 /** Whether a unit is blocked by any unit, or blocks one. @param {World} w @param {Unit} u */
 const inBlock = (w, u) => u.blockedBy >= 0 || w.units.some((x) => x.blockedBy === u.id);
 
 /**
  * The conditions an in-range talent may ask of a unit (部署-6): below or above a share of its maximum HP, blocked (or
- * blocking), an ordinary enemy (not elite nor leader), flying, an element value below half its maximum (职业-29).
- * @type {Readonly<Record<NonNullable<import('./types.js').RangeTalent['when']>['when'], (w: World, u: Unit, v: number) => boolean>>}
+ * blocking), an ordinary enemy (not elite nor leader), flying, an element value below half its maximum (职业-29); a
+ * share of its maximum HP at most the source's (`hpRatioAtMostSrc`), facing the source's way (`sameDir`, 职业-32).
+ * @type {Readonly<Record<NonNullable<import('./types.js').RangeTalent['when']>['when'], (w: World, u: Unit, v: number, src: Unit) => boolean>>}
  */
 const UNIT_WHEN = Object.freeze({
   hpBelow: (_w, u, v) => u.hp < v * statsOf(u).maxHp,
@@ -162,18 +165,24 @@ const UNIT_WHEN = Object.freeze({
   normal: (_w, u) => u.base.levelType === 'NORMAL',
   flying: (_w, u) => statsOf(u).flying,
   epHalf: (_w, u) => ELEMENTS.some((el) => epOf(u, el) < statsOf(u).maxEp / 2),
+  hpRatioAtMostSrc: (_w, u, _v, src) => u.hp / statsOf(u).maxHp <= src.hp / statsOf(src).maxHp,
+  sameDir: (_w, u, _v, src) => normDir(u.dir) === normDir(src.dir),
 });
 
-/** Whether a unit stands on one of an area's tiles around a source (offsets from its tile). @param {Unit} src @param {Unit} u @param {import('./types.js').Cell[]} area */
-function onArea(src, u, area) {
+/**
+ * Whether a unit stands on one of an area's tiles around a source (offsets from its tile; turned with the source when
+ * `rotate`, facing right unturned). @param {Unit} src @param {Unit} u @param {import('./types.js').Cell[]} area @param {boolean} [rotate]
+ */
+function onArea(src, u, area, rotate = false) {
   const [r, col] = tileOf(src), [ur, uc] = tileOf(u);
-  return area.some((x) => r + x.row === ur && col + x.col === uc);
+  return area.some((x) => { const [dr, dc] = rotate ? rotateOffset(x.row, x.col, src.dir) : [x.row, x.col]; return r + dr === ur && col + dc === uc; });
 }
 
 /**
  * The in-range talents of one source (部署-6): the enemies (not neutral units), or the operators the talent is for
- * (whoFits), with a tile in its attack range — or standing on its area's tiles around the source —, and for which its
- * condition holds when it has one.
+ * (whoFits; not the source with `others`), with a tile in its attack range — or standing on its area's tiles around the
+ * source, turned with it with `rotate` —, and for which its condition holds when it has one; with `srcWhen`, only while
+ * that condition holds on the source (职业-32).
  * @param {World} w @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
  */
 function rangeTalents(w, c, src, units, want) {
@@ -181,10 +190,11 @@ function rangeTalents(w, c, src, units, want) {
   if (talents.length === 0) return;
   const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src);
   talents.forEach((t, i) => {
+    if (t.srcWhen && !holdsWhen(w, c, src, t.srcWhen)) return;
     for (const u of units) {
-      const fits = t.side === 'enemy' ? hostile(u) : u.kind === KIND.OPERATOR && whoFits(t, c.operators[u.key]);
-      const there = t.area ? onArea(src, u, t.area) : inKeys(u, keys, grid);
-      if (fits && there && (!t.when || UNIT_WHEN[t.when.when](w, u, t.when.value ?? 0))) want.get(u)?.set(`range:${src.id}:${i}`, { src: src.id, value: 0, mods: t.mods });
+      const fits = t.side === 'enemy' ? hostile(u) : u.kind === KIND.OPERATOR && whoFits(t, c.operators[u.key]) && !(t.others && u === src);
+      const there = t.area ? onArea(src, u, t.area, t.rotate) : inKeys(u, keys, grid);
+      if (fits && there && (!t.when || UNIT_WHEN[t.when.when](w, u, t.when.value ?? 0, src))) want.get(u)?.set(`range:${src.id}:${i}`, { src: src.id, value: 0, mods: t.mods });
     }
   });
 }
@@ -315,6 +325,8 @@ export function auras(w, c) {
   for (const src of ops) {
     regenAura(c, src, ops, want);
     fieldRegen(c, src, ops, want);
+    fieldBuffs(w, c, src, ops, want);
+    stackShare(c, src, ops, want);
     fieldTalents(w, c, src, ops, want);
     fieldAspd(c, src, units, want);
     rangeTalents(w, c, src, units, want);

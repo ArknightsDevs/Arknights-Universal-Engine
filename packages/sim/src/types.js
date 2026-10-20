@@ -348,7 +348,27 @@
  *   around it (职业-31)
  * @property {{ scale: number, stun: number, again: string } | null} deployBlast as it is deployed, true damage and 晕眩 on the
  *   enemies on its tile and the 4 next to it (职业-31)
+ * @property {FieldBuff[]} fieldBuffs buffs for the friendly units on the field it is for, while it is there (职业-32)
+ * @property {ShareGain | null} shareGain a gain it shares with units chosen at random (职业-32)
+ * @property {{ power: string, mods: Record<string, number> } | null} stackShare its stack marked `shared` given to the other
+ *   units of a faction, × its steps (职业-32)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
+ */
+/**
+ * A buff a talent gives the field (职业-32): for the units that are melee (近战位 or both), block at least `minBlock`, are
+ * of the rarity, have an ammo skill, are of the profession, the faction or one of `powers`, have more than `hpAbove`
+ * of their maximum HP; with `needOther`, only while another operator of the profession is on the field; × `afterMul`
+ * once the holder has been on the field `after` seconds; × the `double`'s `mul` for a unit of its faction.
+ * @typedef {{ mods: Record<string, number>, flags?: Record<string, boolean>, melee?: boolean, minBlock?: number, rarity?: number, ammo?: boolean,
+ *   profession?: string, power?: string, powers?: string[], hpAbove?: number, needOther?: boolean, after?: number, afterMul?: number,
+ *   double?: { power: string, mul: number } }} FieldBuff
+ */
+/**
+ * A gain a talent shares (职业-32): `mods` for `count` operators (not summons) on the field of the profession or faction,
+ * with an ammo skill, in the holder's range — each as asked —, chosen at random as the holder is deployed or after
+ * `after` seconds, the ones left for operators that arrive later; the holder too once it has shared with one (`self`).
+ * @typedef {{ mods: Record<string, number>, count: number, profession?: string, power?: string, ammo?: boolean, inRange?: boolean, self?: boolean,
+ *   after?: number }} ShareGain
  */
 /**
  * A cut of deploy cost by a talent (部署-10, 职业-30): `value` added to the cost of the cards of a profession or faction —
@@ -373,7 +393,8 @@
  * A talent's steps (干员-20, 职业-25): for its kills (its summons' too with `summons`) or the damage it deals (physical
  * only with `phys`), a step every `every` of them (1 by default), at most `max` steps, each with `mods`; the steps last
  * `seconds` from the last one when it has them; for an enemy's burst of `el` in its attack range (`burst`, 职业-29).
- * @typedef {{ on: 'kill' | 'dealt' | 'burst', mods: Record<string, number>, max: number, every?: number, seconds?: number, phys?: boolean, summons?: boolean, el?: string }} TalentStack
+ * @typedef {{ on: 'kill' | 'dealt' | 'burst', mods: Record<string, number>, max: number, every?: number, seconds?: number, phys?: boolean, summons?: boolean, el?: string,
+ *   shared?: boolean }} TalentStack
  */
 /**
  * SP a talent gives on an event (干员-21, 职业-25): `sp` to the operator — or, on a heal, to the one healed —, `other`
@@ -420,12 +441,19 @@
  * took its HP since its deployment (`neverHurt`); a 隐匿 enemy is in its own range (`stealthEnemies`); its skill runs or
  * ended less than `value` seconds ago (`skillOrAfter`); its skill does not run and has at most `value` of its SP cap
  * (`lowSp`); at least `value` enemies, or fewer, stand on its tile and the 8 around it (`enemiesNear`, `fewEnemiesNear`).
+ * From 职业-32: another operator of the faction `power` — or only others — on a tile of its range or its summons'
+ * (`rangeAlly`, `rangeAllyOnly`); at least `value` friendly units on the 8 tiles around it (`alliesNear`); at least
+ * `value` enemies blocked beyond the first (`blockedExtra`); at least `value` operators of the faction on the field
+ * (`powerOnField`); at least `value` of the 4 tiles next to it 高地 (`highAround`); the map has water, or not
+ * (`waterMap`, `noWaterMap`); on the field for `value` seconds (`onFieldFor`). With `per`, `alliesNear`, `blockedExtra`
+ * and `powerOnField` count those.
  * @typedef {{ when: 'blocking' | 'notBlocking' | 'hpAbove' | 'hpBelow' | 'enemies' | 'groundEnemies' | 'eliteEnemies' | 'burstEnemies'
  *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always' | 'inSkill' | 'alchemy'
  *   | 'blockingAtLeast' | 'lowHpEnemies' | 'noEnemies4' | 'soleEnemy4' | 'aloneUnits4' | 'notInSkill' | 'noKills' | 'fewStarts' | 'laterSkill'
  *   | 'idle' | 'unhurt' | 'calm' | 'highSide' | 'fieldOps' | 'firstDeploy' | 'hpNotBelow' | 'neverHurt' | 'stealthEnemies' | 'skillOrAfter' | 'lowSp'
- *   | 'enemiesNear' | 'fewEnemiesNear',
- *   value?: number, el?: string, per?: number, fresh?: boolean, mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
+ *   | 'enemiesNear' | 'fewEnemiesNear' | 'rangeAlly' | 'rangeAllyOnly' | 'alliesNear' | 'blockedExtra' | 'powerOnField' | 'highAround' | 'waterMap' | 'noWaterMap'
+ *   | 'onFieldFor',
+ *   value?: number, el?: string, power?: string, per?: number, fresh?: boolean, mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
  */
 /**
  * A trait's 倍率 against a target (职业-17): × `atk` on a hit's attack 倍率 (before the target's 防御), × `dmg` on its 伤害倍率,
@@ -475,7 +503,7 @@
  * carried unit's record (符文-6) what its deployment does (`carried`, 装置-6). A summon's record names its owner's key (`summoner`)
  * and how its card works (`summon`, 召唤-3, 召唤-4); `position` ALL lets it stand on melee and ranged tiles.
  * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
- *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, trait?: Partial<TraitDef>, respawnTime?: number, char?: string,
+ *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, rarity?: number, trait?: Partial<TraitDef>, respawnTime?: number, char?: string,
  *   talentBb?: Record<string, number>, talentMods?: Record<string, number>, talentTrait?: Partial<TraitDef>, fieldTalents?: TeamTalent[], fieldAspd?: { ally: number, enemy: number, cnt: number, allyExtra: number, enemyExtra: number },
  *   powers?: string[], rangeTalents?: RangeTalent[],
  *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[], summoner?: string, summon?: SummonDef,
@@ -516,9 +544,11 @@
  */
 /**
  * An in-range talent (部署-6): modifiers for the enemies, or the (ranged, melee, of a profession) operators, in the
- * holder's attack range — or on the tiles of `area` around it —, those for which `when` holds when it has one.
- * @typedef {{ side: 'enemy' | 'ally', ranged: boolean, mods: Record<string, number>, melee?: boolean, profession?: string, area?: Cell[],
- *   when?: { when: 'hpBelow' | 'hpAbove' | 'blocked' | 'normal' | 'flying' | 'epHalf', value?: number } }} RangeTalent
+ * holder's attack range — or on the tiles of `area` around it, turned with it with `rotate` —, those for which `when`
+ * holds when it has one; not the holder with `others`; only while `srcWhen` holds on the holder (职业-32).
+ * @typedef {{ side: 'enemy' | 'ally', ranged: boolean, mods: Record<string, number>, melee?: boolean, profession?: string, professions?: string[], area?: Cell[],
+ *   rotate?: boolean, others?: boolean, srcWhen?: WhileMods['when'],
+ *   when?: { when: 'hpBelow' | 'hpAbove' | 'blocked' | 'normal' | 'flying' | 'epHalf' | 'hpRatioAtMostSrc' | 'sameDir', value?: number } }} RangeTalent
  */
 /**
  * A team talent (部署-5): for the operators of a profession, of one of several (`professions`), of a faction, or every
@@ -526,7 +556,7 @@
  * (同类效果取最高); `skill`: only while its holder's skill runs (true) or does not (false); `after`: only once its holder has
  * been on the field that many seconds.
  * @typedef {({ profession: string } | { professions: string[] } | { power: string } | { all: true })
- *   & { bb: Record<string, number>, mods?: Record<string, number>, max?: boolean, skill?: boolean, after?: number }} TeamTalent
+ *   & { bb: Record<string, number>, mods?: Record<string, number>, max?: boolean, skill?: boolean, after?: number, maxCost?: number }} TeamTalent
  */
 /**
  * Behaviours by key (ADR 0054, 0055): what a skill or a buff does beyond its data. Content brings them; the default is

@@ -11,6 +11,7 @@ import { emit } from './bus.js';
 import { summonLeft, dismissSummons } from './summons.js';
 import { facilitySum, respawnFactor } from './facilities.js';
 import { foeLeave } from './talentfoe.js';
+import { shareLeave } from './talentaround.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Player} Player @typedef {import('./types.js').Card} Card */
@@ -170,11 +171,12 @@ export function giveCuts(w, c, u) {
  * after its 再部署时间 — × its trait's share for its first retreat (职业-21), 20% shorter while a
  * 临时休息舱 is at level 3, none for a retreat in a rest (守御-2, 守御-5) — an operator devoured is locked instead, with
  * none (敌能-30); a retreat sets its seat's cut for the next operator by its trait's, the larger one kept (部署-10). A
- * summon has its own card (召唤-4). Either way the marks it left go first (foeLeave, 职业-28).
+ * summon has its own card (召唤-4). Either way the marks it left (foeLeave, 职业-28) and its shares (shareLeave, 职业-32) go first.
  * @param {World} w @param {Content} c @param {Unit} u @param {boolean} retreated
  */
 export function leaveField(w, c, u, retreated) {
   foeLeave(w, u);
+  shareLeave(w, u);
   if (c.operators[u.key].summon) {
     summonLeft(w, c, u);
     return;

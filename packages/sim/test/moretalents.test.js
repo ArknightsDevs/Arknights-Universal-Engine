@@ -181,11 +181,14 @@ test('[职业-31] conditions: until hurt, while its skill runs and seconds after
   assert.ok(!on().includes(1), '300');
 });
 
-test('[职业-31] a regen for every friendly unit of any seat: a share of its attack', () => {
+test('[职业-31] a regen for every friendly unit of any seat: a share of its attack, gone as it leaves', () => {
   const { w, c, deploy, ally } = arena({ talentTrait: { fieldRegen: 0.055 } });
   const g = deploy(), u = ally('sniper', 0, 2);
   auras(w, c);
   assert.deepEqual([u, g].map((x) => x.buffs.find((b) => b.key === `fieldRegen:${g.id}`)?.mods), [{ hpRegen: 0.055 * 50 }, { hpRegen: 0.055 * 50 }]);
+  withdraw(w, c, g);
+  auras(w, c);
+  assert.equal(u.buffs.some((b) => b.key === `fieldRegen:${g.id}`), false, 'gone with it');
 });
 
 test('[职业-31] [攻击-4] a chance talent\'s chance while the skill runs', () => {

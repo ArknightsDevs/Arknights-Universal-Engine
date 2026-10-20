@@ -170,17 +170,23 @@ async function summonsOf(id, build, seat, blockAdd, kit) {
   return Object.fromEntries(recs);
 }
 
+/** Adds modifiers to others: a product's (…Mul) multiplied, the rest summed. @param {Record<string, number>} to @param {Record<string, number>} add */
+function addMods(to, add) {
+  for (const [k, v] of Object.entries(add)) to[k] = k.endsWith('Mul') ? (to[k] ?? 1) * v : (to[k] ?? 0) + v;
+}
+
 /**
- * An operator with its deck's team talents (干员-9): each one for its profession or one of its factions adds its
- * 部署费用 (not below 0), its 初始技力 to the skill's initial SP, and its other keys to `talentBb`.
+ * An operator with its deck's team talents (干员-9): each one for its profession or one of its factions — and, with a
+ * `maxCost`, for an operator whose deploy cost is at most that (干员-31) — adds its 部署费用 (not below 0), its 初始技力
+ * to the skill's initial SP, its other keys to `talentBb` and its effects to `talentMods` (a product's multiplied).
  * @param {import('@aue/sim').OperatorDef} op @param {import('@aue/sim').TeamTalent[]} team
  * @returns {import('@aue/sim').OperatorDef}
  */
 function withDeckTalents(op, team) {
-  const mine = team.filter((p) => teamFits(p, op));
+  const mine = team.filter((p) => teamFits(p, op) && (p.maxCost === undefined || op.cost <= p.maxCost));
   if (mine.length === 0) return op;
   /** @type {Record<string, number>} */
-  const bb = { ...op.talentBb };
+  const bb = { ...op.talentBb }, mods = { ...op.talentMods };
   let cost = op.cost, sp = 0;
   for (const p of mine) {
     for (const [k, v] of Object.entries(p.bb)) {
@@ -188,8 +194,10 @@ function withDeckTalents(op, team) {
       else if (k === 'sp') sp += v;
       else bb[k] = (bb[k] ?? 0) + v;
     }
+    addMods(mods, p.mods ?? {});
   }
-  return { ...op, cost: Math.max(0, cost), ...(Object.keys(bb).length ? { talentBb: bb } : {}), ...(op.skill && sp ? { skill: { ...op.skill, init: op.skill.init + sp } } : {}) };
+  return { ...op, cost: Math.max(0, cost), ...(Object.keys(bb).length ? { talentBb: bb } : {}), ...(Object.keys(mods).length ? { talentMods: mods } : {}),
+    ...(op.skill && sp ? { skill: { ...op.skill, init: op.skill.init + sp } } : {}) };
 }
 
 /** Where the attack timings come from: the skeletons' sources (攻击-2). */
