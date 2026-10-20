@@ -599,3 +599,35 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 由模拟按 职业-33 生效。
 
 - 来源：数据：character_table 的天赋文字与 blackboard，如焰影苇草、安赛尔（`attack@prob`）、斑点、流明、明椒、医生（`dec_rate`、`scale`）、莎草（`attack@scale`、`attack@shield_duration`）、岳羽由加莉（`max_target`）、絮雨、休谟斯（`max_hp_ratio`）、刺玫；PRTS 页面见 职业-33
+
+### 干员-33 攻击与状态的天赋
+
+天赋（含模组的升级）的整段描述（去掉标签和括号里的部分）是下列之一、blackboard 有它要的键时，它加到特性（`talentTrait`）、几率天赋（`critTalents`，干员-12）或范围天赋（`rangeTalents`，部署-6）。<势力> 是 干员-10 的势力名称：
+
+| 描述 | 加到 |
+|---|---|
+| 攻击相同目标时每次攻击可提高自身攻击力N%，最多可叠加M层。更换目标会失去之前叠加的效果 | 同一目标的叠加（`sameTarget`）：攻击力直接乘算 + `atk`，至多 `max_stack_cnt` 层 |
+| 攻击时有N%的几率使目标束缚M秒，不以束缚状态的敌人为攻击目标 | 命中效果（`onHit`，干员-19）：几率 `prob`，束缚 `duration` 秒；不选的状态（`skipStatus`）束缚 |
+| 攻击原本攻击范围以外的目标时，有N%的几率使其晕眩M秒 | 命中效果：原本攻击范围以外（`beyondRange`），几率 `buff_prob`，晕眩 `stun` 秒 |
+| 敌人攻击<名字>后，攻击力下降N%，持续M秒 | 攻击者的减益（`attackerMods`）：攻击力直接乘算 + `atk`，`duration` 秒 |
+| 稍微延长特性停顿的持续时间 | 停顿延长（`hitStatusPlus`）`sluggish` 秒 |
+| 储存的攻击能量造成的伤害提升至N% | 攻击能量的倍率（`energyScale`）`atk_scale` |
+| 每次攻击时有N%概率触发下列效果之一：攻击变为二连击；目标晕眩M秒；攻击无视目标防御力的K% | 几率天赋：几率 `prob`，三选一（`pick`）：次数 × 2、晕眩 `stun` 秒、无视防御 `def_penetrate` |
+| 上场后每击倒过一种敌人，自身造成的伤害+N%，最多叠加M次 | 敌人种类的叠加（`kindStack`）：伤害倍率 × (1 + `damage_scale`)，至多 `max_stack_cnt` 层 |
+| 击倒敌人后，<名字>攻击所有同名敌人时无视其N%防御力 | 记下击倒的种类（`slainKinds`）；目标倍率（`vs`）`slainKind`：无视防御 `def_penetrate` |
+| 开启技能时，派出<名字>进行攻击，造成相当于攻击力N%的物理伤害和M秒寒冷 | 技能开始的一击（`skillStrike`）：`atk_scale`，寒冷 `cold` 秒 |
+| 攻击时有N%概率使当次攻击力提升至M%，自身在场时，【<势力>】干员周围4格内每有一个敌人倒下，攻击力提升额外提升K% | 几率天赋：几率 `prob`，倍率 `atk_scale`，增长（`grow`）：这个势力，每个 + `atk_up_each_time`，至多 `atk_up_max_value` |
+| 通过部署、开启技能、使用装备应变消耗费用后，攻击力+N%，使攻击范围内的敌人晕眩M秒 | 消耗费用的增益（`spendBoost`）：攻击力直接乘算 + `atk`，至多 `max_stack_cnt` 层，晕眩 `stun` 秒 |
+| 对敌人造成停顿效果时，自身的攻击速度+N，最多叠加M次 | 叠加（干员-20）`status` 停顿：攻击速度 + `attack_speed`，至多 `max_stack_cnt` 层 |
+| 攻击范围内的敌人受到N%的脆弱效果，敌人在<名字>的攻击范围内停留超过M秒后，脆弱效果提升至K% | 停留的脆弱（`stayVuln`）：以 `].damage_scale`、`].interval`、`].damage_scale_max` 结尾的值 |
+| 攻击范围内被停顿的敌人在下一瞬间起还会受到等长时间的N%的脆弱效果 | 范围天赋：敌人，条件 `sluggish`：受到伤害倍率 × `damage_scale` |
+| 攻击造成N秒寒冷；范围内寒冷的敌人受到M%的脆弱，范围内冻结的敌人脆弱效果提升至2倍 | 命中效果：寒冷 `cold` 秒；范围天赋：敌人，`coldOnly`：× `damage_scale_cold`，`frozen`：× `damage_scale_freeze` |
+| 攻击范围内敌人的隐匿效果失效 | 范围天赋：敌人，标记 `unstealth` |
+| 非技能期间，连续攻击N次后自身获得攻击力+M%（括号里「最多K层」） | 连击（`combo`）：`hit_num` 次、间隔 `attack@clear_attackcount_time` 秒，攻击力直接乘算 + `atk`，至多 K 层 |
+| 造成致命伤害时使敌人保留1点生命并使其重伤；<名字>不攻击重伤单位 | 不致命（`nonLethal`）：重伤 `interval` 秒，击杀者技力 `sp` |
+| 在地面时防御力+N%，起飞后攻击敌人时攻击力提升至M% | 条件增益 `grounded`：防御直接乘算 + `def`；`liftoff`：攻击倍率 × `atk_scale` |
+| 特性攻击力提升至最高时，每次攻击额外追加一次N%攻击力的攻击 | 满蓄力的附加（`chargedRider`）`atk_scale` |
+
+由模拟按 职业-34 生效。
+
+- 来源：数据：character_table 的天赋文字与 blackboard，如猎蜂、深靛、安比尔（`buff_prob`）、泡泡、地灵（`sluggish`）、爱丽丝、空构（`def_penetrate`）、吉星、莱欧斯、雪猎、达格达（`atk_up_each_time`、`atk_up_max_value`）、哈蒂娅、溯光星源（`halo2_t_1[weak].damage_scale_max`）、铃兰、灵知、银灰、火龙S黑角（`hit_num`）、罗小黑、矩、云迹、骋风；PRTS 页面见 职业-34

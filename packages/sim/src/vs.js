@@ -58,6 +58,7 @@ const WHEN = Object.freeze({
   rangedFoe: (_w, _op, t) => t.kind === KIND.ENEMY && t.base.applyWay === 'RANGED',
   status: (_w, _op, t, v) => !!v.x.status && !!statsOf(t).flags[v.x.status],
   abnormal: (_w, _op, t) => t.buffs.some((b) => b.resist),
+  slainKind: (w, op, t) => (w.players[op.owner]?.slain?.[op.key] ?? []).includes(t.key),
   hpFull: (_w, _op, t) => t.hp >= statsOf(t).maxHp,
   still: (_w, _op, t) => standsStill(t),
   statusAny: (_w, _op, t, v) => (v.x.statuses ?? []).some((k) => hasStatus(t, k)),

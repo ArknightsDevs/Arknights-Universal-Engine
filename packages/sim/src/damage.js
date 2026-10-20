@@ -12,6 +12,8 @@ import { emit, hasHook } from './bus.js';
 import { worksMul } from './works.js';
 import { inflict } from './status.js';
 import { damageFloor } from './talentmore.js';
+import { nonLethalCap } from './talentfight.js';
+import { stealthed } from './targeting.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').DamageType} DamageType */
@@ -244,7 +246,7 @@ function judged(w, u, src, c) {
 /** Whether a talent's status reaches the enemy that hurt it (职业-27): one with HP, not invincible, 隐匿 or 无法选中. @param {Unit} e */
 function reachable(e) {
   const f = statsOf(e).flags;
-  return e.kind === KIND.ENEMY && e.hp > 0 && !f.invincible && !f.stealth && !f.untargetable;
+  return e.kind === KIND.ENEMY && e.hp > 0 && !f.invincible && !stealthed(f) && !f.untargetable;
 }
 
 /** A dodge or a miss (伤害-8): the `dodge` event (钩子-3), and one more on the target's `dodges` tracker (职业-26). @param {World} w @param {Unit} u @param {Unit | null} src @param {Damage} dmg */
@@ -319,7 +321,7 @@ function settle(dmg) {
  */
 function untouchable(target, dmg) {
   const f = statsOf(target).flags;
-  return !!(f.invincible || (f.sleep && !(dmg.throughSleep && !f.stealth && !f.untargetable)));
+  return !!(f.invincible || (f.sleep && !(dmg.throughSleep && !stealthed(f) && !f.untargetable)));
 }
 
 /**
@@ -374,10 +376,11 @@ function runeSp(w, c, src) {
 const tagsOf = (c, src) => (c && src && src.kind === KIND.ENEMY ? /** @type {{ tags?: string[] }} */ (c.enemies[src.key] ?? {}).tags ?? [] : []);
 
 /**
- * An attack's hit after the defences, not below its source's floor (职业-31: damageFloor; given the content).
+ * An attack's hit after the defences, not below its source's floor (职业-31: damageFloor), nor above what its source may
+ * take without killing (职业-34: nonLethalCap); given the content.
  * @param {import('./types.js').Content | undefined} c @param {Unit | null} seen @param {Unit} target @param {Damage} dmg @param {number} amount
  */
-const floored = (c, seen, target, dmg, amount) => (c && seen && dmg.isAttack ? Math.max(amount, damageFloor(c, seen, target)) : amount);
+const floored = (c, seen, target, dmg, amount) => (c && seen ? nonLethalCap(c, seen, target, dmg.isAttack ? Math.max(amount, damageFloor(c, seen, target)) : amount) : amount);
 
 /**
  * Deals a hit (伤害-7): nothing to a unit already at 0 HP; 生命流失 goes straight to the HP; nothing to an invincible

@@ -31,6 +31,7 @@ import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_C
 import { talentSp, hurtAttackSp } from './talentfx.js';
 import { epHealMul } from './talentmore.js';
 import { healMore } from './talentheal.js';
+import { sameTargetStep, attackerHit, critScale } from './talentfight.js';
 import { timedAttack, attackEnded } from './talenttime.js';
 import { lowestArts } from './talentfoe.js';
 import { palsyCut, epOnHit, healDotOn } from './talentelem.js';
@@ -62,11 +63,21 @@ export function targetsOf(w, c, op) {
   if (healsNow(c, op)) return healOrder(c, op, w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && inKeys(u, keys, grid) && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal));
   const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id, air = t.idleAirOnly && !inSkill(op), sleep = t.hurtSleeping;
   const any = { canHitFly: true, canHitSleep: sleep, canHitStealth: t.seeStealth }, sel = { canHitFly: t.antiAir || !!dollNow(c, op)?.antiAir, canHitSleep: sleep, canHitStealth: t.seeStealth };
-  const bySummon = t.summonBlocked ? summonHeld(w, op) : () => false, skip = traitSkip(w, c, op);
+  const bySummon = t.summonBlocked ? summonHeld(w, op) : () => false, skip = talentSkip(c, op, traitSkip(w, c, op));
   const cands = w.units.filter((u) => hostile(u)
     && ((held(u) && selectable(u, any)) || ((bySummon(u) || (inKeys(u, keys, grid) && (!air || statsOf(u).flying))) && selectable(u, sel))) && !skip?.(u));
   const prefer = t.prefer.map((p) => (/** @type {Unit} */ e) => (p.status ? !!statsOf(e).flags[p.status] : !!p.tag && tagsOf(c, e).includes(p.tag)));
   return fortressTargets(w, c, op, sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary, prefer }));
+}
+
+/**
+ * The targets an operator's talents leave alone (职业-34), with its trait's: those under its `skipStatus`, the 重伤 ones
+ * for a `nonLethal` one. @param {Content} c @param {Unit} op @param {((u: Unit) => boolean) | null | undefined} skip
+ */
+function talentSkip(c, op, skip) {
+  const t = traitOf(c, op), status = t.skipStatus, dying = !!t.nonLethal;
+  if (!status && !dying) return skip;
+  return (/** @type {Unit} */ u) => !!skip?.(u) || (!!status && !!statsOf(u).flags[status]) || (dying && !!statsOf(u).flags.dying);
 }
 
 /**
@@ -162,6 +173,7 @@ function ridesOn(w, c, h, dmg, dealt) {
     if (!load.hit) hitSp(c, src, t);
   } else if (src && t.kind === KIND.OPERATOR) {
     attacked(w, c, t, src, dmg);
+    attackerHit(c, t, src);
     if (dealt > 0 && t.hp > 0) talentSp(w, c, t, 'attacked');
   }
 }
@@ -384,7 +396,7 @@ function land(w, c, a) {
  */
 function operatorLanded(w, c, a, how) {
   const first = w.units.find((u) => u.id === how.sw.targets[0] && u.hp > 0 && !u.hidden);
-  if (first && !how.heals) releaseEnergy(w, a, first);
+  if (first && !how.heals) releaseEnergy(w, a, first, traitOf(c, a).energyScale);
   if (!how.heals && how.reached > 0) talentSp(w, c, a, 'attack');
   if (how.reached > 0) hurtAttackSp(w, c, a);
   if (!how.heals) lowestArts(w, c, a, how.sw.targets);
@@ -494,7 +506,9 @@ function operatorAttack(w, c, op) {
 function armed(w, c, op, mods) {
   const t = traitOf(c, op), most = mods.blocked ? Math.max(1, statsOf(op).blockCnt) : Math.max(mods.targets, traitTargets(t, op)) + (mods.more ?? 0);
   const arts = ((t.skillArts && op.skill?.active) || dollNow(c, op)?.arts) && !mods.type ? { type: /** @type {const} */ ('arts') } : {};
-  return { targets: firstN(targetsOf(w, c, op), most), mods: modeMods(c, op, { ...mods, times: mods.times * t.hits, ...arts }) };
+  const targets = firstN(targetsOf(w, c, op), most);
+  sameTargetStep(c, op, targets[0]);
+  return { targets, mods: modeMods(c, op, { ...mods, times: mods.times * t.hits, ...arts }) };
 }
 
 /**
@@ -517,6 +531,16 @@ export function attackNow(w, c, op, given = null, o = {}) {
   return true;
 }
 
+/**
+ * One of a chance talent's effects at random (攻击-4, 职业-34: 空构): one draw (随机-1) picks it — more hits, a stun, 防御
+ * ignored. @param {World} w @param {AttackMods} out @param {NonNullable<import('./types.js').CritTalent['pick']>} pick @returns {AttackMods}
+ */
+function picked(w, out, pick) {
+  const k = pick[Math.min(pick.length - 1, Math.floor(draw(w) * pick.length))];
+  return { ...out, ...(k.times ? { times: out.times * k.times } : {}), ...(k.stun ? { hitStatus: { key: 'stun', seconds: k.stun } } : {}),
+    ...(k.ignoreDef ? { ignoreDef: Math.max(out.ignoreDef ?? 0, k.ignoreDef) } : {}) };
+}
+
 /** A chance talent's chance now (攻击-4): its `skillProb` while the skill runs, when it has one. @param {Unit} op @param {import('./types.js').CritTalent} k */
 const chanceOf = (op, k) => (k.skillProb !== undefined && inSkill(op) ? k.skillProb : k.prob);
 
@@ -532,7 +556,8 @@ function critMods(w, c, op, mods) {
   if (mods.heal || healerNow(c, op)) return healMore(w, c, op, out);
   for (const k of c.operators[op.key].critTalents ?? []) {
     if (draw(w) >= chanceOf(op, k)) continue;
-    out = { ...out, scale: out.scale * k.scale, ...(k.stun ? { hitStatus: { key: 'stun', seconds: k.stun } } : {}), ...(k.more ? { more: (out.more ?? 0) + k.more } : {}),
+    if (k.pick) { out = picked(w, out, k.pick); continue; }
+    out = { ...out, scale: out.scale * critScale(op, k), ...(k.stun ? { hitStatus: { key: 'stun', seconds: k.stun } } : {}), ...(k.more ? { more: (out.more ?? 0) + k.more } : {}),
       ...(k.atk ? { atkPct: (out.atkPct ?? 0) + k.atk } : {}), ...(k.ignoreDef ? { ignoreDef: Math.max(out.ignoreDef ?? 0, k.ignoreDef) } : {}), ...(k.times ? { times: out.times * k.times } : {}) };
   }
   return out;

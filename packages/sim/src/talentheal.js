@@ -14,6 +14,8 @@ import { inKeys } from './targeting.js';
 import { STATUS } from './status.js';
 import { traitOf, traitOfDef } from './traits.js';
 import { healGives } from './talentmore.js';
+import { statusSteps } from './talentfight.js';
+import { statusStep } from './talentfx.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Buff} Buff */
@@ -30,7 +32,7 @@ function needs(c) {
   let n = NEEDS.get(c.operators);
   if (!n) {
     const traits = Object.values(c.operators).map(traitOfDef);
-    n = { heal: traits.some((t) => ON_HEAL.some((k) => !!t[/** @type {keyof typeof t} */ (k)])), status: traits.some((t) => !!t.statusHeal) };
+    n = { heal: traits.some((t) => ON_HEAL.some((k) => !!t[/** @type {keyof typeof t} */ (k)])), status: traits.some((t) => !!t.statusHeal || t.stacks.some((s) => s.on === 'status')) };
     NEEDS.set(c.operators, n);
   }
   return n;
@@ -123,10 +125,12 @@ export const HEAL_BEHAVIORS = Object.freeze({
  * A status about to be taken (职业-33: `statusHeal`): when it is a 可抵抗 one on a friendly unit not at full HP, each
  * operator on the field with the talent whose attack range has a tile of it, its wait over, heals it `scale` × its attack
  * and waits `cooldown` seconds (buff `statusHealCd`).
- * @param {World} w @param {Content} c @param {{ target: Unit, status: string }} ctx
+ * Before that, the source's stacks on the status take a step (statusSteps, 职业-34).
+ * @param {World} w @param {Content} c @param {{ source: Unit | null, target: Unit, status: string }} ctx
  */
 function onStatus(w, c, ctx) {
   const u = ctx.target;
+  statusSteps(c, ctx.source, u, ctx.status, statusStep);
   if (u.kind !== KIND.OPERATOR || u.hp <= 0 || u.hp >= statsOf(u).maxHp || !STATUS[/** @type {keyof typeof STATUS} */ (ctx.status)]?.resist) return;
   const grid = { rows: c.level.height, cols: c.level.width };
   for (const op of w.units) {

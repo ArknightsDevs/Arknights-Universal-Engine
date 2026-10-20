@@ -148,10 +148,10 @@ export function modeMods(c, op, mods) {
  * damage at the first target; then none is left.
  * @param {World} w @param {Unit} a @param {Unit} t
  */
-export function releaseEnergy(w, a, t) {
+export function releaseEnergy(w, a, t, scale = 1) {
   const energy = held(a, 'energy');
   if (!energy || energy.value === 0) return;
-  const amount = statsOf(a).atk;
+  const amount = statsOf(a).atk * scale;
   for (let k = 0; k < energy.value; k++) launch(w, a, t, { type: 'arts', amount, times: 1, element: '', ep: 0 });
   retune(a, energy, 0, {});
 }

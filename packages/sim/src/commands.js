@@ -19,6 +19,7 @@ import { nextToFacility, facilityOf } from './facilities.js';
 import { talentDeploy } from './talentfx.js';
 import { moreDeploy, keepsLast } from './talentmore.js';
 import { shareArrive } from './talentaround.js';
+import { spendBoost } from './talentfight.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -168,6 +169,7 @@ export function arrive(w, c, u, move = false) {
   talentDeploy(w, c, u, first);
   moreDeploy(w, c, u);
   shareArrive(w, c, u);
+  if (!move) spendBoost(w, c, u);
   giveCuts(w, c, u);
   carriedDeploy(w, c, u);
   onDeploy(w, c, u);

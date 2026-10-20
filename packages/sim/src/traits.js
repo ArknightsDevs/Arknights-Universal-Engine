@@ -15,6 +15,8 @@ import { talentKill, talentDealt, dotOnHit } from './talentfx.js';
 import { trackTime } from './talenttime.js';
 import { lifeDeploy } from './talentlife.js';
 import { dealtSp } from './talentmore.js';
+import { fightKill, comboHit, afterNonLethal } from './talentfight.js';
+import { rangeKeys, inKeys } from './targeting.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').TraitDef} TraitDef @typedef {import('./types.js').OperatorDef} OperatorDef */
@@ -36,7 +38,8 @@ export const defaultTrait = (position) => ({
   burstOn: [], pulses: [], palsyHit: 0, epOnHit: 0, healDot: null, startCost: 0, costCuts: [], retreatCut: 0, deployCut: null, costRate: 1, aloneCost: 0, deploySp: [],
   allySkill: null, spPulse: null, hurtAttackSp: 0, deployPick: [], downHeal: [], deployBuff: null, fieldRegen: 0, healGives: null, groundEpHeal: 1, seeStealth: false,
   minDamage: null, deployStun: null, deployBlast: null, fieldBuffs: [], shareGain: null, stackShare: null, healShare: 0, healMore: 0, statusHeal: null, lowHeal: null,
-  overhealBarrier: null, healBarrier: null, skillEndHeal: null, resistRegen: 0, overflowBarrier: 0, bb: {},
+  overhealBarrier: null, healBarrier: null, skillEndHeal: null, resistRegen: 0, overflowBarrier: 0, sameTarget: null, skipStatus: '', attackerMods: null, hitStatusPlus: 0,
+  energyScale: 1, kindStack: null, slainKinds: false, skillStrike: null, spendBoost: null, stayVuln: null, combo: null, nonLethal: null, chargedRider: 0, bb: {},
 });
 
 /**
@@ -66,11 +69,12 @@ function sameFields(o, fields) {
   return i === fields.length;
 }
 
-/** The single fields only talents give (职业-26…职业-33): each the talents' when they have it. */
+/** The single fields only talents give (职业-26…职业-34): each the talents' when they have it. */
 const TALENT_ONLY = Object.freeze(/** @type {const} */ (['rhythm', 'idleShield', 'layers', 'lowHp', 'lastStand', 'frostLife', 'costLife', 'hurt', 'reflect', 'hurtSleeping', 'sleepDot', 'lowestArts', 'palsyHit', 'epOnHit', 'healDot',
   'startCost', 'costCuts', 'retreatCut', 'deployCut', 'costRate', 'aloneCost', 'deploySp', 'allySkill', 'spPulse', 'hurtAttackSp', 'deployPick', 'downHeal', 'deployBuff',
   'fieldRegen', 'healGives', 'groundEpHeal', 'seeStealth', 'minDamage', 'deployStun', 'deployBlast', 'fieldBuffs', 'shareGain', 'stackShare', 'healShare', 'healMore', 'statusHeal',
-  'lowHeal', 'overhealBarrier', 'healBarrier', 'skillEndHeal', 'resistRegen', 'overflowBarrier']));
+  'lowHeal', 'overhealBarrier', 'healBarrier', 'skillEndHeal', 'resistRegen', 'overflowBarrier', 'sameTarget', 'skipStatus', 'attackerMods', 'hitStatusPlus', 'energyScale', 'kindStack',
+  'slainKinds', 'skillStrike', 'spendBoost', 'stayVuln', 'combo', 'nonLethal', 'chargedRider']));
 
 /**
  * A trait with what its operator's talents add (职业-24…职业-27, 职业-30): their conditional modifiers, target 倍率, hit
@@ -253,9 +257,15 @@ export function traitDeploy(w, c, op) {
  */
 export function traitHit(w, c, op, target) {
   const t = traitOf(c, op);
-  if (t.hitStatus && target.hp > 0) inflict(w, target, t.hitStatus.key, { seconds: t.hitStatus.seconds, src: op, ...(t.hitStatus.value !== undefined ? { value: t.hitStatus.value } : {}) });
-  t.onHit.forEach((h, i) => talentHit(w, op, target, { h, i }));
+  if (t.hitStatus && target.hp > 0) inflict(w, target, t.hitStatus.key, { seconds: t.hitStatus.seconds + (t.hitStatus.key === 'sluggish' ? t.hitStatusPlus : 0), src: op, ...(t.hitStatus.value !== undefined ? { value: t.hitStatus.value } : {}) });
+  t.onHit.forEach((h, i) => { if (h.when !== 'beyondRange' || !inBaseRange(c, op, target)) talentHit(w, op, target, { h, i }); });
   behaviorOf(c, op)?.hit?.(contextOf(w, c, op), target);
+}
+
+/** Whether a target has a tile in an operator's own range without its extensions (职业-34: 「原本攻击范围」). @param {Content} c @param {Unit} op @param {Unit} t */
+function inBaseRange(c, op, t) {
+  const grid = { rows: c.level.height, cols: c.level.width };
+  return inKeys(t, rangeKeys(grid, op, op.range ?? c.operators[op.key].range, 0), grid);
 }
 
 /**
@@ -284,13 +294,15 @@ function talentHit(w, op, target, { h, i }) {
 }
 
 /**
- * An operator's attack or skill killed an enemy (职业-5, 职业-25): the trait's cost, its talents' kill (talentKill), then its behaviour.
+ * An operator's attack or skill killed an enemy (职业-5, 职业-25): the trait's cost, its talents on kinds and 重伤 (fightKill,
+ * 职业-34), its talents' kill (talentKill), then its behaviour.
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target
  */
 export function traitKill(w, c, op, target) {
   if (op.kind !== KIND.OPERATOR || target.kind !== KIND.ENEMY) return;
   const t = traitOf(c, op);
   if (t.killCost > 0) gainCost(w, c, op.owner, t.killCost);
+  fightKill(w, c, op, target);
   talentKill(w, c, op);
   behaviorOf(c, op)?.kill?.(contextOf(w, c, op), target);
 }
@@ -313,7 +325,7 @@ export function creditedDamage(w, c, op, target, dmg) {
  * An operator's heal for a hit it dealt (职业-9): a trait that heals itself for every hit (`selfHealOn` 'damage', 武者)
  * restores its `selfHeal` once for each hit of its that took HP from an enemy — any hit with it as the source, an
  * attack's or not; 生命流失 and a sourceless hit (伤害-7) aside. Such a hit is also a step of its talents' damage stacks
- * (职业-25) and gives their SP for damage (职业-31).
+ * (职业-25) and gives their SP for damage (职业-31); a run of hits counts it, a blow that may not kill leaves 重伤 (职业-34).
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target @param {{ dmg: import('./damage.js').Damage, taken: number }} hit the hit and the HP it took
  */
 export function traitDealt(w, c, op, target, hit) {
@@ -322,4 +334,6 @@ export function traitDealt(w, c, op, target, hit) {
   if (t.selfHealOn === 'damage' && t.selfHeal > 0) w.events.push({ type: 'heal', id: op.id, target: op.id, amount: heal(w, op, op, t.selfHeal, { trait: true }) });
   if (t.stacks.length) talentDealt(c, op, hit.dmg);
   if (t.talentSp.length) dealtSp(w, c, op);
+  comboHit(w, c, op);
+  afterNonLethal(w, c, op, target);
 }

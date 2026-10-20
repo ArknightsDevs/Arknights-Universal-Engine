@@ -15,6 +15,7 @@ import { tileOf } from './body.js';
 import { traitOf, gainCost } from './traits.js';
 import { downHeals, skillEndStamp } from './talentmore.js';
 import { skillEndHeal } from './talentheal.js';
+import { fightSkillStart, critGrowth } from './talentfight.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').TalentStack} TalentStack @typedef {import('./types.js').TalentSp} TalentSp */
@@ -74,7 +75,7 @@ function tally(op, key) {
  * `starts`), when a condition asks for it; its seat's first start of its card in the battle with a `firstSkillEnd` talent
  * marks it (buff `firstSkill`, the card in the seat's `once`); then every operator on the field with `allySkill` whose
  * attack range has a tile of it gains its SP (阻回 no matter) and its modifiers for its seconds (buff `allySkill`, its
- * time starting again).
+ * time starting again); then what its talents on attacks do (fightSkillStart, 职业-34).
  * @param {World} w @param {Content} c @param {Unit} op
  */
 export function talentSkillStart(w, c, op) {
@@ -93,6 +94,12 @@ export function talentSkillStart(w, c, op) {
     if (b) setLeft(b, left);
     else addBuff(f, makeBuff({ key: 'allySkill', src: f.id, left, mods: { ...x.mods } }));
   }
+  fightSkillStart(w, c, op);
+}
+
+/** A step of an operator's stacks on a status it deals (职业-34). @param {Content} c @param {Unit} op @param {number} i */
+export function statusStep(c, op, i) {
+  stepUp(op, traitOf(c, op).stacks[i], i);
 }
 
 /**
@@ -238,7 +245,8 @@ export function hurtAttackSp(w, c, a) {
 }
 
 /**
- * A unit that fell this frame, for the talents that heal for it (downHeals, 职业-31), then for the talents of the
+ * A unit that fell this frame, for the talents that heal for it (downHeals, 职业-31) and the chances it grows (critGrowth,
+ * 职业-34), then for the talents of the
  * operators that see it in their attack range (职业-25): an enemy
  * gives `enemyDown` SP — the operator's own, then another friendly unit in its range at random —, an operator (not a
  * summon, not itself) `allyDown` SP.
@@ -246,6 +254,7 @@ export function hurtAttackSp(w, c, a) {
  */
 export function talentDeaths(w, c, dead) {
   downHeals(w, c, dead);
+  critGrowth(w, c, dead);
   const on = dead.kind === KIND.ENEMY ? 'enemyDown' : dead.kind === KIND.OPERATOR && dead.summoner === undefined ? 'allyDown' : null;
   if (!on) return;
   const grid = { rows: c.level.height, cols: c.level.width };

@@ -41,6 +41,7 @@ export const STATUS = Object.freeze({
   enemyFreeze: status({ flags: { freeze: true }, resist: true }),
   sleep: status({ flags: { sleep: true } }),
   root: status({ flags: { root: true } }),
+  dying: status({ flags: { dying: true, unblockable: true, healFree: true }, mods: () => ({ moveMul: 0.2 }) }),
   sluggish: status({ mods: () => ({ moveMul: 0.2 }) }),
   fragile: status(valued((v) => ({ dmgTakenMul: 1 + v }))),
   artsFragile: status(valued((v) => ({ artsTakenMul: 1 + v }))),

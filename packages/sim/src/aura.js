@@ -18,6 +18,7 @@ import { alchemyDef, inAlchemy, groundFoe } from './alchemy.js';
 import { ELEMENTS, epOf } from './elements.js';
 import { holdsWhen } from './whiles.js';
 import { fieldBuffs, stackShare } from './talentaround.js';
+import { stayVuln } from './talentfight.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /**
@@ -26,7 +27,7 @@ import { fieldBuffs, stackShare } from './talentaround.js';
  */
 
 /** The keys of the aura buffs. */
-const AURA_KEYS = /^(?:aura|field|range|doll|mod|ally|inspire|alchemy|aspd|fieldRegen|fieldBuff|stackShare|resistRegen):/;
+const AURA_KEYS = /^(?:aura|field|range|doll|mod|ally|inspire|alchemy|aspd|fieldRegen|fieldBuff|stackShare|resistRegen|stayVuln):/;
 /** Whether a buff is an aura's. @param {{ key: string }} b */
 const isAura = (b) => AURA_KEYS.test(b.key);
 
@@ -170,7 +171,7 @@ const inBlock = (w, u) => u.blockedBy >= 0 || w.units.some((x) => x.blockedBy ==
  * blocking), an ordinary enemy (not elite nor leader), flying, an element value below half its maximum (职业-29); a
  * share of its maximum HP at most the source's (`hpRatioAtMostSrc`), facing the source's way (`sameDir`, 职业-32); the
  * operator with the highest maximum HP of those with a tile in the source's range, the first by id of equal ones
- * (`maxHpHighest`, 职业-33).
+ * (`maxHpHighest`, 职业-33); 停顿 (`sluggish`), 寒冷 but not 冻结 (`coldOnly`), 冻结 (`frozen`, 职业-34).
  * @type {Readonly<Record<NonNullable<import('./types.js').RangeTalent['when']>['when'], (w: World, u: Unit, v: number, src: Unit, c: Content) => boolean>>}
  */
 const UNIT_WHEN = Object.freeze({
@@ -183,7 +184,13 @@ const UNIT_WHEN = Object.freeze({
   hpRatioAtMostSrc: (_w, u, _v, src) => u.hp / statsOf(u).maxHp <= src.hp / statsOf(src).maxHp,
   sameDir: (_w, u, _v, src) => normDir(u.dir) === normDir(src.dir),
   maxHpHighest: (w, u, _v, src, c) => sturdiest(w, c, src) === u,
+  sluggish: (_w, u) => holdsStatus(u, 'sluggish'),
+  coldOnly: (_w, u) => !statsOf(u).flags.freeze && (holdsStatus(u, 'cold') || holdsStatus(u, 'enemyCold')),
+  frozen: (_w, u) => !!statsOf(u).flags.freeze,
 });
+
+/** Whether a unit holds a status it is not immune to (职业-34). @param {Unit} u @param {string} key */
+const holdsStatus = (u, key) => !statsOf(u).flags[`immune:${key}`] && u.buffs.some((b) => b.key === key);
 
 /** The operator with the highest maximum HP of those with a tile in a source's range, the first by id of equal ones (职业-33). @param {World} w @param {Content} c @param {Unit} src */
 function sturdiest(w, c, src) {
@@ -217,11 +224,19 @@ function rangeTalents(w, c, src, units, want) {
   talents.forEach((t, i) => {
     if (t.srcWhen && !holdsWhen(w, c, src, t.srcWhen)) return;
     for (const u of units) {
-      const fits = t.side === 'enemy' ? hostile(u) : u.kind === KIND.OPERATOR && whoFits(t, c.operators[u.key]) && !(t.others && u === src);
       const there = t.area ? onArea(src, u, t.area, t.rotate) : inKeys(u, keys, grid);
-      if (fits && there && (!t.when || UNIT_WHEN[t.when.when](w, u, t.when.value ?? 0, src, c))) want.get(u)?.set(`range:${src.id}:${i}`, { src: src.id, value: 0, mods: t.mods });
+      if (there && rangeFits(w, c, src, t, u)) want.get(u)?.set(`range:${src.id}:${i}`, { src: src.id, value: 0, mods: t.mods, ...(t.flags ? { flags: t.flags } : {}) });
     }
   });
+}
+
+/**
+ * Whether an in-range talent is for a unit there (部署-6): an enemy, or an operator it is for (whoFits; not the source
+ * with `others`), for which its condition holds. @param {World} w @param {Content} c @param {Unit} src @param {import('./types.js').RangeTalent} t @param {Unit} u
+ */
+function rangeFits(w, c, src, t, u) {
+  const fits = t.side === 'enemy' ? hostile(u) : u.kind === KIND.OPERATOR && whoFits(t, c.operators[u.key]) && !(t.others && u === src);
+  return fits && (!t.when || UNIT_WHEN[t.when.when](w, u, t.when.value ?? 0, src, c));
 }
 
 /**
@@ -353,6 +368,7 @@ export function auras(w, c) {
     fieldBuffs(w, c, src, ops, want);
     stackShare(c, src, ops, want);
     resistRegen(c, src, ops, want);
+    stayVuln(w, c, src, units, want);
     fieldTalents(w, c, src, ops, want);
     fieldAspd(c, src, units, want);
     rangeTalents(w, c, src, units, want);

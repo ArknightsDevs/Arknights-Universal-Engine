@@ -364,6 +364,26 @@
  *   most `max` units in its range (职业-33)
  * @property {number} resistRegen the units with 抵抗 in its range gain 生命回复速度 of this share of its attack (职业-33)
  * @property {number} overflowBarrier a heal beyond its maximum HP becomes its 屏障, at most this share of its maximum HP (职业-33)
+ * @property {{ max: number, mods: Record<string, number> } | null} sameTarget a step of `mods` for each attack on the same target
+ *   as its last, at most `max`, gone for another target (职业-34)
+ * @property {string} skipStatus its attack leaves enemies under this status alone (职业-34)
+ * @property {{ seconds: number, mods: Record<string, number> } | null} attackerMods an enemy whose attack hit it gets `mods` for
+ *   `seconds` (职业-34)
+ * @property {number} hitStatusPlus seconds more of its trait's 停顿 (职业-34)
+ * @property {number} energyScale × its stored energy's damage (职业-34)
+ * @property {{ max: number, mods: Record<string, number> } | null} kindStack a step of `mods` for each kind of enemy it killed since
+ *   its deployment, at most `max` (职业-34)
+ * @property {boolean} slainKinds its seat keeps the kinds of enemy its card killed (职业-34)
+ * @property {{ scale: number, cold: number } | null} skillStrike as its skill starts, physical damage and 寒冷 on its first target (职业-34)
+ * @property {{ max: number, mods: Record<string, number>, stun: number } | null} spendBoost as it spends cost, a step of `mods` (at
+ *   most `max`) and 晕眩 on the ground enemies in its range (职业-34)
+ * @property {{ base: number, after: number, max: number } | null} stayVuln the enemies in its range take × `base`, × `max` once they
+ *   stayed `after` seconds (职业-34)
+ * @property {{ hits: number, gap: number, max: number, mods: Record<string, number> } | null} combo outside its skill, a step of `mods`
+ *   for each `hits` hits less than `gap` seconds apart, at most `max` (职业-34)
+ * @property {{ seconds: number, sp: number } | null} nonLethal its hits do not kill an enemy, leaving it 重伤 for `seconds`, its
+ *   killer to gain `sp` (职业-34)
+ * @property {number} chargedRider at its full charge, each hit of its also deals physical damage of this share of its attack (职业-34)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
  */
 /**
@@ -405,8 +425,8 @@
  * A talent's steps (干员-20, 职业-25): for its kills (its summons' too with `summons`) or the damage it deals (physical
  * only with `phys`), a step every `every` of them (1 by default), at most `max` steps, each with `mods`; the steps last
  * `seconds` from the last one when it has them; for an enemy's burst of `el` in its attack range (`burst`, 职业-29).
- * @typedef {{ on: 'kill' | 'dealt' | 'burst', mods: Record<string, number>, max: number, every?: number, seconds?: number, phys?: boolean, summons?: boolean, el?: string,
- *   shared?: boolean }} TalentStack
+ * @typedef {{ on: 'kill' | 'dealt' | 'burst' | 'status', mods: Record<string, number>, max: number, every?: number, seconds?: number, phys?: boolean, summons?: boolean, el?: string,
+ *   shared?: boolean, status?: string }} TalentStack
  */
 /**
  * SP a talent gives on an event (干员-21, 职业-25): `sp` to the operator — or, on a heal, to the one healed —, `other`
@@ -422,7 +442,7 @@
  * at the chance `prob` when it has one; only on the first hit on each enemy with `first`; only on a target blocked by no
  * unit with `when` 'unblocked'.
  * @typedef {{ status?: { key: import('./status.js').StatusKey, seconds: number, value?: number }, debuff?: { seconds: number, mods: Record<string, number> },
- *   dot?: { amount?: number, scale?: number, seconds: number }, prob?: number, first?: boolean, when?: 'unblocked' }} TalentHit
+ *   dot?: { amount?: number, scale?: number, seconds: number }, prob?: number, first?: boolean, when?: 'unblocked' | 'beyondRange' }} TalentHit
  */
 /**
  * Modifiers or flags an operator's trait gives other units (职业-20): the enemies it blocks (`blocked`), those its own
@@ -464,7 +484,7 @@
  *   | 'blockingAtLeast' | 'lowHpEnemies' | 'noEnemies4' | 'soleEnemy4' | 'aloneUnits4' | 'notInSkill' | 'noKills' | 'fewStarts' | 'laterSkill'
  *   | 'idle' | 'unhurt' | 'calm' | 'highSide' | 'fieldOps' | 'firstDeploy' | 'hpNotBelow' | 'neverHurt' | 'stealthEnemies' | 'skillOrAfter' | 'lowSp'
  *   | 'enemiesNear' | 'fewEnemiesNear' | 'rangeAlly' | 'rangeAllyOnly' | 'alliesNear' | 'blockedExtra' | 'powerOnField' | 'highAround' | 'waterMap' | 'noWaterMap'
- *   | 'onFieldFor',
+ *   | 'onFieldFor' | 'liftoff' | 'grounded',
  *   value?: number, el?: string, power?: string, per?: number, fresh?: boolean, mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
  */
 /**
@@ -485,7 +505,7 @@
  * the target is in the burst of `el` (`burstOf`); `post` its condition checked after the hit; after the hit elemental
  * damage of `burstDot` × the attack each second while that burst lasts, or 元素损伤 over time `epDot`.
  * @typedef {{ when: 'blocked' | 'flying' | 'skillGround' | 'hpBelow' | 'heavy' | 'front' | 'near' | 'burst' | 'onGround' | 'skill' | 'elite'
- *   | 'unblocked' | 'notOwnBlocked' | 'hpAbove' | 'light' | 'tag' | 'rangedFoe' | 'status' | 'abnormal' | 'hpFull' | 'still' | 'statusAny' | 'first' | 'burstOf',
+ *   | 'unblocked' | 'notOwnBlocked' | 'hpAbove' | 'light' | 'tag' | 'rangedFoe' | 'status' | 'abnormal' | 'hpFull' | 'still' | 'statusAny' | 'first' | 'burstOf' | 'slainKind',
  *   atk?: number, dmg?: number, heal?: number, ep?: number, value?: number, noDodge?: boolean, tag?: string, status?: string, defFlat?: number, defPct?: number,
  *   statuses?: string[], seen?: string, on?: 'attack' | 'damage', inflict?: { key: string, seconds: number }, steal?: { atk: number, max: number }, sp?: number,
  *   mark?: { seconds: number, dmg?: number, arts?: number }, arts?: number, later?: boolean,
@@ -552,15 +572,16 @@
  * A chance talent (攻击-4): on each attack, with chance `prob`, the attack's 倍率 × `scale`, and maybe a stun of `stun`
  * seconds on each hit and `more` targets, `atk` more attack (直接乘算) for that attack, `ignoreDef` of the targets' 防御
  * ignored, × `times` hits.
- * @typedef {{ prob: number, scale: number, stun?: number, more?: number, atk?: number, ignoreDef?: number, times?: number, skillProb?: number }} CritTalent
+ * @typedef {{ prob: number, scale: number, stun?: number, more?: number, atk?: number, ignoreDef?: number, times?: number, skillProb?: number,
+ *   pick?: { times?: number, stun?: number, ignoreDef?: number }[], grow?: { power: string, step: number, max: number } }} CritTalent
  */
 /**
  * An in-range talent (部署-6): modifiers for the enemies, or the (ranged, melee, of a profession) operators, in the
  * holder's attack range — or on the tiles of `area` around it, turned with it with `rotate` —, those for which `when`
  * holds when it has one; not the holder with `others`; only while `srcWhen` holds on the holder (职业-32).
  * @typedef {{ side: 'enemy' | 'ally', ranged: boolean, mods: Record<string, number>, melee?: boolean, profession?: string, professions?: string[], area?: Cell[],
- *   rotate?: boolean, others?: boolean, srcWhen?: WhileMods['when'],
- *   when?: { when: 'hpBelow' | 'hpAbove' | 'blocked' | 'normal' | 'flying' | 'epHalf' | 'hpRatioAtMostSrc' | 'sameDir' | 'maxHpHighest', value?: number } }} RangeTalent
+ *   rotate?: boolean, others?: boolean, srcWhen?: WhileMods['when'], flags?: Record<string, boolean>,
+ *   when?: { when: 'hpBelow' | 'hpAbove' | 'blocked' | 'normal' | 'flying' | 'epHalf' | 'hpRatioAtMostSrc' | 'sameDir' | 'maxHpHighest' | 'sluggish' | 'coldOnly' | 'frozen', value?: number } }} RangeTalent
  */
 /**
  * A team talent (部署-5): for the operators of a profession, of one of several (`professions`), of a faction, or every
@@ -750,9 +771,11 @@
  * down player comes back (−1 when not down), `downs` how often they went down (合作-4); `ask` the frames left of their
  * open cost request (−1 for none), `askCd` the frames until they may ask again (合作-5); its summons' cards, once one
  * has one (召唤-4); once talents give them (部署-10, 职业-30), the cut for its next operator (`cut`), the cuts on cards
- * (`cuts`), the cards whose first skill has started (`once`) and its last operator deployed (`last`, 职业-31).
+ * (`cuts`), the cards whose first skill has started (`once`), its last operator deployed (`last`, 职业-31) and the kinds of
+ * enemy each card killed (`slain`, 职业-34).
  * @typedef {{ life: number, cost: number, costTimer: number, deployed: string[], cards: Record<string, Card>, revive: number, downs: number,
- *   ask: number, askCd: number, summons?: Record<string, SummonCard>, cut?: number, cuts?: Record<string, number>, once?: string[], last?: string }} Player
+ *   ask: number, askCd: number, summons?: Record<string, SummonCard>, cut?: number, cuts?: Record<string, number>, once?: string[], last?: string,
+ *   slain?: Record<string, string[]> }} Player
  */
 
 /**

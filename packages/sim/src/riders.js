@@ -11,6 +11,7 @@ import { traitOf, creditedDamage } from './traits.js';
 import { vsEp } from './vs.js';
 import { reflectHit } from './talentlife.js';
 import { RIDER, foeAfter } from './talentfoe.js';
+import { chargedRider } from './talentfight.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./damage.js').Damage} Damage */
@@ -34,6 +35,7 @@ export function afterOwnHit(w, c, op, t, hit) {
   if (r && hit.taken > 0 && (!r.arts || hit.dmg.type === 'arts')) dealEp(w, t, r.el, hit.taken * r.ratio * vsEp(w, c, op, t), op);
   if (b && t.hp > 0 && burstOf(t, b.el)) creditedDamage(w, c, op, t, { type: 'elemental', amount: statsOf(op).atk * b.scale, tags: [RIDER] });
   if (tr.extraArts > 0 && hit.dmg.isAttack && t.hp > 0) creditedDamage(w, c, op, t, { type: 'arts', amount: statsOf(op).atk * tr.extraArts, tags: [RIDER] });
+  chargedRider(w, c, op, t);
   foeAfter(w, c, op, t, hit.dmg);
 }
 

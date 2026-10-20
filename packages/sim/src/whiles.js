@@ -8,7 +8,7 @@ import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune } from './buffs.js';
 import { bursting, ELEMENTS, epOf } from './elements.js';
 import { tileOf } from './body.js';
-import { rangeKeys, inKeys, hostile } from './targeting.js';
+import { rangeKeys, inKeys, hostile, stealthed } from './targeting.js';
 import { traitOf } from './traits.js';
 import { gritTurn, spPulseTurn } from './talentfx.js';
 import { quiet, idleShieldTurn, hurtOnce, afterSkill } from './talenttime.js';
@@ -18,6 +18,7 @@ import { pulseTurn } from './talentelem.js';
 import { tileAt } from './level.js';
 import { rotateOffset } from './dir.js';
 import { shareTurn } from './talentaround.js';
+import { comboTurn } from './talentfight.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').WhileMods} WhileMods */
@@ -161,7 +162,7 @@ const WHEN = Object.freeze({
   firstDeploy: (w, _c, op) => !Object.hasOwn(w.players[op.owner]?.cards ?? {}, op.key),
   hpNotBelow: (_w, _c, op, v) => op.hp >= v * statsOf(op).maxHp,
   neverHurt: (_w, _c, op) => !hurtOnce(op),
-  stealthEnemies: (w, c, op) => inOwnRange(w, c, op).some((u) => hostile(u) && !!statsOf(u).flags.stealth),
+  stealthEnemies: (w, c, op) => inOwnRange(w, c, op).some((u) => hostile(u) && stealthed(statsOf(u).flags)),
   skillOrAfter: (w, _c, op, v) => (!!op.skill && op.skill.active) || afterSkill(w, op, v),
   lowSp: (_w, _c, op, v) => !!op.skill && !op.skill.active && op.skill.sp <= v * op.skill.cap,
   enemiesNear: (w, _c, op, v) => enemiesNear(w, op) >= v,
@@ -175,6 +176,8 @@ const WHEN = Object.freeze({
   waterMap: (_w, c) => hasWater(c.level),
   noWaterMap: (_w, c) => !hasWater(c.level),
   onFieldFor: (w, _c, op, v) => w.frame - op.born >= secondsToFrames(v),
+  liftoff: (_w, _c, op) => !!statsOf(op).flags.liftoff,
+  grounded: (_w, _c, op) => !statsOf(op).flags.liftoff,
 });
 
 /** Whether a condition on an operator holds now, its value 0 (职业-32: an in-range talent's `srcWhen`). @param {World} w @param {Content} c @param {Unit} op @param {WhileMods['when']} when */
@@ -221,6 +224,7 @@ export function traitWhiles(w, c, op) {
   pulseTurn(w, c, op);
   spPulseTurn(w, c, op);
   shareTurn(w, c, op);
+  comboTurn(op);
   const list = traitOf(c, op).whiles;
   for (let i = 0; i < list.length; i++) {
     const x = list[i], key = `while:${i}`;

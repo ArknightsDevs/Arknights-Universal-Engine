@@ -8,7 +8,7 @@ import { makeBuff, addBuff, removeBuff, retune, setLeft } from './buffs.js';
 import { dealDamage } from './damage.js';
 import { inflict } from './status.js';
 import { gainSp } from './sp.js';
-import { hostile } from './targeting.js';
+import { hostile, stealthed } from './targeting.js';
 import { traitOf, creditedDamage } from './traits.js';
 import { holds } from './vs.js';
 import { burstDotOn, epDotOn } from './talentelem.js';
@@ -164,7 +164,7 @@ export function foeTurn(w, c, op) {
   const since = w.frame - op.born, half = secondsToFrames(0.5), every = secondsToFrames(1);
   if (since < half || (since - half) % every !== 0) return;
   const amount = statsOf(op).atk * t.sleepDot;
-  for (const e of w.units.filter((u) => hostile(u) && u.hp > 0 && !u.hidden && statsOf(u).flags.sleep && !statsOf(u).flags.stealth && !statsOf(u).flags.untargetable)) {
+  for (const e of w.units.filter((u) => hostile(u) && u.hp > 0 && !u.hidden && statsOf(u).flags.sleep && !stealthed(statsOf(u).flags) && !statsOf(u).flags.untargetable)) {
     dealDamage(w, op, e, { type: 'arts', amount, sourceless: true, throughSleep: true });
   }
 }

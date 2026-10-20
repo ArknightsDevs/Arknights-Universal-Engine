@@ -41,6 +41,9 @@ export function inKeys(u, keys, grid) {
  * @property {boolean} [canHitStealth] it can select 隐匿 units (职业-31)
  */
 
+/** Whether a unit's flags make it 隐匿 now: `stealth`, not undone by an aura (`unstealth`, 职业-34). @param {Record<string, boolean>} f */
+export const stealthed = (f) => !!f.stealth && !f.unstealth;
+
 /**
  * Whether a unit can be selected by the other side (索敌-2): on the field and not disappeared (路线-4), not 无法选中,
  * not 隐匿 (unless the attack can select them, 职业-31), not asleep (unless the attack can select sleeping units, 职业-28), not camouflaged (unless the attack ignores
@@ -50,7 +53,7 @@ export function inKeys(u, keys, grid) {
 export function selectable(u, sel = {}) {
   if (u.hp <= 0 || u.hidden) return false;
   const s = statsOf(u), f = s.flags;
-  if (f.untargetable || (f.stealth && !sel.canHitStealth) || (f.sleep && !sel.canHitSleep) || f.sidelined) return false;
+  if (f.untargetable || (stealthed(f) && !sel.canHitStealth) || (f.sleep && !sel.canHitSleep) || f.sidelined) return false;
   if (f.camou && !sel.ignoreCamou) return false;
   return !s.flying || !!sel.canHitFly;
 }

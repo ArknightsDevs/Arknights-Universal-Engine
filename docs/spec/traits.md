@@ -631,3 +631,27 @@
 带 Stronghold 兼容 kit 的干员没有这些（兼容-6）。
 
 - 来源：干员-32；[PRTS「明椒」oldid=435067](https://prts.wiki/index.php?title=%E6%98%8E%E6%A4%92&oldid=435067)「于当次治疗前触发天赋，天赋治疗量不受特性影响」，[PRTS「医生」oldid=435243](https://prts.wiki/index.php?title=%E5%8C%BB%E7%94%9F&oldid=435243)「本天赋获得的屏障为优先级+1000的单一buff，可叠加，上限不超过触发效果时自身攻击力的5000%；屏障生成1s后，每0.1s衰减当前屏障量的2%(精英1)/1%(精英2)，衰减量向上取整」，[PRTS「莎草」oldid=435116](https://prts.wiki/index.php?title=%E8%8E%8E%E8%8D%89&oldid=435116)「屏障吸收量不可叠加」，[PRTS「休谟斯」oldid=435212](https://prts.wiki/index.php?title=%E4%BC%91%E8%B0%9F%E6%96%AF&oldid=435212)「任何形式的对休谟斯进行的过量治疗均可以产生屏障」「当休谟斯的最大生命值变化时，已有的此类屏障量不会因此相应增减，但上限会实时计算」，[PRTS「流明」oldid=435041](https://prts.wiki/index.php?title=%E6%B5%81%E6%98%8E&oldid=435041)「该天赋为立刻触发，且不占用攻击间隔的治疗，其仅对生命值未满的单位生效」，[PRTS「岳羽由加莉」oldid=439328](https://prts.wiki/index.php?title=%E5%B2%B3%E7%BE%BD%E7%94%B1%E5%8A%A0%E8%8E%89&oldid=439328)「可治疗任何可治疗的我方单位，不局限于干员」「优先治疗生命比例最低的单位，不治疗除自身以外生命为满的单位」，[PRTS「絮雨」oldid=435213](https://prts.wiki/index.php?title=%E7%B5%AE%E9%9B%A8&oldid=435213)「生命恢复的提供方式为增加目标的生命回复速度属性，不受治疗加成和禁疗影响」，[PRTS「刺玫」oldid=434896](https://prts.wiki/index.php?title=%E5%88%BA%E7%8E%AB&oldid=434896)「本天赋实时判断目标生命上限并转移目标」，[PRTS「焰影苇草」oldid=435227](https://prts.wiki/index.php?title=%E7%84%B0%E5%BD%B1%E8%8B%87%E8%8D%89&oldid=435227)「本天赋的治疗行为不受禁疗制约，但治疗量会受到禁疗影响」；钩子在治疗应用之前处理、溢出按处理前的量算、受异常的治疗用状态施加前的钩子、抵抗按状态抵抗被降低判断为推断 INF-0278、INF-0279
+
+### 职业-34 攻击与状态的天赋
+
+`talentTrait`（职业-24）还可以带同一目标的叠加 `sameTarget`、不选的状态 `skipStatus`、攻击者的减益 `attackerMods`、停顿延长 `hitStatusPlus`、攻击能量的倍率 `energyScale`、敌人种类的叠加 `kindStack`、记下击倒的种类 `slainKinds`、技能开始的一击 `skillStrike`、消耗费用的增益 `spendBoost`、停留的脆弱 `stayVuln`、连击 `combo`、不致命 `nonLethal`、满蓄力的附加 `chargedRider`（干员-33，取天赋的）；命中效果（职业-24）可以只对原本攻击范围以外的目标（`beyondRange`）；叠加（职业-25）还可以是 `status`（它施加某种状态时）；条件增益还可以是 `liftoff` / `grounded`（起飞 / 没有起飞）；目标倍率（职业-17）还可以是 `slainKind`。
+
+- **同一目标的叠加**：干员的攻击开始、选定目标时（攻击-2），第一个目标和上次的不同就去掉之前的层数，再加一层（`sameTarget:<目标 id>` Buff，至多 `max`）。
+- **不选的状态**：普通攻击不选处于这个状态（标记）的敌人（索敌-1）；带 `nonLethal` 的也不选重伤的。
+- **原本攻击范围以外**：目标没有一格在干员不算攻击距离增加的攻击范围里时，这条命中效果才生效。
+- **攻击者的减益**：敌人的攻击命中干员后（职业-20 的回击之后），干员能选中它时（索敌-2），它带上键为 `attackerMods:<干员 id>` 的 Buff，`seconds` 秒（已有时重新计时）。
+- **停顿延长**：特性的命中状态是停顿时，秒数加 `hitStatusPlus`。
+- **攻击能量的倍率**：储存的攻击能量（职业-12）释放时，每份的攻击力 × `energyScale`。
+- **敌人种类与种类记录**：干员击杀敌人时（职业-5），带 `kindStack` 的记下这种敌人（数据的键，`kind:<键>` Buff），层数为记下的种类数（`kinds` Buff，至多 `max`）；带 `slainKinds` 的，玩家的 `slain` 记下这张卡击杀过的种类（离场后也保留）。目标倍率 `slainKind`：目标的种类在记录里。被击杀的敌人有重伤时，击杀者获得重伤的值那么多技力（技能-2）。
+- **技能开始的一击**：技能开始时（职业-25 的开始处理），对普通攻击会选的第一个目标造成 `scale` × 攻击力的物理伤害（计入击杀），再施加 `cold` 秒寒冷。
+- **消耗费用的增益**：干员部署时（不含移动），以及开始一个要消耗费用的技能（技能-10）时，加一层（`spendBoost` Buff，至多 `max`），攻击范围里的地面敌人晕眩 `stun` 秒。
+- **状态的叠加**：内容里有这种叠加时挂上 `beforeStatus` 处理函数（职业-33）：干员要对敌人施加这种状态、敌人不免疫时，加一层。
+- **停留的脆弱**（部署-5 的光环更新）：攻击范围里的敌人进入时记下帧（`stay:<干员 id>` Buff，离开时去掉），带键为 `stayVuln:<干员 id>` 的光环 Buff：受到伤害倍率 × `base`，停留满 `after` 秒后 × `max`。
+- **连击**：技能不运行时，干员的伤害扣除了敌人生命时计数加 1——离上次计数超过 `gap` 秒的从 0 起——，到 `hits` 时加一层（`comboStack` Buff，至多 `max`）、计数归 0。技能开始时、干员晕眩、冻结或缴械时计数归 0。
+- **不致命**：干员对敌人的伤害至多使它剩 1 点生命（伤害-7）；伤害之后敌人生命不超过 1、还没有重伤时，施加重伤（状态-5）`seconds` 秒，值为 `sp`。
+- **满蓄力的附加**：干员的伤害（附带伤害除外）之后，它的蓄力（职业-12）达到 `steps` 层时，对目标造成 `chargedRider` × 攻击力的物理附带伤害。
+- **增长的几率**：敌人倒下时，场上每名几率天赋带 `grow` 的干员，敌人在这个势力的某名干员所在格或上下左右 4 格上时，计数加 1（`critGrow` Buff）。
+
+带 Stronghold 兼容 kit 的干员没有这些（兼容-6）。
+
+- 来源：干员-33；[PRTS「猎蜂」oldid=435026](https://prts.wiki/index.php?title=%E7%8C%8E%E8%9C%82&oldid=435026)「每次攻击前：若目标与上次攻击目标不同，失去之前获得的增益；随后获得一层增益，持续时间无限」，[PRTS「安比尔」oldid=434850](https://prts.wiki/index.php?title=%E5%AE%89%E6%AF%94%E5%B0%94&oldid=434850)「“原本攻击范围”……不包括“攻击范围+n格”的效果」，[PRTS「泡泡」oldid=435090](https://prts.wiki/index.php?title=%E6%B3%A1%E6%B3%A1&oldid=435090)「泡泡无法对自己无法选中的敌人造成此天赋的效果」，[PRTS「深靛」oldid=435125](https://prts.wiki/index.php?title=%E6%B7%B1%E9%9D%9B&oldid=435125)「每个攻击能量独立计算触发概率」，[PRTS「吉星」oldid=434977](https://prts.wiki/index.php?title=%E5%90%89%E6%98%9F&oldid=434977)「“每击倒过一种敌人”为击倒内部id不同的敌人类单位……吉星退场后将清空自身记录的id」，[PRTS「莱欧斯」oldid=435016](https://prts.wiki/index.php?title=%E8%8E%B1%E6%AC%A7%E6%96%AF&oldid=435016)「“同名敌人”为内部id相同的敌人类单位……莱欧斯退场后依旧能保留自身记录的id」，[PRTS「雪猎」oldid=435214](https://prts.wiki/index.php?title=%E9%9B%AA%E7%8C%8E&oldid=435214)「仅在攻击技能开启瞬间对一名敌人发动攻击，目标选取受雪猎的攻击范围与视野影响」，[PRTS「哈蒂娅」oldid=434938](https://prts.wiki/index.php?title=%E5%93%88%E8%92%82%E5%A8%85&oldid=434938)「攻击力加成持续时间永久；晕眩效果不可对空」，[PRTS「溯光星源」oldid=435157](https://prts.wiki/index.php?title=%E6%BA%AF%E5%85%89%E6%98%9F%E6%BA%90&oldid=435157)「对停顿免疫的敌人施加停顿效果时无法叠加天赋层数」「敌人离开溯光星源的攻击范围时计时清空」，[PRTS「铃兰」oldid=435036](https://prts.wiki/index.php?title=%E9%93%83%E5%85%B0&oldid=435036)「每帧检测一次单位是否持有停顿Buff，并以此施加/结束目标身上的天赋脆弱效果」，[PRTS「银灰」oldid=435245](https://prts.wiki/index.php?title=%E9%93%B6%E7%81%B0&oldid=435245)「反隐逻辑为使敌人获得隐匿免疫」，[PRTS「火龙S黑角」oldid=434970](https://prts.wiki/index.php?title=%E7%81%AB%E9%BE%99S%E9%BB%91%E8%A7%92&oldid=434970)「自身受到晕眩/冻结/缴械时 || 普通攻击结束1.5s后未开始下一轮普通攻击时 || 释放技能时，清空此计数」，[PRTS「矩」oldid=434995](https://prts.wiki/index.php?title=%E7%9F%A9&oldid=434995)「自身造成的伤害不会致命（至多使目标生命值降至1点），成功造成伤害后若目标生命值小于等于1则为目标附加重伤」，[PRTS「骋风」oldid=434887](https://prts.wiki/index.php?title=%E9%AA%8B%E9%A3%8E&oldid=434887)「本天赋的追加攻击于每次输出伤害时触发……造成的伤害为物理附加伤害」，[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 重伤「移速下降且无法被阻挡，10秒后自然死亡，被击杀后使击杀者回复数点技力」；连击按伤害间隔、雪猎没有 0.1 秒延迟、哈蒂娅按消耗费用的技能、灵知的寒冷在命中后为推断 INF-0280、INF-0281
