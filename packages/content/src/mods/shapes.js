@@ -181,7 +181,7 @@ const levelBody = obj({
   fortress: obj({ life: int(1, 999), rest: int(0, 3600), restAdd: int(0, 3600), wave: int(0, 3600), waveLast: int(0, 3600) }),
 });
 /** A level's file (data/levels/<id>.json, 关卡-1). */
-const levelShape = obj({ level: levelBody, difficulties: obj({ NORMAL: difficulty, FOUR_STAR: difficulty }), enemies: dict(enemyShape, 512), devices: dict(device, 64) }, { source: dict(str, 8) });
+const levelShape = obj({ level: levelBody, difficulties: obj({ NORMAL: difficulty, FOUR_STAR: difficulty }), enemies: dict(enemyShape, 512), devices: dict(device, 64) }, { source: dict(str, 8), testing: bool });
 
 /**
  * The links inside a level a battle needs (mod-6): the tiles fill its width and height, a spawn's route exists and its

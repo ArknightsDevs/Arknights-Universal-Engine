@@ -83,10 +83,14 @@ function optionsAt(options, d) {
 /** The levels being tested (关卡-8): they load with enemy abilities that have no behaviour yet, which do nothing there. */
 export const TESTING = Object.freeze(['act1multi_fortress_rm01', 'act1multi_fortress_hard-01']);
 
+/** Whether a level is being tested (关卡-8): one of TESTING, or its file says so. @param {string} id @param {any} raw */
+const beingTested = (id, raw) => TESTING.includes(id) || raw.testing === true;
+
 /**
  * A level at a difficulty (关卡-2), as @aue/sim's level and enemies; `attack` adds each enemy's attack timing.
  * Throws for a level with runes not supported at that difficulty, whose enemies there have abilities with no
- * behaviour yet — unless it is being tested: then the level names them (`uncovered`, 关卡-8) —, or with devices not
+ * behaviour yet — unless it is being tested (one of TESTING, or a level file that says so, `testing: true`): then the
+ * level names them (`uncovered`, 关卡-8) —, or with devices not
  * profiled yet (装置-3).
  * @param {string} id @param {Difficulty} difficulty @param {(key: string) => object} [attack]
  * @param {Readonly<Record<string, any>>} [levels] the extracted levels to take it from (LEVELS)
@@ -100,7 +104,7 @@ export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
   if (d.unsupported.length > 0) throw new RangeError(`level ${id} at ${difficulty}: runes not supported yet: ${d.unsupported.join(', ')}`);
   const { waves, branches } = replacedSpawns(raw.level, d.replace);
   const used = spawnedKeys(waves, branches, raw.enemies), missing = uncoveredAbilities(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([, e]) => /** @type {EnemyDef} */ (e)));
-  if (missing.length > 0 && !TESTING.includes(id)) throw new RangeError(`level ${id} at ${difficulty}: enemy abilities not supported yet: ${missing.join(', ')}`);
+  if (missing.length > 0 && !beingTested(id, raw)) throw new RangeError(`level ${id} at ${difficulty}: enemy abilities not supported yet: ${missing.join(', ')}`);
   // a carried unit's card (符文-6) is no device on the field: carried.js makes it
   const dev = profiledDevices(Object.fromEntries(Object.entries(raw.devices ?? {}).filter(([k]) => !Object.hasOwn(CARRIED, k))));
   if (dev.missing.length > 0) throw new RangeError(`level ${id}: devices not supported yet: ${dev.missing.join(', ')}`);

@@ -9,7 +9,7 @@ import { levelAt, levelContent, matchContent, TESTING, withBuilders, LEVELS } fr
 /** The phases a `fortress` event tells (schema FORTRESS_PHASE). */
 const FORTRESS_PHASE = { defend: 0, rest: 1 };
 
-test('[关卡-8] [守御-1] the 堡垒守御 levels being tested load, naming their enemies\' abilities with no behaviour; others still refuse', () => {
+test('[关卡-8] [守御-1] the 堡垒守御 levels and level files being tested load, naming their enemies\' abilities with no behaviour; others still refuse', () => {
   assert.deepEqual(TESTING, ['act1multi_fortress_rm01', 'act1multi_fortress_hard-01']);
   for (const [id, rules] of /** @type {const} */ ([['act1multi_fortress_rm01', { rest: 65, wave: 120, waveLast: 300, life: 3, restAdd: 5 }],
     ['act1multi_fortress_hard-01', { rest: 60, wave: 100, waveLast: 120, life: 3, restAdd: 5 }]])) {
@@ -22,6 +22,7 @@ test('[关卡-8] [守御-1] the 堡垒守御 levels being tested load, naming th
   }
   const raw = /** @type {any} */ (LEVELS).act1multi_01, odd = { ...raw, enemies: Object.fromEntries(Object.entries(raw.enemies).map(([k, e]) => [k, { .../** @type {any} */ (e), talents: { nope: {} } }])) };
   assert.throws(() => levelAt('odd', 'NORMAL', undefined, { odd }), /enemy abilities not supported yet: nope/);
+  assert.deepEqual(levelAt('odd', 'NORMAL', undefined, { odd: { ...odd, testing: true } }).level.uncovered, ['nope'], 'a level file that says it is being tested');
   assert.equal(levelAt('act1multi_01', 'NORMAL').level.uncovered, undefined);
 });
 
