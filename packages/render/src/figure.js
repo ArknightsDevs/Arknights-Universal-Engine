@@ -19,7 +19,8 @@ export const FPS = 30;
  * @typedef {{ group: THREE.Group, sides: Record<string, ReturnType<typeof createFigure>>, roles: Record<string, import('./roles.js').Roles>,
  *   forms: Record<string, import('./roles.js').Roles[]>, dolls: Record<string, ReturnType<typeof dollRoles>>, form: number, side: string, flip: boolean,
  *   role: string, clip: string, since: number, rate: number, view: string, x: number, dying: boolean,
- *   aim: { x: number, y: number, id: number } | null, aimId: number, flipped: boolean }} Figure
+ *   aim: { x: number, y: number, id: number } | null, aimId: number, flipped: boolean,
+ *   turn: { since: number, side: 'front' | 'back', flip: boolean } | null }} Figure
  */
 
 /**
@@ -31,7 +32,7 @@ export const FPS = 30;
 export function newFigure(m, u, frame) {
   if (!m?.front) return null;
   /** @type {Figure} */
-  const f = { group: new THREE.Group(), sides: {}, roles: {}, forms: {}, dolls: {}, form: FORM.OWN, side: 'front', flip: false, aimId: 0, role: '', clip: '', since: frame, rate: 1, view: 'idle', x: u.x, dying: false, aim: null, flipped: flipOf(u.dir) };
+  const f = { group: new THREE.Group(), sides: {}, roles: {}, forms: {}, dolls: {}, form: FORM.OWN, side: 'front', flip: false, aimId: 0, turn: null, role: '', clip: '', since: frame, rate: 1, view: 'idle', x: u.x, dying: false, aim: null, flipped: flipOf(u.dir) };
   for (const side of /** @type {const} */ (['front', 'back'])) {
     const model = m[side];
     if (!model) continue;
@@ -79,7 +80,13 @@ export function follow(f, u, frame, key = '') {
   else if (role !== f.role && !(held && role === 'idle')) play(f, role, frame, 1);
   const back = { back: !!f.sides.back, backDies: !!f.roles.back?.die, dying: role === 'die' };
   const facing = u.kind === KIND.OPERATOR ? operatorFacing(faced(f, u, key), back) : { side: 'front', flip: enemyFacing(f.flip, u.x - f.x) };
-  f.side = facing.side; f.flip = facing.flip; f.x = u.x;
+  // A turn is animated (渲染-4): the model squeezes edge-on and opens again over TURN_FRAMES — 4 frames counted from the
+  // game — its skeleton swapping on the narrowest frame. Only a real change of side or mirror starts one.
+  if (facing.side !== f.side || facing.flip !== f.flip) {
+    f.turn = { since: frame, side: /** @type {'front' | 'back'} */ (f.side), flip: f.flip };
+    f.side = facing.side; f.flip = facing.flip;
+  }
+  f.x = u.x;
 }
 
 /**
@@ -128,8 +135,8 @@ export const deathOver = (f, frame) => (frame - f.since) / FPS >= f.sides[f.side
  * after an attack) carrying on from the clip's end; a die clip once, holding its last pose; the others looping.
  * @param {Figure} f @param {number} frame @returns {{ name: string, time: number, loop: boolean }}
  */
-export function clipAt(f, frame) {
-  const fig = f.sides[f.side], roles = f.roles[f.side], t = ((frame - f.since) / FPS) * f.rate;
+export function clipAt(f, frame, side = f.side) {
+  const fig = f.sides[side], roles = f.roles[side], t = ((frame - f.since) / FPS) * f.rate;
   const of = (/** @type {string} */ role) => roles[/** @type {'idle'} */ (role)] ?? roles.idle;
   if (f.role === 'start' || f.role === 'attack') {
     const name = f.clip || of(f.role), d = fig.duration(name);
@@ -144,8 +151,21 @@ export function clipAt(f, frame) {
  * @param {Figure} f @param {number} frame @param {THREE.Camera} camera
  */
 export function poseFigure(f, frame, camera) {
-  for (const [side, x] of Object.entries(f.sides)) x.object.visible = side === f.side;
-  const c = clipAt(f, frame);
-  f.sides[f.side].show(c.name, c.time, c.loop, f.flip);
+  const turn = f.turn, t = turn === null ? 1 : (frame - turn.since) / TURN_FRAMES;
+  if (turn !== null && t >= 1) f.turn = null;
+  const k = t >= 1 ? 1 : t * t * (3 - 2 * t), swap = t >= 0.5;
+  const side = turn !== null && !swap ? turn.side : f.side;
+  const flip = turn !== null && !swap ? turn.flip : f.flip;
+  for (const [s, x] of Object.entries(f.sides)) x.object.visible = s === side;
+  const c = clipAt(f, frame, side);
+  f.sides[side].show(c.name, c.time, c.loop, flip);
+  // edge-on at the narrowest frame, full width at both ends, the height eased the other way so the turn reads
+  const squeeze = f.turn === null ? 1 : Math.abs(1 - 2 * k);
+  f.group.scale.set(squeeze, 2 - squeeze, 1);
   f.group.quaternion.copy(camera.quaternion);
 }
+
+/**
+ * The frames a turn takes (渲染-4): 4, counted from real gameplay footage at the game's 30 frames per second — 4/30 s.
+ */
+export const TURN_FRAMES = 4;
