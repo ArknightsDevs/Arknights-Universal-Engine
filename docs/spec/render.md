@@ -49,6 +49,7 @@
     - 前摇 17 帧、间隔 32 帧、尾段 9 帧（2 + 4 + 17 + 9 = 32）：寒克第 435 帧。
     - 野鬃 2 技能期间不转：野鬃第 498 帧；琴柳杀敌后回正：琴柳第 370 帧。
   - 朝上（背对镜头）时用背面模型，其余用正面；背面**也有左右两向**。攻击片段结束后模型回到部署方向。背面模型没有死亡动画时，死亡用正面模型。
+  - 转身有过渡：4 帧内压扁成侧影再展开，骨架与镜像在最窄的第 2 帧换，高度不变，且不打断攻击片段；计时与帧号见 ADR 0066。
 - **敌人**：只用正面模型；向左移动后朝左（镜像），向右移动后朝右，其他时候保持原来的朝向。
 
 - 来源：PRTS「作战机制」§3.2.2（[oldid=441625](https://prts.wiki/index.php?title=作战机制&oldid=441625)）、[特殊机制](https://prts.wiki/index.php?title=特殊机制&oldid=442170)（「部分敌人的动画具有迷惑性……真实的左右面向」）；实机录像：[寒克](https://github.com/user-attachments/assets/809cafc7-0b68-4d5b-a445-d50038d92f05)、[琴柳](https://github.com/user-attachments/assets/7f74c8e5-d055-4a63-9894-58e4e707728f)、[新能](https://github.com/user-attachments/assets/a80c8bf5-3f83-42b9-a41d-5b38d0f1a63b)、[转向测试（寒克与梓兰）](https://github.com/user-attachments/assets/18b81d8f-dc28-4931-b9d6-4f4c91ec3ed6)、[野鬃](https://github.com/user-attachments/assets/f60cab20-cfc5-4b5a-84ba-61a1b9903209)；推断 INF-0083（敌人的朝向、背面模型的死亡）、INF-0283（朝向规则）、INF-0284（打多分类）
