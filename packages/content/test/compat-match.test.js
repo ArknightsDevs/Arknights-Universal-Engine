@@ -41,7 +41,7 @@ test('[兼容-6] loading: the enabled kits of the operators asked; one that does
 
 test('[兼容-6] a match with a kit: her record without talents, her kit’s behaviours, the kit in the content and its hash', async () => {
   const { kits } = await loadKits(root, ['char_112_siege']);
-  const plain = await matchContent(match('char_112_siege')), kitted = await matchContent(match('char_112_siege'), undefined, kits);
+  const plain = await matchContent(match('char_112_siege')), kitted = await matchContent(match('char_112_siege'), { kits });
   const op = /** @type {any} */ (kitted.operators['char_112_siege#0']);
   assert.deepEqual(kitted.kits, { sha: STRONGHOLD.sha, used: ['char_112_siege'] });
   assert.equal(plain.kits, undefined);
@@ -60,7 +60,7 @@ test('[兼容-6] a match with a kit: her record without talents, her kit’s beh
 
 test('[兼容-6] [干员-15] a 傀儡师 with a kit: its 替身 keeps its range; its 替身 talent is the kit\'s to apply', async () => {
   const kits = { char_1023_ghost2: () => ({ skills: {} }) };
-  const plain = await matchContent(match('char_1023_ghost2')), kitted = await matchContent(match('char_1023_ghost2'), undefined, kits);
+  const plain = await matchContent(match('char_1023_ghost2')), kitted = await matchContent(match('char_1023_ghost2'), { kits });
   const doll = (/** @type {any} */ c) => c.operators['char_1023_ghost2#0'].trait.doll;
   assert.deepEqual([doll(plain).attack, doll(plain).aura, doll(plain).range.length], [false, { moveMul: 0.4, scale: 0.8 }, 9], 'PUM-X 3: the engine\'s');
   assert.deepEqual([doll(kitted).attack, doll(kitted).aura, doll(kitted).range], [true, null, doll(plain).range]);

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step, stateHash, paths } from '@aue/sim';
-import { levelContent, levelAt, LEVELS, matchContent } from '../src/index.js';
+import { levelContent, levelAt, LEVELS, matchContent, OFFICIAL_SOURCE } from '../src/index.js';
 import { uncoveredAbilities } from '../src/foes.js';
 import { profiledDevices } from '../src/devices.js';
 import hard02 from '../data/levels/act1multi_hard-02.json' with { type: 'json' };
@@ -129,7 +129,8 @@ test('[关卡-2] char_blockcnt_add: act1multi_06 at 突袭 takes one off every o
   const blocks = { ...LEVELS, x: { ...LEVELS.act1multi_01, difficulties: { NORMAL: LEVELS.act1multi_01.difficulties.NORMAL, FOUR_STAR: { ...LEVELS.act1multi_01.difficulties.FOUR_STAR, blockAdd: LEVELS.act1multi_06.difficulties.FOUR_STAR.blockAdd } } } };
   assert.deepEqual([LEVELS.act1multi_06.difficulties.NORMAL.blockAdd, LEVELS.act1multi_06.difficulties.FOUR_STAR.blockAdd], [undefined, -1]);
   const deck = [{ id: 'char_122_beagle', build: { elite: 0, level: 30, potential: 1, trust: 0, skill: 0, skillLevel: 4 } }];
-  const easy = await matchContent({ level: 'x', difficulty: 'NORMAL', seed: 1, decks: [deck] }, blocks), hard = await matchContent({ level: 'x', difficulty: 'FOUR_STAR', seed: 1, decks: [deck] }, blocks);
+  const source = { ...OFFICIAL_SOURCE, levels: blocks };
+  const easy = await matchContent({ level: 'x', difficulty: 'NORMAL', seed: 1, decks: [deck] }, { source }), hard = await matchContent({ level: 'x', difficulty: 'FOUR_STAR', seed: 1, decks: [deck] }, { source });
   assert.equal(hard.operators['char_122_beagle#0'].blockCnt, easy.operators['char_122_beagle#0'].blockCnt - 1);
 });
 

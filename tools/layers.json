@@ -24,7 +24,8 @@
     "content": {
       "allow": [
         "@aue/math",
-        "@aue/sim"
+        "@aue/sim",
+        "@aue/schema"
       ],
       "role": "official content (the built-in mod), the Stronghold-compatible content interface, the registry"
     },

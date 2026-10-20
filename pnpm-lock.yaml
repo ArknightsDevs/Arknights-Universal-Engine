@@ -38,6 +38,9 @@ importers:
       '@aue/math':
         specifier: workspace:*
         version: link:../math
+      '@aue/schema':
+        specifier: workspace:*
+        version: link:../schema
       '@aue/sim':
         specifier: workspace:*
         version: link:../sim

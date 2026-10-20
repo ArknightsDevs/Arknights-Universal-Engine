@@ -120,7 +120,7 @@ export function scriptOf(w, c, seat) {
  * @param {Scenario} s @param {number} [frames] @param {Kits} [kits] @returns {Promise<Run>}
  */
 export async function runScenario(s, frames = FRAMES, kits = {}) {
-  const c = await matchContent(/** @type {any} */ (s.match), undefined, kits);
+  const c = await matchContent(/** @type {any} */ (s.match), { kits });
   const seats = s.match.decks.length, w = createWorld(c, { seed: s.match.seed, players: seats });
   /** @type {number[]} */
   const hashes = [];

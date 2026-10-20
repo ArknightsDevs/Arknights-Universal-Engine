@@ -19,3 +19,5 @@ export { MAX_DECK, MAX_RUNES, MAX_BOARD, DIFFICULTIES, matchProblem, buildProble
 /** @typedef {import('./view.js').View} View */
 /** @typedef {import('./view.js').ViewUnit} ViewUnit */
 /** @typedef {import('./events.js').PresentationEvent} PresentationEvent */
+export { ENGINE_VERSION, OFFICIAL, MOD_ID, PACK_TYPES, MOD_TABLES, MOD_LIMITS, MOD_INDEX_VERSION, parseVersion, isRange, versionInRange, isDataPath, readModManifest, modIndexProblem } from './mods.js';
+/** @typedef {import('./mods.js').ModManifest} ModManifest */

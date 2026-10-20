@@ -34,7 +34,7 @@ let kitBase = null;
 async function contentOf(match) {
   if (!kitBase) return matchContent(match);
   const { kits } = await loadKits(kitBase, match.decks.flat().map((e) => e.id));
-  return matchContent(match, undefined, kits);
+  return matchContent(match, { kits });
 }
 
 const session = new BattleSession(skeletonContent, {

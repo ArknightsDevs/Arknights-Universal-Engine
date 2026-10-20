@@ -607,9 +607,10 @@
  */
 /**
  * The content of a battle: the level, enemies, operators, behaviours, and each seat's deck of operator keys when the
- * match gives them (同步-9; none: every operator for every seat), and the kits it uses (兼容-6).
+ * match gives them (同步-9; none: every operator for every seat), the kits it uses (兼容-6) and the mods it is made
+ * with (mod-8).
  * @typedef {{ level: Level, enemies: Record<string, EnemyDef>, operators: Record<string, OperatorDef>, devices?: Record<string, DeviceDef>, behaviors?: Behaviors, decks?: string[][],
- *   kits?: { sha: string, used: string[] } }} Content
+ *   kits?: { sha: string, used: string[] }, mods?: { id: string, version: string, sha: string }[] }} Content
  */
 
 /**

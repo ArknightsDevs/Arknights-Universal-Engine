@@ -355,7 +355,7 @@ test('[干员-9] team parts for every friendly unit, with effects, and 同类效
 test('[干员-16] [干员-17] [干员-19] a kitted operator leaves its talents to its kit: no talent effects or trait additions in the match', async () => {
   const kitted = 'char_1013_chen2';
   const ops = /** @type {Record<string, any>} */ ((await matchContent({ level: 'act1multi_01', difficulty: 'NORMAL', seed: 1, decks: [[{ id: 'char_279_excu', build: E2 }, { id: kitted, build: E2 }]] },
-    undefined, { [kitted]: /** @type {any} */ (() => ({})) })).operators);
+    { kits: { [kitted]: /** @type {any} */ (() => ({})) } })).operators);
   assert.deepEqual([ops['char_279_excu#0'].talentMods, ops[`${kitted}#0`].talentMods, ops[`${kitted}#0`].talentTrait], [{ defIgnoreFlat: 160 }, undefined, undefined]);
 });
 
