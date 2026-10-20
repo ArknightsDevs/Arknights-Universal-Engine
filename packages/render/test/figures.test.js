@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { tinyContent } from '@aue/testkit';
-import { ANIM, DIR } from '@aue/schema';
+import { ANIM } from '@aue/schema';
 import { figureArrays, blendFactors, animationRoles, formRoles, roleOf, operatorFacing, enemyFacing, SKELETON_SCALE, createFigure } from '../src/index.js';
 import { createUnits } from '../src/units.js';
 import { tinyModel } from './model.js';
@@ -45,11 +45,11 @@ test('[渲染-3] animation roles by name, falling back to idle; the role of what
 
 test('[渲染-4] facing: operators use the back facing up and mirror facing left; enemies mirror after moving left', () => {
   const m = { back: true, backDies: false, dying: false };
-  assert.deepEqual(operatorFacing(DIR.UP, m), { side: 'back', flip: false });
-  assert.deepEqual(operatorFacing(DIR.LEFT, m), { side: 'front', flip: true });
-  assert.deepEqual(operatorFacing(DIR.DOWN, m), { side: 'front', flip: false });
-  assert.deepEqual(operatorFacing(DIR.UP, { ...m, dying: true }), { side: 'front', flip: false });
-  assert.deepEqual(operatorFacing(DIR.UP, { ...m, back: false }), { side: 'front', flip: false });
+  assert.deepEqual(operatorFacing({ side: 'back', flip: false }, m), { side: 'back', flip: false });
+  assert.deepEqual(operatorFacing({ side: 'front', flip: true }, m), { side: 'front', flip: true });
+  assert.deepEqual(operatorFacing({ side: 'front', flip: false }, m), { side: 'front', flip: false });
+  assert.deepEqual(operatorFacing({ side: 'back', flip: false }, { ...m, dying: true }), { side: 'front', flip: false });
+  assert.deepEqual(operatorFacing({ side: 'back', flip: false }, { ...m, back: false }), { side: 'front', flip: false });
   assert.equal(enemyFacing(false, -0.1), true);
   assert.equal(enemyFacing(true, 0.1), false);
   assert.equal(enemyFacing(true, 0), true);

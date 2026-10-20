@@ -88,6 +88,21 @@ function onGround(shadows, marks, u, ground) {
 const disposeFigure = (f) => { for (const x of Object.values(f.sides)) x.dispose(); };
 
 /**
+ * An attack event for a figure (渲染-3, 渲染-4): its clip starts, and the model turns toward the target of that swing.
+ * @param {Map<number, import('./figure.js').Figure>} figures @param {import('@aue/schema').View} view
+ * @param {{ type: string, id: number, target: number, wind: number, face?: number }} e
+ */
+function swingOf(figures, view, e) {
+  const f = figures.get(Number(e.id));
+  if (!f || f.dying) return;
+  attacked(f, Number(e.wind), view.frame);
+  // 渲染-4: only a swing that has one thing to face turns the model (the sim says which kind it is)
+  if (e.face === 0) return;
+  const t = view.units.find((v) => v.id === Number(e.target));
+  if (t) f.aim = { x: t.x, y: t.y, id: t.id };
+}
+
+/**
  * The units system; its shadows and the operators' direction indicators are separate objects (drawn before every unit).
  * @param {Map<string, THREE.Texture>} textures @param {Models} [models] by content key (operators by character id)
  * @param {Set<string>} [foeDevices] content keys of the devices on the enemies' side (装置-3)
@@ -124,7 +139,7 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
     if (mesh.draw(u, u.kind === KIND.DEVICE && !figures.has(u.id) && !cards.has(u.id), at)) return;
     const f = figures.get(u.id) ?? (cards.has(u.id) ? null : figure(u, frame)), s = f ? null : cards.get(u.id) ?? card(u);
     if (!f && !s) return;
-    if (f) follow(f, u, frame);
+    if (f) follow(f, u, frame, keys.get(u.id) ?? '');
     placeAt(f ? f.group : /** @type {THREE.Object3D} */ (s), at, f ? u.kind : -1, lift(u.id)); onGround(shadows, marks, u, ground);
   };
 
@@ -153,7 +168,7 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
       Object.assign(clock, { frame: view.frame, at: now });
       const seen = new Set();
       for (const u of view.units) { seen.add(u.id); draw(u, placeOf(level, u, lift(u.id) > 0), view.frame); }
-      for (const e of events) if (e.type === 'attack') { const f = figures.get(Number(e.id)); if (f && !f.dying) attacked(f, Number(e.wind), view.frame); }
+      for (const e of events) if (e.type === 'attack') swingOf(figures, view, /** @type {any} */ (e));
       prune(seen, new Set(events.filter((e) => e.type === 'death').map((e) => Number(e.id))), view.frame);
     },
     /** Poses every figure for the moment `now` and turns it to face the camera. @param {THREE.Camera} camera @param {number} [now] ms */

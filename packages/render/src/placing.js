@@ -7,6 +7,7 @@ import { KIND } from '@aue/schema';
 import { toThree, tileWorld } from './camera.js';
 import { FPS, newFigure, poseFigure } from './figure.js';
 import { operatorFacing } from './roles.js';
+import { sideOf, flipOf } from './facing.js';
 import { createShadows } from './shadows.js';
 import { createIndicators } from './indicators.js';
 import { GRAPHIC } from './units.js';
@@ -56,7 +57,7 @@ export function createPlacing(textures, models, field) {
       const f = p ? figureOf(p.key) : null;
       if (!p || !f) { drop(); return; }
       const at = /** @type {[number, number, number]} */ (toThree(tileWorld(field, p.col, p.row, p.h)));
-      const facing = operatorFacing(p.dir, { back: !!f.sides.back, backDies: false, dying: false });
+      const facing = operatorFacing({ side: sideOf(p.dir), flip: flipOf(p.dir) }, { back: !!f.sides.back, backDies: false, dying: false });
       Object.assign(f, { side: facing.side, flip: facing.flip });
       f.group.position.set(at[0], at[1] + GRAPHIC.up, at[2] + GRAPHIC.south);
       shadows.place(0, at);

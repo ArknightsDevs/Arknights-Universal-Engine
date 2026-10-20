@@ -1,7 +1,7 @@
 // Which animation a figure plays (docs/spec/render.md 渲染-3, 渲染-4): the animations of a model by role — idle, move,
 // attack, die, start — found by their names; what a unit is doing picks the role; its facing picks the model's side
 // and whether it is mirrored.
-import { ANIM, DIR } from '@aue/schema';
+import { ANIM } from '@aue/schema';
 
 /** @typedef {{ idle: string, move: string, attack: string, die: string | null, start: string | null }} Roles */
 
@@ -94,11 +94,13 @@ const dieOf = (find, like) => find('Die') ?? like(/(^|_)die$/i, (n) => !/^attack
 export const roleOf = (anim) => (anim === ANIM.MOVE ? 'move' : anim === ANIM.ATTACK ? 'attack' : anim === ANIM.DIE ? 'die' : 'idle');
 
 /**
- * The side of the model and the mirroring for an operator's facing (渲染-4): the back when facing up (when the model
- * has one, and not to die when the back has no die), mirrored when facing left.
- * @param {number} dir @param {{ back: boolean, backDies: boolean, dying: boolean }} m @returns {{ side: 'front' | 'back', flip: boolean }}
+ * The side of the model for an operator whose facing this frame is `facing` (渲染-4): the back when the facing asks for it,
+ * the model has one, and it is not dying into a back that has no death animation.
+ * @param {{ side: 'front' | 'back', flip: boolean }} facing
+ * @param {{ back: boolean, backDies: boolean, dying: boolean }} m
+ * @returns {{ side: 'front' | 'back', flip: boolean }}
  */
-export const operatorFacing = (dir, m) => ({ side: dir === DIR.UP && m.back && (m.backDies || !m.dying) ? 'back' : 'front', flip: dir === DIR.LEFT });
+export const operatorFacing = (facing, m) => ({ side: facing.side === 'back' && m.back && (m.backDies || !m.dying) ? 'back' : 'front', flip: facing.flip });
 
 /**
  * An enemy's mirroring (渲染-4): facing left after moving left, right after moving right, unchanged otherwise.
