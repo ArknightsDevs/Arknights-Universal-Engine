@@ -2,7 +2,7 @@
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read. They act only through the context (ADR 0055).
 
-import { moreFoeBehaviors } from './abilities.js';
+import { moreFoeBehaviors, addEnergy } from './abilities.js';
 import { prisonerBehaviors } from './prisoners.js';
 import { avengerBehaviors } from './avenger.js';
 import { hoverBehaviors } from './hover.js';
@@ -21,6 +21,11 @@ const PRTS = 'https://prts.wiki/index.php?title=';
 export const FOE_EXTRAS = Object.freeze({
   // 冰爆源石虫: 死亡爆炸（爆炸半径1.65，延迟1秒，爆炸时来源无效 …… 物理溅射伤害 …… 不可对空）
   enemy_1067_snslime: { talents: { boom: { radius: 1.65, delay: 1, arts: 0, air: 0, sourced: 0 } }, source: `${PRTS}%E5%86%B0%E7%88%86%E6%BA%90%E7%9F%B3%E8%99%AB&oldid=435593` },
+  // 冰爆源石虫·α: the same 死亡爆炸 (爆炸半径1.65，延迟1秒，爆炸时来源无效 …… 不可对空)
+  enemy_1067_snslime_2: { talents: { boom: { radius: 1.65, delay: 1, arts: 0, air: 0, sourced: 0 } }, source: `${PRTS}%E5%86%B0%E7%88%86%E6%BA%90%E7%9F%B3%E8%99%AB%C2%B7%CE%B1&oldid=435594` },
+  // 辐能源石虫/辐能源石虫·α: 死亡爆炸（爆炸半径1.25，延迟0.5秒，造成攻击力400%的法术溅射伤害，不可对空；给予全场敌人1点能量）
+  enemy_1352_eslime: { talents: { Boom: { radius: 1.25, delay: 0.5, arts: 1, air: 0, sourced: 1 } }, source: `${PRTS}%E8%BE%90%E8%83%BD%E6%BA%90%E7%9F%B3%E8%99%AB&oldid=435841` },
+  enemy_1352_eslime_2: { talents: { Boom: { radius: 1.25, delay: 0.5, arts: 1, air: 0, sourced: 1 } }, source: `${PRTS}%E8%BE%90%E8%83%BD%E6%BA%90%E7%9F%B3%E8%99%AB%C2%B7%CE%B1&oldid=435842` },
   // "喷射罐"/"喷爆罐": 对半径1.55范围内的我方单位造成攻击力100%的法术溅射伤害与10s寒冷（可被沉默）
   enemy_1385_winbom: { talents: { Boom: { radius: 1.55, delay: 0, arts: 1, air: 1, sourced: 1 } }, source: `${PRTS}%E2%80%9C%E5%96%B7%E5%B0%84%E7%BD%90%E2%80%9D&oldid=435426` },
   enemy_1385_winbom_2: { talents: { Boom: { radius: 1.55, delay: 0, arts: 1, air: 1, sourced: 1 } }, source: `${PRTS}%E2%80%9C%E5%96%B7%E7%88%86%E7%BD%90%E2%80%9D&oldid=435425` },
@@ -85,23 +90,33 @@ export function withFoeExtras(key, def) {
   return { ...def, talents, ...(def.skills ? { skills } : {}) };
 }
 
-/** 死亡爆炸 (敌能-5): knocked down and not silenced, it explodes where it fell. @type {FoeBehavior['death']} */
+/**
+ * 死亡爆炸 (敌能-5): knocked down and not silenced, it explodes where it fell — with `freeze` s of cold when it has
+ * them —; with `add_count`, every other enemy on the field with 能量 gains that many (敌能-13).
+ * @type {FoeBehavior['death']}
+ */
 const deathBlast = (ctx) => {
   const s = ctx.stats(ctx.self), bb = ctx.bb;
   if (s.flags.silence) return;
   ctx.blast({
     x: ctx.self.x, y: ctx.self.y, radius: bb.radius, delay: bb.delay, air: bb.air === 1, sourced: bb.sourced === 1,
-    type: bb.arts === 1 ? 'arts' : 'phys', amount: s.atk * bb.atk_scale, status: { key: 'cold', seconds: bb.freeze },
+    type: bb.arts === 1 ? 'arts' : 'phys', amount: s.atk * bb.atk_scale, status: typeof bb.freeze === 'number' ? { key: 'cold', seconds: bb.freeze } : undefined,
   });
+  if (typeof bb.add_count === 'number') for (const u of ctx.allies(Infinity)) if (u !== ctx.self) addEnergy(ctx, u, bb.add_count);
 };
 
 /** 冰爆源石虫 (敌能-5). @type {FoeBehavior} */
 const boom = Object.freeze({ death: deathBlast });
 
-/** "喷射罐" (敌能-5, 敌能-6): the explosion, and its attack a channel of hits over seconds, then a cooldown. @type {FoeBehavior} */
+/**
+ * "喷射罐", 辐能源石虫 (敌能-5, 敌能-6): the explosion; with `attack@times` (喷射罐's), its attack a channel of hits over
+ * seconds, then a cooldown — without, its ordinary attack.
+ * @type {FoeBehavior}
+ */
 const Boom = Object.freeze({
   death: deathBlast,
-  attack: (ctx, mods) => ({ ...mods, type: 'arts', scale: ctx.bb.atk_scale, channel: { hits: ctx.bb['attack@times'], duration: ctx.bb['attack@cooldown'], after: ctx.bb['attack@attack_cd'] } }),
+  attack: (ctx, mods) => (typeof ctx.bb['attack@times'] !== 'number' ? mods
+    : { ...mods, type: 'arts', scale: ctx.bb.atk_scale, channel: { hits: ctx.bb['attack@times'], duration: ctx.bb['attack@cooldown'], after: ctx.bb['attack@attack_cd'] } }),
 });
 
 /** "投石机" (敌能-7): the first attack reaches its attack radius, as arts with a cross splash; then melee only. @type {FoeBehavior} */
@@ -237,14 +252,42 @@ export const foeBehaviors = Object.freeze({
 export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp', 'Stronger', 'storm']);
 
 /**
- * The abilities (talents and skills) of the given enemies that have no behaviour and are not covered otherwise
- * (关卡-2), in order of first appearance.
+ * The blackboard keys an ability's behaviour needs that the data tables do not carry (FOE_EXTRAS gives them, from PRTS,
+ * enemy by enemy): an enemy whose ability lacks one has no behaviour for it yet (关卡-2).
+ */
+export const FOE_NEEDS = Object.freeze({
+  boom: Object.freeze(['radius', 'delay']), Boom: Object.freeze(['radius', 'delay']), ranged: Object.freeze(['scale']),
+  CrossAttack: Object.freeze(['bolts', 'hold', 'charge']), Targets: Object.freeze(['n']), 1: Object.freeze(['ammo']),
+});
+
+/**
+ * An enemy's abilities by name with their blackboards (its talents', its skills').
+ * @param {EnemyDef} e @returns {[string, Record<string, number | string>][]}
+ */
+const abilitiesOf = (e) => [...Object.entries(e.talents ?? {}), ...(e.skills ?? []).map((s) => /** @type {[string, Record<string, number | string>]} */ ([s.key, s.bb ?? {}]))];
+
+/** @param {string} k @param {Record<string, unknown>} bb @returns {boolean} whether an ability has what its behaviour needs */
+const complete = (k, bb) => (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
+
+/**
+ * The abilities (talents and skills) of the given enemies — their extras merged — that have no behaviour and are not
+ * covered otherwise, or whose behaviour lacks values it needs (FOE_NEEDS) (关卡-2), in order of first appearance.
  * @param {Iterable<EnemyDef>} enemies @returns {string[]}
  */
 export function uncoveredAbilities(enemies) {
   const out = new Set();
   for (const e of enemies) {
-    for (const k of [...Object.keys(e.talents ?? {}), ...(e.skills ?? []).map((s) => s.key)]) if (!Object.hasOwn(foeBehaviors, k) && !FOE_COVERED.includes(k)) out.add(k);
+    for (const [k, bb] of abilitiesOf(e)) if ((!Object.hasOwn(foeBehaviors, k) && !FOE_COVERED.includes(k)) || !complete(k, bb)) out.add(k);
   }
   return [...out];
+}
+
+/**
+ * An enemy without the abilities whose behaviour lacks values it needs (FOE_NEEDS): in a level being tested they do not
+ * act (关卡-8). @param {EnemyDef} e @returns {EnemyDef}
+ */
+export function withoutIncomplete(e) {
+  const talents = Object.entries(e.talents ?? {}).filter(([k, bb]) => complete(k, bb)), skills = (e.skills ?? []).filter((s) => complete(s.key, s.bb ?? {}));
+  if (talents.length === Object.keys(e.talents ?? {}).length && skills.length === (e.skills ?? []).length) return e;
+  return { ...e, ...(e.talents ? { talents: Object.fromEntries(talents) } : {}), ...(e.skills ? { skills } : {}) };
 }

@@ -9,7 +9,7 @@ import act2multiRm01 from '../data/levels/act2multi_rm01.json' with { type: 'jso
 import act1multiTr01 from '../data/levels/act1multi_tr01.json' with { type: 'json' };
 import act1multiFortressRm01 from '../data/levels/act1multi_fortress_rm01.json' with { type: 'json' };
 import act1multiFortressHard01 from '../data/levels/act1multi_fortress_hard-01.json' with { type: 'json' };
-import { uncoveredAbilities } from './foes.js';
+import { uncoveredAbilities, withFoeExtras } from './foes.js';
 import { profiledDevices } from './devices.js';
 import { CARRIED } from './carried.js';
 
@@ -103,7 +103,8 @@ export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
   if (!d) throw new RangeError(`level ${id}: no difficulty ${difficulty}`);
   if (d.unsupported.length > 0) throw new RangeError(`level ${id} at ${difficulty}: runes not supported yet: ${d.unsupported.join(', ')}`);
   const { waves, branches } = replacedSpawns(raw.level, d.replace);
-  const used = spawnedKeys(waves, branches, raw.enemies), missing = uncoveredAbilities(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([, e]) => /** @type {EnemyDef} */ (e)));
+  const used = spawnedKeys(waves, branches, raw.enemies);
+  const missing = uncoveredAbilities(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([k, e]) => withFoeExtras(k, /** @type {EnemyDef} */ (e))));
   if (missing.length > 0 && !beingTested(id, raw)) throw new RangeError(`level ${id} at ${difficulty}: enemy abilities not supported yet: ${missing.join(', ')}`);
   // a carried unit's card (符文-6) is no device on the field: carried.js makes it
   const dev = profiledDevices(Object.fromEntries(Object.entries(raw.devices ?? {}).filter(([k]) => !Object.hasOwn(CARRIED, k))));

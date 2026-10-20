@@ -4,12 +4,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step, stateHash, deployProblem, facilities } from '@aue/sim';
-import { levelAt, levelContent, matchContent, TESTING, withBuilders, LEVELS } from '../src/index.js';
+import { levelAt, levelContent, matchContent, TESTING, withBuilders, LEVELS, OFFICIAL_SOURCE } from '../src/index.js';
 
 /** The phases a `fortress` event tells (schema FORTRESS_PHASE). */
 const FORTRESS_PHASE = { defend: 0, rest: 1 };
 
-test('[关卡-8] [守御-1] the 堡垒守御 levels and level files being tested load, naming their enemies\' abilities with no behaviour; others still refuse', () => {
+test('[关卡-8] [关卡-2] [守御-1] the 堡垒守御 levels and level files being tested load, naming their enemies\' abilities with no behaviour or missing values; others still refuse', async () => {
   assert.deepEqual(TESTING, ['act1multi_fortress_rm01', 'act1multi_fortress_hard-01']);
   for (const [id, rules] of /** @type {const} */ ([['act1multi_fortress_rm01', { rest: 65, wave: 120, waveLast: 300, life: 3, restAdd: 5 }],
     ['act1multi_fortress_hard-01', { rest: 60, wave: 100, waveLast: 120, life: 3, restAdd: 5 }]])) {
@@ -23,6 +23,12 @@ test('[关卡-8] [守御-1] the 堡垒守御 levels and level files being tested
   const raw = /** @type {any} */ (LEVELS).act1multi_01, odd = { ...raw, enemies: Object.fromEntries(Object.entries(raw.enemies).map(([k, e]) => [k, { .../** @type {any} */ (e), talents: { nope: {} } }])) };
   assert.throws(() => levelAt('odd', 'NORMAL', undefined, { odd }), /enemy abilities not supported yet: nope/);
   assert.deepEqual(levelAt('odd', 'NORMAL', undefined, { odd: { ...odd, testing: true } }).level.uncovered, ['nope'], 'a level file that says it is being tested');
+  const bare = { ...raw, enemies: Object.fromEntries(Object.entries(raw.enemies).map(([k, e]) => [k === 'enemy_1067_snslime' ? 'sh_slime' : k, e])) };
+  bare.level = { ...raw.level, waves: raw.level.waves.map((/** @type {any} */ w) => ({ ...w, fragments: w.fragments.map((/** @type {any} */ f) => ({ ...f, actions: f.actions.map((/** @type {any} */ a) => (a.key === 'enemy_1067_snslime' ? { ...a, key: 'sh_slime' } : a)) })) })) };
+  assert.throws(() => levelAt('bare', 'NORMAL', undefined, { bare }), /enemy abilities not supported yet: boom/, 'a 冰爆源石虫 without its PRTS radius and delay has no behaviour for its explosion');
+  const source = { ...OFFICIAL_SOURCE, levels: { bare: { ...bare, testing: true } } };
+  const tested = /** @type {any} */ (await matchContent({ level: 'bare', difficulty: 'NORMAL', seed: 1, decks: [[]] }, { source }));
+  assert.deepEqual([tested.level.uncovered, tested.enemies.sh_slime.talents, tested.enemies.enemy_1067_snslime], [['boom'], {}, undefined], 'being tested, it is there without it');
   assert.equal(levelAt('act1multi_01', 'NORMAL').level.uncovered, undefined);
 });
 

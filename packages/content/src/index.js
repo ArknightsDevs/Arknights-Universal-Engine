@@ -5,7 +5,7 @@ import timings from '../data/timings.json' with { type: 'json' };
 import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
 import { levelAt } from './levels.js';
-import { foeBehaviors, withFoeExtras } from './foes.js';
+import { foeBehaviors, withFoeExtras, withoutIncomplete } from './foes.js';
 import { operatorAt, teamTalentsAt } from './operators.js';
 import { TOKENS, tokenAt } from './tokens.js';
 import { teamFits, predefinedKey } from '@aue/sim';
@@ -21,8 +21,11 @@ import { OFFICIAL_SOURCE } from './mods/source.js';
 /** The official behaviours: skills (技能-6) and enemy abilities (敌能-2). */
 const BEHAVIORS = Object.freeze({ skills: skillBehaviors, foes: foeBehaviors });
 
-/** Enemies with their PRTS extras (敌能-5…) and attack timings (攻击-2). @param {Record<string, any>} enemies */
-const enemiesOf = (enemies) => Object.fromEntries(Object.entries(enemies).map(([k, e]) => [k, { ...withFoeExtras(k, e), ...attackOf(k) }]));
+/**
+ * Enemies with their PRTS extras (敌能-5…) and attack timings (攻击-2); an ability that still lacks values its behaviour
+ * needs does not act (a level being tested, 关卡-8). @param {Record<string, any>} enemies
+ */
+const enemiesOf = (enemies) => Object.fromEntries(Object.entries(enemies).map(([k, e]) => [k, { ...withoutIncomplete(withFoeExtras(k, e)), ...attackOf(k) }]));
 
 /** A unit's attack timing from data/timings.json (攻击-2), when its skeleton gave one. @param {string} key */
 function attackOf(key) {

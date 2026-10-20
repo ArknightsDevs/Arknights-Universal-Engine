@@ -31,7 +31,7 @@
 | `cbuff_max_cost` | 费用上限改为 `max_cost`（`max_cost_ceil` 暂不使用） |
 | `char_blockcnt_add` | 所有干员的阻挡数加 `value`，不低于 0 |
 
-其他符文还不支持：提取时记下它们的名字（`unsupported`），有这些符文的难度拒绝组装。这个难度出场的敌人带着引擎还没有行为的能力（天赋或技能，敌能-5…）时，也拒绝组装，报出这些能力的名字；没有自己的行为但已由别处处理的天赋（中立单位的 `dead`、随掷弹生效的 `Light`、只对装置起作用的 `DmgUp`）不算。
+其他符文还不支持：提取时记下它们的名字（`unsupported`），有这些符文的难度拒绝组装。这个难度出场的敌人带着引擎还没有行为的能力（天赋或技能，敌能-5…）时，也拒绝组装，报出这些能力的名字；没有自己的行为但已由别处处理的天赋（中立单位的 `dead`、随掷弹生效的 `Light`、只对装置起作用的 `DmgUp`）不算。有行为、但行为需要的数值数据表里没有、也没有按敌人从 PRTS 补上的（如死亡爆炸的半径与延迟、远程攻击的倍率、弩箭的支数与蓄力、同时攻击的目标数、弹药数），这个敌人的这项能力同样算作还没有行为。
 
 - 来源：[PRTS「FD-7 背离法则」oldid=364740](https://prts.wiki/index.php?title=FD-7%20%E8%83%8C%E7%A6%BB%E6%B3%95%E5%88%99&oldid=364740) 突袭「情报=敌方单位的生命值、攻击力和防御力都提升至120%」与「global_lifepoint: value: 1.0」「enemy_attribute_mul: atk: 1.2, def: 1.2, max_hp: 1.2」；[PRTS「CF-EX-1 山地的震颤」oldid=356910](https://prts.wiki/index.php?title=CF-EX-1%20%E5%B1%B1%E5%9C%B0%E7%9A%84%E9%9C%87%E9%A2%A4&oldid=356910) 突袭「情报=敌方单位的生命值和攻击力提升至120%」与「enemy_attribute_mul: atk: 1.2, max_hp: 1.2」；[PRTS「KR-1 玉门：沙丘狂欢」oldid=312721](https://prts.wiki/index.php?title=KR-1%20%E7%8E%89%E9%97%A8%EF%BC%9A%E6%B2%99%E4%B8%98%E7%8B%82%E6%AC%A2&oldid=312721) 突袭「level_enemy_replace: key: 0.0 (enemy_1039_breakr), value: 0.0 (enemy_1039_breakr_2)」；数据：level.runes；`level_hidden_group_disable`、倍率乘在基础值上、`enemy`/`enemy_exclude` 的含义为推断 INF-0067
 
@@ -61,7 +61,7 @@
 
 ### 关卡-8 测试中的关卡
 
-少数关卡在测试中：堡垒守御的 `act1multi_fortress_rm01`（IG-DF-1、IG-DF-4）和 `act1multi_fortress_hard-01`（IG-S-5），以及关卡文件自己写明在测试中的（`testing: true`，如 mod 新加的关卡、别的项目转来的场地）。它们的敌人有还没有行为的能力时（关卡-2）也照常加载：这些能力不起作用，内容把它们记在关卡上（`uncovered`，按第一次出现的顺序），平台据此在房间和战斗里标明「部分敌人能力未实现」。其他关卡仍然拒绝加载。
+少数关卡在测试中：堡垒守御的 `act1multi_fortress_rm01`（IG-DF-1、IG-DF-4）和 `act1multi_fortress_hard-01`（IG-S-5），以及关卡文件自己写明在测试中的（`testing: true`，如 mod 新加的关卡、别的项目转来的场地）。它们的敌人有还没有行为的能力时（关卡-2）也照常加载：这些能力不起作用（缺数值的能力从敌人身上去掉），内容把它们记在关卡上（`uncovered`，按第一次出现的顺序），平台据此在房间和战斗里标明「部分敌人能力未实现」。其他关卡仍然拒绝加载。
 
 - 来源：设计决定：先让堡垒守御的核心规则（守御-1…守御-6）能实际对局、按需补齐敌人能力；未实现的能力明确标出，不冒充原版；关卡文件自带的标记供 mod 和以 AUE 为内核的项目（Stronghold Protocol 的 aue 分支）使用
 
