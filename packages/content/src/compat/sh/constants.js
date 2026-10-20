@@ -23,3 +23,7 @@ export const PUSH_DIRECTIONAL_MIN_DIST = 0.25;
 export const FORCED_EXIT = 'forcedExit';
 /** How direct bonuses of one kind combine. */
 export const DIRECT_BONUS_STACKING = 'add';
+/** A chain's jump radius, in tiles (Stronghold v0.2.4 constants.js CHAIN_RADIUS; its chess kits 雷蛇、伺夜). */
+export const CHAIN_RADIUS = 1.7;
+/** An element gauge's top (Stronghold v0.2.4 constants.js ELEMENT_GAUGE_MAX; its chess kit 哈洛德). */
+export const ELEMENT_GAUGE_MAX = 1000;

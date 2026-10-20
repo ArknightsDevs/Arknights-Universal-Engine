@@ -38,6 +38,7 @@ export function acquireTargets(b, u, prof) {
 
 export const chainHealNext = gap('ai.chainHealNext');
 export const performAttack = gap('ai.performAttack');
+export const attackCountdown = gap('ai.attackCountdown');
 
 /** The targeting keys a skill spec may override. */
 const TARGETING = Object.freeze(['maxTargets', 'priority', 'allInRange', 'canHitFly']);

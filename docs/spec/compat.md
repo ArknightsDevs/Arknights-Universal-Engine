@@ -19,9 +19,9 @@ Stronghold 的常量模块把网格的列数 `COLS`、行数 `ROWS` 给成固定
 - **替身**：
   - 纯函数直接给出：方向（按名字的四个朝向，朝右写的偏移每步转四分之一：右 (dr, dc)、上 (dc, −dr)、左 (−dr, −dc)、下 (−dc, dr)；第 0 行在最下，上为行号增大，与 方向-1 一致；不出现 −0）用 Stronghold 的写法移植；确定性数学用引擎自己的（与它逐位一致，数值-2…数值-5）；常量中 `COLS`、`ROWS` 按 兼容-1，`TICK` 为一帧（时间-1），其余先取 Stronghold v0.2.4 的值，用到它们的 kit 与对照比较时逐个核对。增益的合计（buffs 的 `aggregateMods`：同名修饰加算 × 层数，`…Mul` 连乘至层数次方，闪避按独立概率合并）与攻击档案（ai 的 `effectiveProfile`，兼容-4）也用 Stronghold 的写法移植。持续效果的伤害说明（damage 的 `periodicDamage`）为记在来源名下的无来源真实伤害（伤害-7），不可闪避，带 `dot`、`periodic` 标签。记录在某一潜能下的样子（potential 的 `atPotential`）就是记录本身：我们的记录本来就按所选潜能造出（兼容-3），没有 Stronghold 记录里的潜能注记。
   - 还没有提供的名字以「缺口」存在：kit 载入时它在，被调用时报错并写明模块和名字，不会悄悄做别的事。
-- 固定版本的对照（Stronghold v0.2.4）里 72 个干员 kit（`kits/ops/op-*.js`）都原样载入。
+- 固定版本的对照（Stronghold v0.2.4）里 72 个干员 kit（`kits/ops/op-*.js`）都原样载入；129 个棋子 kit（`kits/ops/chess_*.js`，卫戍协议的棋子，Stronghold Protocol 的 aue 分支用）也都能载入。
 
-- 来源：设计决定，见 [ADR 0010](../adr/0010-import-mapping-table.md)、[ADR 0012](../adr/0012-stronghold-compatible-core.md)；方向的写法取自 Stronghold 的 `server/sim/dir.js`（GPL-3.0-or-later）；kit 的导入闭包按语法统计：72 个 kit 和 9 个共用内容文件，引擎模块 13 个、61 个名字
+- 来源：设计决定，见 [ADR 0010](../adr/0010-import-mapping-table.md)、[ADR 0012](../adr/0012-stronghold-compatible-core.md)；方向的写法取自 Stronghold 的 `server/sim/dir.js`（GPL-3.0-or-later）；kit 的导入闭包按语法统计：72 个 kit 和 9 个共用内容文件，引擎模块 13 个、61 个名字；棋子 kit 另用到 6 个名字（常量 `CHAIN_RADIUS`、`ELEMENT_GAUGE_MAX`，取固定提交的值；`powi` 用引擎自己的；`attackCountdown`、`applyRedirectCut`、`redirectShare` 先作缺口）
 
 ### 兼容-3 kit 的输入：记录与定义
 

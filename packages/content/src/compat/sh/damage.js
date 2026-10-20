@@ -5,6 +5,8 @@ import { damage } from '@aue/sim';
 import { gap } from './gap.js';
 
 export const burstLocked = gap('damage.burstLocked');
+export const applyRedirectCut = gap('damage.applyRedirectCut');
+export const redirectShare = gap('damage.redirectShare');
 /** On the field with HP left. @param {{ alive: boolean, hp: number } | null | undefined} u */
 export const hasHp = (u) => !!u && u.alive && u.hp > 0;
 /** Whether a hit is 生命流失. @param {{ hpLoss?: boolean, tags?: string[] } | null | undefined} dmg */

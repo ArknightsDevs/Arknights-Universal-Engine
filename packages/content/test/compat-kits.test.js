@@ -20,6 +20,10 @@ import { withKitTrait } from '../src/compat/kits.js';
 const OPS = join(oracleDir(), 'server', 'sim', 'content', 'kits', 'ops');
 /** @type {[string, string, Function][]} file, character id, factory */
 const kits = [];
+/** The chess kits' modules by file, and the files that did not load with why. @type {Map<string, any>} */
+const chessKits = new Map();
+/** @type {string[]} */
+const chessFailed = [];
 before(async () => {
   const compat = new URL('../src/compat/', import.meta.url).href;
   register(new URL('hook.js', compat), { data: { root: pathToFileURL(`${oracleDir()}/`).href, compat } });
@@ -27,6 +31,13 @@ before(async () => {
     const mod = await loadUnderGrid(() => import(pathToFileURL(join(OPS, f)).href));
     const [charId, factory] = Object.entries(mod.default)[0];
     kits.push([f, charId, factory]);
+  }
+  for (const f of readdirSync(OPS).filter((x) => x.startsWith('chess_')).sort()) {
+    try {
+      chessKits.set(f, await loadUnderGrid(() => import(pathToFileURL(join(OPS, f)).href)));
+    } catch (e) {
+      chessFailed.push(`${f}: ${/** @type {Error} */ (e).message}`);
+    }
   }
 });
 
@@ -44,6 +55,15 @@ test('[兼容-2] the pinned oracle’s 72 operator kits load unchanged; a name t
   assert.equal(kits.length, 72);
   for (const [f, charId, factory] of kits) assert.equal(typeof factory, 'function', `${f} ${charId}`);
   assert.throws(() => targeting.aggroCmp(), (e) => e instanceof CompatGap && e.what === 'targeting.aggroCmp');
+});
+
+test('[兼容-2] the pinned oracle’s 129 chess kits load too, each exporting the factories of its chess records', () => {
+  assert.deepEqual(chessFailed, []);
+  assert.equal(chessKits.size, 129);
+  for (const [f, mod] of chessKits) {
+    const entries = Object.entries(mod.default ?? {});
+    assert.ok(entries.length > 0 && entries.every(([k, v]) => k.startsWith('chess_char_') && typeof v === 'function'), f);
+  }
 });
 
 test('[兼容-2] the stand-in direction helpers: facing-RIGHT offsets turned a quarter per step, row 0 at the bottom', () => {
