@@ -159,9 +159,9 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 | 攻击时有N%（的）几率/概率造成二连击 / 连续攻击两次 | `prob`（没有时 `attack@prob`） | 这次攻击的每个目标受到的次数 × 2 |
 | 攻击有N%几率造成相当于攻击力M%的物理伤害 | `prob` | 倍率 `atk_scale` |
 
-第一种紧跟的分句是「并（使敌人）晕眩（敌人）N秒」且 blackboard 有 `stun` 时再带晕眩 `stun` 秒；是「且额外攻击一个目标」时再带一个目标。几率天赋作为干员数据的 `critTalents`，由模拟按 攻击-4 生效。
+第一种紧跟的分句是「并（使敌人）晕眩（敌人）N秒」且 blackboard 有 `stun` 时再带晕眩 `stun` 秒；是「且额外攻击一个目标」时再带一个目标。没有 `prob` 时几率取 `prob1`；后面的句子说「技能中这个几率提高到N%」且有 `prob2` 时，技能运行时的几率（`skillProb`）是 `prob2`。几率天赋作为干员数据的 `critTalents`，由模拟按 攻击-4 生效。
 
-- 来源：数据：character_table 的天赋文字与 blackboard，如克洛丝「攻击时，20%几率当次攻击的攻击力提升至160%」、古米「攻击时，18%几率当次攻击的攻击力提升至200%，并晕眩敌人1秒」、风笛「每次攻击有25%的概率攻击力提升至130%，且额外攻击一个目标」、陨星「普通攻击和技能释放时，30%几率当次攻击的攻击力+60%」、芙兰卡「攻击时有20%的几率无视目标的防御」、慕斯「攻击时有23%的几率连续攻击两次」、Misery「攻击时有10%概率造成二连击」（`attack@prob`）、艾拉「攻击有30%几率造成相当于攻击力160%的物理伤害」；同一句里更多的条件（如概率在某条件下变化、对某些目标必定触发）还没有实现；攻击力加成按直接乘算、二连击为次数翻倍为推断 INF-0255
+- 来源：数据：character_table 的天赋文字与 blackboard，如克洛丝「攻击时，20%几率当次攻击的攻击力提升至160%」、古米「攻击时，18%几率当次攻击的攻击力提升至200%，并晕眩敌人1秒」、风笛「每次攻击有25%的概率攻击力提升至130%，且额外攻击一个目标」、陨星「普通攻击和技能释放时，30%几率当次攻击的攻击力+60%」、芙兰卡「攻击时有20%的几率无视目标的防御」、慕斯「攻击时有23%的几率连续攻击两次」、Misery「攻击时有10%概率造成二连击」（`attack@prob`）、艾拉「攻击有30%几率造成相当于攻击力160%的物理伤害」、红豆「攻击时，10%几率当次攻击的攻击力+110%。技能中这个几率提高到30%」（`prob1`、`prob2`）；同一句里更多的条件（如概率在某条件下变化、对某些目标必定触发）还没有实现；攻击力加成按直接乘算、二连击为次数翻倍为推断 INF-0255
 
 ### 干员-13 时间天赋
 
@@ -345,9 +345,10 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 | 技能结束后，N%几率立即回复M%的最大技力 | 技能结束（`skillEnd`）：几率 `prob`，技力消耗的 `sp` 倍 |
 | 技能期间每击倒1名敌人，技能结束时获得N点技力，至多回复M点 | 技能期间的击杀（`skillKills`）：每次 `sp` 点，至多 `max_sp` 点 |
 | 技能结束时恢复自身N%最大生命值 | 技能结束（`skillEnd`）时治疗自己 `hp_ratio` × 最大生命值（`heal`，伤害-11） |
+| 造成伤害时有N%的几率额外回复M点技力 | 造成伤害（`dealt`，职业-31）时几率 `prob`：M 点 |
 | 每场战斗中首次释放技能结束后立即回复N点技力 | 这场战斗的第一个技能结束（`firstSkillEnd`，职业-30）N 点 |
 
-- 来源：数据：character_table 的天赋文字与 blackboard，如阿米娅（`amiya_t_1[atk].sp`、`amiya_t_1[kill].sp`）、塞雷娅「每次回复友方单位生命值时额外回复该单位1点技力」、Touch「治疗目标时使其获得+3技力」、华法琳（`bldsk_t_1[self].sp`、`bldsk_t_1[rand].sp`）、Touch「攻击范围内的友方干员被击倒时获得5点技力」、雷蛇「受到攻击时，回复自己和周围一格内随机一名友方角色1点技力」、空「技能结束后，50%几率立即回复50%的最大技力」（`prob`、`sp` 0.5）、佩佩「技能期间每击倒1名敌人，技能结束时获得1点技力，至多回复17点」（`max_sp`）、折桠「技能结束时恢复自身60%最大生命值」、复奏「攻击溅射范围内有大于或等于3个敌人时，使当次攻击造成的伤害提升至125%」（`min_target_cnt`）、杏仁「每场战斗中首次释放技能结束后立即回复10点技力」；结算的时刻与随机的对象为推断 INF-0258
+- 来源：数据：character_table 的天赋文字与 blackboard，如阿米娅（`amiya_t_1[atk].sp`、`amiya_t_1[kill].sp`）、塞雷娅「每次回复友方单位生命值时额外回复该单位1点技力」、Touch「治疗目标时使其获得+3技力」、华法琳（`bldsk_t_1[self].sp`、`bldsk_t_1[rand].sp`）、Touch「攻击范围内的友方干员被击倒时获得5点技力」、雷蛇「受到攻击时，回复自己和周围一格内随机一名友方角色1点技力」、空「技能结束后，50%几率立即回复50%的最大技力」（`prob`、`sp` 0.5）、佩佩「技能期间每击倒1名敌人，技能结束时获得1点技力，至多回复17点」（`max_sp`）、折桠「技能结束时恢复自身60%最大生命值」、复奏「攻击溅射范围内有大于或等于3个敌人时，使当次攻击造成的伤害提升至125%」（`min_target_cnt`）、杏仁「每场战斗中首次释放技能结束后立即回复10点技力」、刻刀「造成伤害时有23%的几率额外回复1点技力」；结算的时刻与随机的对象为推断 INF-0258
 
 ### 干员-22 光环
 
@@ -445,7 +446,7 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 | 自身可以攻击并优先攻击沉睡的目标且攻击力提升至N% | 可以攻击沉睡的敌人（`hurtSleeping`）；优先攻击沉睡；目标倍率 `status` 沉睡：攻击倍率 × `atk_scale` |
 | 自身可以攻击沉睡的敌人 | 可以攻击沉睡的敌人 |
 | 自身可以攻击沉睡的敌人，并且攻击沉睡敌人时无视其防御力的N% | 可以攻击沉睡的敌人；目标倍率 `status` 沉睡：无视防御 `def_penetrate` |
-| 优先攻击【标签】单位，且攻击【标签】时攻击力提升至N% | 优先攻击带这个标签的（标签见 干员-26）；目标倍率 `tag`：攻击倍率 × `atk_scale`。标签不认识时不算 |
+| 优先攻击【标签】单位，且攻击【标签】时攻击力提升至N%（或「攻击力+N%」） | 优先攻击带这个标签的（标签见 干员-26）；目标倍率 `tag`：攻击倍率 × `atk_scale`。标签不认识时不算 |
 | 攻击处于停顿、束缚的敌人时，额外造成相当于攻击力N%的法术伤害 | 目标倍率 `statusAny` 停顿、束缚，`on` 'damage'：稍后检查（`later`），法术伤害 `atk_scale` |
 | 自身可以攻击沉睡的敌人，且攻击非移动敌人时对其额外造成相当于攻击力N%的法术伤害，在场时沉睡中的敌人每秒受到<名字>攻击力M%的法术伤害 | 可以攻击沉睡的敌人；目标倍率 `still`，`on` 'damage'：法术伤害 `extra_atk_scale`；每秒的沉睡伤害（`sleepDot`）`damage_atk_scale` |
 | 治疗处于异常状态中的友方干员时治疗量提升至N% | 目标倍率 `abnormal`：治疗 × `heal_scale_up` |
@@ -458,7 +459,7 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 
 「异常状态」按术语释义取可抵抗的状态（状态-5）。由模拟按 职业-28 生效。
 
-- 来源：数据：character_table 的天赋文字与 blackboard，如闪击「优先攻击晕眩的敌人且攻击晕眩敌人时攻击力提升至165%」、瑕光、埃拉托、格劳克斯「优先攻击【无人机】单位，且攻击【无人机】时攻击力提升至155%」、仇白、缇缇（`extra_atk_scale`、`damage_atk_scale`）、诺威尔（`heal_scale_up`）、谜图、异客（`pasngr_t_1[enhance].damage_scale`）、忍冬、阿罗玛（`damage_scale`、`levitate_duration`）、伊内丝（`steal_atk`、`steal_atk_max`）、水月（`attack@mizuki_t_1.atk_scale`、`attack@max_target`）；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 异常状态「包括晕眩、寒冷、冻结等 ※生效范围请参考页面可抵抗状态」；[PRTS「伊内丝」oldid=435241](https://prts.wiki/index.php?title=%E4%BC%8A%E5%86%85%E4%B8%9D&oldid=435241)「偷取效果实际具有加成量上限，上限等同于文本所述量的200倍」「<Y模组>上述加成量上限固定为20000」；阿罗玛的倍率按伤害倍率读为推断 INF-0268
+- 来源：数据：character_table 的天赋文字与 blackboard，如闪击「优先攻击晕眩的敌人且攻击晕眩敌人时攻击力提升至165%」、瑕光、埃拉托、格劳克斯「优先攻击【无人机】单位，且攻击【无人机】时攻击力提升至155%」、芳汀「……攻击力+43%」（`atk_scale` 1.43；[PRTS「芳汀」oldid=440683](https://prts.wiki/index.php?title=%E8%8A%B3%E6%B1%80&oldid=440683)「天赋实际效果为攻击倍率提升而非攻击力加成」）、仇白、缇缇（`extra_atk_scale`、`damage_atk_scale`）、诺威尔（`heal_scale_up`）、谜图、异客（`pasngr_t_1[enhance].damage_scale`）、忍冬、阿罗玛（`damage_scale`、`levitate_duration`）、伊内丝（`steal_atk`、`steal_atk_max`）、水月（`attack@mizuki_t_1.atk_scale`、`attack@max_target`）；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 异常状态「包括晕眩、寒冷、冻结等 ※生效范围请参考页面可抵抗状态」；[PRTS「伊内丝」oldid=435241](https://prts.wiki/index.php?title=%E4%BC%8A%E5%86%85%E4%B8%9D&oldid=435241)「偷取效果实际具有加成量上限，上限等同于文本所述量的200倍」「<Y模组>上述加成量上限固定为20000」；阿罗玛的倍率按伤害倍率读为推断 INF-0268
 
 ### 干员-28 元素的天赋
 
@@ -510,3 +511,34 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 由模拟按 部署-10、职业-30 生效；对卡组和在场上的队伍部分按 干员-9。
 
 - 来源：数据：character_table 的天赋文字与 blackboard，如德克萨斯、截云（`runtime_cost`、`atk`）、灰烬、历阵锐枪芬（`runtime_cost`、`value`）、野鬃（`value`、`max_stack_cnt`）、缪尔赛思（`cost`、`runtime_cost`）、极境（`value`、`attack_speed`）、忍冬（`delta_cost_increase_time`、`vulpis_t_2[heal][interval].hp_recovery_per_sec_by_max_hp_ratio`）、炎狱炎熔（`lava2_t_1[self].sp`、`lava2_t_1[ally].sp`）、录武官、空弦（`interval`）、瑕光、寻澜；[PRTS「缪尔赛思」oldid=435076](https://prts.wiki/index.php?title=%E7%BC%AA%E5%B0%94%E8%B5%9B%E6%80%9D&oldid=435076)「携带时【莱茵生命】干员部署费用-2，首名【莱茵生命】干员部署费用额外-2」，[PRTS「野鬃」oldid=435238](https://prts.wiki/index.php?title=%E9%87%8E%E9%AC%83&oldid=435238)「部署费用减少的上限仅是此天赋减费效果的上限」；PRTS 的其余页面见 部署-10、职业-30
+
+### 干员-30 自身、治疗与部署的其他天赋
+
+天赋（含模组的升级）的整段描述（去掉标签和括号里的部分）是下列之一、blackboard 有它要的键时，它加到特性（`talentTrait`）。<职业> 是 干员-9 的职业名称，<势力> 是 干员-10 的势力名称：
+
+| 描述 | 加到 |
+|---|---|
+| 攻击速度+N，自身受到伤害后失去该效果 | 条件增益 `neverHurt`：攻击速度 + `attack_speed` |
+| 部署后随机永久获得下列一项增益：攻击力+N%；攻击速度+M；生命上限（提升）+K% | 部署时随机的增益（`deployPick`）：攻击力直接乘算 + `atk`、攻击速度 + `attack_speed`、生命上限直接乘算 + `max_hp` 三选一 |
+| 攻击间隔略微增大，但攻击力+N% | 条件增益 `always`：攻击间隔 + `base_attack_time`，攻击力直接乘算 + `atk` |
+| 攻击范围扩大，但攻击间隔略微增大（天赋有范围 id） | 条件增益 `always`：攻击间隔 + `base_attack_time`；干员的攻击范围换成这个范围（模组给的范围优先） |
+| 自身与浮游单元的攻击速度+N | 条件增益 `always`：攻击速度 + `attack_speed`（浮游单元是干员攻击的一部分，职业-12） |
+| 周围8格内有敌人倒下时，恢复自身最大生命值N%的生命 | 敌人倒下时回血（`downHeal`）：周围（`around`），`hp_ratio` |
+| 自身阻挡的敌方单位被击杀时，回复自身N%的生命 | 敌人倒下时回血：阻挡的（`blocked`），`hp_ratio` |
+| 部署后全体友方【<职业>】职业干员攻击力+N%，防御力+M，持续K秒 | 部署时的增益（`deployBuff`）：这个职业，攻击力直接乘算 + `atk`、防御直接加算 + `def`，`duration` 秒 |
+| 在战场时全体友方单位每秒恢复相当于<名字>攻击力N%的生命 | 全场回复（`fieldRegen`）`atk_to_hp_recovery_ratio` |
+| 在治疗目标后使其获得N秒抵抗 | 治疗留下的效果（`healGives`）：`status_resistance[limit]` 秒，状态抵抗 `one_minus_status_resistance`（`statusResFlat`） |
+| 治疗的目标获得N秒抵抗，若目标生命值高于M%则改为K秒抵抗 | 治疗留下的效果：同上；治疗前生命比例高于 `hp_ratio`（`above`）时改为以 `[special].status_resistance[limit]` 结尾的值秒（`aboveSeconds`） |
+| 治疗地面单位，元素损伤回复量提高N% | 低地上的元素回复倍数（`groundEpHeal`）`ep_heal_scale` |
+| 可以攻击隐匿敌人，并且攻击范围内存在（拥有）隐匿敌人时，攻击力+N% | 可以选中隐匿的敌人（`seeStealth`）；条件增益 `stealthEnemies`：攻击力直接乘算 + `atk` |
+| 每次攻击至少造成N%攻击力的伤害 | 伤害保底（`minDamage`）`atk_scale`；原文括号里有「当敌人在正前方两格时提升至」时，正前方的保底（`front`）`atk_scale_2` |
+| 技能期间及技能结束后的N秒内攻击力+M% | 条件增益 `skillOrAfter` `duration` 秒：攻击力直接乘算 + `atk` |
+| 未开启技能且技力小于或等于最大值一半时，停止攻击并每秒恢复N%最大生命值 | 条件增益 `lowSp` `sp_ratio`：生命回复（百分比）`hpRegenRatio` 为 `hp_recovery_per_sec_by_max_hp_ratio`，不攻击（标记 `noAttack`） |
+| 攻击敌人时攻击力提升至N%。周围存在M名及以上敌人时攻击力提升至K%且受到的伤害减少L% | 条件增益 `enemiesNear` `cnt`：攻击倍率（`atkScaleMul`）× `atk_scale_up`，受到的伤害 × (1 − `damage_resistance`)；条件增益 `fewEnemiesNear` `cnt`：攻击倍率 × `atk_scale_base` |
+| 受到的治疗效果提升N%，生命值低于一半时提升至M% | 条件增益 `hpBelow` `hp_ratio`：受到治疗倍率 × `heal_scale_2`；条件增益 `hpNotBelow` `hp_ratio`：× `heal_scale_1` |
+| 部署后立即对攻击范围内一个敌人投掷闪光弹，使其和周围敌人晕眩N秒 | 部署时的晕眩（`deployStun`）：`stun` 秒，半径 1 |
+| 部署时对周围四格敌人造成N%攻击力的真实伤害并晕眩M秒，上一名部署干员势力为【<势力>】时额外造成一次伤害 | 部署时的冲击（`deployBlast`）：`atk_scale`，晕眩 `stun` 秒，这个势力（`again`） |
+
+由模拟按 职业-31 生效。
+
+- 来源：数据：character_table 的天赋文字与 blackboard，如冬时、远山、白雪、霜叶（范围 id `3-1`）、卡达、艾丝黛尔、露托（`hp_ratio`）、嘉维尔（`atk`、`def`、`duration`）、调香师（`atk_to_hp_recovery_ratio`）、清流（`status_resistance[limit]`、`one_minus_status_resistance`）、流明（`lumen_t_1[special].status_resistance[limit]`）、褐果（`ep_heal_scale`）、铅踝、红、酸糖（`atk_scale_2`）、麒麟R夜刀、极光（`sp_ratio`）、玛恩纳（`atk_scale_base`、`atk_scale_up`）、百炼嘉维尔（`heal_scale_1`、`heal_scale_2`）、灰烬、耀骑士临光；[PRTS「霜叶」oldid=435143](https://prts.wiki/index.php?title=%E9%9C%9C%E5%8F%B6&oldid=435143)「携带时生效，将覆写霜叶的默认攻击范围」；[PRTS「白雪」oldid=434866](https://prts.wiki/index.php?title=%E7%99%BD%E9%9B%AA&oldid=434866)「攻击间隔略微增大(+0.2)」；PRTS 的其余页面见 职业-31

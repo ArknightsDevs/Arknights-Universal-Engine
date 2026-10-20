@@ -7,7 +7,7 @@ import { onDeploy, commandSkill } from './skills.js';
 import { traitDeploy, traitOfDef, traitOf, gainCost } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
 import { carriedDeploy } from './carried.js';
-import { cardOf, cardHidden, cardLocked, deployCost, deployLimit, withdraw, takeCuts, giveCuts } from './deck.js';
+import { cardOf, cardHidden, cardLocked, deployCost, deployLimit, withdraw, takeCuts, giveCuts, deckOf } from './deck.js';
 import { occupying, summonProblem, deploySummon, supplySummons, inOwnerRange, trapRefused } from './summons.js';
 import { isDown, askCost, answerCost } from './coop.js';
 import { emit } from './bus.js';
@@ -17,6 +17,7 @@ import { makeBuff, addBuff } from './buffs.js';
 import { restReady, poolCount, usePool } from './fortress.js';
 import { nextToFacility, facilityOf } from './facilities.js';
 import { talentDeploy } from './talentfx.js';
+import { moreDeploy, keepsLast } from './talentmore.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -126,7 +127,7 @@ function placeProblem(w, c, seat, cmd, cost) {
 
 /**
  * Deploys: the cost of now (部署-3) is paid and kept on the unit, the cuts it took gone (部署-10); its trait takes hold,
- * then its passive skill starts.
+ * then its passive skill starts; a seat whose deck asks for it remembers the operator as its last (职业-31).
  * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd
  */
 function deploy(w, c, seat, cmd) {
@@ -147,12 +148,13 @@ function deploy(w, c, seat, cmd) {
   w.units.push(u);
   w.events.push({ type: 'deploy', id: u.id, key: u.key, owner: seat });
   arrive(w, c, u);
+  if (!b && keepsLast(c, deckOf(c, seat))) p.last = cmd.op;
 }
 
 /**
  * An operator's deployment takes hold (部署-2, 部署-9): the `enter` event, its trait, its attack mode, its deployment
- * talents, its talents' SP and cost on deployments and its cuts for the deck (职业-30, 部署-10) — a 移动 never a first
- * deployment —, a carried unit's effect (装置-6), its passive skill, its summon cards, then the `deploy` event — `move`
+ * talents, its talents' SP and cost on deployments, their other effects (职业-31) and its cuts for the deck (职业-30,
+ * 部署-10) — a 移动 never a first deployment —, a carried unit's effect (装置-6), its passive skill, its summon cards, then the `deploy` event — `move`
  * for a 移动.
  * @param {World} w @param {Content} c @param {import('./types.js').Unit} u @param {boolean} [move]
  */
@@ -163,6 +165,7 @@ export function arrive(w, c, u, move = false) {
   modeDeploy(u, traitOf(c, u));
   deployTalents(w, c, u);
   talentDeploy(w, c, u, first);
+  moreDeploy(w, c, u);
   giveCuts(w, c, u);
   carriedDeploy(w, c, u);
   onDeploy(w, c, u);

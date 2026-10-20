@@ -13,6 +13,7 @@ import { reachKeys } from './reach.js';
 import { inKeys } from './targeting.js';
 import { tileOf } from './body.js';
 import { traitOf, gainCost } from './traits.js';
+import { downHeals, skillEndStamp } from './talentmore.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').TalentStack} TalentStack @typedef {import('./types.js').TalentSp} TalentSp */
@@ -145,10 +146,11 @@ export function talentSp(w, c, op, on, target) {
  * An operator's skill ended, for its talents (职业-25, 职业-30): a heal of `heal` of its maximum HP; at a talent's chance
  * (one draw), its `share` of the skill's cost (whole points, down); its kills during the skill × `sp`, at most `max`, and
  * the count gone; the first skill of the battle (buff `firstSkill`), unless it was closed (`stopped`), its `sp` — 阻回 no
- * matter — and the mark gone.
+ * matter — and the mark gone; the end's frame on its tracker (职业-31).
  * @param {World} w @param {Content} c @param {Unit} op @param {string} [reason]
  */
 export function talentSkillEnd(w, c, op, reason) {
+  skillEndStamp(w, op);
   for (const x of traitOf(c, op).talentSp) {
     if (x.on === 'firstSkillEnd') firstSkillEnd(op, x, reason);
     if (x.on === 'skillEnd' && x.heal && op.hp > 0) w.events.push({ type: 'heal', id: op.id, target: op.id, amount: heal(w, op, op, x.heal * statsOf(op).maxHp) });
@@ -234,12 +236,14 @@ export function hurtAttackSp(w, c, a) {
 }
 
 /**
- * A unit that fell this frame, for the talents of the operators that see it in their attack range (职业-25): an enemy
+ * A unit that fell this frame, for the talents that heal for it (downHeals, 职业-31), then for the talents of the
+ * operators that see it in their attack range (职业-25): an enemy
  * gives `enemyDown` SP — the operator's own, then another friendly unit in its range at random —, an operator (not a
  * summon, not itself) `allyDown` SP.
  * @param {World} w @param {Content} c @param {Unit} dead
  */
 export function talentDeaths(w, c, dead) {
+  downHeals(w, c, dead);
   const on = dead.kind === KIND.ENEMY ? 'enemyDown' : dead.kind === KIND.OPERATOR && dead.summoner === undefined ? 'allyDown' : null;
   if (!on) return;
   const grid = { rows: c.level.height, cols: c.level.width };

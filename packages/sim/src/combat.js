@@ -29,6 +29,7 @@ import { mayAttack, healsNow, healerNow, inSkill, skillIdle, holdFrames, modeMod
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitDealt, traitAsk, traitSkip, summonHeld, dollNow } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_CUT_FRAMES } from './swing.js';
 import { talentSp, hurtAttackSp } from './talentfx.js';
+import { healGives, epHealMul } from './talentmore.js';
 import { timedAttack, attackEnded } from './talenttime.js';
 import { lowestArts } from './talentfoe.js';
 import { palsyCut, epOnHit, healDotOn } from './talentelem.js';
@@ -59,7 +60,7 @@ export function targetsOf(w, c, op) {
   const keys = reachKeys(c, op);
   if (healsNow(c, op)) return healOrder(c, op, w.units.filter((u) => u.kind === KIND.OPERATOR && u.hp > 0 && inKeys(u, keys, grid) && !statsOf(u).flags.healFree && !statsOf(u).flags.noAllyHeal));
   const held = (/** @type {Unit} */ u) => t.blockedFirst && u.blockedBy === op.id, air = t.idleAirOnly && !inSkill(op), sleep = t.hurtSleeping;
-  const any = { canHitFly: true, canHitSleep: sleep }, sel = { canHitFly: t.antiAir || !!dollNow(c, op)?.antiAir, canHitSleep: sleep };
+  const any = { canHitFly: true, canHitSleep: sleep, canHitStealth: t.seeStealth }, sel = { canHitFly: t.antiAir || !!dollNow(c, op)?.antiAir, canHitSleep: sleep, canHitStealth: t.seeStealth };
   const bySummon = t.summonBlocked ? summonHeld(w, op) : () => false, skip = traitSkip(w, c, op);
   const cands = w.units.filter((u) => hostile(u)
     && ((held(u) && selectable(u, any)) || ((bySummon(u) || (inKeys(u, keys, grid) && (!air || statsOf(u).flying))) && selectable(u, sel))) && !skip?.(u));
@@ -321,8 +322,9 @@ function jumpHits(w, c, src, t, load) {
 
 /**
  * A healer's heals on one target (职业-2, 职业-11, 职业-12), then a heal chain's on each operator it jumps to, at the
- * chain's share of the one before; each heal also restores element values by the trait's share of it, gives the one
- * healed its talents' SP for it (职业-25) and leaves their heal over time (职业-29).
+ * chain's share of the one before; each heal also restores element values by the trait's share of it (× its talents' on
+ * a ground unit, 职业-31), leaves what its talents give the one healed (职业-31), gives it their SP for it (职业-25) and
+ * leaves their heal over time (职业-29).
  * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t @param {{ load: Load, jumps: Unit[] }} how
  */
 function heals(w, c, a, t, how) {
@@ -330,8 +332,10 @@ function heals(w, c, a, t, how) {
   let amount = how.load.amount;
   for (const u of [t, ...how.jumps]) {
     for (let k = 0; k < how.load.times; k++) {
+      const ratio = u.hp / statsOf(u).maxHp;
       w.events.push({ type: 'heal', id: a.id, target: u.id, amount: heal(w, a, u, amount * vsHeal(w, c, a, u)) });
-      if (ep > 0 && !statsOf(u).flags.healFree) restoreEp(u, amount * ep);
+      if (ep > 0 && !statsOf(u).flags.healFree) restoreEp(u, amount * ep * epHealMul(c, a, u));
+      healGives(c, a, u, ratio);
       talentSp(w, c, a, 'heal', u);
       healDotOn(c, a, u);
     }
@@ -514,8 +518,12 @@ export function attackNow(w, c, op, given = null, o = {}) {
   return true;
 }
 
+/** A chance talent's chance now (攻击-4): its `skillProb` while the skill runs, when it has one. @param {Unit} op @param {import('./types.js').CritTalent} k */
+const chanceOf = (op, k) => (k.skillProb !== undefined && inSkill(op) ? k.skillProb : k.prob);
+
 /**
- * The chance talents of an operator's attack (攻击-4): for each, in order, one draw (随机-1); under its chance the
+ * The chance talents of an operator's attack (攻击-4): for each, in order, one draw (随机-1); under its chance — its
+ * `skillProb` while its skill runs, when it has one — the
  * attack's 倍率 × its scale, its stun on each hit, its more targets, its attack bonus for this attack (added to the
  * attack's), the share of the targets' 防御 it ignores (the most), its hits × its `times`. A healing attack draws none.
  * @param {World} w @param {Content} c @param {Unit} op @param {AttackMods} mods @returns {AttackMods}
@@ -524,7 +532,7 @@ function critMods(w, c, op, mods) {
   let out = mods;
   if (mods.heal || healerNow(c, op)) return out;
   for (const k of c.operators[op.key].critTalents ?? []) {
-    if (draw(w) >= k.prob) continue;
+    if (draw(w) >= chanceOf(op, k)) continue;
     out = { ...out, scale: out.scale * k.scale, ...(k.stun ? { hitStatus: { key: 'stun', seconds: k.stun } } : {}), ...(k.more ? { more: (out.more ?? 0) + k.more } : {}),
       ...(k.atk ? { atkPct: (out.atkPct ?? 0) + k.atk } : {}), ...(k.ignoreDef ? { ignoreDef: Math.max(out.ignoreDef ?? 0, k.ignoreDef) } : {}), ...(k.times ? { times: out.times * k.times } : {}) };
   }

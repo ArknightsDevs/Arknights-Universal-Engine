@@ -50,6 +50,18 @@ function regenAura(c, src, ops, want) {
 }
 
 /**
+ * The regen of a talent for the whole field (职业-31: `fieldRegen`): every friendly unit, any player's, gains 生命回复速度 of
+ * this share of the source's attack (buff `fieldRegen:<source id>`).
+ * @param {Content} c @param {Unit} src @param {Unit[]} ops @param {Map<Unit, Map<string, Want>>} want
+ */
+function fieldRegen(c, src, ops, want) {
+  const share = traitOf(c, src).fieldRegen;
+  if (!(share > 0)) return;
+  const amount = share * statsOf(src).atk;
+  for (const u of ops) want.get(u)?.set(`fieldRegen:${src.id}`, { src: src.id, value: amount, mods: { hpRegen: amount } });
+}
+
+/**
  * Whether a team talent is for an operator (部署-5): its profession (one of the talent's), or one of its factions, is the
  * talent's; every one for a talent for all.
  * @param {import('./types.js').TeamTalent} t @param {import('./types.js').OperatorDef} d
@@ -302,6 +314,7 @@ export function auras(w, c) {
   const want = new Map(units.map((u) => [u, new Map()]));
   for (const src of ops) {
     regenAura(c, src, ops, want);
+    fieldRegen(c, src, ops, want);
     fieldTalents(w, c, src, ops, want);
     fieldAspd(c, src, units, want);
     rangeTalents(w, c, src, units, want);

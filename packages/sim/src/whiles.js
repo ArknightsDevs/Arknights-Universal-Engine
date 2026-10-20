@@ -10,7 +10,7 @@ import { tileOf } from './body.js';
 import { rangeKeys, inKeys, hostile } from './targeting.js';
 import { traitOf } from './traits.js';
 import { gritTurn, spPulseTurn } from './talentfx.js';
-import { quiet, idleShieldTurn } from './talenttime.js';
+import { quiet, idleShieldTurn, hurtOnce, afterSkill } from './talenttime.js';
 import { lifeTurn } from './talentlife.js';
 import { foeTurn } from './talentfoe.js';
 import { pulseTurn } from './talentelem.js';
@@ -37,6 +37,16 @@ function crowded(w, op, n) {
     const [ur, uc] = tileOf(u), dr = Math.abs(ur - r), dc = Math.abs(uc - col);
     return n === 4 ? dr + dc === 1 : Math.max(dr, dc) === 1;
   });
+}
+
+/** How many enemies stand on an operator's tile or the 8 around it (职业-31). @param {World} w @param {Unit} op */
+function enemiesNear(w, op) {
+  const [r, col] = tileOf(op);
+  return w.units.filter((u) => {
+    if (u.hp <= 0 || u.hidden || !hostile(u)) return false;
+    const [ur, uc] = tileOf(u);
+    return Math.max(Math.abs(ur - r), Math.abs(uc - col)) <= 1;
+  }).length;
 }
 
 /** Whether a unit has an element value below its maximum. @param {Unit} u */
@@ -107,6 +117,13 @@ const WHEN = Object.freeze({
   highSide: (_w, c, op, v) => highSides(c, op) >= v,
   fieldOps: (w, _c, _op, v) => w.units.filter((u) => isOperator(u) && u.hp > 0 && !u.hidden).length >= v,
   firstDeploy: (w, _c, op) => !Object.hasOwn(w.players[op.owner]?.cards ?? {}, op.key),
+  hpNotBelow: (_w, _c, op, v) => op.hp >= v * statsOf(op).maxHp,
+  neverHurt: (_w, _c, op) => !hurtOnce(op),
+  stealthEnemies: (w, c, op) => inOwnRange(w, c, op).some((u) => hostile(u) && !!statsOf(u).flags.stealth),
+  skillOrAfter: (w, _c, op, v) => (!!op.skill && op.skill.active) || afterSkill(w, op, v),
+  lowSp: (_w, _c, op, v) => !!op.skill && !op.skill.active && op.skill.sp <= v * op.skill.cap,
+  enemiesNear: (w, _c, op, v) => enemiesNear(w, op) >= v,
+  fewEnemiesNear: (w, _c, op, v) => enemiesNear(w, op) < v,
 });
 
 /**

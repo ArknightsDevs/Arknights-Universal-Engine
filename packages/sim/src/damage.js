@@ -11,6 +11,7 @@ import { hurtSp, gainSp } from './sp.js';
 import { emit, hasHook } from './bus.js';
 import { worksMul } from './works.js';
 import { inflict } from './status.js';
+import { damageFloor } from './talentmore.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').DamageType} DamageType */
@@ -373,9 +374,16 @@ function runeSp(w, c, src) {
 const tagsOf = (c, src) => (c && src && src.kind === KIND.ENEMY ? /** @type {{ tags?: string[] }} */ (c.enemies[src.key] ?? {}).tags ?? [] : []);
 
 /**
+ * An attack's hit after the defences, not below its source's floor (职业-31: damageFloor; given the content).
+ * @param {import('./types.js').Content | undefined} c @param {Unit | null} seen @param {Unit} target @param {Damage} dmg @param {number} amount
+ */
+const floored = (c, seen, target, dmg, amount) => (c && seen && dmg.isAttack ? Math.max(amount, damageFloor(c, seen, target)) : amount);
+
+/**
  * Deals a hit (伤害-7): nothing to a unit already at 0 HP; 生命流失 goes straight to the HP; nothing to an invincible
  * unit (无敌, 沉睡, disappeared: 路线-4); otherwise the `hit` event, then the hit counts for 受击回复 (技能-2) and for
- * its source's rune SP (符文-4; given the content), then the target's defences, `mul`, the source's multiplier, the 工事 multiplier (地图-3; given the content), the target's 伤判
+ * its source's rune SP (符文-4; given the content), then the target's defences, `mul`, an attack's floor by its source's
+ * talents (职业-31; given the content), the source's multiplier, the 工事 multiplier (地图-3; given the content), the target's 伤判
  * effects, the `hpDamage` event, then the HP. A `sourceless` hit takes neither its source's penetration nor its
  * multipliers, and its events see no source (`credit` names it). Returns the HP taken.
  * @param {World} w @param {Unit | null} src @param {Unit} target @param {Damage} dmg @param {import('./types.js').Content} [c]
@@ -389,6 +397,7 @@ export function dealDamage(w, src, target, dmg, c) {
   if (c && src && !dmg.sourceless) runeSp(w, c, src);
   const seen = seenOf(src, dmg), ss = seen ? statsOf(seen) : null;
   let amount = mitigate(dmg.amount, dmg.type, statsOf(target), penetration(ss, dmg)) * /** @type {number} */ (dmg.mul);
+  amount = floored(c, seen, target, dmg, amount);
   if (ss) amount *= dealtMul(ss, dmg.type) * (c && seen ? worksMul(c, seen, target) : 1);
   amount = hpDamage(w, src, target, takeDamage(w, target, amount, dmg, { src: seen, tags: tagsOf(c, seen), ...(c ? { c } : {}) }), dmg);
   return amount > 0 ? loseHp(w, src, target, amount, dmg) : 0;

@@ -332,6 +332,22 @@
  * @property {{ profession: string, every: number, sp: number } | null} spPulse while it is on the field, every `every` seconds `sp`
  *   for each operator of `profession` with an attack-recovery skill (职业-30)
  * @property {number} hurtAttackSp while it is on the field, a hurt-recovery skill also gains this for its holder's attack (职业-30)
+ * @property {Record<string, number>[]} deployPick one of these modifiers at random for its deployment, without an end (职业-31)
+ * @property {{ where: 'around' | 'blocked', share: number }[]} downHeal a heal of `share` of its maximum HP for an enemy that
+ *   falls on its tile or the 8 around it, or that it blocked (职业-31)
+ * @property {{ profession: string, seconds: number, mods: Record<string, number> } | null} deployBuff as it is deployed,
+ *   `mods` for `seconds` on each operator of `profession` on the field (职业-31)
+ * @property {number} fieldRegen while it is on the field, every friendly unit gains 生命回复速度 of this share of its attack (职业-31)
+ * @property {{ seconds: number, mods: Record<string, number>, above?: number, aboveSeconds?: number } | null} healGives what
+ *   its heals leave on the one healed for some seconds (职业-31)
+ * @property {number} groundEpHeal × the 元素损伤 its heals restore on a unit on a 低地 tile (职业-31)
+ * @property {boolean} seeStealth its attack can select 隐匿 enemies (职业-31)
+ * @property {{ scale: number, front?: number } | null} minDamage the least damage of its attacks' hits after the defences, × its
+ *   attack (职业-31)
+ * @property {{ seconds: number, radius: number } | null} deployStun as it is deployed, 晕眩 on its first target and the enemies
+ *   around it (职业-31)
+ * @property {{ scale: number, stun: number, again: string } | null} deployBlast as it is deployed, true damage and 晕眩 on the
+ *   enemies on its tile and the 4 next to it (职业-31)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
  */
 /**
@@ -363,8 +379,8 @@
  * SP a talent gives on an event (干员-21, 职业-25): `sp` to the operator — or, on a heal, to the one healed —, `other`
  * to another unit at random; `share` of the skill's cost at the chance `prob` when its skill ends, or a heal of `heal` of
  * its maximum HP; for its kills during its skill, `sp` each at its end, at most `max`; `sp` at the end of the first skill it
- * starts in the battle (`firstSkillEnd`, 职业-30).
- * @typedef {{ on: 'attack' | 'kill' | 'heal' | 'enemyDown' | 'allyDown' | 'attacked' | 'skillEnd' | 'skillKills' | 'firstSkillEnd', sp?: number, other?: number,
+ * starts in the battle (`firstSkillEnd`, 职业-30); `sp` at the chance `prob` for a hit that took HP (`dealt`, 职业-31).
+ * @typedef {{ on: 'attack' | 'kill' | 'heal' | 'enemyDown' | 'allyDown' | 'attacked' | 'skillEnd' | 'skillKills' | 'firstSkillEnd' | 'dealt', sp?: number, other?: number,
  *   prob?: number, share?: number, max?: number, heal?: number }} TalentSp
  */
 /**
@@ -400,11 +416,15 @@
  * no attack of its ended for `value` seconds (`idle`), no hit took its HP (`unhurt`), no hit's 伤判 began on it (`calm`) —
  * the deployment counting as such an event, or not with `fresh` —; at least `value` 高台 tiles are behind it and at its
  * sides (`highSide`); at least `value` operators on the field, summons left out (`fieldOps`, 职业-29); it is on the field
- * for its first time (`firstDeploy`, 职业-30).
+ * for its first time (`firstDeploy`, 职业-30). From 职业-31: its HP is at least `value` of its maximum (`hpNotBelow`); no hit
+ * took its HP since its deployment (`neverHurt`); a 隐匿 enemy is in its own range (`stealthEnemies`); its skill runs or
+ * ended less than `value` seconds ago (`skillOrAfter`); its skill does not run and has at most `value` of its SP cap
+ * (`lowSp`); at least `value` enemies, or fewer, stand on its tile and the 8 around it (`enemiesNear`, `fewEnemiesNear`).
  * @typedef {{ when: 'blocking' | 'notBlocking' | 'hpAbove' | 'hpBelow' | 'enemies' | 'groundEnemies' | 'eliteEnemies' | 'burstEnemies'
  *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always' | 'inSkill' | 'alchemy'
  *   | 'blockingAtLeast' | 'lowHpEnemies' | 'noEnemies4' | 'soleEnemy4' | 'aloneUnits4' | 'notInSkill' | 'noKills' | 'fewStarts' | 'laterSkill'
- *   | 'idle' | 'unhurt' | 'calm' | 'highSide' | 'fieldOps' | 'firstDeploy',
+ *   | 'idle' | 'unhurt' | 'calm' | 'highSide' | 'fieldOps' | 'firstDeploy' | 'hpNotBelow' | 'neverHurt' | 'stealthEnemies' | 'skillOrAfter' | 'lowSp'
+ *   | 'enemiesNear' | 'fewEnemiesNear',
  *   value?: number, el?: string, per?: number, fresh?: boolean, mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
  */
 /**
@@ -492,7 +512,7 @@
  * A chance talent (攻击-4): on each attack, with chance `prob`, the attack's 倍率 × `scale`, and maybe a stun of `stun`
  * seconds on each hit and `more` targets, `atk` more attack (直接乘算) for that attack, `ignoreDef` of the targets' 防御
  * ignored, × `times` hits.
- * @typedef {{ prob: number, scale: number, stun?: number, more?: number, atk?: number, ignoreDef?: number, times?: number }} CritTalent
+ * @typedef {{ prob: number, scale: number, stun?: number, more?: number, atk?: number, ignoreDef?: number, times?: number, skillProb?: number }} CritTalent
  */
 /**
  * An in-range talent (部署-6): modifiers for the enemies, or the (ranged, melee, of a profession) operators, in the
@@ -688,9 +708,9 @@
  * down player comes back (−1 when not down), `downs` how often they went down (合作-4); `ask` the frames left of their
  * open cost request (−1 for none), `askCd` the frames until they may ask again (合作-5); its summons' cards, once one
  * has one (召唤-4); once talents give them (部署-10, 职业-30), the cut for its next operator (`cut`), the cuts on cards
- * (`cuts`) and the cards whose first skill has started (`once`).
+ * (`cuts`), the cards whose first skill has started (`once`) and its last operator deployed (`last`, 职业-31).
  * @typedef {{ life: number, cost: number, costTimer: number, deployed: string[], cards: Record<string, Card>, revive: number, downs: number,
- *   ask: number, askCd: number, summons?: Record<string, SummonCard>, cut?: number, cuts?: Record<string, number>, once?: string[] }} Player
+ *   ask: number, askCd: number, summons?: Record<string, SummonCard>, cut?: number, cuts?: Record<string, number>, once?: string[], last?: string }} Player
  */
 
 /**

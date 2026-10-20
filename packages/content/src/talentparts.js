@@ -392,6 +392,10 @@ const SPS = Object.freeze(/** @type {[RegExp, (m: RegExpExecArray, bb: Record<st
   [/^技能结束后[，,]\d+%几率立即回复\d+%的最大技力$/u, (_m, bb) => (has(bb, 'prob') && has(bb, 'sp') ? [{ on: 'skillEnd', prob: bb.prob, share: bb.sp }] : null)],
   [/^技能期间每击倒1名敌人[，,]技能结束时获得\d+点技力[，,]至多回复\d+点$/u, (_m, bb) => (has(bb, 'sp') && has(bb, 'max_sp') ? [{ on: 'skillKills', sp: bb.sp, max: bb.max_sp }] : null)],
   [/^技能结束时恢复自身\d+(?:\.\d+)?%最大生命值$/u, (_m, bb) => (has(bb, 'hp_ratio') ? [{ on: 'skillEnd', heal: bb.hp_ratio }] : null)],
+  [/^造成伤害时有\d+(?:\.\d+)?%的几率额外回复(\d+)点技力$/u, (m, bb) => {
+    const sp = spOf(bb, m[1]);
+    return sp !== undefined && has(bb, 'prob') ? [{ on: 'dealt', prob: bb.prob, sp }] : null;
+  }],
   [/^每场战斗中首次释放技能结束后立即回复(\d+)点技力$/u, (m, bb) => {
     const sp = spOf(bb, m[1]);
     return sp !== undefined ? [{ on: 'firstSkillEnd', sp }] : null;
@@ -629,7 +633,7 @@ const FOES = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>, m: R
   [/^自身可以攻击沉睡的敌人$/u, () => ({ hurtSleeping: true })],
   [/^自身可以攻击沉睡的敌人[，,]并且攻击沉睡敌人时无视其防御力的\d+(?:\.\d+)?%$/u, (bb) => (all([bb.def_penetrate])
     ? { hurtSleeping: true, vs: [{ when: 'status', status: 'sleep', defPct: bb.def_penetrate }] } : null)],
-  [/^优先攻击【([^】]+)】单位[，,]且攻击【\1】时攻击力提升至\d+(?:\.\d+)?%$/u, (bb, m) => (Object.hasOwn(TAGS, m[1]) && all([bb.atk_scale])
+  [/^优先攻击【([^】]+)】单位[，,]且攻击【\1】时攻击力(?:提升至|[+＋])\d+(?:\.\d+)?%$/u, (bb, m) => (Object.hasOwn(TAGS, m[1]) && all([bb.atk_scale])
     ? { prefer: [{ tag: TAGS[m[1]] }], vs: [{ when: 'tag', tag: TAGS[m[1]], atk: bb.atk_scale }] } : null)],
   [/^攻击处于(停顿)、(束缚)的敌人时[，,]额外造成相当于攻击力\d+(?:\.\d+)?%的法术伤害$/u, (bb, m) => (all([bb.atk_scale])
     ? { vs: [{ when: 'statusAny', statuses: [FOE_STATUS[m[1]], FOE_STATUS[m[2]]], on: 'damage', arts: bb.atk_scale, later: true }] } : null)],

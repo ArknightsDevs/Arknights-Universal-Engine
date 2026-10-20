@@ -563,3 +563,28 @@
 带 Stronghold 兼容 kit 的干员没有这些（兼容-6）。
 
 - 来源：干员-29；[PRTS「录武官」oldid=435045](https://prts.wiki/index.php?title=%E5%BD%95%E6%AD%A6%E5%AE%98&oldid=435045)「此天赋依赖技能开启事件触发……部分标注为“被动”的技能为在部署时/部署后自动触发的假被动技能，这类技能同样可以触发此效果」「自身的SP回复效果无视阻回；攻击速度加成效果不叠加，多次获得仅会刷新持续时间」，[PRTS「杏仁」oldid=441568](https://prts.wiki/index.php?title=%E6%9D%8F%E4%BB%81&oldid=441568)「此天赋相当于为首次开启的技能添加“于此次技能结束时生效”的额外效果，在技能结束前撤退并再度部署进行的技能结束时不会触发本天赋，但技能被取消时再次开启仍能触发本天赋；技力回复效果无视阻回」，[PRTS「炎狱炎熔」oldid=435228](https://prts.wiki/index.php?title=%E7%82%8E%E7%8B%B1%E7%82%8E%E7%86%94&oldid=435228) 把「初始技力」修正为「于部署时技力」（描述与游戏实际表现不符合），[PRTS「灰烬」oldid=434968](https://prts.wiki/index.php?title=%E7%81%B0%E7%83%AC&oldid=434968) 在「部署后立即获得」前补充「并在」（存在表述歧义），[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 移动「可以通过移动行为多次触发部署时触发的效果」；灰烬的技力只在第一次部署时、录武官也回应自己、被关闭算取消、脉冲的计时与叠加、受击回复取最大为推断 INF-0273
+
+### 职业-31 自身、治疗与部署的其他天赋
+
+`talentTrait`（职业-24）还可以带部署时随机的增益 `deployPick`、敌人倒下时回血 `downHeal`、部署时的增益 `deployBuff`、全场回复 `fieldRegen`、治疗留下的效果 `healGives`、低地上的元素回复倍数 `groundEpHeal`、可以选中隐匿的敌人 `seeStealth`、伤害保底 `minDamage`、部署时的晕眩 `deployStun`、部署时的冲击 `deployBlast`（干员-30，取天赋的）；天赋的技力（职业-25）还可以是 `dealt`；条件增益（职业-18）还可以是下面这些：
+
+- `hpNotBelow`：生命不低于最大生命值的 `value`；
+- `neverHurt`：这次部署以来没有受到扣除生命的伤害（职业-26 的记录）；
+- `stealthEnemies`：自己的攻击范围里有隐匿的敌人；
+- `skillOrAfter`：技能运行中，或技能结束后不到 `value` 秒（记录技能结束的帧）；
+- `lowSp`：技能没在运行，且技力不超过技力上限的 `value`；
+- `enemiesNear` / `fewEnemiesNear`：自己的格子和周围 8 格上有生命的敌人至少 / 少于 `value` 名。
+
+效果：
+
+- **部署时**（职业-30 的部署效果之后）：`deployPick` 抽一个随机数（随机-1）选其中一项，作为键为 `pick` 的 Buff，没有持续时间；`deployBuff` 给场上每名这个职业的干员（包括自己、任何玩家的）键为 `deployBuff:<干员 id>` 的 Buff，`seconds` 秒（已有时重新计时）；`deployStun` 取干员普通攻击会选的第一个目标（索敌-1），它和与它距离不超过 `radius` 的敌人晕眩 `seconds` 秒，没有目标时什么也不发生；`deployBlast` 对自己格子和上下左右 4 格上的敌人造成 攻击力 × `scale` 的真实伤害——玩家上一名部署的干员有 `again` 势力时再造成一次——然后晕眩 `stun` 秒。卡组里有带 `deployBlast` 的干员时，玩家部署干员（建造者不算）后记下这名干员（玩家的 `last`）。
+- **敌人倒下**（伤害-9，职业-25 之前）：场上每名带 `downHeal` 的干员，敌人在它的格子或周围 8 格（`around`）、或被它阻挡（`blocked`）时，治疗自己 `share` × 最大生命值（无视禁疗，伤害-11）。
+- **造成伤害**：干员的伤害扣除了敌人的生命时（职业-9 的那一步），每条 `dealt` 抽一个随机数，小于 `prob` 时获得 `sp` 技力（技能-2）。
+- **治疗**（职业-2）：每次治疗前记下目标的生命比例；元素回复再乘 `groundEpHeal`（目标在低地格上时）；治疗后，带 `healGives` 的给目标键为 `healGives:<干员 id>` 的 Buff，`seconds` 秒——治疗前的比例高于 `above` 时 `aboveSeconds` 秒——已有时重新计时。
+- **全场回复**：干员在场时，每名友方单位（任何玩家的）带键为 `fieldRegen:<干员 id>` 的光环 Buff，生命回复速度 + `fieldRegen` × 干员攻击力（部署-5 的光环更新）。
+- **伤害保底**：干员攻击的伤害（伤害-7 第 5 步之后）不低于 攻击力 × `scale`；有 `front` 且目标在干员的格子或朝向前方的两格上时用 `front`。
+- **可以选中隐匿的敌人**：干员的普通攻击可以选中隐匿的敌人（索敌-2）。
+
+带 Stronghold 兼容 kit 的干员没有这些（兼容-6）。
+
+- 来源：干员-30；[PRTS「红」oldid=434956](https://prts.wiki/index.php?title=%E7%BA%A2&oldid=434956)「此天赋是令伤害数值与治疗量在计算防御/抗性后，若其数值低于攻击力的一定倍率则直接改为攻击力的一定倍率，本次伤害仍会受后续的伤判效果与伤害重设影响」，[PRTS「酸糖」oldid=435160](https://prts.wiki/index.php?title=%E9%85%B8%E7%B3%96&oldid=435160)「每次于造成伤害之前判断攻击目标的中心点是否处于酸糖部署方向的2-2范围内（包括酸糖所在格）」，[PRTS「流明」oldid=435041](https://prts.wiki/index.php?title=%E6%B5%81%E6%98%8E&oldid=435041)「本天赋在治疗生效前判断生命比例」，[PRTS「褐果」oldid=434947](https://prts.wiki/index.php?title=%E8%A4%90%E6%9E%9C&oldid=434947)「天赋可生效于任何部署在高度类型为低地的地块的单位」「回复量提高效果为损伤治疗倍率提升」，[PRTS「调香师」oldid=435171](https://prts.wiki/index.php?title=%E8%B0%83%E9%A6%99%E5%B8%88&oldid=435171)「生命恢复的提供方式为增加目标的生命回复速度属性（直接加算），不受治疗加成和禁疗影响」，[PRTS「极光」oldid=434974](https://prts.wiki/index.php?title=%E6%9E%81%E5%85%89&oldid=434974)「生命恢复为增加自身的生命回复速度（百分比）属性」，[PRTS「艾丝黛尔」oldid=434848](https://prts.wiki/index.php?title=%E8%89%BE%E4%B8%9D%E9%BB%9B%E5%B0%94&oldid=434848)「治疗效果无视禁疗」，[PRTS「露托」oldid=435044](https://prts.wiki/index.php?title=%E9%9C%B2%E6%89%98&oldid=435044)「该效果无视禁疗」，[PRTS「玛恩纳」oldid=435053](https://prts.wiki/index.php?title=%E7%8E%9B%E6%81%A9%E7%BA%B3&oldid=435053)「天赋前半段效果为计算伤害时令此攻击倍率提升……天赋后半段判定范围为x-4」，[PRTS「灰烬」oldid=434968](https://prts.wiki/index.php?title=%E7%81%B0%E7%83%AC&oldid=434968)「攻击范围内无可选目标时，无法触发本天赋」「闪光弹影响半径为1」，[PRTS「耀骑士临光」oldid=435231](https://prts.wiki/index.php?title=%E8%80%80%E9%AA%91%E5%A3%AB%E4%B8%B4%E5%85%89&oldid=435231)「额外伤害可用时，待部署区卡片顶部将出现金色“双剑”标记」；冬时的效果离场前不再回来、耀骑士临光的「周围四格」含自己的格子而「上一名」按玩家记、嘉维尔对所有玩家的医疗干员、远山随机一次、冲击的伤害次数与晕眩的先后为推断 INF-0274、INF-0275

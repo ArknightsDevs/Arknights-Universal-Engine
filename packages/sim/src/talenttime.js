@@ -12,10 +12,11 @@ import { traitOf } from './traits.js';
 /** @typedef {import('./skills.js').AttackMods} AttackMods */
 
 /**
- * The tracker each condition in time keeps its frame on (职业-26): `idle` the end of the last attack, `unhurt` the last
- * hit that took HP, `calm` the last hit whose 伤判 began.
+ * The tracker each condition in time keeps its frame on (职业-26, 职业-31): `idle` the end of the last attack, `unhurt`
+ * and `neverHurt` the last hit that took HP, `calm` the last hit whose 伤判 began, `skillOrAfter` the last end of its
+ * skill.
  */
-const KEY_OF = Object.freeze(/** @type {Record<string, string>} */ ({ idle: 'lastAttack', unhurt: 'lastHurt', calm: 'lastJudged' }));
+const KEY_OF = Object.freeze(/** @type {Record<string, string>} */ ({ idle: 'lastAttack', unhurt: 'lastHurt', calm: 'lastJudged', neverHurt: 'lastHurt', skillOrAfter: 'lastSkillEnd' }));
 
 /** An operator's tracker buff, when it has one. @param {Unit} op @param {string} key */
 const tracker = (op, key) => op.buffs.find((b) => b.key === key);
@@ -45,6 +46,15 @@ export function trackTime(w, c, op) {
   const t = traitOf(c, op);
   for (const key of trackersOf(t)) addBuff(op, makeBuff({ key, src: op.id, n: key === 'dodges' ? 0 : -1 }));
   if (t.idleShield) addBuff(op, makeBuff({ key: 'shieldWait', src: op.id, n: w.frame }));
+}
+
+/** Whether a hit took an operator's HP since its deployment (职业-31), by its tracker. @param {Unit} op */
+export const hurtOnce = (op) => (tracker(op, 'lastHurt')?.n ?? -1) >= 0;
+
+/** Whether an operator's skill ended less than `seconds` ago (职业-31), by its tracker. @param {World} w @param {Unit} op @param {number} seconds */
+export function afterSkill(w, op, seconds) {
+  const n = tracker(op, 'lastSkillEnd')?.n ?? -1;
+  return n >= 0 && w.frame - n < secondsToFrames(seconds);
 }
 
 /**

@@ -425,13 +425,15 @@ export function rangePart(c) {
 }
 
 /** The chance and what it does to the attack (干员-12): the clause, and what it gives from the blackboard — null without the keys it needs. */
-/** @typedef {{ prob: number, scale: number, stun?: number, more?: number, atk?: number, ignoreDef?: number, times?: number }} Crit */
+/** @typedef {{ prob: number, scale: number, stun?: number, more?: number, atk?: number, ignoreDef?: number, times?: number, skillProb?: number }} Crit */
 /** @type {readonly [RegExp, (bb: Record<string, number>) => Crit | null][]} */
 const CRITS = Object.freeze([
   [/^(?:攻击时|每次攻击|造成(?:物理)?伤害时)[，,]?有?\d+(?:\.\d+)?[%％]的?(?:几率|概率)(?:使)?(?:当次攻击的?)?攻击力提升至\d+(?:\.\d+)?[%％]$/u,
     (bb) => (has(bb, 'prob') && has(bb, 'atk_scale') ? { prob: bb.prob, scale: bb.atk_scale } : null)],
-  [/^(?:攻击时|普通攻击和技能释放时)[，,]?有?\d+(?:\.\d+)?%的?(?:几率|概率)当次攻击的?攻击力[+＋]\d+(?:\.\d+)?%$/u,
-    (bb) => (has(bb, 'prob') && has(bb, 'atk') ? { prob: bb.prob, scale: 1, atk: bb.atk } : null)],
+  [/^(?:攻击时|普通攻击和技能释放时)[，,]?有?\d+(?:\.\d+)?%的?(?:几率|概率)当次攻击的?攻击力[+＋]\d+(?:\.\d+)?%$/u, (bb) => {
+    const prob = bb.prob ?? bb.prob1;
+    return Number.isFinite(prob) && has(bb, 'atk') ? { prob, scale: 1, atk: bb.atk } : null;
+  }],
   [/^攻击时有?\d+(?:\.\d+)?%的?(?:几率|概率)无视目标的防御$/u, (bb) => (has(bb, 'prob') ? { prob: bb.prob, scale: 1, ignoreDef: 1 } : null)],
   [/^攻击时有?\d+(?:\.\d+)?%的?(?:几率|概率)(?:造成二连击|连续攻击两次)$/u, (bb) => {
     const prob = bb.prob ?? bb['attack@prob'];
@@ -442,13 +444,19 @@ const CRITS = Object.freeze([
 /** What may follow it in the same sentence (干员-12). */
 const CRIT_STUN = /^并(?:使敌人)?晕眩(?:敌人)?\d+(?:\.\d+)?秒$/u;
 const CRIT_MORE = /^且额外攻击一个目标$/u;
+/** A later sentence that raises the chance while the skill runs (干员-12): 「技能中这个几率提高到N%」 (`prob2`). */
+const CRIT_SKILL = /。技能中这个几率提高到\d+(?:\.\d+)?%/u;
+
+/** The chance while the skill runs (干员-12): `prob2` when a later sentence says so. @param {Talent} c */
+const skillChance = (c) => (CRIT_SKILL.test((c.description ?? '').replace(/<[^>]*>/g, '').replace(/（[^）]*）/g, '')) && has(c.bb, 'prob2') ? { skillProb: c.bb.prob2 } : {});
 
 /**
  * The chance part of a talent (干员-12): in its first sentence a clause of CRITS — 「攻击时（，）（有）N%（的）几率/概率（当次
  * 攻击的）攻击力提升至M%」 (or 每次攻击 / 造成伤害时: `prob`, 倍率 `atk_scale`), 「……当次攻击的攻击力+M%」 (`atk` more
  * attack for that attack), 「……无视目标的防御」, 「……造成二连击 / 连续攻击两次」, 「攻击有N%几率造成相当于攻击力M%的物理伤害」 —
- * with the blackboard keys it needs; for the first, the clause after it may add a stun of `stun` seconds (「并使敌人晕眩N秒」)
- * or one more target (「且额外攻击一个目标」). Null otherwise; hidden talents have none.
+ * with the blackboard keys it needs (`prob1` for `prob` too); for the first, the clause after it may add a stun of `stun`
+ * seconds (「并使敌人晕眩N秒」) or one more target (「且额外攻击一个目标」); a later 「技能中这个几率提高到N%」 gives the chance
+ * while the skill runs (`skillProb`, `prob2`). Null otherwise; hidden talents have none.
  * @param {Talent} c @returns {Crit | null}
  */
 export function critPart(c) {
@@ -460,8 +468,9 @@ export function critPart(c) {
     const form = CRITS.find(([re]) => re.test(x)), got = form ? form[1](c.bb) : null;
     if (!got) continue;
     const next = clauses[x === clauses[i] ? i + 1 : i + 2] ?? '';
+    const skill = skillChance(c);
     return got.atk === undefined && got.ignoreDef === undefined && got.times === undefined
-      ? { ...got, ...(CRIT_STUN.test(next) && has(c.bb, 'stun') ? { stun: c.bb.stun } : {}), ...(CRIT_MORE.test(next) ? { more: 1 } : {}) } : got;
+      ? { ...got, ...(CRIT_STUN.test(next) && has(c.bb, 'stun') ? { stun: c.bb.stun } : {}), ...(CRIT_MORE.test(next) ? { more: 1 } : {}), ...skill } : { ...got, ...skill };
   }
   return null;
 }

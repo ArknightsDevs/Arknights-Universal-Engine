@@ -7,6 +7,7 @@ import { skillDefOf } from './skills.js';
 import { unlockedAt, talentsAt, alwaysOnBb, alwaysModsOf, teamPart, rangePart, critPart, timedPart, deployPart, forSkill } from './talents.js';
 import { whileParts, targetPart, hitPart, attackPart, stackPart, spParts, gritPart, auraParts, perParts, specialParts } from './talentparts.js';
 import { deckParts } from './talentdeck.js';
+import { moreParts, talentRange } from './talentmore.js';
 import { dollOf } from './doll.js';
 import rangeTable from '../data/ranges.json' with { type: 'json' };
 
@@ -178,19 +179,19 @@ export function teamTalentsAt(t, b) {
 const listed = (k, v) => (v.length ? { [k]: v } : {});
 
 /**
- * What a training's talents add to its trait (干员-17…干员-29, 职业-24…职业-30): their conditional parts (`whiles`, the
+ * What a training's talents add to its trait (干员-17…干员-30, 职业-24…职业-31): their conditional parts (`whiles`, the
  * special parts' too), target parts (`vs`, the special parts' too), preferred targets (`prefer`), answers to bursts
  * (`burstOn`), pulses (`pulses`), hit parts (`onHit`), what they add to the attacks — 法术伤害 riding on each
  * hit (`extraArts`, summed), more targets (`targets`, the most) —, their stacks (`stacks`, the special parts' too), SP (`talentSp`), 坚忍 (`grit`,
- * the first), auras on blocked enemies (`auras`), next attacks (`nextAttack`) and the special and deck parts' (干员-29)
- * single fields (the first of each); null when there is none.
+ * the first), auras on blocked enemies (`auras`), next attacks (`nextAttack`) and the special, deck and other parts'
+ * (干员-29, 干员-30) single fields (the first of each); null when there is none.
  * @param {import('./talents.js').Talent[]} talents @returns {Partial<import('@aue/sim').TraitDef> | null}
  */
 function talentTraitOf(talents) {
   const attacks = talents.map(attackPart).filter((p) => p !== null), extraArts = attacks.reduce((n, p) => n + (p.extraArts ?? 0), 0);
   const targets = Math.max(0, ...attacks.map((p) => p.targets ?? 0)), grit = talents.map(gritPart).find((p) => p !== null), packed = attacks.find((p) => p.packed)?.packed;
   const auras = talents.flatMap((c) => auraParts(c, rangeTable.ranges).auras);
-  const special = [...talents.map((c) => specialParts(c).trait), ...talents.map((c) => deckParts(c)?.trait ?? null)].filter((p) => p !== null);
+  const special = [...talents.map((c) => specialParts(c).trait), ...talents.map((c) => deckParts(c)?.trait ?? null), ...talents.map(moreParts)].filter((p) => p !== null);
   const singles = Object.assign({}, ...special.map(({ whiles, nextAttack, vs, prefer, stacks, burstOn, pulses, ...rest }) => rest).reverse());
   const out = {
     ...singles, ...listed('whiles', [...talents.flatMap(whileParts), ...talents.flatMap(perParts), ...special.flatMap((p) => p.whiles ?? [])]),
@@ -297,7 +298,7 @@ export function recordAt(t, b, mod, type) {
   const s = statsAt(t, b, mod), level = slot ? slot.levels[clamp(b.skillLevel, 1, slot.levels.length) - 1] : null;
   const { cost, respawn, fields } = talentFields(t, b, mod), traitBb = traitAt(t, b);
   const rec = withTrait({
-    name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: moduleRangeAt(b, mod) ?? phase.range, traitBb, hiddenBb: hiddenAt(b, mod), ...(mod && type ? { moduleType: type, moduleText: moduleTextAt(b, mod) } : {}),
+    name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: moduleRangeAt(b, mod) ?? talentRange(upgradedTalents(t, b, mod), rangeTable.ranges) ?? phase.range, traitBb, hiddenBb: hiddenAt(b, mod), ...(mod && type ? { moduleType: type, moduleText: moduleTextAt(b, mod) } : {}),
     maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: Math.max(0, s.cost + cost), blockCnt: s.blockCnt, baseAttackTime: s.baseAttackTime,
     respawnTime: Math.max(0, s.respawnTime + respawn), aspd: s.aspd, tauntLevel: s.tauntLevel, massLevel: s.massLevel,
     ...fields, ...(slot && level ? { skill: withAlchemyTalents(skillDefOf(slot.id, level), upgradedTalents(t, b, mod)) } : {}),
