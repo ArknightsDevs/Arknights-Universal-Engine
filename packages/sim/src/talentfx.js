@@ -14,6 +14,7 @@ import { inKeys } from './targeting.js';
 import { tileOf } from './body.js';
 import { traitOf, gainCost } from './traits.js';
 import { downHeals, skillEndStamp } from './talentmore.js';
+import { skillEndHeal } from './talentheal.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').TalentStack} TalentStack @typedef {import('./types.js').TalentSp} TalentSp */
@@ -146,11 +147,12 @@ export function talentSp(w, c, op, on, target) {
  * An operator's skill ended, for its talents (职业-25, 职业-30): a heal of `heal` of its maximum HP; at a talent's chance
  * (one draw), its `share` of the skill's cost (whole points, down); its kills during the skill × `sp`, at most `max`, and
  * the count gone; the first skill of the battle (buff `firstSkill`), unless it was closed (`stopped`), its `sp` — 阻回 no
- * matter — and the mark gone; the end's frame on its tracker (职业-31).
+ * matter — and the mark gone; the end's frame on its tracker (职业-31); its heals at the end (职业-33).
  * @param {World} w @param {Content} c @param {Unit} op @param {string} [reason]
  */
 export function talentSkillEnd(w, c, op, reason) {
   skillEndStamp(w, op);
+  skillEndHeal(w, c, op);
   for (const x of traitOf(c, op).talentSp) {
     if (x.on === 'firstSkillEnd') firstSkillEnd(op, x, reason);
     if (x.on === 'skillEnd' && x.heal && op.hp > 0) w.events.push({ type: 'heal', id: op.id, target: op.id, amount: heal(w, op, op, x.heal * statsOf(op).maxHp) });

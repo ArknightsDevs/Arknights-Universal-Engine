@@ -29,7 +29,8 @@ import { mayAttack, healsNow, healerNow, inSkill, skillIdle, holdFrames, modeMod
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitDealt, traitAsk, traitSkip, summonHeld, dollNow } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_CUT_FRAMES } from './swing.js';
 import { talentSp, hurtAttackSp } from './talentfx.js';
-import { healGives, epHealMul } from './talentmore.js';
+import { epHealMul } from './talentmore.js';
+import { healMore } from './talentheal.js';
 import { timedAttack, attackEnded } from './talenttime.js';
 import { lowestArts } from './talentfoe.js';
 import { palsyCut, epOnHit, healDotOn } from './talentelem.js';
@@ -323,8 +324,8 @@ function jumpHits(w, c, src, t, load) {
 /**
  * A healer's heals on one target (职业-2, 职业-11, 职业-12), then a heal chain's on each operator it jumps to, at the
  * chain's share of the one before; each heal also restores element values by the trait's share of it (× its talents' on
- * a ground unit, 职业-31), leaves what its talents give the one healed (职业-31), gives it their SP for it (职业-25) and
- * leaves their heal over time (职业-29).
+ * a ground unit, 职业-31), gives the one healed its talents' SP for it (职业-25) and leaves their heal over time (职业-29);
+ * what the talents give for any heal is the heal hook's (职业-33).
  * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t @param {{ load: Load, jumps: Unit[] }} how
  */
 function heals(w, c, a, t, how) {
@@ -332,10 +333,8 @@ function heals(w, c, a, t, how) {
   let amount = how.load.amount;
   for (const u of [t, ...how.jumps]) {
     for (let k = 0; k < how.load.times; k++) {
-      const ratio = u.hp / statsOf(u).maxHp;
       w.events.push({ type: 'heal', id: a.id, target: u.id, amount: heal(w, a, u, amount * vsHeal(w, c, a, u)) });
       if (ep > 0 && !statsOf(u).flags.healFree) restoreEp(u, amount * ep * epHealMul(c, a, u));
-      healGives(c, a, u, ratio);
       talentSp(w, c, a, 'heal', u);
       healDotOn(c, a, u);
     }
@@ -530,7 +529,7 @@ const chanceOf = (op, k) => (k.skillProb !== undefined && inSkill(op) ? k.skillP
  */
 function critMods(w, c, op, mods) {
   let out = mods;
-  if (mods.heal || healerNow(c, op)) return out;
+  if (mods.heal || healerNow(c, op)) return healMore(w, c, op, out);
   for (const k of c.operators[op.key].critTalents ?? []) {
     if (draw(w) >= chanceOf(op, k)) continue;
     out = { ...out, scale: out.scale * k.scale, ...(k.stun ? { hitStatus: { key: 'stun', seconds: k.stun } } : {}), ...(k.more ? { more: (out.more ?? 0) + k.more } : {}),

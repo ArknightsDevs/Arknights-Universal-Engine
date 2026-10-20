@@ -33,6 +33,7 @@ import { tacticalFatal, tacticalBehaviors } from './tactical.js';
 import { dollFatal, dollBehaviors } from './doll.js';
 import { secondLifeFatal } from './riders.js';
 import { talentDeaths, TALENT_BEHAVIORS } from './talentfx.js';
+import { healHooks, HEAL_BEHAVIORS } from './talentheal.js';
 import { foeBehaviors } from './talentfoe.js';
 import { elementHooks, elementBehaviors } from './talentelem.js';
 import { holds } from './vs.js';
@@ -140,7 +141,7 @@ function announceDeath(w, u, leak) {
 }
 
 /** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12, 职业-15, 职业-27…职业-29, 召唤-11, 装置-6); content cannot replace them. @param {Content} c */
-const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...TALENT_BEHAVIORS, ...lifeBehaviors(c), ...foeBehaviors(c, holds), ...elementBehaviors(), ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c) });
+const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...TALENT_BEHAVIORS, ...HEAL_BEHAVIORS, ...lifeBehaviors(c), ...foeBehaviors(c, holds), ...elementBehaviors(), ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c) });
 
 /** Each content's buff behaviours, made once (they depend on the content alone), with the content's table they were made from. @type {WeakMap<Content, { from: unknown, table: Record<string, import('./buffs.js').Behavior> }>} */
 const buffTables = new WeakMap();
@@ -164,6 +165,7 @@ export function step(w, level, commands = []) {
   const c = fieldContent(w, level);
   fortressHooks(w, level);
   elementHooks(w, level);
+  healHooks(w, level);
   w.events = [];
   w.bornThisFrame = 0;
   for (const [seat, cmd] of commands) applyCommand(w, c, seat, cmd);

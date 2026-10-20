@@ -580,7 +580,7 @@
 - **部署时**（职业-30 的部署效果之后）：`deployPick` 抽一个随机数（随机-1）选其中一项，作为键为 `pick` 的 Buff，没有持续时间；`deployBuff` 给场上每名这个职业的干员（包括自己、任何玩家的）键为 `deployBuff:<干员 id>` 的 Buff，`seconds` 秒（已有时重新计时）；`deployStun` 取干员普通攻击会选的第一个目标（索敌-1），它和与它距离不超过 `radius` 的敌人晕眩 `seconds` 秒，没有目标时什么也不发生；`deployBlast` 对自己格子和上下左右 4 格上的敌人造成 攻击力 × `scale` 的真实伤害——玩家上一名部署的干员有 `again` 势力时再造成一次——然后晕眩 `stun` 秒。卡组里有带 `deployBlast` 的干员时，玩家部署干员（建造者不算）后记下这名干员（玩家的 `last`）。
 - **敌人倒下**（伤害-9，职业-25 之前）：场上每名带 `downHeal` 的干员，敌人在它的格子或周围 8 格（`around`）、或被它阻挡（`blocked`）时，治疗自己 `share` × 最大生命值（无视禁疗，伤害-11）。
 - **造成伤害**：干员的伤害扣除了敌人的生命时（职业-9 的那一步），每条 `dealt` 抽一个随机数，小于 `prob` 时获得 `sp` 技力（技能-2）。
-- **治疗**（职业-2）：每次治疗前记下目标的生命比例；元素回复再乘 `groundEpHeal`（目标在低地格上时）；治疗后，带 `healGives` 的给目标键为 `healGives:<干员 id>` 的 Buff，`seconds` 秒——治疗前的比例高于 `above` 时 `aboveSeconds` 秒——已有时重新计时。
+- **治疗**（职业-2）：元素回复再乘 `groundEpHeal`（目标在低地格上时）；它的任何一次治疗（职业-33 的治疗钩子），带 `healGives` 的给目标键为 `healGives:<干员 id>` 的 Buff，`seconds` 秒——治疗前的生命比例高于 `above` 时 `aboveSeconds` 秒——已有时重新计时。
 - **全场回复**：干员在场时，每名友方单位（任何玩家的）带键为 `fieldRegen:<干员 id>` 的光环 Buff，生命回复速度 + `fieldRegen` × 干员攻击力（部署-5 的光环更新）。
 - **伤害保底**：干员攻击的伤害（伤害-7 第 5 步之后）不低于 攻击力 × `scale`；有 `front` 且目标在干员的格子或朝向前方的两格上时用 `front`。
 - **可以选中隐匿的敌人**：干员的普通攻击可以选中隐匿的敌人（索敌-2）。
@@ -610,3 +610,24 @@
 带 Stronghold 兼容 kit 的干员没有这些（兼容-6）。
 
 - 来源：干员-31；[PRTS「维娜·维多利亚」oldid=435183](https://prts.wiki/index.php?title=%E7%BB%B4%E5%A8%9C%C2%B7%E7%BB%B4%E5%A4%9A%E5%88%A9%E4%BA%9A&oldid=435183)「攻击力加成效果对除装置职业外所有职业/类型的我方单位进行判定，不含自身」，[PRTS「浊心斯卡蒂」oldid=435290](https://prts.wiki/index.php?title=%E6%B5%8A%E5%BF%83%E6%96%AF%E5%8D%A1%E8%92%82&oldid=435290)「天赋、特性、技能中所述的“攻击范围内”相当于“自己或自己的召唤物的攻击范围内”」，[PRTS「暴行」oldid=434869](https://prts.wiki/index.php?title=%E6%9A%B4%E8%A1%8C&oldid=434869)「地块的判定条件为“高度类型为高地的地块”；不判定暴行所在的这一地块」，[PRTS「薄绿」oldid=434868](https://prts.wiki/index.php?title=%E8%96%84%E7%BB%BF&oldid=434868)「防御力提升效果不对自身生效」，[PRTS「万顷」oldid=435178](https://prts.wiki/index.php?title=%E4%B8%87%E9%A1%B7&oldid=435178)「万顷自身永远可以享受到此天赋“部署方向与万顷相同”的效果」，[PRTS「行箸」oldid=435211](https://prts.wiki/index.php?title=%E8%A1%8C%E7%AE%B8&oldid=435211)「部署时随机选择生效对象（不会重复）；部署时攻击范围内干员数量不足2名时，剩余的天赋目标数可被应用于之后被部署的友方干员」，[PRTS「但书」oldid=434902](https://prts.wiki/index.php?title=%E4%BD%86%E4%B9%A6&oldid=434902)「若场上没有其他可选的卡西米尔干员，则本天赋将应用于自身和之后被部署的卡西米尔干员」，[PRTS「迷迭香」oldid=435062](https://prts.wiki/index.php?title=%E8%BF%B7%E8%BF%AD%E9%A6%99&oldid=435062)「场上不存在术师干员时，该天赋带来的属性提升不生效；在此基础上部署术师干员时，属性提升生效于迷迭香自身与这些术师干员」，[PRTS「隐现」oldid=435247](https://prts.wiki/index.php?title=%E9%9A%90%E7%8E%B0&oldid=435247)「隐现在场停留20秒后而场上没有携带弹药技能的【拉特兰】干员时，天赋的额外支援效果在满足条件的干员部署后对其生效」「弹药上限提升效果仅能在弹药类技能开始时生效」，[PRTS「圣约送葬人」oldid=435130](https://prts.wiki/index.php?title=%E5%9C%A3%E7%BA%A6%E9%80%81%E8%91%AC%E4%BA%BA&oldid=435130)「该天赋仅于开启技能时进行判断；判定范围包括所有阵营包含【拉特兰】的单位」，[PRTS「乌尔比安」oldid=440116](https://prts.wiki/index.php?title=%E4%B9%8C%E5%B0%94%E6%AF%94%E5%AE%89&oldid=440116)「仅自身在场时生效；再部署重置此天赋层数；场上其他的【深海猎人】干员获得的buff层数与自身保持同步」，[PRTS「苏苏洛」oldid=435158](https://prts.wiki/index.php?title=%E8%8B%8F%E8%8B%8F%E6%B4%9B&oldid=435158)「天赋可应用于所有符合条件的友方单位」，[PRTS「杜宾」oldid=434911](https://prts.wiki/index.php?title=%E6%9D%9C%E5%AE%BE&oldid=434911)「此天赋无视孤立」，[PRTS「锡兰」oldid=435194](https://prts.wiki/index.php?title=%E9%94%A1%E5%85%B0&oldid=435194)「关卡的地形TAG变动时，重新检测是否满足天赋需求」，[PRTS「鞭刃」oldid=434873](https://prts.wiki/index.php?title=%E9%9E%AD%E5%88%83&oldid=434873)「“友方近战单位”为实际可部署在近战位的我方单位」，[PRTS「撷英调香师」oldid=435204](https://prts.wiki/index.php?title=%E6%92%B7%E8%8B%B1%E8%B0%83%E9%A6%99%E5%B8%88&oldid=435204)「生命比例判断在对象身上每0.1秒进行一次」；水地形按地块键名、共享增益在持有者离场时去掉、场上的增益对所有玩家为推断 INF-0276、INF-0277
+
+### 职业-33 治疗的天赋
+
+`talentTrait`（职业-24）还可以带治疗分享 `healShare`、多治疗一名的几率 `healMore`、受异常时的治疗 `statusHeal`、低生命的额外治疗 `lowHeal`、过量治疗的屏障 `overhealBarrier`、治疗的屏障 `healBarrier`、技能结束的治疗 `skillEndHeal`、抵抗者的回复 `resistRegen`、溢出的屏障 `overflowBarrier`（干员-32，取天赋的）。
+
+- **治疗钩子**：内容里有干员带 `healShare`、`lowHeal`、`healGives`、`healBarrier`、`overhealBarrier`、`overflowBarrier` 时，每一帧开始时（若还没有）挂上一个 `heal` 处理函数（钩子-3）。干员（不是装置、敌人）的每一次治疗应用之前，依次：
+  1. 带 `lowHeal` 且目标的生命比例低于 `below`：这次治疗量加 `value`（不乘治疗倍率）；
+  2. `healGives`（职业-31），按这时的生命比例；
+  3. 目标是干员时，带 `healBarrier` 的给目标键为 `healBarrier:<干员 id>` 的 Buff，屏障 `scale` × 治疗者攻击力，`seconds` 秒；已有时屏障设为这个量（不累加），重新计时；
+  4. 治疗量超出目标最大生命值的部分（溢出）大于 0 时：治疗者带 `overhealBarrier` 的，目标的键为 `overheal:<治疗者 id>` 的 Buff 的屏障加上溢出，至多 `cap` × 治疗者攻击力，记下这一帧；这个 Buff 从记下的帧起满 1 秒后，每 0.1 秒失去当前屏障的 `decay` / 10（向上取整），屏障为 0 时去掉。目标是带 `overflowBarrier` 的干员时，它的键为 `overflow` 的 Buff 的屏障加上溢出，至多 `overflowBarrier` × 它的最大生命值；
+  5. 目标不是治疗者自己时，治疗者带 `healShare` 的，治疗自己 `healShare` × 这次治疗量（产生 `heal` 事件）。
+
+  这些处理里产生的治疗不再触发这个处理函数。
+- **受异常时的治疗**：内容里有干员带 `statusHeal` 时，同样挂上一个 `beforeStatus` 处理函数。友方单位要受到可抵抗的状态（状态-5）、它有生命但没满时，场上每名带 `statusHeal`、攻击范围里有它一格、没有 `statusHealCd` Buff 的干员，治疗它 `scale` × 自己的攻击力，并带上键为 `statusHealCd`、`cooldown` 秒的 Buff。
+- **技能结束的治疗**：技能结束时（职业-25 的技能结束处理），带 `skillEndHeal` 的干员治疗自己，和攻击范围里生命没满的其他友方单位（含召唤物）中生命比例最低的至多 `max` 名（相同时 id 小的先），各 `scale` × 攻击力。
+- **抵抗者的回复**（部署-5 的光环更新）：攻击范围里状态抵抗被降低（`statusResFlat` 小于 0）的友方单位带键为 `resistRegen:<干员 id>` 的光环 Buff，生命回复速度 + `resistRegen` × 干员攻击力。
+- **多治疗一名**：治疗的普通攻击开始时（攻击-4），带 `healMore` 的抽一个随机数（随机-1），小于它时这次攻击的目标数多 1。
+
+带 Stronghold 兼容 kit 的干员没有这些（兼容-6）。
+
+- 来源：干员-32；[PRTS「明椒」oldid=435067](https://prts.wiki/index.php?title=%E6%98%8E%E6%A4%92&oldid=435067)「于当次治疗前触发天赋，天赋治疗量不受特性影响」，[PRTS「医生」oldid=435243](https://prts.wiki/index.php?title=%E5%8C%BB%E7%94%9F&oldid=435243)「本天赋获得的屏障为优先级+1000的单一buff，可叠加，上限不超过触发效果时自身攻击力的5000%；屏障生成1s后，每0.1s衰减当前屏障量的2%(精英1)/1%(精英2)，衰减量向上取整」，[PRTS「莎草」oldid=435116](https://prts.wiki/index.php?title=%E8%8E%8E%E8%8D%89&oldid=435116)「屏障吸收量不可叠加」，[PRTS「休谟斯」oldid=435212](https://prts.wiki/index.php?title=%E4%BC%91%E8%B0%9F%E6%96%AF&oldid=435212)「任何形式的对休谟斯进行的过量治疗均可以产生屏障」「当休谟斯的最大生命值变化时，已有的此类屏障量不会因此相应增减，但上限会实时计算」，[PRTS「流明」oldid=435041](https://prts.wiki/index.php?title=%E6%B5%81%E6%98%8E&oldid=435041)「该天赋为立刻触发，且不占用攻击间隔的治疗，其仅对生命值未满的单位生效」，[PRTS「岳羽由加莉」oldid=439328](https://prts.wiki/index.php?title=%E5%B2%B3%E7%BE%BD%E7%94%B1%E5%8A%A0%E8%8E%89&oldid=439328)「可治疗任何可治疗的我方单位，不局限于干员」「优先治疗生命比例最低的单位，不治疗除自身以外生命为满的单位」，[PRTS「絮雨」oldid=435213](https://prts.wiki/index.php?title=%E7%B5%AE%E9%9B%A8&oldid=435213)「生命恢复的提供方式为增加目标的生命回复速度属性，不受治疗加成和禁疗影响」，[PRTS「刺玫」oldid=434896](https://prts.wiki/index.php?title=%E5%88%BA%E7%8E%AB&oldid=434896)「本天赋实时判断目标生命上限并转移目标」，[PRTS「焰影苇草」oldid=435227](https://prts.wiki/index.php?title=%E7%84%B0%E5%BD%B1%E8%8B%87%E8%8D%89&oldid=435227)「本天赋的治疗行为不受禁疗制约，但治疗量会受到禁疗影响」；钩子在治疗应用之前处理、溢出按处理前的量算、受异常的治疗用状态施加前的钩子、抵抗按状态抵抗被降低判断为推断 INF-0278、INF-0279

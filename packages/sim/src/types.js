@@ -352,6 +352,18 @@
  * @property {ShareGain | null} shareGain a gain it shares with units chosen at random (职业-32)
  * @property {{ power: string, mods: Record<string, number> } | null} stackShare its stack marked `shared` given to the other
  *   units of a faction, × its steps (职业-32)
+ * @property {number} healShare healing another unit, it heals itself this share of the heal (职业-33)
+ * @property {number} healMore the chance of one more target for its heal (职业-33)
+ * @property {{ scale: number, cooldown: number } | null} statusHeal a heal of `scale` × its attack for a unit in its range taking
+ *   a 可抵抗 status, then a wait of `cooldown` seconds (职业-33)
+ * @property {{ below: number, value: number } | null} lowHeal `value` more for a heal on a unit below `below` of its maximum HP (职业-33)
+ * @property {{ cap: number, decay: number } | null} overhealBarrier its heal beyond the target's maximum as a 屏障, at most `cap` ×
+ *   its attack, losing `decay` a second (职业-33)
+ * @property {{ scale: number, seconds: number } | null} healBarrier its heal leaves a 屏障 of `scale` × its attack for `seconds` (职业-33)
+ * @property {{ scale: number, max: number } | null} skillEndHeal as its skill ends, a heal of `scale` × its attack on itself and at
+ *   most `max` units in its range (职业-33)
+ * @property {number} resistRegen the units with 抵抗 in its range gain 生命回复速度 of this share of its attack (职业-33)
+ * @property {number} overflowBarrier a heal beyond its maximum HP becomes its 屏障, at most this share of its maximum HP (职业-33)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
  */
 /**
@@ -548,7 +560,7 @@
  * holds when it has one; not the holder with `others`; only while `srcWhen` holds on the holder (职业-32).
  * @typedef {{ side: 'enemy' | 'ally', ranged: boolean, mods: Record<string, number>, melee?: boolean, profession?: string, professions?: string[], area?: Cell[],
  *   rotate?: boolean, others?: boolean, srcWhen?: WhileMods['when'],
- *   when?: { when: 'hpBelow' | 'hpAbove' | 'blocked' | 'normal' | 'flying' | 'epHalf' | 'hpRatioAtMostSrc' | 'sameDir', value?: number } }} RangeTalent
+ *   when?: { when: 'hpBelow' | 'hpAbove' | 'blocked' | 'normal' | 'flying' | 'epHalf' | 'hpRatioAtMostSrc' | 'sameDir' | 'maxHpHighest', value?: number } }} RangeTalent
  */
 /**
  * A team talent (部署-5): for the operators of a profession, of one of several (`professions`), of a faction, or every

@@ -26,7 +26,7 @@ import { fieldBuffs, stackShare } from './talentaround.js';
  */
 
 /** The keys of the aura buffs. */
-const AURA_KEYS = /^(?:aura|field|range|doll|mod|ally|inspire|alchemy|aspd|fieldRegen|fieldBuff|stackShare):/;
+const AURA_KEYS = /^(?:aura|field|range|doll|mod|ally|inspire|alchemy|aspd|fieldRegen|fieldBuff|stackShare|resistRegen):/;
 /** Whether a buff is an aura's. @param {{ key: string }} b */
 const isAura = (b) => AURA_KEYS.test(b.key);
 
@@ -61,6 +61,19 @@ function fieldRegen(c, src, ops, want) {
   if (!(share > 0)) return;
   const amount = share * statsOf(src).atk;
   for (const u of ops) want.get(u)?.set(`fieldRegen:${src.id}`, { src: src.id, value: amount, mods: { hpRegen: amount } });
+}
+
+/**
+ * The regen of a talent for those with 抵抗 (职业-33: `resistRegen`): every friendly unit with a tile in the source's
+ * attack range whose 状态抵抗 is lowered (`statusResFlat` below 0) gains 生命回复速度 of this share of the source's attack
+ * (buff `resistRegen:<source id>`).
+ * @param {Content} c @param {Unit} src @param {Unit[]} ops @param {Map<Unit, Map<string, Want>>} want
+ */
+function resistRegen(c, src, ops, want) {
+  const share = traitOf(c, src).resistRegen;
+  if (!(share > 0)) return;
+  const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src), amount = share * statsOf(src).atk;
+  for (const u of ops) if ((statsOf(u).sum.statusResFlat ?? 0) < 0 && inKeys(u, keys, grid)) want.get(u)?.set(`resistRegen:${src.id}`, { src: src.id, value: amount, mods: { hpRegen: amount } });
 }
 
 /**
@@ -155,8 +168,10 @@ const inBlock = (w, u) => u.blockedBy >= 0 || w.units.some((x) => x.blockedBy ==
 /**
  * The conditions an in-range talent may ask of a unit (部署-6): below or above a share of its maximum HP, blocked (or
  * blocking), an ordinary enemy (not elite nor leader), flying, an element value below half its maximum (职业-29); a
- * share of its maximum HP at most the source's (`hpRatioAtMostSrc`), facing the source's way (`sameDir`, 职业-32).
- * @type {Readonly<Record<NonNullable<import('./types.js').RangeTalent['when']>['when'], (w: World, u: Unit, v: number, src: Unit) => boolean>>}
+ * share of its maximum HP at most the source's (`hpRatioAtMostSrc`), facing the source's way (`sameDir`, 职业-32); the
+ * operator with the highest maximum HP of those with a tile in the source's range, the first by id of equal ones
+ * (`maxHpHighest`, 职业-33).
+ * @type {Readonly<Record<NonNullable<import('./types.js').RangeTalent['when']>['when'], (w: World, u: Unit, v: number, src: Unit, c: Content) => boolean>>}
  */
 const UNIT_WHEN = Object.freeze({
   hpBelow: (_w, u, v) => u.hp < v * statsOf(u).maxHp,
@@ -167,7 +182,17 @@ const UNIT_WHEN = Object.freeze({
   epHalf: (_w, u) => ELEMENTS.some((el) => epOf(u, el) < statsOf(u).maxEp / 2),
   hpRatioAtMostSrc: (_w, u, _v, src) => u.hp / statsOf(u).maxHp <= src.hp / statsOf(src).maxHp,
   sameDir: (_w, u, _v, src) => normDir(u.dir) === normDir(src.dir),
+  maxHpHighest: (w, u, _v, src, c) => sturdiest(w, c, src) === u,
 });
+
+/** The operator with the highest maximum HP of those with a tile in a source's range, the first by id of equal ones (职业-33). @param {World} w @param {Content} c @param {Unit} src */
+function sturdiest(w, c, src) {
+  const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src);
+  /** @type {Unit | null} */
+  let best = null;
+  for (const u of w.units) if (u.kind === KIND.OPERATOR && u.hp > 0 && inKeys(u, keys, grid) && (!best || statsOf(u).maxHp > statsOf(best).maxHp)) best = u;
+  return best;
+}
 
 /**
  * Whether a unit stands on one of an area's tiles around a source (offsets from its tile; turned with the source when
@@ -194,7 +219,7 @@ function rangeTalents(w, c, src, units, want) {
     for (const u of units) {
       const fits = t.side === 'enemy' ? hostile(u) : u.kind === KIND.OPERATOR && whoFits(t, c.operators[u.key]) && !(t.others && u === src);
       const there = t.area ? onArea(src, u, t.area, t.rotate) : inKeys(u, keys, grid);
-      if (fits && there && (!t.when || UNIT_WHEN[t.when.when](w, u, t.when.value ?? 0, src))) want.get(u)?.set(`range:${src.id}:${i}`, { src: src.id, value: 0, mods: t.mods });
+      if (fits && there && (!t.when || UNIT_WHEN[t.when.when](w, u, t.when.value ?? 0, src, c))) want.get(u)?.set(`range:${src.id}:${i}`, { src: src.id, value: 0, mods: t.mods });
     }
   });
 }
@@ -327,6 +352,7 @@ export function auras(w, c) {
     fieldRegen(c, src, ops, want);
     fieldBuffs(w, c, src, ops, want);
     stackShare(c, src, ops, want);
+    resistRegen(c, src, ops, want);
     fieldTalents(w, c, src, ops, want);
     fieldAspd(c, src, units, want);
     rangeTalents(w, c, src, units, want);

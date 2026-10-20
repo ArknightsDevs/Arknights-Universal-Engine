@@ -9,6 +9,7 @@ import { whileParts, targetPart, hitPart, attackPart, stackPart, spParts, gritPa
 import { deckParts } from './talentdeck.js';
 import { moreParts, talentRange } from './talentmore.js';
 import { aroundParts } from './talentaround.js';
+import { healParts } from './talentheal.js';
 import { dollOf } from './doll.js';
 import rangeTable from '../data/ranges.json' with { type: 'json' };
 
@@ -180,19 +181,20 @@ export function teamTalentsAt(t, b) {
 const listed = (k, v) => (v.length ? { [k]: v } : {});
 
 /**
- * What a training's talents add to its trait (干员-17…干员-31, 职业-24…职业-32): their conditional parts (`whiles`, the
+ * What a training's talents add to its trait (干员-17…干员-32, 职业-24…职业-33): their conditional parts (`whiles`, the
  * special parts' too), target parts (`vs`, the special parts' too), preferred targets (`prefer`), answers to bursts
  * (`burstOn`), pulses (`pulses`), hit parts (`onHit`), what they add to the attacks — 法术伤害 riding on each
  * hit (`extraArts`, summed), more targets (`targets`, the most) —, their stacks (`stacks`, the special parts' too), SP (`talentSp`), 坚忍 (`grit`,
  * the first), auras on blocked enemies (`auras`), next attacks (`nextAttack`) and the special, deck and other parts'
- * (干员-29…干员-31) single fields (the first of each); null when there is none.
+ * (干员-29…干员-32) single fields (the first of each); null when there is none.
  * @param {import('./talents.js').Talent[]} talents @returns {Partial<import('@aue/sim').TraitDef> | null}
  */
 function talentTraitOf(talents) {
   const attacks = talents.map(attackPart).filter((p) => p !== null), extraArts = attacks.reduce((n, p) => n + (p.extraArts ?? 0), 0);
   const targets = Math.max(0, ...attacks.map((p) => p.targets ?? 0)), grit = talents.map(gritPart).find((p) => p !== null), packed = attacks.find((p) => p.packed)?.packed;
   const auras = talents.flatMap((c) => auraParts(c, rangeTable.ranges).auras);
-  const special = [...talents.map((c) => specialParts(c).trait), ...talents.map((c) => deckParts(c)?.trait ?? null), ...talents.map(moreParts), ...talents.map((c) => aroundParts(c)?.trait ?? null)]
+  const special = [...talents.map((c) => specialParts(c).trait), ...talents.map((c) => deckParts(c)?.trait ?? null), ...talents.map(moreParts), ...talents.map((c) => aroundParts(c)?.trait ?? null),
+    ...talents.map((c) => healParts(c)?.trait ?? null)]
     .filter((p) => p !== null);
   const singles = Object.assign({}, ...special.map(({ whiles, nextAttack, vs, prefer, stacks, burstOn, pulses, ...rest }) => rest).reverse());
   const out = {
@@ -221,7 +223,7 @@ function talentFields(t, b, mod) {
   /** @type {[string, unknown[]][]} */
   const lists = [['fieldTalents', teamTalentsAt(t, b).field],
     ['rangeTalents', [...talents.map(rangePart).filter((p) => p !== null), ...talents.flatMap((c) => auraParts(c, rangeTable.ranges).range), ...talents.flatMap((c) => specialParts(c).range),
-      ...talents.flatMap((c) => aroundParts(c)?.range ?? [])]],
+      ...talents.flatMap((c) => aroundParts(c)?.range ?? []), ...talents.flatMap((c) => healParts(c)?.range ?? [])]],
     ['critTalents', talents.map(critPart).filter((p) => p !== null)], ['timedTalents', talents.map(timedPart).filter((p) => p !== null)],
     ['deployTalents', talents.map(deployPart).filter((p) => p !== null)]];
   const aspd = talents.find((x) => Number.isFinite(x.bb.attack_speed_ally) && Number.isFinite(x.bb.attack_speed_enemy))?.bb;

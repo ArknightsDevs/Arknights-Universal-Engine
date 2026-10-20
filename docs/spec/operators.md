@@ -577,3 +577,25 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 干员数据还带着自己的稀有度 `rarity`（星级）。由模拟按 职业-32 生效；范围天赋按 部署-6，对卡组的队伍部分按 干员-9。
 
 - 来源：数据：character_table 的天赋文字与 blackboard，如浊心斯卡蒂（`skadi2_t_2[atk][1].atk`）、维娜·维多利亚、撷英调香师、百炼嘉维尔（`atk_add`、`def_add`）、暴行（`cnt`）、鞭刃、杜宾、桑葚、新约能天使（`mult`）、缇缇、凛御银灰（`interval`）、拜松、锡兰（`ceylon_t_1[common].atk`、`celyon_t_1[map].atk`）、薄绿（`taunt_level`）、苍苔（`bryota_t_ally.def`）、深律、万顷、行箸、苏苏洛（`heal_scale`）、乌尔比安（`ulpia_t_1[abyssal].max_hp`）、圣约送葬人（`add_count_max_stack`）、隐现（`self_ammo`、`ally_ammo`）、但书、迷迭香；PRTS 页面见 职业-32
+
+### 干员-32 治疗的天赋
+
+天赋（含模组的升级）的整段描述（去掉标签和括号里的部分）是下列之一、blackboard 有它要的键时，它加到特性（`talentTrait`）或范围天赋（`rangeTalents`，部署-6）：
+
+| 描述 | 加到 |
+|---|---|
+| 治疗其他友方单位时，<名字>同时享受N%的治疗量 | 治疗分享（`healShare`）`scale` |
+| 有N%的几率额外治疗一名友方单位 | 多治疗一名的几率（`healMore`）`attack@prob`（没有时 `prob`） |
+| 治疗友方单位后为其提供持续N秒的M%物理闪避 | 治疗留下的效果（`healGives`，职业-31）：`duration` 秒，物理闪避 `prob` |
+| 攻击范围内的友方受到异常状态时，立刻治疗目标相当于<名字>攻击力N%的生命，该效果有M秒冷却时间 | 受异常时的治疗（`statusHeal`）：`heal_scale`，冷却 `duration` 秒 |
+| 治疗时，若目标生命少于N%则为其额外恢复M点生命 | 低生命的额外治疗（`lowHeal`）：`hp_ratio`、`value` |
+| 治疗友方单位生命时，超过目标生命上限的治疗量可转化为不断衰减的屏障 | 过量治疗的屏障（`overhealBarrier`）：至多 `scale` × 攻击力，每秒衰减 −`dec_rate` |
+| 治疗会为目标干员附加相当于自身N%攻击力的屏障，持续M秒 | 治疗的屏障（`healBarrier`）：`attack@scale`、`attack@shield_duration` 秒 |
+| 技能结束后，治疗自身和攻击范围内最多N名干员相当于<名字>攻击力M%的生命值 | 技能结束的治疗（`skillEndHeal`）：`heal_scale`，至多 `max_target` 名 |
+| 攻击范围内拥有抵抗的友方单位每秒恢复相当于<名字>攻击力N%的生命 | 抵抗者的回复（`resistRegen`）`atk_to_hp_recovery_ratio` |
+| 超出自身生命上限的生命值可转化为屏障；最多不超过自身最大生命值的N% | 溢出的屏障（`overflowBarrier`）`max_hp_ratio` |
+| 攻击范围内生命上限最高的友方角色受到的治疗效果提升N% | 范围天赋：攻击范围内的友方，条件 `maxHpHighest`：受到治疗倍率 × `heal_scale` |
+
+由模拟按 职业-33 生效。
+
+- 来源：数据：character_table 的天赋文字与 blackboard，如焰影苇草、安赛尔（`attack@prob`）、斑点、流明、明椒、医生（`dec_rate`、`scale`）、莎草（`attack@scale`、`attack@shield_duration`）、岳羽由加莉（`max_target`）、絮雨、休谟斯（`max_hp_ratio`）、刺玫；PRTS 页面见 职业-33
