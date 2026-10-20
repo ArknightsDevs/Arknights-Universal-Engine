@@ -32,7 +32,8 @@ export const defaultTrait = (position) => ({
   summonBlocked: false, summonBlockedScale: 1, trapTiles: false, doll: null, vs: [], far: null, crowd: null, packed: null, whiles: [], extraArts: 0, counterArts: 0, epRider: null, burstHit: null, spOn: null, payStack: null, auras: [],
   firstCost: 0, firstRetreatRespawn: 1, refundUncapped: false, freeSummons: 0, summonRangedTiles: false, summonBoost: null, aftershocks: 1, secondLife: null, pushBoost: null, pullBoost: null, pullTrauma: null, rangedRefund: 0, onHit: [], stacks: [], talentSp: [], grit: null, nextAttack: [], rhythm: null, idleShield: null, layers: null, lowHp: null,
   lastStand: null, frostLife: null, costLife: null, hurt: null, reflect: null, prefer: [], hurtSleeping: false, sleepDot: 0, lowestArts: null,
-  burstOn: [], pulses: [], palsyHit: 0, epOnHit: 0, healDot: null, bb: {},
+  burstOn: [], pulses: [], palsyHit: 0, epOnHit: 0, healDot: null, startCost: 0, costCuts: [], retreatCut: 0, deployCut: null, costRate: 1, aloneCost: 0, deploySp: [],
+  allySkill: null, spPulse: null, hurtAttackSp: 0, bb: {},
 });
 
 /**
@@ -62,14 +63,15 @@ function sameFields(o, fields) {
   return i === fields.length;
 }
 
-/** The single fields only talents give (职业-26…职业-29): each the talents' when they have it. */
-const TALENT_ONLY = Object.freeze(/** @type {const} */ (['rhythm', 'idleShield', 'layers', 'lowHp', 'lastStand', 'frostLife', 'costLife', 'hurt', 'reflect', 'hurtSleeping', 'sleepDot', 'lowestArts', 'palsyHit', 'epOnHit', 'healDot']));
+/** The single fields only talents give (职业-26…职业-30): each the talents' when they have it. */
+const TALENT_ONLY = Object.freeze(/** @type {const} */ (['rhythm', 'idleShield', 'layers', 'lowHp', 'lastStand', 'frostLife', 'costLife', 'hurt', 'reflect', 'hurtSleeping', 'sleepDot', 'lowestArts', 'palsyHit', 'epOnHit', 'healDot',
+  'startCost', 'costCuts', 'retreatCut', 'deployCut', 'costRate', 'aloneCost', 'deploySp', 'allySkill', 'spPulse', 'hurtAttackSp']));
 
 /**
- * A trait with what its operator's talents add (职业-24…职业-27): their conditional modifiers, target 倍率, hit effects,
- * stacks, SP, auras and next attacks after the trait's own, their 法术伤害 on each hit added to its, their number of
- * targets when it is more than a number the trait has, their 坚忍 and the fields only talents give, their 倍率 by the
- * enemies a splash reaches and their second life when the trait has none.
+ * A trait with what its operator's talents add (职业-24…职业-27, 职业-30): their conditional modifiers, target 倍率, hit
+ * effects, stacks, SP, auras and next attacks after the trait's own, their 法术伤害 on each hit and their first
+ * deployment's cost added to its, their number of targets when it is more than a number the trait has, their 坚忍 and
+ * the fields only talents give, their 倍率 by the enemies a splash reaches and their second life when the trait has none.
  * @param {TraitDef} t @param {Partial<TraitDef> | undefined} a @returns {TraitDef}
  */
 function withTalents(t, a) {
@@ -77,7 +79,7 @@ function withTalents(t, a) {
   const more = typeof a.targets === 'number' && typeof t.targets === 'number' && a.targets > t.targets;
   const only = Object.fromEntries(TALENT_ONLY.filter((k) => a[k]).map((k) => [k, a[k]]));
   return {
-    ...t, ...talentLists(t, a), extraArts: t.extraArts + (a.extraArts ?? 0), ...(more ? { targets: a.targets } : {}),
+    ...t, ...talentLists(t, a), extraArts: t.extraArts + (a.extraArts ?? 0), firstCost: t.firstCost + (a.firstCost ?? 0), ...(more ? { targets: a.targets } : {}),
     ...(a.grit ? { grit: a.grit } : {}), ...only, ...(a.packed && !t.packed ? { packed: a.packed } : {}), ...(a.secondLife && !t.secondLife ? { secondLife: a.secondLife } : {}),
   };
 }

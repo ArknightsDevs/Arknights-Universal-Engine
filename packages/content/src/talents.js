@@ -285,7 +285,7 @@ function teamKeys(clauses, bb) {
  * Whom a team talent names (干员-9): a profession, or a faction (干员-10); null for another name.
  * @param {string} name @returns {{ profession: string } | { power: string } | null}
  */
-function whomOf(name) {
+export function whomOf(name) {
   if (Object.hasOwn(PROFESSIONS, name)) return { profession: PROFESSIONS[name] };
   return Object.hasOwn(POWERS, name) ? { power: POWERS[name] } : null;
 }

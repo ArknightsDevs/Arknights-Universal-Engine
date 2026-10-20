@@ -1,16 +1,18 @@
-// What talents do on events (docs/spec/traits.md 职业-25): steps of modifiers for kills or damage, SP on attacks, kills,
-// heals, deaths in range, hits taken and skill ends, 坚忍 by the HP lost, and arts damage over time from hits.
+// What talents do on events (docs/spec/traits.md 职业-25, 职业-30): steps of modifiers for kills or damage, SP on attacks,
+// kills, heals, deaths in range, hits taken and skill ends, 坚忍 by the HP lost, arts damage over time from hits; SP and
+// cost on deployments, answers to skills starting in range, SP pulses for attack-recovery skills and SP on attacks for
+// hurt-recovery ones.
 import { FPS, secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune, setLeft, count as countUp } from './buffs.js';
-import { gainSp } from './sp.js';
+import { gainSp, forceSp } from './sp.js';
 import { draw } from './rng.js';
 import { dealDamage, heal } from './damage.js';
 import { reachKeys } from './reach.js';
 import { inKeys } from './targeting.js';
 import { tileOf } from './body.js';
-import { traitOf } from './traits.js';
+import { traitOf, gainCost } from './traits.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').TalentStack} TalentStack @typedef {import('./types.js').TalentSp} TalentSp */
@@ -66,12 +68,29 @@ function tally(op, key) {
 }
 
 /**
- * An operator's skill started, for its talents (职业-25): the count of its starts since its deployment (buff `starts`),
- * when a condition asks for it.
- * @param {Content} c @param {Unit} op
+ * An operator's skill started, for its talents (职业-25, 职业-30): the count of its starts since its deployment (buff
+ * `starts`), when a condition asks for it; its seat's first start of its card in the battle with a `firstSkillEnd` talent
+ * marks it (buff `firstSkill`, the card in the seat's `once`); then every operator on the field with `allySkill` whose
+ * attack range has a tile of it gains its SP (阻回 no matter) and its modifiers for its seconds (buff `allySkill`, its
+ * time starting again).
+ * @param {World} w @param {Content} c @param {Unit} op
  */
-export function talentSkillStart(c, op) {
-  if (traitOf(c, op).whiles.some((x) => x.when === 'fewStarts' || x.when === 'laterSkill')) tally(op, 'starts');
+export function talentSkillStart(w, c, op) {
+  const t = traitOf(c, op), p = w.players[op.owner];
+  if (t.whiles.some((x) => x.when === 'fewStarts' || x.when === 'laterSkill')) tally(op, 'starts');
+  if (p && t.talentSp.some((x) => x.on === 'firstSkillEnd') && !(p.once ?? []).includes(op.key)) {
+    p.once = [...(p.once ?? []), op.key];
+    addBuff(op, makeBuff({ key: 'firstSkill', src: op.id }));
+  }
+  const grid = { rows: c.level.height, cols: c.level.width };
+  for (const f of friends(w)) {
+    const x = traitOf(c, f).allySkill;
+    if (!x || !inKeys(op, reachKeys(c, f), grid)) continue;
+    if (f.skill) forceSp(f.skill, x.sp);
+    const b = f.buffs.find((y) => y.key === 'allySkill'), left = secondsToFrames(x.seconds);
+    if (b) setLeft(b, left);
+    else addBuff(f, makeBuff({ key: 'allySkill', src: f.id, left, mods: { ...x.mods } }));
+  }
 }
 
 /**
@@ -123,13 +142,15 @@ export function talentSp(w, c, op, on, target) {
 }
 
 /**
- * An operator's skill ended, for its talents (职业-25): a heal of `heal` of its maximum HP; at a talent's chance (one
- * draw), its `share` of the skill's cost (whole points, down); its kills during the skill × `sp`, at most `max`, and the
- * count gone.
- * @param {World} w @param {Content} c @param {Unit} op
+ * An operator's skill ended, for its talents (职业-25, 职业-30): a heal of `heal` of its maximum HP; at a talent's chance
+ * (one draw), its `share` of the skill's cost (whole points, down); its kills during the skill × `sp`, at most `max`, and
+ * the count gone; the first skill of the battle (buff `firstSkill`), unless it was closed (`stopped`), its `sp` — 阻回 no
+ * matter — and the mark gone.
+ * @param {World} w @param {Content} c @param {Unit} op @param {string} [reason]
  */
-export function talentSkillEnd(w, c, op) {
+export function talentSkillEnd(w, c, op, reason) {
   for (const x of traitOf(c, op).talentSp) {
+    if (x.on === 'firstSkillEnd') firstSkillEnd(op, x, reason);
     if (x.on === 'skillEnd' && x.heal && op.hp > 0) w.events.push({ type: 'heal', id: op.id, target: op.id, amount: heal(w, op, op, x.heal * statsOf(op).maxHp) });
     if (x.on === 'skillEnd' && x.share && op.skill && draw(w) < (x.prob ?? 1)) spTo(op, Math.floor(op.skill.cost * x.share));
     if (x.on === 'skillKills') {
@@ -137,6 +158,79 @@ export function talentSkillEnd(w, c, op) {
       if (b) { spTo(op, Math.min(x.max ?? Infinity, b.value * (x.sp ?? 0))); removeBuff(op, b); }
     }
   }
+}
+
+/**
+ * The end of the first skill of the battle (职业-30): unless it was closed (`stopped`), with the buff `firstSkill` its
+ * talent's SP, 阻回 no matter, and the buff gone.
+ * @param {Unit} op @param {TalentSp} x @param {string | undefined} reason
+ */
+function firstSkillEnd(op, x, reason) {
+  const b = reason === 'stopped' ? undefined : op.buffs.find((y) => y.key === 'firstSkill');
+  if (!b || !op.skill) return;
+  forceSp(op.skill, x.sp ?? 0);
+  removeBuff(op, b);
+}
+
+/** Whether a talent with a profession is for an operator: any without one. @param {{ profession?: string }} x @param {Content} c @param {Unit} u */
+const forProfession = (x, c, u) => x.profession === undefined || c.operators[u.key].profession === x.profession;
+
+/**
+ * An operator's deployment for the talents (职业-30): its `deploySp` — SP to itself (`self`; one with `first` only on its
+ * first deployment), to each other operator on the field of the profession (`field`) —; the `arriving` SP of each other
+ * operator on the field for its profession; then its seat's cost (`aloneCost`) when no other operator, summons left
+ * out, stands on the 4 tiles next to it.
+ * @param {World} w @param {Content} c @param {Unit} op @param {boolean} first
+ */
+export function talentDeploy(w, c, op, first) {
+  for (const x of traitOf(c, op).deploySp) {
+    if (x.who === 'self' && (first || !x.first)) spTo(op, x.sp);
+    if (x.who === 'field') for (const u of friends(w)) if (u !== op && forProfession(x, c, u)) spTo(u, x.sp);
+  }
+  for (const u of friends(w)) {
+    if (u === op) continue;
+    for (const x of traitOf(c, u).deploySp) if (x.who === 'arriving' && forProfession(x, c, op)) spTo(op, x.sp);
+  }
+  aloneCost(w, c, op);
+}
+
+/**
+ * Its seat's cost for an operator's deployment with no other operator, summons left out, on the 4 tiles next to it
+ * (职业-30: `aloneCost`). @param {World} w @param {Content} c @param {Unit} op
+ */
+function aloneCost(w, c, op) {
+  const n = traitOf(c, op).aloneCost;
+  if (n === 0 || !w.players[op.owner]) return;
+  const [r, col] = tileOf(op);
+  const near = w.units.some((u) => {
+    if (u === op || u.hp <= 0 || u.kind !== KIND.OPERATOR || u.summoner !== undefined) return false;
+    const [ur, uc] = tileOf(u);
+    return Math.abs(ur - r) + Math.abs(uc - col) === 1;
+  });
+  if (!near) gainCost(w, c, op.owner, n);
+}
+
+/**
+ * At the start of an operator's turn (职业-30): its `spPulse` every `every` seconds from its deployment, SP for each
+ * operator on the field of the profession whose skill recovers by attacks.
+ * @param {World} w @param {Content} c @param {Unit} op
+ */
+export function spPulseTurn(w, c, op) {
+  const x = traitOf(c, op).spPulse, since = w.frame - op.born;
+  if (!x || since <= 0 || since % secondsToFrames(x.every) !== 0) return;
+  for (const u of friends(w)) if (u.skill?.spType === 'attack' && forProfession(x, c, u)) gainSp(u.skill, x.sp);
+}
+
+/**
+ * An operator's attack that reached units, for the talents on the field (职业-30): a skill that recovers when hit gains
+ * the most `hurtAttackSp` of the operators on the field — none under a flag that stops it (技能-2).
+ * @param {World} w @param {Content} c @param {Unit} a
+ */
+export function hurtAttackSp(w, c, a) {
+  if (a.skill?.spType !== 'hurt' || statsOf(a).flags.noSp) return;
+  let n = 0;
+  for (const u of friends(w)) n = Math.max(n, traitOf(c, u).hurtAttackSp);
+  if (n > 0) gainSp(a.skill, n);
 }
 
 /**

@@ -7,7 +7,7 @@ import { onDeploy, commandSkill } from './skills.js';
 import { traitDeploy, traitOfDef, traitOf, gainCost } from './traits.js';
 import { modeDeploy, deployTalents } from './modes.js';
 import { carriedDeploy } from './carried.js';
-import { cardOf, cardHidden, cardLocked, deployCost, deployLimit, withdraw } from './deck.js';
+import { cardOf, cardHidden, cardLocked, deployCost, deployLimit, withdraw, takeCuts, giveCuts } from './deck.js';
 import { occupying, summonProblem, deploySummon, supplySummons, inOwnerRange, trapRefused } from './summons.js';
 import { isDown, askCost, answerCost } from './coop.js';
 import { emit } from './bus.js';
@@ -16,6 +16,7 @@ import { pointForm } from './tactical.js';
 import { makeBuff, addBuff } from './buffs.js';
 import { restReady, poolCount, usePool } from './fortress.js';
 import { nextToFacility, facilityOf } from './facilities.js';
+import { talentDeploy } from './talentfx.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -85,7 +86,7 @@ function operatorProblem(w, c, seat, cmd) {
   const p = w.players[seat], d = c.operators[cmd.op];
   if (d.builder) return builderProblem(w, c, seat, cmd);
   if (p.deployed.includes(cmd.op)) return 'already deployed';
-  return limitProblem(w, c, seat, d) ?? (w.frame < cardOf(p, cmd.op).ready ? 'redeploying' : null) ?? (cardLocked(w, cardOf(p, cmd.op)) ? 'devoured' : null) ?? placeProblem(w, c, seat, cmd, deployCost(c, p, cmd.op));
+  return limitProblem(w, c, seat, d) ?? (w.frame < cardOf(p, cmd.op).ready ? 'redeploying' : null) ?? (cardLocked(w, cardOf(p, cmd.op)) ? 'devoured' : null) ?? placeProblem(w, c, seat, cmd, deployCost(c, p, cmd.op, w));
 }
 
 /**
@@ -124,7 +125,8 @@ function placeProblem(w, c, seat, cmd, cost) {
 }
 
 /**
- * Deploys: the cost of now (部署-3) is paid and kept on the unit; its trait takes hold, then its passive skill starts.
+ * Deploys: the cost of now (部署-3) is paid and kept on the unit, the cuts it took gone (部署-10); its trait takes hold,
+ * then its passive skill starts.
  * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd
  */
 function deploy(w, c, seat, cmd) {
@@ -133,9 +135,10 @@ function deploy(w, c, seat, cmd) {
     deploySummon(w, c, seat, cmd);
     return;
   }
-  const p = w.players[seat], b = c.operators[cmd.op].builder, paid = b ? c.operators[cmd.op].cost : deployCost(c, p, cmd.op);
+  const p = w.players[seat], b = c.operators[cmd.op].builder, paid = b ? c.operators[cmd.op].cost : deployCost(c, p, cmd.op, w);
   const u = makeOperator(w, c, { key: cmd.op, owner: seat, row: cmd.row, col: cmd.col, dir: cmd.dir, paid });
   p.cost -= paid;
+  if (!b) takeCuts(c, p, cmd.op);
   // 推击手 PUS-X: part of the cost back on a ranged tile (职业-23)
   const back = traitOf(c, u).rangedRefund;
   if (back > 0 && tileAt(c.level, cmd.row, cmd.col)?.buildable === 'RANGED') gainCost(w, c, seat, Math.floor(paid * back));
@@ -148,14 +151,19 @@ function deploy(w, c, seat, cmd) {
 
 /**
  * An operator's deployment takes hold (部署-2, 部署-9): the `enter` event, its trait, its attack mode, its deployment
- * talents, a carried unit's effect (装置-6), its passive skill, its summon cards, then the `deploy` event — `move` for a 移动.
+ * talents, its talents' SP and cost on deployments and its cuts for the deck (职业-30, 部署-10) — a 移动 never a first
+ * deployment —, a carried unit's effect (装置-6), its passive skill, its summon cards, then the `deploy` event — `move`
+ * for a 移动.
  * @param {World} w @param {Content} c @param {import('./types.js').Unit} u @param {boolean} [move]
  */
 export function arrive(w, c, u, move = false) {
+  const first = !move && !Object.hasOwn(w.players[u.owner]?.cards ?? {}, u.key);
   emit(w, 'enter', { unit: u });
   traitDeploy(w, c, u);
   modeDeploy(u, traitOf(c, u));
   deployTalents(w, c, u);
+  talentDeploy(w, c, u, first);
+  giveCuts(w, c, u);
   carriedDeploy(w, c, u);
   onDeploy(w, c, u);
   supplySummons(w, c, u);

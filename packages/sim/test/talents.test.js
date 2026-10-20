@@ -275,10 +275,10 @@ test('[职业-25] conditions on its skill\'s starts, flags while a condition hol
   ] } });
   op.skill = /** @type {any} */ ({ active: false });
   assert.deepEqual([on(), statsOf(op).flags.camou], [[0, 2], true]);
-  talentSkillStart(c, op);
+  talentSkillStart(w, c, op);
   op.skill = /** @type {any} */ ({ active: true });
   assert.deepEqual(on(), [0], 'one start; its skill runs');
-  talentSkillStart(c, op);
+  talentSkillStart(w, c, op);
   assert.deepEqual(on(), [1], 'the second start');
   for (const col of [1, 2, 3]) foe(1, col);
   on();

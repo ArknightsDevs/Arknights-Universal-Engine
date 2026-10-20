@@ -53,14 +53,115 @@ export function cardHidden(w, c, key) {
  */
 export const deployLimit = (c, seat, w) => Math.max(0, c.level.options.characterLimit + (c.level.options.characterLimitAdd?.[seat] ?? 0) + (w ? facilitySum(w, c, 'lounge', 'value_char') : 0));
 
+/** Whether a cut is for an operator record (部署-10): of its profession or one of its factions. @param {{ profession: string } | { power: string }} x @param {import('./types.js').OperatorDef} d */
+const cutFits = (x, d) => ('profession' in x ? d.profession === x.profession : (d.powers ?? []).includes(x.power));
+
+/** Whether a player has deployed an operator in this battle: it is on the field, or its card has a record. @param {Player} p @param {string} key */
+const deployedOnce = (p, key) => Object.hasOwn(p.cards, key) || p.deployed.includes(key);
+
+/** The deck of the seat a card is of (部署-10): the content's, or every operator record but summons without decks. @param {Content} c @param {string} key */
+const deckWith = (c, key) => (c.decks ? c.decks.find((d) => d.includes(key)) ?? [] : Object.keys(c.operators).filter((k) => !c.operators[k].summon));
+
+/** A seat's deck (部署-10): the content's, or every operator record but summons without decks. @param {Content} c @param {number} seat */
+export const deckOf = (c, seat) => (c.decks ? c.decks[seat] ?? [] : Object.keys(c.operators).filter((k) => !c.operators[k].summon));
+
 /**
- * The cost to deploy an operator now (部署-3): its initial cost × (1 + 0.5 × 再部署惩罚), rounded down; before its first
- * deployment, plus its trait's first-deployment change, never below 0 (职业-21).
+ * The cuts the talents of a card's deck give it (部署-10): each `costCuts` of an operator in the deck — not for the field
+ * — that is for the card, one with `first` only while the seat has deployed none it is for.
+ * @param {Content} c @param {Player} p @param {string} key @param {import('./types.js').OperatorDef} d
+ */
+function deckCut(c, p, key, d) {
+  let n = 0;
+  const deck = deckWith(c, key);
+  for (const k of deck) {
+    for (const x of Object.hasOwn(c.operators, k) ? traitOfDef(c.operators[k]).costCuts : []) {
+      if (x.field || !cutFits(x, d)) continue;
+      if (!x.first || !deck.some((o) => Object.hasOwn(c.operators, o) && cutFits(x, c.operators[o]) && deployedOnce(p, o))) n += x.value;
+    }
+  }
+  return n;
+}
+
+/**
+ * The cuts the operators on the field give a card of any seat (部署-10): each one's `costCuts` for the field that is for
+ * the card, the same talent of operators of the same id only once — the largest cut.
+ * @param {World} w @param {Content} c @param {import('./types.js').OperatorDef} d
+ */
+function fieldCut(w, c, d) {
+  /** @type {Map<string, number>} */
+  const best = new Map();
+  for (const u of w.units) {
+    if (u.kind !== KIND.OPERATOR || u.hp <= 0) continue;
+    traitOfDef(c.operators[u.key]).costCuts.forEach((x, i) => {
+      const k = `${c.operators[u.key].char ?? u.key}:${i}`;
+      if (x.field && cutFits(x, d)) best.set(k, Math.min(best.get(k) ?? 0, x.value));
+    });
+  }
+  let n = 0;
+  for (const v of best.values()) n += v;
+  return n;
+}
+
+/**
+ * The cost to deploy an operator now (部署-3): its initial cost × (1 + 0.5 × 再部署惩罚), rounded down; then, never below 0,
+ * plus before its first deployment its trait's first-deployment change (职业-21) and the talents' cuts (部署-10): its
+ * deck's, the field's (with the world), the seat's cut for its next operator and the card's own.
+ * @param {Content} c @param {Player} p @param {string} key @param {World} [w]
+ */
+export function deployCost(c, p, key, w) {
+  const d = c.operators[key], base = Math.floor(d.cost * (1 + 0.5 * cardOf(p, key).penalty)), first = traitOfDef(d).firstCost;
+  const cut = (first !== 0 && !deployedOnce(p, key) ? first : 0) + deckCut(c, p, key, d) + (w ? fieldCut(w, c, d) : 0) + (d.carried || d.builder ? 0 : p.cut ?? 0) + (p.cuts?.[key] ?? 0);
+  return cut !== 0 ? Math.max(0, base + cut) : base;
+}
+
+/**
+ * A seat's deployment of an operator takes its cuts (部署-10): the seat's cut for its next operator — not a carried
+ * unit's or a builder's —, the card's own.
  * @param {Content} c @param {Player} p @param {string} key
  */
-export function deployCost(c, p, key) {
-  const d = c.operators[key], base = Math.floor(d.cost * (1 + 0.5 * cardOf(p, key).penalty)), first = traitOfDef(d).firstCost;
-  return first !== 0 && !Object.hasOwn(p.cards, key) && !p.deployed.includes(key) ? Math.max(0, base + first) : base;
+export function takeCuts(c, p, key) {
+  const d = c.operators[key];
+  if (!d.carried && !d.builder) delete p.cut;
+  if (p.cuts && Object.hasOwn(p.cuts, key)) {
+    delete p.cuts[key];
+    if (Object.keys(p.cuts).length === 0) delete p.cuts;
+  }
+}
+
+/**
+ * The cost a seat starts with (费用-1, 部署-10): the level's initial cost, plus the `startCost` of each operator in its deck,
+ * then not above the maximum.
+ * @param {Content} c @param {number} seat
+ */
+export function startCost(c, seat) {
+  const { initialCost, maxCost } = c.level.options;
+  const more = deckOf(c, seat).reduce((n, k) => n + (Object.hasOwn(c.operators, k) ? traitOfDef(c.operators[k]).startCost : 0), 0);
+  return more !== 0 ? Math.min(maxCost, initialCost + more) : initialCost;
+}
+
+/**
+ * × a seat's cost recovery (费用-1, 部署-10): the product of the `costRate` of its operators on the field.
+ * @param {World} w @param {Content} c @param {number} seat
+ */
+export function costRate(w, c, seat) {
+  let k = 1;
+  for (const u of w.units) if (u.kind === KIND.OPERATOR && u.owner === seat && u.hp > 0) k *= traitOfDef(c.operators[u.key]).costRate;
+  return k;
+}
+
+/**
+ * An operator deployed gives the cards of its seat's deck of a profession not on the field their cut (部署-10,
+ * `deployCut`): `value` more each time, at most `max` × `value` until that card is deployed.
+ * @param {World} w @param {Content} c @param {Unit} u
+ */
+export function giveCuts(w, c, u) {
+  const x = traitOfDef(c.operators[u.key]).deployCut, p = w.players[u.owner];
+  if (!x || !p) return;
+  for (const k of deckOf(c, u.owner)) {
+    if (!Object.hasOwn(c.operators, k) || p.deployed.includes(k) || !cutFits(x, c.operators[k])) continue;
+    p.cuts ??= {};
+    p.cuts[k] = Math.max(x.value * x.max, (p.cuts[k] ?? 0) + x.value);
+  }
 }
 
 /**
@@ -68,7 +169,8 @@ export function deployCost(c, p, key) {
  * cap when its trait says so, 职业-21); either way its card gains a penalty layer (at most 2) and it may be deployed again
  * after its 再部署时间 — × its trait's share for its first retreat (职业-21), 20% shorter while a
  * 临时休息舱 is at level 3, none for a retreat in a rest (守御-2, 守御-5) — an operator devoured is locked instead, with
- * none (敌能-30). A summon has its own card (召唤-4). Either way the marks it left go first (foeLeave, 职业-28).
+ * none (敌能-30); a retreat sets its seat's cut for the next operator by its trait's, the larger one kept (部署-10). A
+ * summon has its own card (召唤-4). Either way the marks it left go first (foeLeave, 职业-28).
  * @param {World} w @param {Content} c @param {Unit} u @param {boolean} retreated
  */
 export function leaveField(w, c, u, retreated) {
@@ -78,12 +180,23 @@ export function leaveField(w, c, u, retreated) {
     return;
   }
   const p = w.players[u.owner], d = c.operators[u.key], card = cardOf(p, u.key), t = traitOfDef(d);
-  if (retreated) gainCost(w, c, u.owner, Math.floor(t.refundUncapped ? u.paid * t.refund : Math.min(u.paid * t.refund, d.cost)));
+  if (retreated) retreatGains(w, c, u, t);
   const first = retreated && !card.retreated ? t.firstRetreatRespawn : 1;
   const wait = retreated && w.fortress?.phase === 'rest' ? 0 : secondsToFrames((d.respawnTime ?? DEFAULT_RESPAWN) * respawnFactor(w, c) * first);
   const penalty = Math.min(MAX_PENALTY, card.penalty + 1), lock = u.ab['@devoured'], once = (retreated || card.retreated) && t.firstRetreatRespawn !== 1 ? { retreated: true } : {};
   p.cards[u.key] = lock !== undefined && !retreated ? { penalty, ready: w.frame, lock, ...once } : { penalty, ready: w.frame + wait, ...once };
   p.deployed = p.deployed.filter((k) => k !== u.key);
+}
+
+/**
+ * What a retreat gives its seat (撤退-1): the refund, ⌊min(paid × 返还倍率, initial cost)⌋ — without the cap when its
+ * trait says so (职业-21) —, and its trait's cut for the next operator, the larger one kept (部署-10).
+ * @param {World} w @param {Content} c @param {Unit} u @param {import('./types.js').TraitDef} t
+ */
+function retreatGains(w, c, u, t) {
+  const p = w.players[u.owner], d = c.operators[u.key];
+  gainCost(w, c, u.owner, Math.floor(t.refundUncapped ? u.paid * t.refund : Math.min(u.paid * t.refund, d.cost)));
+  if (t.retreatCut !== 0) p.cut = Math.min(p.cut ?? 0, t.retreatCut);
 }
 
 /**

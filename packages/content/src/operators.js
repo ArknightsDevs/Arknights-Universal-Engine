@@ -6,6 +6,7 @@ import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
 import { unlockedAt, talentsAt, alwaysOnBb, alwaysModsOf, teamPart, rangePart, critPart, timedPart, deployPart, forSkill } from './talents.js';
 import { whileParts, targetPart, hitPart, attackPart, stackPart, spParts, gritPart, auraParts, perParts, specialParts } from './talentparts.js';
+import { deckParts } from './talentdeck.js';
 import { dollOf } from './doll.js';
 import rangeTable from '../data/ranges.json' with { type: 'json' };
 
@@ -163,30 +164,33 @@ export const upgradedTalentsAt = (t, b) => upgradedTalents(t, b, moduleAt(t, b))
 export const moduleOwnAt = (t, b) => hiddenAt(b, moduleAt(t, b));
 
 /**
- * The team parts of a training's talents (干员-9), with its module's upgrades: those for the deck and those on the field.
- * @param {Training} t @param {Build} b
+ * The team parts of a training's talents (干员-9), with its module's upgrades: those for the deck and those on the field,
+ * the deck parts' (干员-29) after them.
+ * @param {Training} t @param {Build} b @returns {{ deck: import('@aue/sim').TeamTalent[], field: import('@aue/sim').TeamTalent[] }}
  */
 export function teamTalentsAt(t, b) {
-  const parts = upgradedTalents(t, b, moduleAt(t, b)).map(teamPart).filter((p) => p !== null);
-  return { deck: parts.filter((p) => p.when === 'deck'), field: parts.filter((p) => p.when === 'field').map(({ when, ...rest }) => rest) };
+  const talents = upgradedTalents(t, b, moduleAt(t, b)), parts = talents.map(teamPart).filter((p) => p !== null), decks = talents.map(deckParts);
+  return { deck: [...parts.filter((p) => p.when === 'deck'), ...decks.flatMap((p) => p?.deck ?? [])],
+    field: [...parts.filter((p) => p.when === 'field').map(({ when, ...rest }) => rest), ...decks.flatMap((p) => p?.field ?? [])] };
 }
 
 /** A list field when it has items. @param {string} k @param {unknown[]} v */
 const listed = (k, v) => (v.length ? { [k]: v } : {});
 
 /**
- * What a training's talents add to its trait (干员-17…干员-28, 职业-24…职业-29): their conditional parts (`whiles`, the
+ * What a training's talents add to its trait (干员-17…干员-29, 职业-24…职业-30): their conditional parts (`whiles`, the
  * special parts' too), target parts (`vs`, the special parts' too), preferred targets (`prefer`), answers to bursts
  * (`burstOn`), pulses (`pulses`), hit parts (`onHit`), what they add to the attacks — 法术伤害 riding on each
  * hit (`extraArts`, summed), more targets (`targets`, the most) —, their stacks (`stacks`, the special parts' too), SP (`talentSp`), 坚忍 (`grit`,
- * the first), auras on blocked enemies (`auras`), next attacks (`nextAttack`) and the special parts' single fields (the
- * first of each); null when there is none.
+ * the first), auras on blocked enemies (`auras`), next attacks (`nextAttack`) and the special and deck parts' (干员-29)
+ * single fields (the first of each); null when there is none.
  * @param {import('./talents.js').Talent[]} talents @returns {Partial<import('@aue/sim').TraitDef> | null}
  */
 function talentTraitOf(talents) {
   const attacks = talents.map(attackPart).filter((p) => p !== null), extraArts = attacks.reduce((n, p) => n + (p.extraArts ?? 0), 0);
   const targets = Math.max(0, ...attacks.map((p) => p.targets ?? 0)), grit = talents.map(gritPart).find((p) => p !== null), packed = attacks.find((p) => p.packed)?.packed;
-  const auras = talents.flatMap((c) => auraParts(c, rangeTable.ranges).auras), special = talents.map((c) => specialParts(c).trait).filter((p) => p !== null);
+  const auras = talents.flatMap((c) => auraParts(c, rangeTable.ranges).auras);
+  const special = [...talents.map((c) => specialParts(c).trait), ...talents.map((c) => deckParts(c)?.trait ?? null)].filter((p) => p !== null);
   const singles = Object.assign({}, ...special.map(({ whiles, nextAttack, vs, prefer, stacks, burstOn, pulses, ...rest }) => rest).reverse());
   const out = {
     ...singles, ...listed('whiles', [...talents.flatMap(whileParts), ...talents.flatMap(perParts), ...special.flatMap((p) => p.whiles ?? [])]),

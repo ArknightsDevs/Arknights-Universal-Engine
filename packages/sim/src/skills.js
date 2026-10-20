@@ -140,7 +140,7 @@ const contextOf = (w, c, op) => timingOf(w, c, op).ctx;
 
 /**
  * Ends a skill (技能-4): its behaviour's end, then the state at rest (a 解放者's charge back at 0, 职业-12), its talents'
- * SP for it (职业-25), then the `skillEnd` event (钩子-3) with why — `duration`, `instant`, `ammo` or `stopped` (closed, 技能-7).
+ * SP for it (职业-25, 职业-30), then the `skillEnd` event (钩子-3) with why — `duration`, `instant`, `ammo` or `stopped` (closed, 技能-7).
  * @param {World} w @param {Content} c @param {Unit} op @param {string} [reason]
  */
 export function endSkill(w, c, op, reason = 'duration') {
@@ -150,7 +150,7 @@ export function endSkill(w, c, op, reason = 'duration') {
   st.active = false; st.armed = false; st.dur = -1; st.ammo = 0;
   restartCharge(op);
   w.events.push({ type: 'skill', id: op.id, active: 0 });
-  talentSkillEnd(w, c, op);
+  talentSkillEnd(w, c, op, reason);
   endSummons(w, c, op);
   grantSummons(w, c, op, 'end');
   emit(w, 'skillEnd', { unit: op, reason });
@@ -195,7 +195,7 @@ export function activate(w, c, op, reason = 'auto', free = false) {
   st.dur = runFrames(kind, seconds);
   st.ammo = kind === 'ammo' ? Math.max(1, def.bb['attack@trigger_time'] ?? def.bb.trigger_time ?? def.bb.cnt ?? 1) + Math.max(0, Math.floor(statsOf(op).sum.ammoFlat ?? 0)) : 0;
   w.events.push({ type: 'skill', id: op.id, active: 1 });
-  talentSkillStart(c, op);
+  talentSkillStart(w, c, op);
   behaviorOf(c, st.id).start?.(contextOf(w, c, op));
   if (def.alchemy) throwAlchemy(w, c, op, def.alchemy);
   grantSummons(w, c, op, 'start');

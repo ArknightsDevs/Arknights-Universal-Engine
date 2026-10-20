@@ -28,7 +28,7 @@ import { dealEp, rampageAttack, restoreEp } from './elements.js';
 import { mayAttack, healsNow, healerNow, inSkill, skillIdle, holdFrames, modeMods, releaseEnergy, healOrder, funnelScale, fortressTargets, fortressSplash } from './modes.js';
 import { traitOf, traitOfDef, traitTargets, traitHit, traitKill, traitDealt, traitAsk, traitSkip, summonHeld, dollNow } from './traits.js';
 import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_CUT_FRAMES } from './swing.js';
-import { talentSp } from './talentfx.js';
+import { talentSp, hurtAttackSp } from './talentfx.js';
 import { timedAttack, attackEnded } from './talenttime.js';
 import { lowestArts } from './talentfoe.js';
 import { palsyCut, epOnHit, healDotOn } from './talentelem.js';
@@ -375,13 +375,15 @@ function land(w, c, a) {
 
 /**
  * After an operator's attack landed (职业-9, 职业-12, 技能-2, 职业-25): its stored energy goes at the first target, its
- * talents' SP for an attack that reached enemies, it heals itself for the enemies reached, its skill counts the attack.
+ * talents' SP for an attack that reached enemies, the field's for its hurt-recovery skill (职业-30), it heals itself for
+ * the enemies reached, its skill counts the attack.
  * @param {World} w @param {Content} c @param {Unit} a @param {{ sw: Swing, reached: number, heals: boolean, noAmmo: boolean }} how
  */
 function operatorLanded(w, c, a, how) {
   const first = w.units.find((u) => u.id === how.sw.targets[0] && u.hp > 0 && !u.hidden);
   if (first && !how.heals) releaseEnergy(w, a, first);
   if (!how.heals && how.reached > 0) talentSp(w, c, a, 'attack');
+  if (how.reached > 0) hurtAttackSp(w, c, a);
   if (!how.heals) lowestArts(w, c, a, how.sw.targets);
   selfHeal(w, c, a, how.reached);
   if (!how.heals) epOnHit(c, a, how.reached);

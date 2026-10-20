@@ -10,7 +10,7 @@ import { selfClause, TAGS, powerOf } from './talents.js';
 /** Text without its bracketed parts, the nested ones too (「（最多叠加6次（+1））」). @param {string} s @returns {string} */
 const unbracket = (s) => (/（[^（）]*）/u.test(s) ? unbracket(s.replace(/（[^（）]*）/gu, '')) : s);
 /** A talent's text as the readers take it: rich-text tags and bracketed potential differences removed. @param {Talent} c */
-const plainOf = (c) => unbracket((c.description ?? '').replace(/<[^>]*>/g, '')).replace(/[。；]+$/, '');
+export const plainOf = (c) => unbracket((c.description ?? '').replace(/<[^>]*>/g, '')).replace(/[。；]+$/, '');
 /** Its first sentence (up to 。 or ；) and whether a later one speaks of an 效果. @param {Talent} c */
 function firstOf(c) {
   const text = plainOf(c), first = text.split(/[。；]/)[0];
@@ -392,6 +392,10 @@ const SPS = Object.freeze(/** @type {[RegExp, (m: RegExpExecArray, bb: Record<st
   [/^技能结束后[，,]\d+%几率立即回复\d+%的最大技力$/u, (_m, bb) => (has(bb, 'prob') && has(bb, 'sp') ? [{ on: 'skillEnd', prob: bb.prob, share: bb.sp }] : null)],
   [/^技能期间每击倒1名敌人[，,]技能结束时获得\d+点技力[，,]至多回复\d+点$/u, (_m, bb) => (has(bb, 'sp') && has(bb, 'max_sp') ? [{ on: 'skillKills', sp: bb.sp, max: bb.max_sp }] : null)],
   [/^技能结束时恢复自身\d+(?:\.\d+)?%最大生命值$/u, (_m, bb) => (has(bb, 'hp_ratio') ? [{ on: 'skillEnd', heal: bb.hp_ratio }] : null)],
+  [/^每场战斗中首次释放技能结束后立即回复(\d+)点技力$/u, (m, bb) => {
+    const sp = spOf(bb, m[1]);
+    return sp !== undefined ? [{ on: 'firstSkillEnd', sp }] : null;
+  }],
 ]));
 
 /**
@@ -541,9 +545,9 @@ export function perParts(c) {
 
 /** @typedef {import('@aue/sim').TraitDef} TraitDef */
 /** A blackboard value by the end of its key (`etlchi_t_2[heal].hp_ratio`), the first key that ends so. @param {Record<string, number>} bb @param {string} end */
-const byEnd = (bb, end) => Object.entries(bb).find(([k]) => k === end || k.endsWith(end))?.[1];
+export const byEnd = (bb, end) => Object.entries(bb).find(([k]) => k === end || k.endsWith(end))?.[1];
 /** Whether every value is a number. @param {(number | undefined)[]} vs @returns {vs is number[]} */
-const all = (vs) => vs.every((v) => Number.isFinite(v));
+export const all = (vs) => vs.every((v) => Number.isFinite(v));
 
 /**
  * The talents in time (干员-24), whole descriptions, and what each adds to the trait: a next attack after `delay` seconds

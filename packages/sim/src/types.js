@@ -318,7 +318,33 @@
  *   the enemy that dealt it (干员-25, 职业-27); read from the record's `talentTrait`
  * @property {{ power: string, scale: number } | null} reflect while it is on the field, an enemy's attack on an operator of
  *   the faction `power` takes true damage of `scale` × its attack (干员-25, 职业-27)
+ * @property {number} startCost its seat starts with this much more cost while it is in the deck (部署-10, 职业-30)
+ * @property {CostCut[]} costCuts the cost it takes off cards of a profession or faction (部署-10, 职业-30)
+ * @property {number} retreatCut added to the cost of its seat's next operator after its retreat (部署-10, 职业-30)
+ * @property {{ profession: string, value: number, max: number } | null} deployCut as it is deployed, `value` added to the
+ *   cost of each card of `profession` of its seat not on the field, at most `max` × `value` until that card is deployed
+ *   (部署-10, 职业-30)
+ * @property {number} costRate × its seat's cost recovery while it is on the field (费用-1, 职业-30)
+ * @property {number} aloneCost the cost its seat gains as it is deployed with no other operator on the 4 tiles next to it (职业-30)
+ * @property {DeploySp[]} deploySp SP on its deployment, or on others' while it is on the field (职业-30)
+ * @property {{ sp: number, seconds: number, mods: Record<string, number> } | null} allySkill as a skill starts on a tile of its
+ *   attack range: `sp` (阻回 no matter) and `mods` for `seconds` (职业-30)
+ * @property {{ profession: string, every: number, sp: number } | null} spPulse while it is on the field, every `every` seconds `sp`
+ *   for each operator of `profession` with an attack-recovery skill (职业-30)
+ * @property {number} hurtAttackSp while it is on the field, a hurt-recovery skill also gains this for its holder's attack (职业-30)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
+ */
+/**
+ * A cut of deploy cost by a talent (部署-10, 职业-30): `value` added to the cost of the cards of a profession or faction —
+ * of its holder's seat while it is in the deck, only until one of them is deployed with `first`; any seat's while it is on
+ * the field with `field`.
+ * @typedef {{ value: number, first?: boolean, field?: boolean } & ({ profession: string } | { power: string })} CostCut
+ */
+/**
+ * SP a talent gives on deployments (职业-30): `sp` to its holder as it is deployed (`self`; only the first time with
+ * `first`), to the operators of `profession` on the field as it is (`field`), or to those that arrive while it is on the
+ * field (`arriving`).
+ * @typedef {{ who: 'self' | 'field' | 'arriving', sp: number, first?: boolean, profession?: string }} DeploySp
  */
 /**
  * What an attack gets as it starts (干员-24, 职业-26): after `value` seconds without attacking (`idle`; with `fresh`, also
@@ -336,8 +362,9 @@
 /**
  * SP a talent gives on an event (干员-21, 职业-25): `sp` to the operator — or, on a heal, to the one healed —, `other`
  * to another unit at random; `share` of the skill's cost at the chance `prob` when its skill ends, or a heal of `heal` of
- * its maximum HP; for its kills during its skill, `sp` each at its end, at most `max`.
- * @typedef {{ on: 'attack' | 'kill' | 'heal' | 'enemyDown' | 'allyDown' | 'attacked' | 'skillEnd' | 'skillKills', sp?: number, other?: number,
+ * its maximum HP; for its kills during its skill, `sp` each at its end, at most `max`; `sp` at the end of the first skill it
+ * starts in the battle (`firstSkillEnd`, 职业-30).
+ * @typedef {{ on: 'attack' | 'kill' | 'heal' | 'enemyDown' | 'allyDown' | 'attacked' | 'skillEnd' | 'skillKills' | 'firstSkillEnd', sp?: number, other?: number,
  *   prob?: number, share?: number, max?: number, heal?: number }} TalentSp
  */
 /**
@@ -372,11 +399,12 @@
  * With `per`, an `enemies` part's modifiers are × the enemies in its own range, at most `per` (职业-25). In time (职业-26):
  * no attack of its ended for `value` seconds (`idle`), no hit took its HP (`unhurt`), no hit's 伤判 began on it (`calm`) —
  * the deployment counting as such an event, or not with `fresh` —; at least `value` 高台 tiles are behind it and at its
- * sides (`highSide`); at least `value` operators on the field, summons left out (`fieldOps`, 职业-29).
+ * sides (`highSide`); at least `value` operators on the field, summons left out (`fieldOps`, 职业-29); it is on the field
+ * for its first time (`firstDeploy`, 职业-30).
  * @typedef {{ when: 'blocking' | 'notBlocking' | 'hpAbove' | 'hpBelow' | 'enemies' | 'groundEnemies' | 'eliteEnemies' | 'burstEnemies'
  *   | 'allies' | 'injuredAllies' | 'epAllies' | 'skillAllies' | 'alone4' | 'alone8' | 'energy' | 'always' | 'inSkill' | 'alchemy'
  *   | 'blockingAtLeast' | 'lowHpEnemies' | 'noEnemies4' | 'soleEnemy4' | 'aloneUnits4' | 'notInSkill' | 'noKills' | 'fewStarts' | 'laterSkill'
- *   | 'idle' | 'unhurt' | 'calm' | 'highSide' | 'fieldOps',
+ *   | 'idle' | 'unhurt' | 'calm' | 'highSide' | 'fieldOps' | 'firstDeploy',
  *   value?: number, el?: string, per?: number, fresh?: boolean, mods: Record<string, number>, flags?: Record<string, boolean> }} WhileMods
  */
 /**
@@ -659,9 +687,10 @@
  * A player: life, cost and its timer, the operators on the field, the deck's cards; `revive` is the frames left until a
  * down player comes back (−1 when not down), `downs` how often they went down (合作-4); `ask` the frames left of their
  * open cost request (−1 for none), `askCd` the frames until they may ask again (合作-5); its summons' cards, once one
- * has one (召唤-4).
+ * has one (召唤-4); once talents give them (部署-10, 职业-30), the cut for its next operator (`cut`), the cuts on cards
+ * (`cuts`) and the cards whose first skill has started (`once`).
  * @typedef {{ life: number, cost: number, costTimer: number, deployed: string[], cards: Record<string, Card>, revive: number, downs: number,
- *   ask: number, askCd: number, summons?: Record<string, SummonCard> }} Player
+ *   ask: number, askCd: number, summons?: Record<string, SummonCard>, cut?: number, cuts?: Record<string, number>, once?: string[] }} Player
  */
 
 /**

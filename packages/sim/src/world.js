@@ -15,7 +15,7 @@ import { operatorsAttack, shotsFly } from './combat.js';
 import { tickAlchemy } from './alchemy.js';
 import { foeEffects, foeDeath, foeFatal, releasePassengers } from './foes.js';
 import { applyCommand } from './commands.js';
-import { leaveField } from './deck.js';
+import { leaveField, startCost, costRate } from './deck.js';
 import { coolSummons, dismissSummons, expireSummons } from './summons.js';
 import { tickRevival, tickRequests, neutralDown } from './coop.js';
 import { tickBuffs } from './buffs.js';
@@ -44,17 +44,18 @@ import { fieldContent } from './facilities.js';
 /** @typedef {import('@aue/schema').Command} Command */
 
 /**
- * A new world at frame 0 (spec 费用-1: each player starts with the level's initial cost and life), its hooks and timers
- * set up by the content (钩子-4); in 堡垒守御 its progress and facilities (守御-1, 守御-3).
+ * A new world at frame 0 (spec 费用-1: each player starts with the level's initial cost — more by its deck's talents,
+ * 部署-10 — and life), its hooks and timers set up by the content (钩子-4); in 堡垒守御 its progress and facilities
+ * (守御-1, 守御-3).
  * @param {Content} c @param {{ seed: number, players: number }} o @returns {World}
  */
 export function createWorld(c, o) {
-  const { initialCost, maxLifePoint, costIncreaseTime } = c.level.options;
+  const { maxLifePoint, costIncreaseTime } = c.level.options;
   /** @type {World} */
   const w = {
     frame: 0, rng: seedState(o.seed), nextId: 1, sched: newSchedule(), predefined: visiblePredefines(c), result: -1, stage: newStageState(), bornThisFrame: 0, units: [], shots: [], blasts: [], bolts: [],
     events: [],
-    players: Array.from({ length: o.players }, () => ({ life: maxLifePoint, cost: initialCost, costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {}, revive: -1, downs: 0, ask: -1, askCd: 0 })),
+    players: Array.from({ length: o.players }, (_, seat) => ({ life: maxLifePoint, cost: startCost(c, seat), costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {}, revive: -1, downs: 0, ask: -1, askCd: 0 })),
     ...(c.level.fortress ? { fortress: newFortress(c, o.players) } : {}),
   };
   for (const alias of w.predefined) { placeDevice(w, c, alias); placePredefined(w, c, alias); }
@@ -63,14 +64,19 @@ export function createWorld(c, o) {
   return w;
 }
 
-/** Each player gains 1 cost every costIncreaseTime, up to maxCost (spec 费用-1). @param {World} w @param {Content} c */
+/**
+ * Each player gains 1 cost every costIncreaseTime, up to maxCost (spec 费用-1): its timer runs down by its recovery's
+ * rate each frame — 1, × its operators' talents' (部署-10) —, what runs over kept.
+ * @param {World} w @param {Content} c
+ */
 function gainCost(w, c) {
   const { maxCost, costIncreaseTime } = c.level.options;
-  for (const p of w.players) {
-    if (--p.costTimer > 0) continue;
-    p.costTimer = secondsToFrames(costIncreaseTime);
+  w.players.forEach((p, seat) => {
+    p.costTimer -= costRate(w, c, seat);
+    if (p.costTimer > 0) return;
+    p.costTimer += secondsToFrames(costIncreaseTime);
     p.cost = Math.min(maxCost, p.cost + 1);
-  }
+  });
 }
 
 /**

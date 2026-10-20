@@ -23,7 +23,7 @@ export function operatorCards(w, c, seat) {
   const p = w.players[seat];
   return {
     slots: deck.deployLimit(c, seat, w) - summons.occupying(w, c, seat, free),
-    cards: Object.fromEntries((c.decks?.[seat] ?? []).map((k) => [k, { cost: deck.deployCost(c, p, k), ready: deck.cardOf(p, k).ready, locked: deck.cardLocked(w, deck.cardOf(p, k)) }])),
+    cards: Object.fromEntries((c.decks?.[seat] ?? []).map((k) => [k, { cost: deck.deployCost(c, p, k, w), ready: deck.cardOf(p, k).ready, locked: deck.cardLocked(w, deck.cardOf(p, k)) }])),
     hidden: (c.decks?.[seat] ?? []).filter((k) => deck.cardHidden(w, c, k)),
   };
 }

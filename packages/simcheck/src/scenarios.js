@@ -89,7 +89,7 @@ function tileFor(w, c, seat, op, goals) {
 function firstDeploy(w, c, seat) {
   const p = w.players[seat], goals = goalsOf(c);
   for (const op of c.decks?.[seat] ?? []) {
-    if (p.deployed.includes(op) || p.cost < deck.deployCost(c, p, op)) continue;
+    if (p.deployed.includes(op) || p.cost < deck.deployCost(c, p, op, w)) continue;
     const cmd = tileFor(w, c, seat, op, goals);
     if (cmd) return cmd;
   }
