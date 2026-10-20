@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { KIND, FORM } from '@aue/schema';
 import { createFigure } from './spine.js';
 import { formRoles, dollRoles, roleOf, operatorFacing, enemyFacing } from './roles.js';
-import { facingFor, flipOf } from './facing.js';
+import { facingStep, flipOf, sideOf, faceTurns } from './facing.js';
 import { SKILL_STATE } from '@aue/schema';
 
 /** Simulation frames per second (the engine's 时间-1). */
@@ -19,7 +19,7 @@ export const FPS = 30;
  * @typedef {{ group: THREE.Group, sides: Record<string, ReturnType<typeof createFigure>>, roles: Record<string, import('./roles.js').Roles>,
  *   forms: Record<string, import('./roles.js').Roles[]>, dolls: Record<string, ReturnType<typeof dollRoles>>, form: number, side: string, flip: boolean,
  *   role: string, clip: string, since: number, rate: number, view: string, x: number, dying: boolean,
- *   aim: { x: number, y: number } | null, flipped: boolean }} Figure
+ *   aim: { x: number, y: number, id: number } | null, aimId: number, flipped: boolean }} Figure
  */
 
 /**
@@ -31,7 +31,7 @@ export const FPS = 30;
 export function newFigure(m, u, frame) {
   if (!m?.front) return null;
   /** @type {Figure} */
-  const f = { group: new THREE.Group(), sides: {}, roles: {}, forms: {}, dolls: {}, form: FORM.OWN, side: 'front', flip: false, role: '', clip: '', since: frame, rate: 1, view: 'idle', x: u.x, dying: false, aim: null, flipped: flipOf(u.dir) };
+  const f = { group: new THREE.Group(), sides: {}, roles: {}, forms: {}, dolls: {}, form: FORM.OWN, side: 'front', flip: false, aimId: 0, role: '', clip: '', since: frame, rate: 1, view: 'idle', x: u.x, dying: false, aim: null, flipped: flipOf(u.dir) };
   for (const side of /** @type {const} */ (['front', 'back'])) {
     const model = m[side];
     if (!model) continue;
@@ -49,18 +49,20 @@ export function newFigure(m, u, frame) {
 const play = (f, role, frame, rate, clip = '') => { f.role = role; f.since = frame; f.rate = rate; f.clip = clip; };
 
 /**
- * The direction an operator's model faces this frame (渲染-4): the target of the attack clip playing while it plays —
- * through the official four-direction rule with its hysteresis band, so a target slightly off straight up keeps the
- * mirror the model had — and its deploy direction once that clip is over. The mirror is carried on the figure.
- * @param {Figure} f @param {import('@aue/schema').ViewUnit} u @param {string} key @returns {number}
+ * The facing an operator's model takes this frame (渲染-4): from its deploy direction when no attack is playing, otherwise
+ * the state machine over the target of the clip — a re-acquired target decides the side, the same target only switches it
+ * inside the narrow band.
+ * @param {Figure} f @param {import('@aue/schema').ViewUnit} u @param {string} key @returns {{ side: 'front' | 'back', flip: boolean }}
  */
 function faced(f, u, key) {
-  if (f.role !== 'attack') { f.aim = null; return u.dir; }
-  if (!f.aim) return u.dir;
-  const r = facingFor(key, u.skill === SKILL_STATE.RUNNING, f.aim.x - u.x, f.aim.y - u.y, f.flipped);
-  if (r === null) return u.dir;
-  f.flipped = r.flip;
-  return r.dir;
+  /** @type {{ side: 'front' | 'back', flip: boolean }} */
+  const idle = { side: sideOf(u.dir), flip: flipOf(u.dir) };
+  if (f.role !== 'attack') { f.aim = null; f.aimId = 0; return idle; }
+  if (!f.aim) return idle;
+  if (!faceTurns(key, u.skill === SKILL_STATE.RUNNING)) return { side: /** @type {'front' | 'back'} */ (f.side), flip: f.flipped };
+  const next = facingStep({ side: /** @type {'front' | 'back'} */ (f.side), flip: f.flipped }, f.aim.x - u.x, f.aim.y - u.y, f.aim.id !== f.aimId);
+  f.aimId = f.aim.id;
+  return next;
 }
 
 /**
@@ -76,7 +78,7 @@ export function follow(f, u, frame, key = '') {
   if (role === 'attack' && !held) play(f, 'attack', frame, 1);
   else if (role !== f.role && !(held && role === 'idle')) play(f, role, frame, 1);
   const back = { back: !!f.sides.back, backDies: !!f.roles.back?.die, dying: role === 'die' };
-  const facing = u.kind === KIND.OPERATOR ? operatorFacing(faced(f, u, key), back, f.flipped) : { side: 'front', flip: enemyFacing(f.flip, u.x - f.x) };
+  const facing = u.kind === KIND.OPERATOR ? operatorFacing(faced(f, u, key), back) : { side: 'front', flip: enemyFacing(f.flip, u.x - f.x) };
   f.side = facing.side; f.flip = facing.flip; f.x = u.x;
 }
 

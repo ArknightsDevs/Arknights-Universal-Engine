@@ -1,45 +1,45 @@
-// The direction a unit's model faces (docs/spec/render.md 渲染-4). A unit attacking something turns to face it when the
-// attack clip starts and goes back to its deploy direction when that clip is over — PRTS「作战机制」§3.2.2 敌人朝向与
-// 相对方位（https://prts.wiki/index.php?title=作战机制&oldid=441625）：「进行攻击时：如背对攻击目标，则会先面向攻击
-// 目标再进行攻击」，且「具有面向判定的敌人只有左右两种朝向」。干员侧的细节见该条款的实测与推断 INF-0272。
+// The direction a unit's model faces (docs/spec/render.md 渲染-4). A unit attacking something faces it while the attack clip
+// plays and goes back to its deploy direction when the clip is over — PRTS「作战机制」§3.2.2 敌人朝向与相对方位
+// （https://prts.wiki/index.php?title=作战机制&oldid=441625）：「进行攻击时：如背对攻击目标，则会先面向攻击目标再进行
+// 攻击」，且「具有面向判定的敌人只有左右两种朝向」。干员侧的细节见该条款的实测与推断 INF-0272。
 //
-// 实测（model B）：只有目标落在**正上方的窄带**里才用背面模型；其余（含正下方、水平、斜向）都是正面。窄带内左右不变
-// （优先同侧）。窄带宽度与贴身距离是设计决定，没有量过：为推断 INF-0272。
+// 实测：重新索敌时按 45° 判一次（目标在上方且 |dy| > |dx| 用背面，其余用正面，左右按目标在哪一侧）；同一个目标持续
+// 期间只在**正上/正下的窄带**（横向偏移占距离 ≤ 0.2）里换侧，窄带内不动左右。两个阈值是设计决定，没有量过：INF-0272。
 import { DIR } from '@aue/schema';
 import { faceTurns } from './faceModes.js';
 
-/** 目标横向偏移占距离的比例不超过它时算「正上/正下方」，左右不变 —— 推断 INF-0272。 */
+/** 窄带：目标横向偏移占距离不超过它时算「正上/正下方」，此时才换侧、且不动左右 —— 推断 INF-0272。 */
 export const FACING_DEAD_ZONE = 0.2;
 /** 目标距离小于它时不判方向 —— 推断 INF-0272。 */
 export const FACING_CLOSE = 0.25;
 
-/** @typedef {{ dir: number, flip: boolean }} Facing */
+/** @typedef {{ side: 'front' | 'back', flip: boolean }} Facing */
 
 /**
- * The facing a model takes for a target offset (dx = right, dy = up, in tiles), or null when the target is too close to
- * judge: only a target inside the band around straight up takes the back model, every other one faces the side it is on
- * with the front model, and inside the band the left / right the model already had is kept.
- * @param {number} dx @param {number} dy @param {boolean} flipped the left / right the model has now
- * @returns {Facing | null}
+ * One step of the facing state machine (渲染-4).
+ *
+ * A target that is not the one the model already faces — a re-acquisition — decides the side from the 45° rule and the
+ * mirror from which side the target is on. While the same target persists the side only changes inside the narrow band
+ * around straight up / straight down, and inside the band the mirror is left alone.
+ * @param {Facing} prev the side and mirror the model has now
+ * @param {number} dx right-positive offset @param {number} dy up-positive offset
+ * @param {boolean} newTarget whether this is a different target than before
+ * @returns {Facing}
  */
-export function facingDir(dx, dy, flipped = false) {
+export function facingStep(prev, dx, dy, newTarget) {
   const x = Number(dx) || 0, y = Number(dy) || 0;
   const d = Math.sqrt(x * x + y * y);
-  if (d < FACING_CLOSE) return null;
-  if (Math.abs(x) / d <= FACING_DEAD_ZONE) return { dir: y > 0 ? DIR.UP : DIR.DOWN, flip: flipped };
-  return { dir: x < 0 ? DIR.LEFT : DIR.RIGHT, flip: x < 0 };
+  if (d < FACING_CLOSE) return { side: prev.side, flip: prev.flip };
+  if (newTarget) {
+    return { side: y > 0 && Math.abs(y) > Math.abs(x) ? 'back' : 'front', flip: x < 0 };
+  }
+  if (Math.abs(x) / d <= FACING_DEAD_ZONE) return { side: y > 0 ? 'back' : 'front', flip: prev.flip };
+  return { side: prev.side, flip: x < 0 };
 }
 
-/**
- * The facing a model takes for an attack on a target, honouring the per-operator table (渲染-4): null when the operator
- * does not turn in the state it is in, or when the target is too close to tell.
- * @param {string} key the operator's content key @param {boolean} skillRunning whether its skill is running
- * @param {number} dx @param {number} dy @param {boolean} flipped @returns {Facing | null}
- */
-export function facingFor(key, skillRunning, dx, dy, flipped = false) {
-  if (!faceTurns(key, skillRunning)) return null;
-  return facingDir(dx, dy, flipped);
-}
-
-/** Whether a model facing `dir` alone is mirrored (渲染-4): facing left is. Used where no target is in play. @param {number} dir */
+/** The side a deploy direction alone gives (渲染-4): straight up is the back model. @param {number} dir */
+export const sideOf = (dir) => (dir === DIR.UP ? 'back' : 'front');
+/** Whether a deploy direction alone is mirrored (渲染-4). @param {number} dir */
 export const flipOf = (dir) => dir === DIR.LEFT;
+/** Whether an operator turns toward a target at all (the per-operator table). */
+export { faceTurns };

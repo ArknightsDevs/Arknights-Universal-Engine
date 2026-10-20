@@ -99,7 +99,7 @@ function swingOf(figures, view, e) {
   // 渲染-4: only a swing that has one thing to face turns the model (the sim says which kind it is)
   if (e.face === 0) return;
   const t = view.units.find((v) => v.id === Number(e.target));
-  if (t) f.aim = { x: t.x, y: t.y };
+  if (t) f.aim = { x: t.x, y: t.y, id: t.id };
 }
 
 /**
