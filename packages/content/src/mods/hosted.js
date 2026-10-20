@@ -4,6 +4,7 @@
 import { ENGINE_VERSION, MOD_INDEX_VERSION, modIndexProblem } from '@aue/schema';
 import { sha256Text } from './sha256.js';
 import { utf8Bytes } from './strict.js';
+import { OFFICIAL_SOURCE, createSource } from './source.js';
 
 /**
  * A host's list of its mods (mod-10).
@@ -53,4 +54,17 @@ export async function fetchMods(base, index, get) {
     out.push({ id: m.id, manifest: m.manifest, files });
   }
   return out;
+}
+
+/**
+ * A player's content source from a host (mod-10): the host's list at `base` + "index.json", its mods fetched and checked,
+ * laid over the official content as the host did; the official content alone when the host lists none. Throws when
+ * the list or a file is not as it should be.
+ * @param {string} base a URL ending in "/" @param {(url: string) => Promise<string>} get a file's text
+ * @returns {Promise<import('./source.js').ContentSource>}
+ */
+export async function hostedSource(base, get) {
+  const index = JSON.parse(await get(`${base}index.json`));
+  if (Array.isArray(index?.mods) && index.mods.length === 0 && modIndexProblem(index) === null) return OFFICIAL_SOURCE;
+  return createSource(await fetchMods(base, index, get));
 }

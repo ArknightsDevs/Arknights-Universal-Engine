@@ -95,3 +95,22 @@
 - 名单里新干员的条目带 `mod`（加它的 mod）和 `look`。
 
 - 来源：设计决定，见 [ADR 0064](../adr/0064-data-mod-loader-and-sdk.md)（mod 自带素材以后再做，[ADR 0039](../adr/0039-mod-assets.md)）
+
+### mod-12 aue 命令行
+
+`@aue/sdk` 的 `aue` 命令给 mod 作者用：
+
+- `aue mod new <id>`：从模板建一个 mod：适用本引擎版本的 `pack.json`、一个数据文件（把陈的二技能 10 级的攻击倍率从 500% 改成 600%）、说明。模板原样就能通过检查。id 不对或文件夹已存在时报错。
+- `aue mod check <文件夹>…`：像主机那样把这些 mod 一起叠到官方内容上（mod-3），列出每个 mod 加载了没有、问题、警告、加了和改了哪些记录，以及冲突。读文件夹时只读清单列出的数据文件；文件必须在文件夹里（解析链接后）、不超过上限、是 UTF-8 文本，开头的字节顺序标记去掉。有 mod 没加载时退出码为 1。一个不含 `pack.json` 的文件夹代表它下面所有含 `pack.json` 的子文件夹。
+- `aue mod test <文件夹>…`：用 mod 后的内容跑无画面的对局：mod 加了或改了的每名干员，以最高练度（最后一个精英阶段的满级、最后一个技能的最高等级、无模组）在 mod 加了或改了的第一个关卡上（没有就是 IG-1 逃离火线）作战；mod 加了或改了的每个关卡，两种难度各跑一次，不部署干员。脚本每 15 帧部署能部署的第一张卡，放在离某条路线终点最近的可部署格，朝向那条路线的起点；手动技能一就绪就开。每局跑到结束或给定的秒数（默认 180 秒）；出错的对局报告错误，不中断其他对局。
+- `aue mod pack <文件夹>`：打成 zip：一个以 mod id 命名的文件夹，里面是 `pack.json`、数据文件，有的话再加上 `README.md`、`LICENSE`、`LICENSE.md`、`LICENSE.txt`、`NOTICE.md`，以及列出这些文件 sha256 的 `SHA256SUMS`。每次打出的字节相同（时间戳固定为 1980-01-01）。清单或数据文件读不通时拒绝打包。
+
+- 来源：设计决定，见 [ADR 0064](../adr/0064-data-mod-loader-and-sdk.md)、[ADR 0055](../adr/0055-sdk-prepared-now-built-after-mvp.md)（`aue` 命令行：创建、检查、测试、打包 mod）
+
+### mod-13 JSON Schema
+
+- `pack.json` 和数据文件各有一份 JSON Schema（草案 2020-12），放在 `packages/sdk/schemas/`，文件里写 `$schema` 指向仓库主分支上的这两份文件，编辑器就能补全和检查。
+- 数据文件的 JSON Schema 由记录的结构检查（mod-6）和补丁规则（mod-5）生成：每个字段都可以不写，可选字段可以写 `null`；数组可以整体写，也可以写成按下标、`key` 或 `id` 寻址的对象；完整的新记录也符合。重复出现的较大的子结构放进 `$defs` 引用。
+- 仓库里的两份文件必须与生成的相同。
+
+- 来源：设计决定，见 [ADR 0064](../adr/0064-data-mod-loader-and-sdk.md)；[JSON Schema 2020-12](https://json-schema.org/draft/2020-12)

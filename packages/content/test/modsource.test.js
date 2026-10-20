@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { contentHash } from '@aue/sim';
 import { ENGINE_VERSION } from '@aue/schema';
-import { createSource, OFFICIAL_SOURCE, matchContent, loadTraining, modIndex, fetchMods, LEVELS, ROSTER } from '../src/index.js';
+import { createSource, OFFICIAL_SOURCE, matchContent, loadTraining, modIndex, fetchMods, hostedSource, LEVELS, ROSTER } from '../src/index.js';
 
 /** @typedef {import('../src/index.js').ModInput} ModInput */
 
@@ -55,6 +55,7 @@ test('[mod-4] [mod-11] new records under the mod\'s prefix: an operator that loo
   const chen = await loadTraining('char_010_chen'), lv = LEVELS.act1multi_01;
   const s = await createSource([mod('mine', { operators: { 'mine:chen_alt': { ...chen, name: '陈（另）', look: 'char_010_chen' } }, levels: { 'mine:day': { ...lv, level: { ...lv.level, id: 'mine:day' } } } })]);
   assert.deepEqual(reportOf(s), { mine: 'loaded' });
+  assert.deepEqual([s.reports[0].added, s.reports[0].changed], [['levels/mine:day', 'operators/mine:chen_alt'], []]);
   assert.deepEqual(s.roster['mine:chen_alt'], { name: '陈（另）', rarity: 6, profession: 'WARRIOR', branch: 'sword', mod: 'mine', look: 'char_010_chen' });
   assert.equal(s.roster.char_010_chen, ROSTER.char_010_chen);
   assert.equal(s.levels['mine:day'].level.code, lv.level.code);
@@ -73,6 +74,7 @@ test('[mod-4] an enemy\'s patch changes it in every level that has it, a level a
   const key = 'enemy_1067_snslime', lv = LEVELS.act1multi_01, has = Object.keys(LEVELS).filter((k) => Object.hasOwn(LEVELS[/** @type {keyof typeof LEVELS} */ (k)].enemies, key));
   const s = await createSource([mod('foes', { levels: { 'foes:l': { ...lv, level: { ...lv.level, id: 'foes:l' } } }, enemies: { [key]: { atk: 999 } }, tokens: { token_10002_kalts_mon3tr: { rarity: 5 } } })]);
   assert.deepEqual(reportOf(s), { foes: 'loaded' });
+  assert.deepEqual([s.reports[0].added, s.reports[0].changed], [['levels/foes:l'], [`enemies/${key}`, 'tokens/token_10002_kalts_mon3tr']]);
   for (const k of [...has, 'foes:l']) assert.equal(s.levels[k].enemies[key].atk, 999, k);
   assert.equal(LEVELS.act1multi_01.enemies[key].atk, 300);
   assert.equal((await s.token('token_10002_kalts_mon3tr')).rarity, 5);
@@ -99,11 +101,14 @@ test('[mod-8] a match\'s content from a source: the patched values, the mods it 
   assert.notEqual(contentHash(await matchContent(match('char_010_chen'), { source: other })), contentHash(modded), 'another version is another content');
 });
 
-test('[mod-8] [mod-11] an added operator and level play in a match', async () => {
+test('[mod-8] [mod-11] an added operator and level play in a match; the operator has the figure, voice and attack timing of its look', async () => {
   const chen = await loadTraining('char_010_chen'), lv = LEVELS.act1multi_01;
   const s = await createSource([mod('mine', { operators: { 'mine:chen_alt': { ...chen, look: 'char_010_chen' } }, levels: { 'mine:day': { ...lv, level: { ...lv.level, id: 'mine:day' } } } })]);
   const c = await matchContent(match('mine:chen_alt', 'mine:day'), { source: s });
   assert.equal(c.operators['mine:chen_alt#0'].char, 'mine:chen_alt');
+  const own = await matchContent(match('char_010_chen'));
+  assert.deepEqual([c.operators['mine:chen_alt#0'].look, c.operators['mine:chen_alt#0'].attack], ['char_010_chen', own.operators['char_010_chen#0'].attack], 'the attack timing of its look');
+  assert.equal(own.operators['char_010_chen#0'].look, undefined);
   assert.deepEqual(c.decks, [['mine:chen_alt#0']]);
   assert.equal(c.level.id, 'mine:day');
 });
@@ -126,4 +131,15 @@ test('[mod-10] the host\'s list and a player\'s fetch: every file checked; the s
   await assert.rejects(fetchMods('http://h/mods/', { ...index, version: 2 }, served), /the host's list of mods: list version 2 is not 1/);
   const twisted = { ...index, mods: [{ ...index.mods[0], files: [{ ...index.mods[0].files[0], path: '../x.json' }] }] };
   await assert.rejects(fetchMods('http://h/mods/', twisted, served), /a file's path, size or sha256 is malformed/);
+});
+
+test('[mod-10] the source a player makes from a host: its list and files fetched, the same mods; the official content when it lists none', async () => {
+  const inputs = [mod('strong', CHEN_S2)], host = await createSource(inputs);
+  /** @type {Record<string, string>} */
+  const served = { 'http://h/mods/index.json': JSON.stringify(modIndex(inputs, host)), 'http://h/mods/strong/data.json': inputs[0].files['data.json'] };
+  const get = (/** @type {string} */ url) => (Object.hasOwn(served, url) ? Promise.resolve(served[url]) : Promise.reject(new Error(`${url}: 404`)));
+  assert.deepEqual((await hostedSource('http://h/mods/', get)).mods, host.mods);
+  served['http://h/mods/index.json'] = JSON.stringify(modIndex([], await createSource([])));
+  assert.equal(await hostedSource('http://h/mods/', get), OFFICIAL_SOURCE);
+  await assert.rejects(hostedSource('http://h/none/', get), /404/);
 });

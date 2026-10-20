@@ -56,3 +56,8 @@ test('[音频-1] room for one more sound: under the limit it plays; at it the ol
   assert.deepEqual([roomFor(bank(2, false), 1), roomFor(bank(2, false), 2), roomFor(bank(2, true), 2)], ['play', 'none', 'pop']);
   assert.deepEqual([roomFor(bank(0, false), 0), roomFor(bank(0, false), 7), roomFor(bank(0, true), 3)], ['play', 'play', 'play'], 'battle.ON_UNIT_BORN.char: 0, no pop');
 });
+
+test('[音频-2] [mod-11] an operator a mod adds sounds like the operator it looks like', () => {
+  const x = { ...X, keyOf: () => 'mine:alt#1', operators: { 'mine:alt#1': { char: 'mine:alt', look: 'char_special' } } };
+  assert.deepEqual(soundsOf([{ type: 'deploy', id: 1 }], x), ['battle.ON_UNIT_BORN.char_special']);
+});

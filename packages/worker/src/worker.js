@@ -1,5 +1,6 @@
 // The module Worker's entry: wires a BattleSession to WebSocket, postMessage and the clock. Messages from the page:
-//   { type: 'start', url, seat, key, kits? }   connect and play; `kits`, where the server serves the pinned kits (兼容-6)
+//   { type: 'start', url, seat, key, kits?, mods? }   connect and play; `kits`, where the server serves the pinned kits
+//                                       (兼容-6); `mods`, where it serves its mods' list and files (mod-10)
 //   { type: 'command', cmd }            a player command (validated before it is sent)
 //   { type: 'speed', on } | { type: 'pause' } | { type: 'pauseReply', accept } | { type: 'resume' }   the controls
 //   { type: 'debug' }                   reply with { type: 'debug', frame, hash, sealed, stats }
@@ -8,7 +9,7 @@
 //   { type: 'stop' }
 // To the page, besides frames and replies: { type: 'signal', seat, s } for a seat's signal.
 import { commandProblem, signalProblem } from '@aue/schema';
-import { skeletonContent, matchContent, loadKits } from '@aue/content';
+import { skeletonContent, matchContent, loadKits, hostedSource, OFFICIAL_SOURCE } from '@aue/content';
 import { BattleSession } from './session.js';
 
 const scope = /** @type {any} */ (globalThis);
@@ -26,15 +27,25 @@ function connect(url) {
 
 /** Where the server serves the pinned kits (a URL ending in "/"), or null: none. @type {string | null} */
 let kitBase = null;
+/** The content source of the server's mods (mod-10), once fetched; the official content when it serves none. @type {Promise<import('@aue/content').ContentSource> | null} */
+let mods = null;
+
+/** @param {string} url @returns {Promise<string>} a file's text from the server */
+const text = (url) => fetch(url).then((r) => {
+  if (!r.ok) throw new Error(`${url}: ${r.status}`);
+  return r.text();
+});
 
 /**
- * A match's content (同步-9) with the kits of its operators when the server serves them (兼容-6).
+ * A match's content (同步-9) from the server's mods (mod-10), with the kits of its operators when the server serves them
+ * (兼容-6).
  * @param {import('@aue/schema').Match} match
  */
 async function contentOf(match) {
-  if (!kitBase) return matchContent(match);
+  const source = await (mods ?? OFFICIAL_SOURCE);
+  if (!kitBase) return matchContent(match, { source });
   const { kits } = await loadKits(kitBase, match.decks.flat().map((e) => e.id));
-  return matchContent(match, { kits });
+  return matchContent(match, { source, kits });
 }
 
 const session = new BattleSession(skeletonContent, {
@@ -49,6 +60,7 @@ const session = new BattleSession(skeletonContent, {
 const HANDLERS = {
   start: (m) => {
     kitBase = typeof m.kits === 'string' && m.kits.endsWith('/') ? new URL(m.kits, scope.location.href).href : null;
+    mods = typeof m.mods === 'string' && m.mods.endsWith('/') ? hostedSource(new URL(m.mods, scope.location.href).href, text) : null;
     session.start({ url: String(m.url), seat: Number(m.seat), key: String(m.key) });
   },
   command: (m) => { if (!commandProblem(m.cmd)) session.command(m.cmd); },

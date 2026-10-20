@@ -1,7 +1,7 @@
 // Reading mods and their load order (docs/spec/mods.md mod-1, mod-3, mod-4, mod-9): each mod's manifest, its data files
 // within the limits and as strict JSON, their tables and ids; then the order — what a mod needs first, then by priority
 // and id —, a mod that cannot load reported with why, and the mods that need it with it.
-import { MOD_LIMITS, MOD_TABLES, readModManifest, versionInRange } from '@aue/schema';
+import { CONTENT_ID, MOD_LIMITS, MOD_TABLES, readModManifest, versionInRange } from '@aue/schema';
 import { strictJson, utf8Bytes } from './strict.js';
 import { sha256Text } from './sha256.js';
 
@@ -10,16 +10,14 @@ import { sha256Text } from './sha256.js';
  * @typedef {{ id: string, manifest: unknown, files: Readonly<Record<string, string>> }} ModInput
  */
 /**
- * What became of a mod (mod-3): whether it loaded, why not, its warnings.
- * @typedef {{ id: string, version: string | null, name: string | null, loaded: boolean, problems: string[], warnings: string[] }} ModReport
+ * What became of a mod (mod-3): whether it loaded, why not, its warnings; once loaded, the records it added and the
+ * ones it changed ("operators/char_010_chen").
+ * @typedef {{ id: string, version: string | null, name: string | null, loaded: boolean, problems: string[], warnings: string[], added?: string[], changed?: string[] }} ModReport
  */
 /**
  * A mod read, ready to lay over the content: its manifest, its data files in order, the sha256 of its data (mod-8).
  * @typedef {{ manifest: import('@aue/schema').ModManifest, data: { path: string, tables: Record<string, Record<string, Record<string, unknown>>> }[], sha: string, report: ModReport }} ReadMod
  */
-
-/** A content id in a data file: a–z A–Z 0–9 _ - and one `:` after a mod id; no `#` (keys are "id#seat"). */
-const CONTENT_ID = /^(?:[a-z0-9_-]{1,32}:)?[A-Za-z0-9_-]{1,64}$/;
 
 /** @param {unknown} x @returns {x is Record<string, any>} */
 const isPlain = (x) => typeof x === 'object' && x !== null && !Array.isArray(x);

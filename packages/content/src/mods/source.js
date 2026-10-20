@@ -217,7 +217,8 @@ async function loadOne(mod, s) {
     for (const t of /** @type {RecordTable[]} */ (['operators', 'tokens', 'levels'])) for (const [k, v] of staged[t]) s.layer[t].set(k, v);
     for (const k of staged.operators.keys()) if (!Object.hasOwn(ROSTER, k) && !s.owner.has(k)) s.owner.set(k, id);
     for (const t of touches) s.touched.set(t.record, [...(s.touched.get(t.record) ?? []), t]);
-    mod.report.loaded = true;
+    const records = [...new Set(touches.map((t) => t.record))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)), news = new Set(touches.filter((t) => t.path === t.record).map((t) => t.record));
+    Object.assign(mod.report, { loaded: true, added: records.filter((r) => news.has(r)), changed: records.filter((r) => !news.has(r)) });
     s.loaded.push(mod);
   } catch (e) {
     mod.report.problems.push(...(e instanceof ModProblem ? e.problems : [/** @type {Error} */ (e).message]));

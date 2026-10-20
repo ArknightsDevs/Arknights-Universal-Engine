@@ -9,6 +9,8 @@ export const ENGINE_VERSION = '0.1.3';
 export const OFFICIAL = 'official';
 /** A mod id: 1–32 of a–z 0–9 _ - — the prefix of the ids it adds ("<mod id>:<name>"). */
 export const MOD_ID = /^[a-z0-9_-]{1,32}$/;
+/** A content id in a data file (mod-4): a–z A–Z 0–9 _ -, after a mod id and `:` when it is a mod's; no `#` (keys are "id#seat"). */
+export const CONTENT_ID = /^(?:[a-z0-9_-]{1,32}:)?[A-Za-z0-9_-]{1,64}$/;
 /** The pack types: what this version loads, and what it only lists. */
 export const PACK_TYPES = Object.freeze({ data: 'supported', assets: 'planned' });
 /** The tables a data file may hold (mod-4). */
@@ -26,7 +28,8 @@ const MAX_FILES = 64, PRIORITY = 1000;
  *   dependencies: Record<string, string>, priority: number }} ModManifest
  */
 
-const VERSION = /^(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})(?:-[0-9A-Za-z.-]{1,32})?(?:\+[0-9A-Za-z.-]{1,32})?$/;
+/** A semantic version (mod-2). */
+export const VERSION = /^(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})(?:-[0-9A-Za-z.-]{1,32})?(?:\+[0-9A-Za-z.-]{1,32})?$/;
 
 /**
  * A semantic version's numbers, or null; a pre-release (0.2.0-dev) and build metadata count as the release (mod-2).
@@ -107,9 +110,10 @@ export function versionInRange(version, range) {
   return v !== null && t !== null && t(v);
 }
 
-const PATH = /^(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\/){0,7}[A-Za-z0-9_-][A-Za-z0-9_.-]*\.json$/;
+/** A data file's path in its mod's folder (mod-1). */
+export const DATA_PATH = /^(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\/){0,7}[A-Za-z0-9_-][A-Za-z0-9_.-]*\.json$/;
 /** @param {unknown} p @returns {p is string} a data file's path in the mod's folder: forward slashes, no `..`, `.json` */
-export const isDataPath = (p) => typeof p === 'string' && p.length <= 128 && PATH.test(p);
+export const isDataPath = (p) => typeof p === 'string' && p.length <= 128 && DATA_PATH.test(p);
 
 /** @param {unknown} s @param {number} max @returns {s is string} */
 const isText = (s, max) => typeof s === 'string' && s.length > 0 && s.length <= max;

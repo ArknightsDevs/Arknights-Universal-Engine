@@ -84,6 +84,16 @@
       "node": true,
       "role": "the cross-engine check (shared with Duel Channel and Stronghold Protocol)"
     },
+    "sdk": {
+      "allow": [
+        "@aue/math",
+        "@aue/schema",
+        "@aue/sim",
+        "@aue/content"
+      ],
+      "node": true,
+      "role": "the SDK for mod authors: the aue command line (new, check, test, pack), the mods' JSON Schemas"
+    },
     "testkit": {
       "allow": [
         "fast-check",

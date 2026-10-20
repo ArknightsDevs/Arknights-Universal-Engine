@@ -12,7 +12,7 @@
 /**
  * What the voices of a frame need to know (音频-5): the content key of a unit by id, the content's records, the enemies,
  * this page's seat, and the SP cost from which an automatic skill is important.
- * @typedef {{ keyOf: (id: number) => string | undefined, operators: Record<string, { summoner?: string, profession?: string, skill?: { type?: string, cost?: number } }>,
+ * @typedef {{ keyOf: (id: number) => string | undefined, operators: Record<string, { look?: string, summoner?: string, profession?: string, skill?: { type?: string, cost?: number } }>,
  *   enemies: Record<string, unknown>, seat: number, importantSp: number }} VoiceContext
  */
 /** A voice to say: whose, of what type. @typedef {{ char: string, type: string }} Voice */
@@ -47,15 +47,15 @@ export function linesOf(index, char, type, dub) {
 }
 
 /**
- * Who speaks for a unit (音频-5): an operator of this page's seat, its character id; summons, carried units, devices
- * and enemies do not. @param {VoiceContext} x @param {number} id
+ * Who speaks for a unit (音频-5): an operator of this page's seat, its character id — an operator a mod adds, the one it
+ * looks like (mod-11) —; summons, carried units, devices and enemies do not. @param {VoiceContext} x @param {number} id
  */
 function speaker(x, id) {
   const key = x.keyOf(id);
   if (key === undefined || Object.hasOwn(x.enemies, key)) return null;
   const d = x.operators[key], [char, seat] = key.split('#');
   if (!d || d.summoner !== undefined || d.profession === 'TRAP' || Number(seat) !== x.seat) return null;
-  return char;
+  return d.look ?? char;
 }
 
 /** A skill starting: its voice type (音频-5). @param {VoiceContext} x @param {{ type?: string, cost?: number }} sk */

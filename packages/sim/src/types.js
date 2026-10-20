@@ -541,9 +541,10 @@
  * `deployTalents` what its talents do at its deployment (部署-8); from its seat's runes, `runeMods` its always-on buff
  * (符文-3), `probSp` its chances of SP on dealing damage (符文-4), `rangeSp` the SP it gives in its attack range (符文-5); a
  * carried unit's record (符文-6) what its deployment does (`carried`, 装置-6). A summon's record names its owner's key (`summoner`)
- * and how its card works (`summon`, 召唤-3, 召唤-4); `position` ALL lets it stand on melee and ranged tiles.
+ * and how its card works (`summon`, 召唤-3, 召唤-4); `position` ALL lets it stand on melee and ranged tiles. An operator a mod
+ * adds names the official operator whose figure and voice it has (`look`, mod-11).
  * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
- *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, rarity?: number, trait?: Partial<TraitDef>, respawnTime?: number, char?: string,
+ *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, rarity?: number, trait?: Partial<TraitDef>, respawnTime?: number, char?: string, look?: string,
  *   talentBb?: Record<string, number>, talentMods?: Record<string, number>, talentTrait?: Partial<TraitDef>, fieldTalents?: TeamTalent[], fieldAspd?: { ally: number, enemy: number, cnt: number, allyExtra: number, enemyExtra: number },
  *   powers?: string[], rangeTalents?: RangeTalent[],
  *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[], summoner?: string, summon?: SummonDef,

@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/ArknightsDevs/Arknights-Universal-Engine/main/packages/sdk/schemas/pack.schema.json",
+  "title": "AUE mod: pack.json",
+  "description": "数据 mod 的清单（docs/mods.md）。",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]{1,32}$",
+      "description": "可以不写：文件夹名就是 mod 的 id。"
+    },
+    "type": {
+      "enum": [
+        "data",
+        "assets"
+      ],
+      "description": "现在只加载 data。"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d{0,8})\\.(0|[1-9]\\d{0,8})\\.(0|[1-9]\\d{0,8})(?:-[0-9A-Za-z.-]{1,32})?(?:\\+[0-9A-Za-z.-]{1,32})?$",
+      "description": "这个 mod 的版本，语义化版本，如 1.0.0。"
+    },
+    "app": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "适用的引擎版本范围，如 ^0.1.3、>=0.1.3 <0.2.0。"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "名字。"
+    },
+    "englishName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "英文名字。"
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "description": "作者。"
+      },
+      "maxItems": 16
+    },
+    "credits": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "致谢。"
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "许可，SPDX 标识或文字。"
+    },
+    "files": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\\/){0,7}[A-Za-z0-9_-][A-Za-z0-9_.-]*\\.json$",
+              "maxLength": 128
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\\/){0,7}[A-Za-z0-9_-][A-Za-z0-9_.-]*\\.json$",
+                "maxLength": 128
+              },
+              "minItems": 1,
+              "maxItems": 64
+            }
+          ],
+          "description": "数据文件，按顺序应用。"
+        }
+      },
+      "required": [
+        "data"
+      ]
+    },
+    "dependencies": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z0-9_-]{1,32}$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 128
+      },
+      "description": "依赖的 mod：id → 版本范围。"
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": -1000,
+      "maximum": 1000,
+      "description": "彼此无依赖时，小的先加载；后加载的覆盖先加载的。"
+    }
+  },
+  "required": [
+    "type",
+    "version",
+    "name",
+    "files"
+  ],
+  "additionalProperties": false
+}

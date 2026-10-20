@@ -31,6 +31,16 @@ function attackOf(key) {
 }
 
 /**
+ * An operator's look and attack timing (攻击-2): one a mod adds has the figure, the voice and so the attack timing of the
+ * official operator it names (mod-11).
+ * @param {import('./mods/source.js').ContentSource} source @param {string} id
+ */
+function looks(source, id) {
+  const look = source.roster[id]?.look;
+  return look ? { look, ...attackOf(look) } : attackOf(id);
+}
+
+/**
  * An extracted operator record as the simulation reads it: its branch trait (职业-7), its skill_table level as a
  * skill (技能-1) and its attack timing (攻击-2).
  * @param {string} key @param {any} o @returns {import('@aue/sim').OperatorDef}
@@ -97,7 +107,7 @@ export async function matchContent(match, { source = OFFICIAL_SOURCE, kits = {} 
     const team = built.flatMap((x) => x.team);
     for (const { id, key, op } of built) {
       const withTeam = withDeckTalents(op, team);
-      operators[key] = { ...withTeam, blockCnt: Math.max(0, withTeam.blockCnt + lv.blockAdd), char: id, ...attackOf(id) };
+      operators[key] = { ...withTeam, blockCnt: Math.max(0, withTeam.blockCnt + lv.blockAdd), char: id, ...looks(source, id) };
     }
     for (const { id, build } of deck) Object.assign(operators, await summonsOf(source, { id, build, seat, blockAdd: lv.blockAdd, kit: Object.hasOwn(kits, id) }));
     return built.map((x) => x.key);
@@ -122,7 +132,7 @@ async function withPredefined(source, operators, level, blockAdd) {
   for (const p of level.predefines ?? []) {
     if (!p.build) continue;
     const op = operatorAt(await source.training(p.key), p.build);
-    operators[predefinedKey(p.alias)] = { ...op, blockCnt: Math.max(0, op.blockCnt + blockAdd), char: p.key, ...attackOf(p.key) };
+    operators[predefinedKey(p.alias)] = { ...op, blockCnt: Math.max(0, op.blockCnt + blockAdd), char: p.key, ...looks(source, p.key) };
   }
 }
 
@@ -227,8 +237,8 @@ export { CARRIED, CARRIED_PROFILES, loadCarried, carriedDef } from './carried.js
 export { OFFICIAL_SOURCE, createSource } from './mods/source.js';
 export { readMod, loadOrder } from './mods/order.js';
 export { applyPatch, PatchError } from './mods/patch.js';
-export { recordProblems } from './mods/shapes.js';
+export { recordProblems, tableSchemas } from './mods/shapes.js';
 export { strictJson } from './mods/strict.js';
 export { sha256, sha256Text } from './mods/sha256.js';
-export { modIndex, fetchMods } from './mods/hosted.js';
+export { modIndex, fetchMods, hostedSource } from './mods/hosted.js';
 /** @typedef {import('./mods/source.js').ContentSource} ContentSource @typedef {import('./mods/order.js').ModInput} ModInput @typedef {import('./mods/order.js').ModReport} ModReport @typedef {import('./mods/hosted.js').ModIndex} ModIndex */

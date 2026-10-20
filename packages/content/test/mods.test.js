@@ -30,6 +30,7 @@ test('[mod-6] a broken record: wrong types and ranges, unknown and missing field
   chen.phases[2].frames[1].stats.baseAttackTime = 0;
   chen.skills[1].levels[9].blackboard[0].value = 'six';
   assert.deepEqual(recordProblems('operators', chen, 'x'), ['x/phases/2/frames/1/stats/baseAttackTime: not a number in [0.05, 60]', 'x/skills/1/levels/9/blackboard/0/value: not a number in [-1000000000, 1000000000]']);
+  chen.phases[2].frames[1].stats.baseAttackTime = 1.3;
   chen.phases[2].frames = [chen.phases[2].frames[1], chen.phases[2].frames[0]];
   assert.ok(recordProblems('operators', chen, 'x').includes('x/phases/2/frames: levels do not start at 1 and rise'));
   assert.equal(recordProblems('operators', Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`f${i}`, i])), 'x').length, 20);

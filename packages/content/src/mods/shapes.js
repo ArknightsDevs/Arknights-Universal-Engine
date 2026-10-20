@@ -2,7 +2,11 @@
 // may be left out, and the links between them a level needs. The official data passes the same checks
 // (test/mods.test.js); a record a mod adds or patches must pass them to load.
 
-/** @typedef {(v: unknown, path: string, out: string[]) => void} Shape */
+/**
+ * A check of a value, and the JSON Schema of what it accepts (mod-6): one source for the loader's checks and for the
+ * schemas editors read.
+ * @typedef {((v: unknown, path: string, out: string[]) => void) & { json: Record<string, any> }} Shape
+ */
 
 /** The most problems reported for one record. */
 const MAX_PROBLEMS = 20;
@@ -15,32 +19,34 @@ function fail(out, path, what) {
   if (out.length < MAX_PROBLEMS) out.push(`${path}: ${what}`);
 }
 
+/** @param {(v: unknown, path: string, out: string[]) => void} check @param {Record<string, any>} json @returns {Shape} */
+const shape = (check, json) => Object.assign(check, { json });
+
 /** @param {number} lo @param {number} hi @returns {Shape} a finite number in [lo, hi] */
-const num = (lo = -1e9, hi = 1e9) => (v, p, out) => {
+const num = (lo = -1e9, hi = 1e9) => shape((v, p, out) => {
   if (typeof v !== 'number' || !Number.isFinite(v) || v < lo || v > hi) fail(out, p, `not a number in [${lo}, ${hi}]`);
-};
+}, { type: 'number', minimum: lo, maximum: hi });
 /** @param {number} lo @param {number} hi @returns {Shape} an integer in [lo, hi] */
-const int = (lo = -1e9, hi = 1e9) => (v, p, out) => {
+const int = (lo = -1e9, hi = 1e9) => shape((v, p, out) => {
   if (!Number.isSafeInteger(v) || /** @type {number} */ (v) < lo || /** @type {number} */ (v) > hi) fail(out, p, `not an integer in [${lo}, ${hi}]`);
-};
-/** @type {Shape} a text of at most 4096 characters */
-const str = (v, p, out) => {
+}, { type: 'integer', minimum: lo, maximum: hi });
+/** A text of at most 4096 characters. */
+const str = shape((v, p, out) => {
   if (typeof v !== 'string' || v.length > 4096) fail(out, p, 'not a text of at most 4096 characters');
-};
-/** @type {Shape} */
-const bool = (v, p, out) => {
+}, { type: 'string', maxLength: 4096 });
+const bool = shape((v, p, out) => {
   if (typeof v !== 'boolean') fail(out, p, 'not true or false');
-};
+}, { type: 'boolean' });
 /** @param {...(string | number)} values @returns {Shape} one of the values */
-const oneOf = (...values) => (v, p, out) => {
+const oneOf = (...values) => shape((v, p, out) => {
   if (!values.includes(/** @type {any} */ (v))) fail(out, p, `not one of ${values.join(', ')}`);
-};
+}, { enum: values });
 /** @param {Shape} s @returns {Shape} null or s */
-const nullable = (s) => (v, p, out) => {
+const nullable = (s) => shape((v, p, out) => {
   if (v !== null) s(v, p, out);
-};
+}, { anyOf: [s.json, { type: 'null' }] });
 /** @param {Shape} a @param {Shape} b @returns {Shape} a or b */
-const either = (a, b) => (v, p, out) => {
+const either = (a, b) => shape((v, p, out) => {
   /** @type {string[]} */
   const ra = [];
   /** @type {string[]} */
@@ -49,22 +55,22 @@ const either = (a, b) => (v, p, out) => {
   if (ra.length === 0) return;
   b(v, p, rb);
   if (rb.length > 0) fail(out, p, `${ra[0].slice(p.length + 2)}, nor ${rb[0].slice(p.length + 2)}`);
-};
+}, { anyOf: [a.json, b.json] });
 /** @param {Shape} s @param {number} min @param {number} max @returns {Shape} a list of s */
-const list = (s, min = 0, max = 4096) => (v, p, out) => {
+const list = (s, min = 0, max = 4096) => shape((v, p, out) => {
   if (!Array.isArray(v) || v.length < min || v.length > max) return fail(out, p, `not a list of ${min}–${max}`);
   v.forEach((x, i) => s(x, `${p}/${i}`, out));
-};
+}, { type: 'array', items: s.json, minItems: min, maxItems: max });
 /** @param {Shape} s @param {number} max @returns {Shape} an object of any keys to s */
-const dict = (s, max = 4096) => (v, p, out) => {
+const dict = (s, max = 4096) => shape((v, p, out) => {
   if (!isPlain(v) || Object.keys(v).length > max) return fail(out, p, `not an object of at most ${max} entries`);
   for (const [k, x] of Object.entries(v)) s(x, `${p}/${k}`, out);
-};
+}, { type: 'object', additionalProperties: s.json, maxProperties: max });
 /**
  * An object with the required fields, maybe the optional ones, no others.
  * @param {Record<string, Shape>} req @param {Record<string, Shape>} [opt] @returns {Shape}
  */
-const obj = (req, opt = {}) => (v, p, out) => {
+const obj = (req, opt = {}) => shape((v, p, out) => {
   if (!isPlain(v)) return fail(out, p, 'not an object');
   for (const k of Object.keys(v)) if (!Object.hasOwn(req, k) && !Object.hasOwn(opt, k)) fail(out, p, `unknown field ${k}`);
   for (const [k, s] of Object.entries(req)) {
@@ -72,7 +78,18 @@ const obj = (req, opt = {}) => (v, p, out) => {
     else fail(out, p, `missing field ${k}`);
   }
   for (const [k, s] of Object.entries(opt)) if (Object.hasOwn(v, k)) s(v[k], `${p}/${k}`, out);
-};
+}, {
+  type: 'object', properties: Object.fromEntries(Object.entries({ ...req, ...opt }).map(([k, s]) => [k, s.json])), required: Object.keys(req), additionalProperties: false,
+});
+/**
+ * A shape with a further check after it passes.
+ * @param {Shape} s @param {(v: any, p: string, out: string[]) => void} more @returns {Shape}
+ */
+const also = (s, more) => shape((v, p, out) => {
+  const n = out.length;
+  s(v, p, out);
+  if (out.length === n) more(v, p, out);
+}, s.json);
 
 const phase = int(0, 2), level = int(1, 90), potential = int(0, 5), bb = dict(num()), text = dict(str, 64), cell = obj({ row: int(-20, 20), col: int(-20, 20) });
 /** A unit's attributes (干员-1); a summon's also its card stacks and deploy count. */
@@ -82,11 +99,7 @@ const STATS = Object.freeze({
 });
 const stats = obj(STATS), summonStats = obj(STATS, { maxDeckStackCnt: int(0, 99), maxDeployCount: int(0, 99) });
 /** Attribute changes: a potential's, a module level's, the trust bonus'. */
-const STAT_KEYS = Object.freeze(Object.keys(STATS));
-const changes = (/** @type {unknown} */ v, /** @type {string} */ p, /** @type {string[]} */ out) => {
-  dict(num())(v, p, out);
-  if (isPlain(v)) for (const k of Object.keys(v)) if (!STAT_KEYS.includes(k)) fail(out, p, `unknown attribute ${k}`);
-};
+const changes = obj({}, Object.fromEntries(Object.keys(STATS).map((k) => [k, num()])));
 
 const skillLevel = obj({
   skillType: oneOf('MANUAL', 'AUTO', 'PASSIVE'), durationType: oneOf('NONE', 'AMMO'), duration: num(-1, 3600),
@@ -102,17 +115,14 @@ const part = obj({
   target: oneOf('TRAIT', 'TRAIT_DATA_ONLY', 'TALENT', 'TALENT_DATA_ONLY', 'DISPLAY', 'OVERWRITE_BATTLE_DATA'), gameTag: nullable(str), mapTag: nullable(str), token: bool,
   trait: list(moduleTrait, 0, 16), talents: list(moduleTalent, 0, 16),
 });
-const moduleShape = obj({ id: str, name: str, type: str, phase, level, levels: list(obj({ level: int(1, 3), stats: changes, tokens: dict(changesOrCounts()), parts: list(part, 0, 16) }), 1, 3) });
-/** A module level's changes to a summon: attributes and its card counts. @returns {Shape} */
-function changesOrCounts() {
-  return dict(num(), 16);
-}
-const frames = (/** @type {unknown} */ v, /** @type {string} */ p, /** @type {string[]} */ out, /** @type {Shape} */ s = stats) => {
-  list(obj({ level, stats: s }), 1, 8)(v, p, out);
-  if (!Array.isArray(v) || !v.every((f) => isPlain(f) && Number.isSafeInteger(f.level))) return;
-  if (v[0].level !== 1 || v.some((f, i) => i > 0 && f.level <= v[i - 1].level)) fail(out, p, 'levels do not start at 1 and rise');
-};
-const phaseOf = (/** @type {Shape} */ s) => obj({ maxLevel: level, range: list(cell, 0, 400), frames: (v, p, out) => frames(v, p, out, s) });
+/** A module level's changes to a summon: its attributes and its card counts. */
+const summonChanges = dict(num(), 16);
+const moduleShape = obj({ id: str, name: str, type: str, phase, level, levels: list(obj({ level: int(1, 3), stats: changes, tokens: dict(summonChanges), parts: list(part, 0, 16) }), 1, 3) });
+/** An elite phase's keyframes: their levels start at 1 and rise (干员-1). @param {Shape} s the attributes @returns {Shape} */
+const frames = (s) => also(list(obj({ level, stats: s }), 1, 8), (v, p, out) => {
+  if (v[0].level !== 1 || v.some((/** @type {any} */ f, /** @type {number} */ i) => i > 0 && f.level <= v[i - 1].level)) fail(out, p, 'levels do not start at 1 and rise');
+});
+const phaseOf = (/** @type {Shape} */ s) => obj({ maxLevel: level, range: list(cell, 0, 400), frames: frames(s) });
 const mainPower = obj({ nationId: nullable(str), groupId: nullable(str), teamId: nullable(str) });
 
 /** An operator's record (data/operators/<id>.json, 干员-1); one a mod adds may name the operator it looks like. */
@@ -144,14 +154,12 @@ const build = obj({ elite: int(0, 2), level, potential: int(1, 6), trust: int(0,
 const action = obj({ type: oneOf('SPAWN', 'ACTIVATE', 'NONE', 'STORY'), key: str, count: int(0, 999), interval: num(0, 3600), preDelay: num(0, 3600), route: int(-1, 4096) },
   { group: str, hidden: str, pack: str, unharmful: bool, weight: int(0, 1000) });
 const fragment = obj({ preDelay: num(0, 3600), actions: list(action, 0, 256) });
+/** A tile position, maybe just off the map. */
+const cell64 = obj({ row: int(-64, 128), col: int(-64, 128) });
 const route = obj({
-  motion: oneOf('WALK', 'FLY'), start: cell64(), end: cell64(), spawnOffset: obj({ x: num(-10, 10), y: num(-10, 10) }), allowDiagonal: bool,
+  motion: oneOf('WALK', 'FLY'), start: cell64, end: cell64, spawnOffset: obj({ x: num(-10, 10), y: num(-10, 10) }), allowDiagonal: bool,
   checkpoints: list(obj({ type: oneOf('MOVE', 'WAIT_CURRENT_FRAGMENT_TIME', 'WAIT_FOR_SECONDS', 'DISAPPEAR', 'APPEAR_AT_POS'), row: int(-64, 128), col: int(-64, 128), time: num(0, 1e6), dx: num(-10, 10), dy: num(-10, 10) }), 0, 256),
 });
-/** @returns {Shape} a tile position, maybe just off the map */
-function cell64() {
-  return obj({ row: int(-64, 128), col: int(-64, 128) });
-}
 const tile = obj({ key: str, buildable: oneOf('NONE', 'MELEE', 'RANGED', 'ALL'), height: oneOf('LOWLAND', 'HIGHLAND'), passable: oneOf('NONE', 'FLY_ONLY', 'ALL'), side: oneOf('ALL', 'SIDE_A', 'SIDE_B') },
   { goal: oneOf('A', 'B') });
 const difficulty = obj({ enemyMul: list(obj({ mods: dict(num(0, 1000), 8) }, { enemy: list(str, 0, 64), exclude: list(str, 0, 64) }), 0, 16), hiddenGroups: list(str, 0, 64), replace: dict(str, 64), unsupported: list(str, 0, 64) },
@@ -192,24 +200,46 @@ function levelLinks(f, p, out) {
   for (const d of lv.predefines) if (d.row >= lv.height || d.col >= lv.width) fail(out, `${p}/level/predefines`, `${d.alias} stands off the map`);
 }
 
-/** Each table's record shape and the links checked after it (mod-6). @type {Readonly<Record<string, { shape: Shape, links?: (v: any, p: string, out: string[]) => void }>>} */
-const TABLES = Object.freeze({
-  operators: { shape: operatorShape },
-  tokens: { shape: tokenShape },
-  enemies: { shape: enemyShape },
-  levels: { shape: levelShape, links: levelLinks },
-});
+/** Each table's record shape (mod-6). @type {Readonly<Record<'operators' | 'tokens' | 'enemies' | 'levels', Shape>>} */
+const TABLES = Object.freeze({ operators: operatorShape, tokens: tokenShape, enemies: enemyShape, levels: also(levelShape, levelLinks) });
 
 /**
  * The problems of a record of a table (mod-6), at most 20; none: it is well formed.
- * @param {'operators' | 'tokens' | 'enemies' | 'levels'} table @param {unknown} record @param {string} [path] where it is, for the messages
+ * @param {keyof typeof TABLES} table @param {unknown} record @param {string} [path] where it is, for the messages
  * @returns {string[]}
  */
 export function recordProblems(table, record, path = table) {
   /** @type {string[]} */
   const out = [];
-  const t = TABLES[table];
-  t.shape(record, path, out);
-  if (out.length === 0) t.links?.(record, path, out);
+  TABLES[table](record, path, out);
   return out;
 }
+
+/** @param {Record<string, any>} j @returns {boolean} whether a schema is of a { key, value } pair */
+const isPairJson = (j) => j.type === 'object' && j.properties && Object.keys(j.properties).join() === 'key,value';
+/** @param {Record<string, any>} j */
+const orNull = (j) => ({ anyOf: [j, { type: 'null' }] });
+
+/**
+ * The JSON Schema of a patch of what a schema accepts (mod-5): every field may be left out and an optional one may be
+ * null (removed); a list may be written whole — its elements as patches, which whole elements pass too —, or as an object
+ * addressing its elements — null removes one, a { key, value } pair may be its value alone. A whole record passes it.
+ * @param {Record<string, any>} j @returns {Record<string, any>}
+ */
+function patchJson(j) {
+  if (j.anyOf) return { anyOf: j.anyOf.map(patchJson) };
+  if (j.type === 'object' && j.properties) {
+    const props = Object.entries(j.properties).map(([k, v]) => [k, j.required.includes(k) ? patchJson(v) : orNull(patchJson(v))]);
+    return { type: 'object', properties: Object.fromEntries(props), additionalProperties: false };
+  }
+  if (j.type === 'object') return { type: 'object', additionalProperties: orNull(patchJson(j.additionalProperties)) };
+  if (j.type !== 'array') return j;
+  const item = patchJson(j.items), element = { anyOf: [item, { type: 'null' }, ...(isPairJson(j.items) ? [j.items.properties.value] : [])] };
+  return { anyOf: [{ ...j, items: item }, { type: 'object', additionalProperties: element }] };
+}
+
+/**
+ * The JSON Schemas of a table's records and of its patches (mod-5, mod-6), as the checks accept them.
+ * @param {keyof typeof TABLES} table @returns {{ record: Record<string, any>, patch: Record<string, any> }}
+ */
+export const tableSchemas = (table) => ({ record: TABLES[table].json, patch: patchJson(TABLES[table].json) });

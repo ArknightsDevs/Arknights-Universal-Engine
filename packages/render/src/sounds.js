@@ -16,7 +16,7 @@ import { inDub } from './voices.js';
  * What the sound of a frame needs to know (音频-2): the content key of a unit by id (as the frame's keys gave them),
  * the content's records, this page's seat, how many stages the level has, and whether the index has a bank; for the
  * banks of a dub (音频-4), the index's copies and a character's dub.
- * @typedef {{ keyOf: (id: number) => string | undefined, operators: Record<string, { char?: string, summoner?: string, profession?: string, skill?: { id: string, type?: string, cost?: number } }>,
+ * @typedef {{ keyOf: (id: number) => string | undefined, operators: Record<string, { char?: string, look?: string, summoner?: string, profession?: string, skill?: { id: string, type?: string, cost?: number } }>,
  *   enemies: Record<string, unknown>, seat: number, stages: number, has: (bank: string) => boolean,
  *   voiceLang?: AudioIndex['voiceLang'], dubOf?: (char: string) => string | null }} SoundContext
  */
@@ -44,14 +44,14 @@ function unitBank(x, kind, id) {
   if (Object.hasOwn(x.enemies, key)) return first(x, [`battle.${kind}.${key}`, `battle.${kind}.enemy`]);
   const d = x.operators[key];
   if (!d) return null;
-  const char = d.char ?? key.split('#')[0], small = d.summoner !== undefined || d.profession === 'TRAP';
+  const char = d.look ?? d.char ?? key.split('#')[0], small = d.summoner !== undefined || d.profession === 'TRAP';
   return dubbed(x, first(x, [`battle.${kind}.${char}`, `battle.${kind}.${small ? 'token' : 'char'}`]), char);
 }
 
 /** A skill starting: its bank (音频-2). @param {SoundContext} x @param {number} id */
 function skillBank(x, id) {
   const key = x.keyOf(id), d = key === undefined ? undefined : x.operators[key], sk = d?.skill;
-  return sk ? dubbed(x, first(x, [`battle.ON_SKILL_START.${sk.id}`]), d?.char ?? /** @type {string} */ (key).split('#')[0]) : null;
+  return sk ? dubbed(x, first(x, [`battle.ON_SKILL_START.${sk.id}`]), d?.look ?? d?.char ?? /** @type {string} */ (key).split('#')[0]) : null;
 }
 
 /** @type {Record<string, (x: SoundContext, e: Record<string, any>) => (string | null)[]>} */
