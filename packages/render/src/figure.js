@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { KIND, FORM } from '@aue/schema';
 import { createFigure } from './spine.js';
 import { formRoles, dollRoles, roleOf, operatorFacing, enemyFacing } from './roles.js';
+import { facingDir, signOf } from './facing.js';
 
 /** Simulation frames per second (the engine's 时间-1). */
 export const FPS = 30;
@@ -16,7 +17,8 @@ export const FPS = 30;
  * last gave, the x it was last at, and whether it is dying.
  * @typedef {{ group: THREE.Group, sides: Record<string, ReturnType<typeof createFigure>>, roles: Record<string, import('./roles.js').Roles>,
  *   forms: Record<string, import('./roles.js').Roles[]>, dolls: Record<string, ReturnType<typeof dollRoles>>, form: number, side: string, flip: boolean,
- *   role: string, clip: string, since: number, rate: number, view: string, x: number, dying: boolean }} Figure
+ *   role: string, clip: string, since: number, rate: number, view: string, x: number, dying: boolean,
+ *   aim: { x: number, y: number } | null, sign: number }} Figure
  */
 
 /**
@@ -28,7 +30,7 @@ export const FPS = 30;
 export function newFigure(m, u, frame) {
   if (!m?.front) return null;
   /** @type {Figure} */
-  const f = { group: new THREE.Group(), sides: {}, roles: {}, forms: {}, dolls: {}, form: FORM.OWN, side: 'front', flip: false, role: '', clip: '', since: frame, rate: 1, view: 'idle', x: u.x, dying: false };
+  const f = { group: new THREE.Group(), sides: {}, roles: {}, forms: {}, dolls: {}, form: FORM.OWN, side: 'front', flip: false, role: '', clip: '', since: frame, rate: 1, view: 'idle', x: u.x, dying: false, aim: null, sign: signOf(u.dir) };
   for (const side of /** @type {const} */ (['front', 'back'])) {
     const model = m[side];
     if (!model) continue;
@@ -46,6 +48,21 @@ export function newFigure(m, u, frame) {
 const play = (f, role, frame, rate, clip = '') => { f.role = role; f.since = frame; f.rate = rate; f.clip = clip; };
 
 /**
+ * The direction an operator's model faces this frame (渲染-4): the target of the attack clip playing while it plays —
+ * through the official four-direction rule with its hysteresis band, so a target slightly off straight up keeps the
+ * mirror the model had — and its deploy direction once that clip is over. The sign is carried on the figure.
+ * @param {Figure} f @param {import('@aue/schema').ViewUnit} u @returns {number}
+ */
+function faced(f, u) {
+  if (f.role !== 'attack') { f.aim = null; return u.dir; }
+  if (!f.aim) return u.dir;
+  const r = facingDir(f.aim.x - u.x, f.aim.y - u.y, f.sign);
+  if (r.dir === null) return u.dir;
+  f.sign = r.sign;
+  return r.dir;
+}
+
+/**
  * A figure following its unit's view (渲染-3, 渲染-4): moving or idle starts that role; a deploy or attack clip plays
  * out unless the unit moves; operators face by their direction, enemies by how they moved.
  * @param {Figure} f @param {import('@aue/schema').ViewUnit} u @param {number} frame
@@ -57,7 +74,7 @@ export function follow(f, u, frame) {
   if (role === 'attack' && !held) play(f, 'attack', frame, 1);
   else if (role !== f.role && !(held && role === 'idle')) play(f, role, frame, 1);
   const back = { back: !!f.sides.back, backDies: !!f.roles.back?.die, dying: role === 'die' };
-  const facing = u.kind === KIND.OPERATOR ? operatorFacing(u.dir, back) : { side: 'front', flip: enemyFacing(f.flip, u.x - f.x) };
+  const facing = u.kind === KIND.OPERATOR ? operatorFacing(faced(f, u), back, f.sign) : { side: 'front', flip: enemyFacing(f.flip, u.x - f.x) };
   f.side = facing.side; f.flip = facing.flip; f.x = u.x;
 }
 

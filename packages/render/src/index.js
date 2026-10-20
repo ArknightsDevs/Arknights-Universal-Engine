@@ -8,6 +8,7 @@ export { FX, createEffects, loadEffectPack, cameraAxes } from './effects.js';
 export { effectLead, rootAt, rootAlong } from './fx/player.js';
 export { createFigure, figureArrays, blendFactors, spineModel, SKELETON_SCALE } from './spine.js';
 export { animationRoles, formRoles, roleOf, operatorFacing, enemyFacing } from './roles.js';
+export { facingDir, parseDirection, signOf, FACING_TOLERANCE, FACING_ADDON, FACING_TOO_CLOSE, FACE_SIGN_LEFT, FACE_SIGN_RIGHT, FACE_DEFAULT_SIGN } from './facing.js';
 export { barsOf, BAR } from './overlays.js';
 export { cameraPose, applyPose, toThree, tileWorld, screenOf, adapt, DEFAULT_VIEW, FOV, STEP_HEIGHT } from './camera.js';
 export { tileKeys } from './terrain.js';

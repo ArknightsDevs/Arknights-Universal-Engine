@@ -94,6 +94,19 @@ const disposeFigure = (f) => { for (const x of Object.values(f.sides)) x.dispose
  * @param {Map<string, import('./devicemesh.js').DeviceMeshModel>} [meshes] devices' mesh models by content key (渲染-20)
  * @param {Set<string>} [flyers] content keys of the flying enemies (渲染-21)
  */
+/**
+ * An attack event for a figure (渲染-3, 渲染-4): its clip starts, and the model turns toward the target of that swing.
+ * @param {Map<number, import('./figure.js').Figure>} figures @param {import('@aue/schema').View} view
+ * @param {import('@aue/schema').Event} e
+ */
+function swingOf(figures, view, e) {
+  const f = figures.get(Number(e.id));
+  if (!f || f.dying) return;
+  attacked(f, Number(e.wind), view.frame);
+  const t = view.units.find((v) => v.id === Number(e.target));
+  if (t) f.aim = { x: t.x, y: t.y };
+}
+
 export function createUnits(textures, models = new Map(), foeDevices = new Set(), meshes = new Map(), flyers = new Set()) {
   const group = new THREE.Group(), shadows = createShadows(textures.get('ui:shadow')), marks = createIndicators(textures.get('ui:directionRing'), textures.get('ui:directionArrow'));
   /** @type {Map<number, THREE.Sprite | THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>>} cards and blocks */ const cards = new Map();
@@ -153,7 +166,7 @@ export function createUnits(textures, models = new Map(), foeDevices = new Set()
       Object.assign(clock, { frame: view.frame, at: now });
       const seen = new Set();
       for (const u of view.units) { seen.add(u.id); draw(u, placeOf(level, u, lift(u.id) > 0), view.frame); }
-      for (const e of events) if (e.type === 'attack') { const f = figures.get(Number(e.id)); if (f && !f.dying) attacked(f, Number(e.wind), view.frame); }
+      for (const e of events) if (e.type === 'attack') swingOf(figures, view, e);
       prune(seen, new Set(events.filter((e) => e.type === 'death').map((e) => Number(e.id))), view.frame);
     },
     /** Poses every figure for the moment `now` and turns it to face the camera. @param {THREE.Camera} camera @param {number} [now] ms */
