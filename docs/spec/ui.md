@@ -34,13 +34,13 @@
 
 ### 界面-3 自动布局
 
-- **布局组**（横向、纵向）按顺序（可反转）排列启用的、不忽略布局的子节点：内边距、间距、子节点对齐（九种）；控制子节点尺寸时子节点取首选尺寸，否则取自己的尺寸；主轴上剩下的空间按子节点的弹性尺寸分（强制展开算 1）；放不下首选尺寸时，每个子节点按同一个比例取在最小尺寸与首选尺寸之间（比例 = (可用 − 最小之和) ÷ (首选之和 − 最小之和)）；交叉轴上强制展开或有弹性尺寸时占满。
+- **布局组**（横向、纵向）按顺序（可反转）排列启用的、不忽略布局的子节点：内边距、间距、子节点对齐（九种）；控制子节点尺寸时子节点取首选尺寸，否则取自己的尺寸；主轴上剩下的空间按子节点的弹性尺寸分（强制展开算 1）；放不下首选尺寸时，每个子节点按同一个比例取在最小尺寸与首选尺寸之间（比例 = (可用 − 最小之和) ÷ (首选之和 − 最小之和)）；交叉轴上强制展开或有弹性尺寸时占满，否则（控制子节点尺寸时）取可用尺寸，但不小于最小尺寸、不大于首选尺寸（一段长的换行文字按可用宽度换行）。
 - **首选尺寸**：布局元素给出的，否则布局组按子节点算出的（主轴上相加加间距，交叉轴上取最大，再加内边距），否则文字量出的，否则矩形自己的尺寸；不小于布局元素的最小尺寸。**最小尺寸**：布局元素给出的，否则布局组按子节点的最小尺寸同样算出（不控制尺寸时取子节点自己的尺寸），否则为 0。
 - **网格布局组**：启用的、不忽略布局的子节点按格子尺寸排，加间距和内边距，整块按子节点对齐放在矩形里。起始轴为横向时一行一行排，每行的列数：固定列数；固定行数时按子节点数算出；否则为宽度放得下的格数；至少 1。起始轴为纵向时一列一列排，每列的行数：固定行数；固定列数时按子节点数算出；否则为高度放得下的格数；至少 1。起始角在右边时列从右往左数，在下边时行从下往上数。首选尺寸：宽为固定列数（不固定时取子节点数的平方根向上取整）个格子，高为按当前宽度排出的行数个格子，各加间距和内边距。
 - **内容尺寸适配**：锚点不拉伸的那一轴，尺寸取首选尺寸。
 - 页面自己放置的节点（如单位条的底板，界面-19）不参加所在布局组的排列。
 
-- 来源：Unity UI 手册「Auto Layout」<https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/UIAutoLayout.html>（放不下时在最小与首选之间按比例取，Unity UI 源码 LayoutGroup.cs SetChildrenAlongAxis <https://github.com/Unity-Technologies/uGUI/blob/2019.1/UnityEngine.UI/UI/Core/Layout/LayoutGroup.cs>；关卡详情目标面板里「最高纪录」的高度 58.28 与预制件里 Unity 存下的一致）、「Grid Layout Group」<https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/script-GridLayoutGroup.html>；只实现到这里列出的程度，为推断 INF-0114；网格按起始轴、起始角定位格子的算法见 Unity UI 源码 GridLayoutGroup.cs SetCellsAlongAxis <https://github.com/Unity-Technologies/uGUI/blob/2019.1/UnityEngine.UI/UI/Core/Layout/GridLayoutGroup.cs>
+- 来源：Unity UI 手册「Auto Layout」<https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/UIAutoLayout.html>（放不下时在最小与首选之间按比例取、交叉轴上把可用尺寸夹在最小与首选之间，Unity UI 源码 LayoutGroup.cs SetChildrenAlongAxis <https://github.com/Unity-Technologies/uGUI/blob/2019.1/UnityEngine.UI/UI/Core/Layout/LayoutGroup.cs>；关卡详情目标面板里「最高纪录」的高度 58.28 与预制件里 Unity 存下的一致）、「Grid Layout Group」<https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/script-GridLayoutGroup.html>；只实现到这里列出的程度，为推断 INF-0114；网格按起始轴、起始角定位格子的算法见 Unity UI 源码 GridLayoutGroup.cs SetCellsAlongAxis <https://github.com/Unity-Technologies/uGUI/blob/2019.1/UnityEngine.UI/UI/Core/Layout/GridLayoutGroup.cs>
 
 ### 界面-4 图形与文字
 

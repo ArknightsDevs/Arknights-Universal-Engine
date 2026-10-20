@@ -86,6 +86,9 @@ function childSizes(g, kids, inner, main) {
   return { sizes, total };
 }
 
+/** Unity's Mathf.Clamp: below the minimum the minimum, else above the maximum the maximum. @param {number} v @param {number} lo @param {number} hi */
+const between = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
 /**
  * Places a group's children in its w × h rect: each child's `lgRect` from the group's top-left corner; children it
  * does not lay out get none.
@@ -103,7 +106,9 @@ export function arrange(s, w, h) {
   let cur = (main === 0 ? g.pad[0] : g.pad[2]) + (inner[main] - total) * alignMain;
   kids.forEach((k, i) => {
     const z = sizes[i];
-    if (ctrlCross && (forceCross || flexOf(k, cross) > 0)) z[cross] = inner[cross];
+    // across, a child it sizes fills the inner size when it expands, else takes it held between its minimum and
+    // preferred size (a long wrapping text takes the room there is)
+    if (ctrlCross) z[cross] = forceCross || flexOf(k, cross) > 0 ? inner[cross] : between(inner[cross], minSize(k, cross), z[cross]);
     const c0 = (cross === 0 ? g.pad[0] : g.pad[2]) + (inner[cross] - z[cross]) * alignCross;
     k.lgRect = main === 0 ? { x: cur, y: c0, w: z[0], h: z[1] } : { x: c0, y: cur, w: z[0], h: z[1] };
     cur += z[main] + g.spacing;

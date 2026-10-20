@@ -115,6 +115,17 @@ test('[界面-3] short of space, a group that sets its children\'s heights gives
   assert.ok(Math.abs(record.box[3] - 58.27991) < 1e-4, 'as the prefab saved it from Unity');
 });
 
+test('[界面-3] across, a group that sets the widths of its children holds the room there is between the minimum and preferred width of each', () => {
+  // the operator select page's skill text: a long description in a column of 100 takes the 100, not its one-line width
+  const le = (/** @type {number} */ min, /** @type {number} */ pref) => ({ le: { ignore: 0, min: [min, -1], pref: [pref, 20], flex: [-1, -1] } });
+  const column = N('column', { lg: { ...col, pad: [5, 5, 0, 0], cw: 1, ch: 1 } }, [N('long', le(-1, 300)), N('short', le(-1, 50)), N('wide', le(120, 300))], R({ size: [110, 100] }));
+  const ui = createUi({ pack: /** @type {any} */ ({ ...pack(), screens: { m: N('m', {}, [column]) } }), host: fakeHost(fakeDocument()) });
+  const s = ui.open('m');
+  ui.tick(0);
+  const w = (/** @type {string} */ name) => /** @type {any} */ (s.one(`column/${name}`)).box[2];
+  assert.deepEqual([w('long'), w('short'), w('wide')], [100, 50, 120], 'the inner 100; its own 50; never under its minimum 120');
+});
+
 test('[界面-4] texts that wrap at their width, and those sized to their own width or one line high that do not', () => {
   const { scr } = setup();
   const ws = (/** @type {string} */ name) => css(/** @type {any} */ (scr.one(name)).t).whiteSpace ?? '';
