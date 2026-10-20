@@ -2,7 +2,7 @@
 // attack, die, start — found by their names; what a unit is doing picks the role; its facing picks the model's side
 // and whether it is mirrored.
 import { ANIM, DIR } from '@aue/schema';
-import { signOf, FACE_SIGN_LEFT } from './facing.js';
+import { flipOf } from './facing.js';
 
 /** @typedef {{ idle: string, move: string, attack: string, die: string | null, start: string | null }} Roles */
 
@@ -95,14 +95,13 @@ const dieOf = (find, like) => find('Die') ?? like(/(^|_)die$/i, (n) => !/^attack
 export const roleOf = (anim) => (anim === ANIM.MOVE ? 'move' : anim === ANIM.ATTACK ? 'attack' : anim === ANIM.DIE ? 'die' : 'idle');
 
 /**
- * The side of the model and the mirroring for an operator facing `dir` (渲染-4), with the mirror sign a turn decided
- * (`render/facing.js`): the back when facing up (when the model has one, and not to die when the back has no die),
- * mirrored to the left. An explicit sign lets a BACK model face left, which a deploy direction alone never asked for;
- * without one the direction decides (left is the left sign).
- * @param {number} dir @param {{ back: boolean, backDies: boolean, dying: boolean }} m @param {number} [sign]
+ * The side of the model and the mirroring for an operator facing `dir` (渲染-4), with the mirror a turn decided: the back
+ * when facing up (when the model has one, and not to die when the back has no die), mirrored when the model is flipped.
+ * A back model can therefore face left, which a deploy direction alone never asked for.
+ * @param {number} dir @param {{ back: boolean, backDies: boolean, dying: boolean }} m @param {boolean} [flip]
  * @returns {{ side: 'front' | 'back', flip: boolean }}
  */
-export const operatorFacing = (dir, m, sign = signOf(dir)) => ({ side: dir === DIR.UP && m.back && (m.backDies || !m.dying) ? 'back' : 'front', flip: sign === FACE_SIGN_LEFT });
+export const operatorFacing = (dir, m, flip = flipOf(dir)) => ({ side: dir === DIR.UP && m.back && (m.backDies || !m.dying) ? 'back' : 'front', flip });
 
 /**
  * An enemy's mirroring (渲染-4): facing left after moving left, right after moving right, unchanged otherwise.
