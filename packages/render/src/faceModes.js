@@ -13,7 +13,7 @@
  */
 export const FACE_OVERRIDES = {
   // 野鬃 2 技能期间不转身（实机录像「野鬃2技能不转身.mp4」；公开链接待补）
-  char_496_wildmn: { turn: false, when: 'skill', basis: '野鬃2技能不转身.mp4（链接与时间点待补）' },
+  char_496_wildmn: { turn: false, when: 'skill', basis: '实机录像「野鬃2技能不转身.mp4」；公开链接待补' },
 };
 
 /**
