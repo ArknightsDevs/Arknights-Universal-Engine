@@ -1,7 +1,7 @@
 // Screens on a page (docs/spec/ui.md 界面-1, 界面-3–界面-9), in a minimal document.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createUi, copyRect, DEF_RT, refNode } from '../src/index.js';
+import { createUi, copyRect, DEF_RT, refNode, LARGE_CANVAS_MAX } from '../src/index.js';
 import { fakeDocument, fakeHost } from './dom.js';
 
 /** @typedef {import('../src/node.js').PackNode} PackNode */
@@ -32,6 +32,10 @@ const pack = () => ({
       N('add', img('sprite/a', { mat: { kind: 'add' } })),
       N('warped', img('sprite/a', { mat: { kind: 'none', fx: 'warp', noise: 'sprite/a', speed: [0.01, 0.01], amount: [0.02, 0.02] } })),
       N('scroll', img('sprite/a', { type: 2, mat: { kind: 'uv', uv: [0.5, 0.25] } }), [], R({ size: [200, 100] })),
+      // the entry page's ground under its 3D map: a tile scrolling over 3000 × 3000, the edge cut by a circle over it
+      N('ground', img('sprite/a', { type: 2, mat: { kind: 'uv', uv: [0.5, 0.25] } }), [], R({ size: [3000, 3000] })),
+      N('edge', img(null, { type: 2, color: [0.5, 0.5, 0.5, 1], mat: { kind: 'circle', shape: [1, 0.49, 0.005, 0.5] } }), [], R({ size: [3000, 3000] })),
+      N('dot', img(null, { color: [0.5, 0.5, 0.5, 1], mat: { kind: 'circle', shape: [0.5, 0.3, 0.005, 0.005] } }), [], R({ size: [100, 100] })),
       N('label', { text: { text: 'hi', size: 20, style: 0, align: 4, color: [1, 1, 1, 1], best: 0, hwrap: 1, font: 'Novecentowide-Normal' } }),
       N('fit', { text: { text: '12345', size: 70, style: 0, align: 4, color: [1, 1, 1, 1], best: 1, min: 1, max: 70, hwrap: 0 }, csf: [0, 0] }, [], R({ size: [100, 92] })),
       N('btn', { button: PRESS, ...img('sprite/a') }, [N('collider', { nodraw: 'raycast' })]),
@@ -171,6 +175,22 @@ test('[界面-4] a scrolling image: its background on an element inside it a per
   assert.equal(css(u).transform, 'translate3d(0.0px, 0.0px, 0)');
   ui.tick(0.5);
   assert.equal(css(u).transform, 'translate3d(-2.5px, 1.3px, 0)', 'a quarter and an eighth of the period');
+});
+
+test('[界面-4] a large scrolling image and a large circle-cut colour are canvases of their own, at a capped resolution; small ones stay as they were', () => {
+  const { ui, scr } = setup();
+  ui.tick(0);
+  const ground = /** @type {any} */ (scr.one('ground')), edge = /** @type {any} */ (scr.one('edge')), dot = /** @type {any} */ (scr.one('dot'));
+  assert.equal(ground.uv.tagName, 'CANVAS', 'the tiles drawn once into a canvas');
+  assert.deepEqual([ground.uv.width, ground.uv.height], [LARGE_CANVAS_MAX, LARGE_CANVAS_MAX], '3020 square at most 2048 pixels');
+  assert.deepEqual([css(ground.uv).left, css(ground.uv).width, css(ground.uv).backgroundImage], ['-10px', 'calc(100% + 20px)', undefined]);
+  ui.tick(0.5);
+  assert.equal(css(ground.uv).transform, 'translate3d(-2.5px, 1.3px, 0)', 'moved as the small one is');
+  assert.equal(/** @type {any} */ (scr.one('scroll')).uv.tagName, 'DIV');
+  assert.equal(edge.uv.tagName, 'CANVAS', 'the ring drawn into a canvas');
+  assert.deepEqual([css(edge.g).maskImage ?? '', css(edge.g).backgroundImage, css(edge.uv).width], ['', 'none', '100%'], 'not masked by the browser');
+  assert.ok((css(dot.g).maskImage ?? '').startsWith('radial-gradient('), 'a small one is');
+  assert.equal(dot.uv, null);
 });
 
 test('[界面-9] graphics not drawn: an unknown material, a hidden mask graphic, a raycast-only graphic', () => {
