@@ -8,6 +8,7 @@ import { readView } from '@aue/schema';
  * @property {number} seat
  * @property {string} key the session key (reconnects reuse it)
  * @property {string | URL} [kits] where the server serves the pinned kits (a URL ending in "/"; compat 兼容-6), none: no kits
+ * @property {string | URL} [mods] where the server serves its mods' list and files (a URL ending in "/"; mod-10), none: the official content
  * @property {(view: import('@aue/schema').View, events: Record<string, string | number>[], keys: Record<string, string>, status: import('./session.js').Status) => void} onFrame
  *   `keys`: the content key of each unit not seen before; `status`: the match's wave, stage, stamps and result
  * @property {(state: { state: string, reason?: string, match?: import('@aue/schema').Match, frame?: number }) => void} [onNet] the connection;
@@ -30,7 +31,7 @@ export function startBattle(o) {
     else if (m.type === 'marks') marking.shift()?.(m);
     else if (m.type === 'signal') o.onSignal?.(m.seat, m.s);
   };
-  worker.postMessage({ type: 'start', url: o.wsUrl, seat: o.seat, key: o.key, ...(o.kits ? { kits: String(o.kits) } : {}) });
+  worker.postMessage({ type: 'start', url: o.wsUrl, seat: o.seat, key: o.key, ...(o.kits ? { kits: String(o.kits) } : {}), ...(o.mods ? { mods: String(o.mods) } : {}) });
   return {
     /** @param {import('@aue/schema').Command} cmd */
     command: (cmd) => worker.postMessage({ type: 'command', cmd }),
