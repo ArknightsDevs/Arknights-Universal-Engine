@@ -2,7 +2,7 @@
 
 - 状态：已采纳
 - 日期：2026-10-20
-- 来源：PRTS「作战机制」§3.2.2 敌人朝向与相对方位（https://prts.wiki/index.php?title=作战机制&oldid=441625）；实机录像：寒克（[录像](https://github.com/user-attachments/assets/809cafc7-0b68-4d5b-a445-d50038d92f05)）、琴柳（[录像](https://github.com/user-attachments/assets/7f74c8e5-d055-4a63-9894-58e4e707728f)）、新能（[录像](https://github.com/user-attachments/assets/a80c8bf5-3f83-42b9-a41d-5b38d0f1a63b)）、寒克与梓兰（[录像](https://github.com/user-attachments/assets/18b81d8f-dc28-4931-b9d6-4f4c91ec3ed6)）；阈值见 [INF-0272](../registry/inferences.json)
+- 来源：PRTS「作战机制」§3.2.2 敌人朝向与相对方位（https://prts.wiki/index.php?title=作战机制&oldid=441625）；实机录像：寒克（[录像](https://github.com/user-attachments/assets/809cafc7-0b68-4d5b-a445-d50038d92f05)）、琴柳（[录像](https://github.com/user-attachments/assets/7f74c8e5-d055-4a63-9894-58e4e707728f)）、新能（[录像](https://github.com/user-attachments/assets/a80c8bf5-3f83-42b9-a41d-5b38d0f1a63b)）、寒克与梓兰（[录像](https://github.com/user-attachments/assets/18b81d8f-dc28-4931-b9d6-4f4c91ec3ed6)）；阈值见 [INF-0283](../registry/inferences.json)
 
 ## 背景
 
@@ -12,15 +12,14 @@
 
 - 干员在图里攻击时，模型朝**这次攻击的目标**；其余时候朝 `dir`。
 - 依据的范围：PRTS 只在敌人侧写了朝向（[作战机制](https://prts.wiki/index.php?title=作战机制&oldid=441625) §3.2.2；另有「部分敌人的动画具有迷惑性……真实的左右面向」见 [特殊机制](https://prts.wiki/index.php?title=特殊机制&oldid=442170)），干员侧没有说明；干员部分按实机观察（录像链接与时间点待补）。
-- 判定只依据公开可见的依据与行为：PRTS §3.2.2 记载「进行攻击时：如背对攻击目标，则会先面向攻击目标再进行攻击」「具有面向判定的敌人只有左右两种朝向」；目标在哪一侧就朝哪一侧，目标几乎在正上/正下时保持原来的左右（防抖），目标贴着身体时不转。判定与阈值写在 `packages/render/src/facing.js`。
-- 阈值（横向死区 0.2、贴身 0.25 格）是**我们自己的设计决定**，没有量过，登记为推断 INF-0272。
+- 判定只依据公开可见的依据与行为：PRTS §3.2.2 记载「进行攻击时：如背对攻击目标，则会先面向攻击目标再进行攻击」「具有面向判定的敌人只有左右两种朝向」；目标在哪一侧就朝哪一侧，目标几乎在正上/正下时保持原来的左右（防抖），目标贴着身体时不转。判定写在 `packages/render/src/facing.js`（只用引擎的格子模型，没有手调的阈值）。
 - 背面模型也分左右：镜像由这次转身决定，不再只看“部署方向是左”。
 - **仅显示**：`dir`、攻击范围、索敌、伤害与一切方向性效果不受影响。
 - 目标来自表现事件 `attack`（已带 `target`），不改变视图格式，也不改模拟。
 
 ## 范围：只做通用规则，逐干员的例外按需登记
 
-不同干员的表现并不一致，而「哪个技能动画期间不转身」这种逐能力的表只能从客户端数据里得到，不属于本项目接受的依据（PRTS / 游戏数据表 / 实机录像），也无法靠逐个实机测试穷举。因此：
+不同干员的表现并不一致，而「哪个技能动画期间不转身」这种逐能力的表**没有公开的来源**，也无法靠逐个实机测试穷举。因此：
 
 - 本决定只规定**通用规则**：攻击时朝目标、攻击片段结束回部署方向。
 - **打多不等于都转**（实机观察）：特性真群攻、技能把普通攻击变成多目标、不进行普通攻击、技能加长攻击距离的干员不转身；攻击「所有阻挡」的技能或天赋会转身。所以「这一刀要不要转」按**这一刀来源的 mods** 判定（单体 / 特性群攻 / 技能多目标 / 攻击所有阻挡），来源取自公开数据，不逐干员手填。
@@ -34,8 +33,7 @@
 - 击杀后先过索敌帧（约 2 帧）再转身；旋转与攻击动画并行，不打断播放。
 - 攻击前摇 17 帧、间隔 32 帧、尾段 9 帧：2 + 4 + 17 + 9 = 32。
 - 新能（水平部署）：怪在上方 >45° 时用背面模型；转身 4 帧，先压扁再张开，**第 2 帧最扁处切换骨架**；回正在攻击动画结束后，同样 4 帧。
-- 横向死区与贴身阈值无法实测：阻挡偏移：敌人被阻挡时坐标会在格内偏移（PRTS「作战机制」https://prts.wiki/index.php?title=作战机制&oldid=441625：「阻挡时发生的坐标偏移现象统称为阻挡偏移」，「向一个已经有敌人的格子空降干员时，敌人坐标会被阻挡偏移到 0.5 半径圆边界上」）。所以除格正中心之外，目标的相对偏移都含阻挡偏移，横向死区无法实测；把敌人强行挪到同格非中心位置是否可行存疑。
-- 录像：寒克（[录像](https://github.com/user-attachments/assets/809cafc7-0b68-4d5b-a445-d50038d92f05)）、琴柳（[录像](https://github.com/user-attachments/assets/7f74c8e5-d055-4a63-9894-58e4e707728f)）、新能（[录像](https://github.com/user-attachments/assets/a80c8bf5-3f83-42b9-a41d-5b38d0f1a63b)）、寒克与梓兰（[录像](https://github.com/user-attachments/assets/18b81d8f-dc28-4931-b9d6-4f4c91ec3ed6)）。
+- - 录像：寒克（[录像](https://github.com/user-attachments/assets/809cafc7-0b68-4d5b-a445-d50038d92f05)）、琴柳（[录像](https://github.com/user-attachments/assets/7f74c8e5-d055-4a63-9894-58e4e707728f)）、新能（[录像](https://github.com/user-attachments/assets/a80c8bf5-3f83-42b9-a41d-5b38d0f1a63b)）、寒克与梓兰（[录像](https://github.com/user-attachments/assets/18b81d8f-dc28-4931-b9d6-4f4c91ec3ed6)）。
 
 ## 理由
 
