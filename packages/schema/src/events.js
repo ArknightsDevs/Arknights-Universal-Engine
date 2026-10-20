@@ -2,7 +2,7 @@
 // into effect or leaving, a co-op stage beginning and settled, an enemy's 直击 bolt and explosion, and the end of the battle, version 9 an attack's wind-up in frames, version 10 a story told: 波次-8, version 11 堡垒守御's phases and a facility's level: 守御-1, 守御-3, version 12 a 炼金单元 thrown: 技能-13): what happened in a frame, for the renderer and the sound. They flow from
 // the simulation to the screen only; the simulation never reads them back.
 
-export const EVENTS_VERSION = 12;
+export const EVENTS_VERSION = 13;
 
 /** The phases a `fortress` event tells (守御-1): a defence begins, a rest begins, the last defence is over. */
 export const FORTRESS_PHASE = Object.freeze({ defend: 0, rest: 1, over: 2 });
@@ -11,7 +11,7 @@ export const FORTRESS_PHASE = Object.freeze({ defend: 0, rest: 1, over: 2 });
 export const EVENT_FIELDS = Object.freeze({
   spawn: Object.freeze(['id', 'key']),
   deploy: Object.freeze(['id', 'key', 'owner']),
-  attack: Object.freeze(['id', 'target', 'wind']),
+  attack: Object.freeze(['id', 'target', 'wind', 'face']),
   hit: Object.freeze(['id', 'target', 'damage']),
   death: Object.freeze(['id']),
   goal: Object.freeze(['id', 'owner']),

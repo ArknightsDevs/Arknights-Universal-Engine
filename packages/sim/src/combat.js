@@ -475,7 +475,11 @@ function startSwing(w, c, a, found, mods) {
   a.anim = ANIM.ATTACK;
   rampageAttack(a);
   const wind = ch ? every : windupFrames(timingOf(c, a), interval);
-  for (const t of targets) w.events.push({ type: 'attack', id: a.id, target: t.id, wind });
+  // 渲染-4: whether the model faces what it hits. Facing one target is the normal case; a swing that hits several only
+  // faces them when it is an attack-everything-it-blocks (there is one thing it stands against), and a splash / extra-target
+  // swing turns nobody (there is no single target to face). The highest-priority target is the first locked one.
+  const face = targets.length === 1 || locked.blocked ? 1 : 0;
+  for (const t of targets) w.events.push({ type: 'attack', id: a.id, target: t.id, wind, face });
   a.swing = { wind, since: 0, targets: targets.map((t) => t.id), mods: locked };
   if (a.swing.wind === 0) land(w, c, a);
 }
