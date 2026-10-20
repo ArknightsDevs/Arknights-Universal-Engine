@@ -12,7 +12,8 @@ import { inflict } from './status.js';
 import { tileOf } from './body.js';
 import { reachKeys } from './reach.js';
 import { inKeys, hostile, selectable } from './targeting.js';
-import { traitOf, creditedDamage } from './traits.js';
+import { traitOf, creditedDamage, gainCost } from './traits.js';
+import { withdraw } from './deck.js';
 import { targetsOf } from './combat.js';
 import { RIDER } from './talentfoe.js';
 
@@ -78,7 +79,9 @@ export function fightKill(w, c, op, target) {
 
 /**
  * An operator's skill starts (职业-34): its `skillStrike` on the first target its attack would take — physical damage of
- * `scale` × its attack, then 寒冷 for `cold` seconds —; its `spendBoost` for a skill that spends cost.
+ * `scale` × its attack, then 寒冷 for `cold` seconds —; its `spendBoost` for a skill that spends cost; its first start
+ * since its deployment its `powerAttacks` (职业-35: buff `powerAttacks`, its value the attacks left); the ammo it starts
+ * with for a chance growing with ammo spent (buff `ammoStart`, 职业-35); its run of hits back at 0.
  * @param {World} w @param {Content} c @param {Unit} op
  */
 export function fightSkillStart(w, c, op) {
@@ -88,6 +91,11 @@ export function fightSkillStart(w, c, op) {
     if (first.hp > 0) inflict(w, first, 'cold', { seconds: t.skillStrike.cold, src: op });
   }
   if (t.spendBoost && c.operators[op.key].skill?.spend) spendBoost(w, c, op);
+  if (t.powerAttacks && !op.buffs.some((b) => b.key === 'powerUsed')) {
+    addBuff(op, makeBuff({ key: 'powerUsed', src: op.id }));
+    addBuff(op, makeBuff({ key: 'powerAttacks', src: op.id, value: t.powerAttacks.count, mods: { atkScaleMul: t.powerAttacks.scale } }));
+  }
+  if ((c.operators[op.key].critTalents ?? []).some((k) => k.ammoProb) && op.skill) steps(op, 'ammoStart', op.skill.ammo, {});
   const combo = op.buffs.find((b) => b.key === 'combo');
   if (combo) retune(op, combo, 0, {});
 }
@@ -207,6 +215,63 @@ export function critGrowth(w, c, dead) {
     const near = w.units.some((u) => u.kind === KIND.OPERATOR && u.hp > 0 && (c.operators[u.key].powers ?? []).includes(g.power) && (([ur, uc]) => Math.abs(ur - r) + Math.abs(uc - col) <= 1)(tileOf(u)));
     if (near) steps(op, 'critGrow', (op.buffs.find((b) => b.key === 'critGrow')?.value ?? 0) + 1, {});
   }
+}
+
+/**
+ * An operator's attack starts (职业-35): one of its `powerAttacks` spent, the buff gone at 0.
+ * @param {Unit} op
+ */
+export function powerAttack(op) {
+  const b = op.buffs.find((y) => y.key === 'powerAttacks');
+  if (!b) return;
+  if (b.value <= 1) removeBuff(op, b);
+  else retune(op, b, b.value - 1, b.mods);
+}
+
+/**
+ * The chance more for ammo spent (攻击-4, 职业-35): `ammoProb` × the ammo its running skill spent since it started.
+ * @param {Unit} op @param {import('./types.js').CritTalent} k
+ */
+export const ammoChance = (op, k) => (k.ammoProb && op.skill?.active ? k.ammoProb * Math.max(0, (op.buffs.find((b) => b.key === 'ammoStart')?.value ?? op.skill.ammo) - op.skill.ammo) : 0);
+
+/**
+ * The blasts of a while on the field (职业-35: `timedBlast`), after the operators' turns: an operator `after` seconds
+ * from its deployment deals the enemies on its tile and the 8 around it physical damage of `scale` × its attack, then
+ * 脆弱 of `fragile`, and retreats (撤退-1).
+ * @param {World} w @param {Content} c
+ */
+export function timedBlasts(w, c) {
+  for (const op of [...w.units]) {
+    const x = op.kind === KIND.OPERATOR && op.hp > 0 ? traitOf(c, op).timedBlast : null;
+    if (!x || w.frame - op.born !== secondsToFrames(x.after)) continue;
+    const [r, col] = tileOf(op);
+    for (const e of w.units.filter((u) => hostile(u) && u.hp > 0 && !u.hidden && (([er, ec]) => Math.max(Math.abs(er - r), Math.abs(ec - col)) <= 1)(tileOf(u)))) {
+      creditedDamage(w, c, op, e, { type: 'phys', amount: x.scale * statsOf(op).atk });
+      if (e.hp > 0) inflict(w, e, 'fragile', { seconds: x.fragile.seconds, value: x.fragile.value, src: op });
+    }
+    if (w.units.includes(op)) withdraw(w, c, op);
+  }
+}
+
+/**
+ * At an operator's turn (职业-35: `firstBlock`): the first enemy it blocks in its deployment — the one of the lowest id —
+ * gives its seat `cost` and sleeps for `sleep` seconds (状态-5), once (buff `firstBlock`).
+ * @param {World} w @param {Content} c @param {Unit} op
+ */
+export function firstBlockTurn(w, c, op) {
+  const x = traitOf(c, op).firstBlock;
+  if (!x || op.buffs.some((b) => b.key === 'firstBlock')) return;
+  const e = w.units.filter((u) => u.blockedBy === op.id && u.hp > 0).sort((a, b) => a.id - b.id)[0];
+  if (!e) return;
+  addBuff(op, makeBuff({ key: 'firstBlock', src: op.id }));
+  gainCost(w, c, op.owner, x.cost);
+  inflict(w, e, 'sleep', { seconds: x.sleep, src: op });
+}
+
+/** An operator with `firstBlock` leaves the field (职业-35): the sleep it gave goes. @param {World} w @param {Content} c @param {Unit} op */
+export function firstBlockLeave(w, c, op) {
+  if (!traitOf(c, op).firstBlock) return;
+  for (const u of w.units) for (const b of u.buffs.filter((y) => y.key === 'sleep' && y.src === op.id)) removeBuff(u, b);
 }
 
 /** The engine's behaviour of 重伤 (职业-34): as it ends, its unit falls — no source, 不死 no matter. */

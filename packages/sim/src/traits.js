@@ -39,7 +39,8 @@ export const defaultTrait = (position) => ({
   allySkill: null, spPulse: null, hurtAttackSp: 0, deployPick: [], downHeal: [], deployBuff: null, fieldRegen: 0, healGives: null, groundEpHeal: 1, seeStealth: false,
   minDamage: null, deployStun: null, deployBlast: null, fieldBuffs: [], shareGain: null, stackShare: null, healShare: 0, healMore: 0, statusHeal: null, lowHeal: null,
   overhealBarrier: null, healBarrier: null, skillEndHeal: null, resistRegen: 0, overflowBarrier: 0, sameTarget: null, skipStatus: '', attackerMods: null, hitStatusPlus: 0,
-  energyScale: 1, kindStack: null, slainKinds: false, skillStrike: null, spendBoost: null, stayVuln: null, combo: null, nonLethal: null, chargedRider: 0, bb: {},
+  energyScale: 1, kindStack: null, slainKinds: false, skillStrike: null, spendBoost: null, stayVuln: null, combo: null, nonLethal: null, chargedRider: 0, fieldVs: null,
+  powerAttacks: null, timedBlast: null, firstBlock: null, bb: {},
 });
 
 /**
@@ -69,12 +70,12 @@ function sameFields(o, fields) {
   return i === fields.length;
 }
 
-/** The single fields only talents give (职业-26…职业-34): each the talents' when they have it. */
+/** The single fields only talents give (职业-26…职业-35): each the talents' when they have it. */
 const TALENT_ONLY = Object.freeze(/** @type {const} */ (['rhythm', 'idleShield', 'layers', 'lowHp', 'lastStand', 'frostLife', 'costLife', 'hurt', 'reflect', 'hurtSleeping', 'sleepDot', 'lowestArts', 'palsyHit', 'epOnHit', 'healDot',
   'startCost', 'costCuts', 'retreatCut', 'deployCut', 'costRate', 'aloneCost', 'deploySp', 'allySkill', 'spPulse', 'hurtAttackSp', 'deployPick', 'downHeal', 'deployBuff',
   'fieldRegen', 'healGives', 'groundEpHeal', 'seeStealth', 'minDamage', 'deployStun', 'deployBlast', 'fieldBuffs', 'shareGain', 'stackShare', 'healShare', 'healMore', 'statusHeal',
   'lowHeal', 'overhealBarrier', 'healBarrier', 'skillEndHeal', 'resistRegen', 'overflowBarrier', 'sameTarget', 'skipStatus', 'attackerMods', 'hitStatusPlus', 'energyScale', 'kindStack',
-  'slainKinds', 'skillStrike', 'spendBoost', 'stayVuln', 'combo', 'nonLethal', 'chargedRider']));
+  'slainKinds', 'skillStrike', 'spendBoost', 'stayVuln', 'combo', 'nonLethal', 'chargedRider', 'fieldVs', 'powerAttacks', 'timedBlast', 'firstBlock']));
 
 /**
  * A trait with what its operator's talents add (职业-24…职业-27, 职业-30): their conditional modifiers, target 倍率, hit
@@ -258,7 +259,7 @@ export function traitDeploy(w, c, op) {
 export function traitHit(w, c, op, target) {
   const t = traitOf(c, op);
   if (t.hitStatus && target.hp > 0) inflict(w, target, t.hitStatus.key, { seconds: t.hitStatus.seconds + (t.hitStatus.key === 'sluggish' ? t.hitStatusPlus : 0), src: op, ...(t.hitStatus.value !== undefined ? { value: t.hitStatus.value } : {}) });
-  t.onHit.forEach((h, i) => { if (h.when !== 'beyondRange' || !inBaseRange(c, op, target)) talentHit(w, op, target, { h, i }); });
+  t.onHit.forEach((h, i) => { if ((h.when !== 'beyondRange' || !inBaseRange(c, op, target)) && (h.during === undefined || w.frame - op.born < secondsToFrames(h.during))) talentHit(w, op, target, { h, i }); });
   behaviorOf(c, op)?.hit?.(contextOf(w, c, op), target);
 }
 
@@ -291,6 +292,7 @@ function talentHit(w, op, target, { h, i }) {
     addBuff(target, makeBuff({ key, src: op.id, left: secondsToFrames(h.debuff.seconds), mods: h.debuff.mods }));
   }
   if (h.dot) dotOnHit(op, target, h.dot, i);
+  if (h.ep && target.hp > 0) dealEp(w, target, /** @type {import('./elements.js').Element} */ (h.ep.el), h.ep.amount, op);
 }
 
 /**

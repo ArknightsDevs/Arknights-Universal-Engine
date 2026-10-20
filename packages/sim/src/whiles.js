@@ -18,7 +18,7 @@ import { pulseTurn } from './talentelem.js';
 import { tileAt } from './level.js';
 import { rotateOffset } from './dir.js';
 import { shareTurn } from './talentaround.js';
-import { comboTurn } from './talentfight.js';
+import { comboTurn, firstBlockTurn } from './talentfight.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').WhileMods} WhileMods */
@@ -225,6 +225,7 @@ export function traitWhiles(w, c, op) {
   spPulseTurn(w, c, op);
   shareTurn(w, c, op);
   comboTurn(op);
+  firstBlockTurn(w, c, op);
   const list = traitOf(c, op).whiles;
   for (let i = 0; i < list.length; i++) {
     const x = list[i], key = `while:${i}`;

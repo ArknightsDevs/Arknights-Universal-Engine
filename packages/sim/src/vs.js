@@ -59,6 +59,7 @@ const WHEN = Object.freeze({
   status: (_w, _op, t, v) => !!v.x.status && !!statsOf(t).flags[v.x.status],
   abnormal: (_w, _op, t) => t.buffs.some((b) => b.resist),
   slainKind: (w, op, t) => (w.players[op.owner]?.slain?.[op.key] ?? []).includes(t.key),
+  hpRatioAtMostOwn: (_w, op, t) => t.hp / statsOf(t).maxHp <= op.hp / statsOf(op).maxHp,
   hpFull: (_w, _op, t) => t.hp >= statsOf(t).maxHp,
   still: (_w, _op, t) => standsStill(t),
   statusAny: (_w, _op, t, v) => (v.x.statuses ?? []).some((k) => hasStatus(t, k)),
@@ -125,9 +126,22 @@ export function vsDamage(w, c, op, t, dmg) {
   const tr = traitOf(c, op);
   if (tr.hurtSleeping) dmg.throughSleep = true;
   markedHit(op, t, dmg);
-  for (const v of tr.vs) if (acts(v) && counts(v, dmg) && checkedNow(w, c, { op, t, dmg }, v)) heldOn(op, t, dmg, v);
+  for (const v of [...tr.vs, ...fieldVs(w, c, op)]) if (acts(v) && counts(v, dmg) && checkedNow(w, c, { op, t, dmg }, v)) heldOn(op, t, dmg, v);
   if (tr.far) dmg.mul = (dmg.mul ?? 1) * farMul(op, t, tr.far);
   if (tr.crowd) dmg.mul = (dmg.mul ?? 1) * (1 + tr.crowd.step * Math.min(tr.crowd.cap, crowdOf(w, c, op)));
+}
+
+/**
+ * The 倍率 the operators on the field give an operator of a faction (职业-35: `fieldVs`): each one's (itself too) whose
+ * faction it has. @param {World} w @param {Content} c @param {Unit} op @returns {VsScale[]}
+ */
+function fieldVs(w, c, op) {
+  const powers = c.operators[op.key].powers ?? [];
+  if (powers.length === 0) return [];
+  return w.units.flatMap((u) => {
+    const x = u.kind === KIND.OPERATOR && u.hp > 0 ? traitOf(c, u).fieldVs : null;
+    return x && powers.includes(x.power) ? x.vs : [];
+  });
 }
 
 /**

@@ -279,7 +279,8 @@
  * @property {{ hp: number, mods: Record<string, number> } | null} secondLife brought to 0 HP, once a deployment it stays with these
  *   modifiers and `hp` of its maximum HP (职业-22)
  * @property {TalentHit[]} onHit what each hit of its attack gives the target by its talents (干员-19, 职业-24)
- * @property {{ status?: string, tag?: string }[]} prefer the targets its talents prefer, each a 二次过滤器 (职业-28)
+ * @property {{ status?: string, tag?: string, lacksHit?: boolean, during?: number }[]} prefer the targets its talents prefer, each a
+ *   二次过滤器 (职业-28, 职业-35)
  * @property {boolean} hurtSleeping it can select sleeping enemies and its damage goes through 沉睡 (职业-28)
  * @property {number} sleepDot every second, arts damage of this share of its attack on each enemy asleep (职业-28)
  * @property {{ scale: number, n: number } | null} lowestArts after each attack, arts damage of `scale` × its attack on its
@@ -384,6 +385,12 @@
  * @property {{ seconds: number, sp: number } | null} nonLethal its hits do not kill an enemy, leaving it 重伤 for `seconds`, its
  *   killer to gain `sp` (职业-34)
  * @property {number} chargedRider at its full charge, each hit of its also deals physical damage of this share of its attack (职业-34)
+ * @property {{ power: string, vs: VsScale[] } | null} fieldVs while it is on the field, these 倍率 for the operators of the faction (职业-35)
+ * @property {{ count: number, scale: number } | null} powerAttacks after its first skill start of a deployment, its next `count`
+ *   attacks × `scale` on their 攻击倍率 (职业-35)
+ * @property {{ after: number, scale: number, fragile: { value: number, seconds: number } } | null} timedBlast `after` seconds from
+ *   its deployment, physical damage and 脆弱 on the enemies around it, then it retreats (职业-35)
+ * @property {{ cost: number, sleep: number } | null} firstBlock the first enemy it blocks gives `cost` and sleeps (职业-35)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
  */
 /**
@@ -393,7 +400,7 @@
  * once the holder has been on the field `after` seconds; × the `double`'s `mul` for a unit of its faction.
  * @typedef {{ mods: Record<string, number>, flags?: Record<string, boolean>, melee?: boolean, minBlock?: number, rarity?: number, ammo?: boolean,
  *   profession?: string, power?: string, powers?: string[], hpAbove?: number, needOther?: boolean, after?: number, afterMul?: number,
- *   double?: { power: string, mul: number } }} FieldBuff
+ *   double?: { power: string, mul: number }, during?: number }} FieldBuff
  */
 /**
  * A gain a talent shares (职业-32): `mods` for `count` operators (not summons) on the field of the profession or faction,
@@ -442,7 +449,8 @@
  * at the chance `prob` when it has one; only on the first hit on each enemy with `first`; only on a target blocked by no
  * unit with `when` 'unblocked'.
  * @typedef {{ status?: { key: import('./status.js').StatusKey, seconds: number, value?: number }, debuff?: { seconds: number, mods: Record<string, number> },
- *   dot?: { amount?: number, scale?: number, seconds: number }, prob?: number, first?: boolean, when?: 'unblocked' | 'beyondRange' }} TalentHit
+ *   dot?: { amount?: number, scale?: number, seconds: number }, prob?: number, first?: boolean, when?: 'unblocked' | 'beyondRange', during?: number,
+ *   ep?: { el: string, amount: number } }} TalentHit
  */
 /**
  * Modifiers or flags an operator's trait gives other units (职业-20): the enemies it blocks (`blocked`), those its own
@@ -505,7 +513,7 @@
  * the target is in the burst of `el` (`burstOf`); `post` its condition checked after the hit; after the hit elemental
  * damage of `burstDot` × the attack each second while that burst lasts, or 元素损伤 over time `epDot`.
  * @typedef {{ when: 'blocked' | 'flying' | 'skillGround' | 'hpBelow' | 'heavy' | 'front' | 'near' | 'burst' | 'onGround' | 'skill' | 'elite'
- *   | 'unblocked' | 'notOwnBlocked' | 'hpAbove' | 'light' | 'tag' | 'rangedFoe' | 'status' | 'abnormal' | 'hpFull' | 'still' | 'statusAny' | 'first' | 'burstOf' | 'slainKind',
+ *   | 'unblocked' | 'notOwnBlocked' | 'hpAbove' | 'light' | 'tag' | 'rangedFoe' | 'status' | 'abnormal' | 'hpFull' | 'still' | 'statusAny' | 'first' | 'burstOf' | 'slainKind' | 'hpRatioAtMostOwn',
  *   atk?: number, dmg?: number, heal?: number, ep?: number, value?: number, noDodge?: boolean, tag?: string, status?: string, defFlat?: number, defPct?: number,
  *   statuses?: string[], seen?: string, on?: 'attack' | 'damage', inflict?: { key: string, seconds: number }, steal?: { atk: number, max: number }, sp?: number,
  *   mark?: { seconds: number, dmg?: number, arts?: number }, arts?: number, later?: boolean,
@@ -573,14 +581,14 @@
  * seconds on each hit and `more` targets, `atk` more attack (直接乘算) for that attack, `ignoreDef` of the targets' 防御
  * ignored, × `times` hits.
  * @typedef {{ prob: number, scale: number, stun?: number, more?: number, atk?: number, ignoreDef?: number, times?: number, skillProb?: number,
- *   pick?: { times?: number, stun?: number, ignoreDef?: number }[], grow?: { power: string, step: number, max: number } }} CritTalent
+ *   pick?: { times?: number, stun?: number, ignoreDef?: number }[], grow?: { power: string, step: number, max: number }, ammoProb?: number, sp?: number }} CritTalent
  */
 /**
  * An in-range talent (部署-6): modifiers for the enemies, or the (ranged, melee, of a profession) operators, in the
  * holder's attack range — or on the tiles of `area` around it, turned with it with `rotate` —, those for which `when`
  * holds when it has one; not the holder with `others`; only while `srcWhen` holds on the holder (职业-32).
  * @typedef {{ side: 'enemy' | 'ally', ranged: boolean, mods: Record<string, number>, melee?: boolean, profession?: string, professions?: string[], area?: Cell[],
- *   rotate?: boolean, others?: boolean, srcWhen?: WhileMods['when'], flags?: Record<string, boolean>,
+ *   rotate?: boolean, others?: boolean, srcWhen?: WhileMods['when'], flags?: Record<string, boolean>, during?: number,
  *   when?: { when: 'hpBelow' | 'hpAbove' | 'blocked' | 'normal' | 'flying' | 'epHalf' | 'hpRatioAtMostSrc' | 'sameDir' | 'maxHpHighest' | 'sluggish' | 'coldOnly' | 'frozen', value?: number } }} RangeTalent
  */
 /**

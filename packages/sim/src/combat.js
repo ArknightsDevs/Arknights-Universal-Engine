@@ -31,7 +31,8 @@ import { timingOf, windupFrames, shoots, launch, flyShots, boomerangOut, PALSY_C
 import { talentSp, hurtAttackSp } from './talentfx.js';
 import { epHealMul } from './talentmore.js';
 import { healMore } from './talentheal.js';
-import { sameTargetStep, attackerHit, critScale } from './talentfight.js';
+import { gainSp } from './sp.js';
+import { sameTargetStep, attackerHit, critScale, powerAttack, ammoChance } from './talentfight.js';
 import { timedAttack, attackEnded } from './talenttime.js';
 import { lowestArts } from './talentfoe.js';
 import { palsyCut, epOnHit, healDotOn } from './talentelem.js';
@@ -66,8 +67,19 @@ export function targetsOf(w, c, op) {
   const bySummon = t.summonBlocked ? summonHeld(w, op) : () => false, skip = talentSkip(c, op, traitSkip(w, c, op));
   const cands = w.units.filter((u) => hostile(u)
     && ((held(u) && selectable(u, any)) || ((bySummon(u) || (inKeys(u, keys, grid) && (!air || statsOf(u).flying))) && selectable(u, sel))) && !skip?.(u));
-  const prefer = t.prefer.map((p) => (/** @type {Unit} */ e) => (p.status ? !!statsOf(e).flags[p.status] : !!p.tag && tagsOf(c, e).includes(p.tag)));
+  const prefer = t.prefer.map((p) => preferOf(w, c, op, p));
   return fortressTargets(w, c, op, sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary, prefer }));
+}
+
+/**
+ * A 二次过滤器 of a talent (职业-28, 职业-35): an enemy with the status, with the tag, or — for its `during` seconds from the
+ * deployment — without a hit's mark of the operator (`lacksHit`). @param {World} w @param {Content} c @param {Unit} op
+ * @param {import('./types.js').TraitDef['prefer'][number]} p @returns {(e: Unit) => boolean}
+ */
+function preferOf(w, c, op, p) {
+  if (p.during !== undefined && w.frame - op.born >= secondsToFrames(p.during)) return () => false;
+  if (p.lacksHit) return (e) => !e.buffs.some((b) => b.key.startsWith(`talentHit:${op.id}:`));
+  return (e) => (p.status ? !!statsOf(e).flags[p.status] : !!p.tag && tagsOf(c, e).includes(p.tag));
 }
 
 /**
@@ -508,6 +520,7 @@ function armed(w, c, op, mods) {
   const arts = ((t.skillArts && op.skill?.active) || dollNow(c, op)?.arts) && !mods.type ? { type: /** @type {const} */ ('arts') } : {};
   const targets = firstN(targetsOf(w, c, op), most);
   sameTargetStep(c, op, targets[0]);
+  powerAttack(op);
   return { targets, mods: modeMods(c, op, { ...mods, times: mods.times * t.hits, ...arts }) };
 }
 
@@ -542,7 +555,7 @@ function picked(w, out, pick) {
 }
 
 /** A chance talent's chance now (攻击-4): its `skillProb` while the skill runs, when it has one. @param {Unit} op @param {import('./types.js').CritTalent} k */
-const chanceOf = (op, k) => (k.skillProb !== undefined && inSkill(op) ? k.skillProb : k.prob);
+const chanceOf = (op, k) => (k.skillProb !== undefined && inSkill(op) ? k.skillProb : k.prob) + ammoChance(op, k);
 
 /**
  * The chance talents of an operator's attack (攻击-4): for each, in order, one draw (随机-1); under its chance — its
@@ -556,11 +569,20 @@ function critMods(w, c, op, mods) {
   if (mods.heal || healerNow(c, op)) return healMore(w, c, op, out);
   for (const k of c.operators[op.key].critTalents ?? []) {
     if (draw(w) >= chanceOf(op, k)) continue;
-    if (k.pick) { out = picked(w, out, k.pick); continue; }
-    out = { ...out, scale: out.scale * critScale(op, k), ...(k.stun ? { hitStatus: { key: 'stun', seconds: k.stun } } : {}), ...(k.more ? { more: (out.more ?? 0) + k.more } : {}),
-      ...(k.atk ? { atkPct: (out.atkPct ?? 0) + k.atk } : {}), ...(k.ignoreDef ? { ignoreDef: Math.max(out.ignoreDef ?? 0, k.ignoreDef) } : {}), ...(k.times ? { times: out.times * k.times } : {}) };
+    out = k.pick ? picked(w, out, k.pick) : crit(op, out, k);
   }
   return out;
+}
+
+/**
+ * A chance talent under its chance (攻击-4): the attack's 倍率 × its scale (critScale), its stun, more targets, attack
+ * bonus, 防御 ignored and hits as above; its SP for an attack-recovery skill (职业-35).
+ * @param {Unit} op @param {AttackMods} out @param {import('./types.js').CritTalent} k @returns {AttackMods}
+ */
+function crit(op, out, k) {
+  if (k.sp && op.skill?.spType === 'attack') gainSp(op.skill, k.sp);
+  return { ...out, scale: out.scale * critScale(op, k), ...(k.stun ? { hitStatus: { key: 'stun', seconds: k.stun } } : {}), ...(k.more ? { more: (out.more ?? 0) + k.more } : {}),
+    ...(k.atk ? { atkPct: (out.atkPct ?? 0) + k.atk } : {}), ...(k.ignoreDef ? { ignoreDef: Math.max(out.ignoreDef ?? 0, k.ignoreDef) } : {}), ...(k.times ? { times: out.times * k.times } : {}) };
 }
 
 /**

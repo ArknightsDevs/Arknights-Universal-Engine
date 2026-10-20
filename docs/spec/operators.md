@@ -631,3 +631,23 @@ range_table 的每个范围按编号记录它的格子（`grids` 的 row、col�
 由模拟按 职业-34 生效。
 
 - 来源：数据：character_table 的天赋文字与 blackboard，如猎蜂、深靛、安比尔（`buff_prob`）、泡泡、地灵（`sluggish`）、爱丽丝、空构（`def_penetrate`）、吉星、莱欧斯、雪猎、达格达（`atk_up_each_time`、`atk_up_max_value`）、哈蒂娅、溯光星源（`halo2_t_1[weak].damage_scale_max`）、铃兰、灵知、银灰、火龙S黑角（`hit_num`）、罗小黑、矩、云迹、骋风；PRTS 页面见 职业-34
+
+### 干员-34 限时与场上的其他天赋
+
+天赋（含模组的升级）的整段描述（去掉标签和括号里的部分）是下列之一、blackboard 有它要的键时，它加到特性（`talentTrait`）、几率天赋（`critTalents`，干员-12）或范围天赋（`rangeTalents`，部署-6）。<势力> 是 干员-10 的势力名称：
+
+| 描述 | 加到 |
+|---|---|
+| 在场时，所有【<势力>】干员攻击生命比例不高于自身的敌人时攻击力提升至N% | 场上的目标倍率（`fieldVs`）：这个势力，条件 `hpRatioAtMostOwn`：攻击倍率 × `talent_atk_scale` |
+| 攻击时有N%几率额外攻击一次，技能期间每消耗1颗弹药这个几率提升M%，技能结束时重置 | 几率天赋：几率 `prob`，次数 × 2，每颗弹药 + `prob_add`（`ammoProb`），技力 1（`sp`） |
+| 部署后首次开启技能时，接下来N次攻击的攻击力提升至M% | 强化攻击（`powerAttacks`）：`power_attack_count` 次，攻击倍率 × `power_attack_scale` |
+| 部署后N秒内所有友方【近战位】单位的攻击力和防御力+M% | 场上的增益（职业-32）：近战，`duration` 秒内（`during`）：攻击力、防御直接乘算 + `atk`、`def` |
+| 部署后N秒内攻击范围内所有友方远程位单位更不容易被攻击且敌方空中单位获得M%的脆弱效果 | 范围天赋（`duration` 秒内）：远程位的友方，嘲讽等级 + 以 `.taunt_level` 结尾的值；空中的敌人，受到伤害倍率 × `damage_scale` |
+| 部署经过N秒后，对周围8格内的所有敌人造成相当于攻击力M%的物理伤害，并令其获得K秒L%的脆弱效果，之后自身强制退出战场 | 定时的冲击（`timedBlast`）：`interval` 秒后，`damage_by_atk_scale`，脆弱 `damage_scale` − 1、`weak[limit]` 秒 |
+| 首次阻挡敌人时立即获得N点部署费用，并使该敌人沉睡M秒 | 首次阻挡（`firstBlock`）：费用 `cost`，沉睡 `sleep` 秒 |
+| 部署后N秒内，攻击使敌人法术抗性-M%，且优先攻击未获得此效果的敌人 | 命中效果（`duration` 秒内）：`buff_duration` 秒，法抗最终乘算 × (1 + `magic_resistance`)；优先攻击（`duration` 秒内）没有它的命中标记的敌人（`lacksHit`） |
+| 部署后N秒内攻击附带M点凋亡损伤，并使攻击范围内的所有敌人受到K%的【法术脆弱】和【元素脆弱】 | 命中效果（`duration` 秒内）：凋亡损伤 `attack@dark_damage_value`；范围天赋（`duration` 秒内）：敌人，法术、元素受到伤害倍率 × `damage_scale` |
+
+由模拟按 职业-35 生效。
+
+- 来源：数据：character_table 的天赋文字与 blackboard，如摆渡人、圣约送葬人（`prob_add`）、焰狐龙梓兰（`power_attack_count`）、Castle-3、正义骑士号（`jnight_t.taunt_level`）、THRM-EX（`damage_by_atk_scale`、`weak[limit]`）、CONFESS-47、GALLUS²（`buff_duration`、`magic_resistance`）、PhonoR-0（`attack@dark_damage_value`）；PRTS 页面见 职业-35

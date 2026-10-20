@@ -34,7 +34,7 @@ import { dollFatal, dollBehaviors } from './doll.js';
 import { secondLifeFatal } from './riders.js';
 import { talentDeaths, TALENT_BEHAVIORS } from './talentfx.js';
 import { healHooks, HEAL_BEHAVIORS } from './talentheal.js';
-import { FIGHT_BEHAVIORS } from './talentfight.js';
+import { FIGHT_BEHAVIORS, timedBlasts } from './talentfight.js';
 import { foeBehaviors } from './talentfoe.js';
 import { elementHooks, elementBehaviors } from './talentelem.js';
 import { holds } from './vs.js';
@@ -189,6 +189,7 @@ export function step(w, level, commands = []) {
   auras(w, c);
   runeRangeSp(w, c);
   operatorsAttack(w, c);
+  timedBlasts(w, c);
   shotsFly(w, c);
   foeEffects(w, c);
   emit(w, 'tick', { frames: 1 });

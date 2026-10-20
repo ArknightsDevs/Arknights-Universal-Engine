@@ -12,6 +12,7 @@ import { summonLeft, dismissSummons } from './summons.js';
 import { facilitySum, respawnFactor } from './facilities.js';
 import { foeLeave } from './talentfoe.js';
 import { shareLeave } from './talentaround.js';
+import { firstBlockLeave } from './talentfight.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Player} Player @typedef {import('./types.js').Card} Card */
@@ -177,6 +178,7 @@ export function giveCuts(w, c, u) {
 export function leaveField(w, c, u, retreated) {
   foeLeave(w, u);
   shareLeave(w, u);
+  firstBlockLeave(w, c, u);
   if (c.operators[u.key].summon) {
     summonLeft(w, c, u);
     return;

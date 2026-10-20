@@ -222,7 +222,7 @@ function rangeTalents(w, c, src, units, want) {
   if (talents.length === 0) return;
   const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src);
   talents.forEach((t, i) => {
-    if (t.srcWhen && !holdsWhen(w, c, src, t.srcWhen)) return;
+    if ((t.srcWhen && !holdsWhen(w, c, src, t.srcWhen)) || (t.during !== undefined && w.frame - src.born >= secondsToFrames(t.during))) return;
     for (const u of units) {
       const there = t.area ? onArea(src, u, t.area, t.rotate) : inKeys(u, keys, grid);
       if (there && rangeFits(w, c, src, t, u)) want.get(u)?.set(`range:${src.id}:${i}`, { src: src.id, value: 0, mods: t.mods, ...(t.flags ? { flags: t.flags } : {}) });

@@ -39,6 +39,12 @@ function recordFits(d, x) {
 }
 
 /**
+ * Whether a field buff holds now (职业-32, 职业-35): with `needOther`, another operator of its profession is on the field;
+ * with `during`, the source has been on the field less than that many seconds. @param {World} w @param {Content} c @param {Unit} src @param {FieldBuff} x
+ */
+const buffOn = (w, c, src, x) => !(x.needOther && x.profession && !another(w, c, src, x.profession)) && !(x.during !== undefined && w.frame - src.born >= secondsToFrames(x.during));
+
+/**
  * A source's buffs for the field (职业-32: `fieldBuffs`): every friendly unit, any player's, it is for (buffFits) — with
  * `needOther`, only while another operator of its profession is on the field — gets the buff `fieldBuff:<source id>:<n>`
  * with its modifiers and flags, × `afterMul` once the source has been on the field `after` seconds, × the `double`'s
@@ -47,7 +53,7 @@ function recordFits(d, x) {
  */
 export function fieldBuffs(w, c, src, ops, want) {
   traitOf(c, src).fieldBuffs.forEach((x, i) => {
-    if (x.needOther && x.profession && !another(w, c, src, x.profession)) return;
+    if (!buffOn(w, c, src, x)) return;
     const k = x.after !== undefined && w.frame - src.born >= secondsToFrames(x.after) ? x.afterMul ?? 1 : 1;
     for (const u of ops) {
       if (!buffFits(c, u, x)) continue;
