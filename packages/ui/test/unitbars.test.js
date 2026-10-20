@@ -1,7 +1,7 @@
 // Grid layout groups and the units' bars (docs/spec/ui.md 界面-3, 界面-19, 界面-20) on a small pack, in a minimal document.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createUi, createUnitBars, copyRect, DEF_RT, gridColumns, refNode } from '../src/index.js';
+import { createUi, createUnitBars, copyRect, DEF_RT, gridColumns, gridCells, refNode } from '../src/index.js';
 import { fakeDocument, fakeHost } from './dom.js';
 
 /** @typedef {import('../src/node.js').PackNode} PackNode @typedef {import('../src/node.js').UiNode} UiNode */
@@ -79,6 +79,17 @@ test('[界面-3] a grid places its children cell by cell, row by row; a fitter s
   assert.equal(back.lgRect, null);
   assert.deepEqual([a.lgRect, b.lgRect], [{ x: -12.5, y: 0, w: 125, h: 7 }, { x: -12.5, y: 7, w: 125, h: 7 }], 'one 125-wide column in 100, centred');
   assert.equal(plugins.box?.[3], 14, 'two rows of 7');
+});
+
+test('[界面-3] a down-first grid fills a column at a time; the start corner flips the columns and the rows', () => {
+  const down = gridCells({ ...GRID, axis: 1, constraint: 2, count: 2 }, 5, 0, 0);
+  assert.deepEqual([down.cols, down.rows, [0, 1, 2, 3, 4].map(down.at)], [3, 2, [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0]]], 'two rows: by columns');
+  const fit = gridCells({ ...GRID, axis: 1, cell: [10, 10] }, 5, 0, 30);
+  assert.deepEqual([fit.cols, fit.rows, fit.at(3)], [2, 3, [1, 0]], 'as many rows as fit down its height');
+  const corner = gridCells({ ...GRID, constraint: 1, count: 2, corner: 3 }, 3, 0, 0);
+  assert.deepEqual([0, 1, 2].map(corner.at), [[1, 1], [0, 1], [1, 0]], 'lower right: columns from the right, rows from the bottom');
+  const across = gridCells({ ...GRID, constraint: 1, count: 2 }, 3, 0, 0);
+  assert.deepEqual([0, 1, 2].map(across.at), [[0, 0], [1, 0], [0, 1]], 'across first: by rows');
 });
 
 test('[界面-19] each unit its panel at its feet: HP bar, plate, SP bar by the skill state, the trailing slider without a trail', () => {

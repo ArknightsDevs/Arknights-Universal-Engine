@@ -2,7 +2,7 @@
 // parts and a pager in a minimal document.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createUi, copyRect, DEF_RT } from '../src/index.js';
+import { createUi, copyRect, DEF_RT, scrollOf, scrollTo } from '../src/index.js';
 import { ELASTIC, CLAMPED, UNRESTRICTED, smoothDamp, range, outOf, rubber, dragged, settle, normalized, handleSpan, pageOf } from '../src/scrollmath.js';
 import { setBar, DRAG_START } from '../src/scroll.js';
 import { fakeDocument, fakeHost } from './dom.js';
@@ -30,6 +30,11 @@ const pack = () => ({
       N('pg', { scroll: { ...SCROLL, h: 1, v: 0, content: '@pg/vp/ct', viewport: '@pg/vp' }, pager: { scroll: '@pg', time: 0.3 } },
         [N('vp', {}, [N('ct', { lg: row, csf: [2, 0] }, [N('p1', {}, [], R({ size: [400, 100] })), N('p2', {}, [], R({ size: [400, 100] }))],
           R({ amin: [0, 0], amax: [0, 1], pivot: [0, 0.5], size: [0, 0] }))], R({ amin: [0, 0], amax: [1, 1], size: [0, 0] }))], R({ size: [400, 100], pos: [0, -200] })),
+      // a content beside its viewport (the game's operator list): a row of three 300-wide items in a 400-wide view
+      N('side', { scroll: { ...SCROLL, h: 1, v: 0, content: '@side/ct', viewport: '@side/vp' } },
+        [N('vp', {}, [], R({ amin: [0, 0], amax: [1, 1], size: [0, 0] })),
+          N('ct', { lg: row, csf: [2, 0] }, [N('i1', {}, [], R({ size: [300, 100] })), N('i2', {}, [], R({ size: [300, 100] })), N('i3', {}, [], R({ size: [300, 100] }))],
+            R({ amin: [0, 0], amax: [0, 1], pivot: [0, 0.5], size: [0, 0] }))], R({ size: [400, 100], pos: [250, 200] })),
       N('small', { scroll: { ...SCROLL, content: '@small/ct' }, dragFit: { hide: '@small/more', arrows: {} } },
         [N('ct', {}, [], R({ amin: [0, 1], amax: [1, 1], pivot: [0.5, 1], size: [0, 100] })), N('more')], R({ size: [200, 300], pos: [300, 0] })),
     ]),
@@ -114,6 +119,29 @@ test('[界面-27] a drag moves the content past the start distance; a tap that t
   sv.el.fire('wheel', { deltaY: 1000, deltaX: 0 });
   for (let i = 0; i < 100; i++) ui.tick(0.05);
   assert.ok(Math.abs(ct.rt.pos[1] - 500) < 0.5, 'past the end, back to it');
+});
+
+test('[界面-27] the page reads the offsets of a view and puts its content back at the start, its motion stopped', () => {
+  const { ui, s } = setup();
+  const sv = /** @type {any} */ (s.one('sv')), ct = /** @type {any} */ (s.one('sv/vp/ct'));
+  sv.el.fire('wheel', { deltaY: 300, deltaX: 0 });
+  ui.tick(0.016);
+  assert.ok(scrollOf(sv)[1] > 0, 'scrolled down');
+  scrollTo(sv, 0, 0);
+  assert.deepEqual([scrollOf(sv), ct.rt.pos[1]], [[0, 0], 0]);
+  for (let i = 0; i < 20; i++) ui.tick(0.05);
+  assert.equal(ct.rt.pos[1], 0, 'no coasting left');
+  assert.deepEqual(scrollOf(/** @type {any} */ (s.one('more'))), [0, 0], 'a node without a view');
+});
+
+test('[界面-27] a content beside its viewport stays at its start, and scrolls within its width', () => {
+  const { ui, s } = setup();
+  const sv = /** @type {any} */ (s.one('side')), ct = /** @type {any} */ (s.one('side/ct'));
+  for (let i = 0; i < 40; i++) ui.tick(0.05);
+  assert.deepEqual([scrollOf(sv)[0], ct.rt.pos[0]], [0, 0], 'not pulled by where the view is on the screen');
+  sv.el.fire('wheel', { deltaY: 0, deltaX: 2000 });
+  for (let i = 0; i < 100; i++) ui.tick(0.05);
+  assert.ok(Math.abs(scrollOf(sv)[0] + 500) < 0.5, `to its end, 900 − 400 along: ${scrollOf(sv)[0]}`);
 });
 
 test('[界面-27] its scroll bar follows; drag parts hide when the content fits; arrows show where there is more; a pager settles on a page', () => {

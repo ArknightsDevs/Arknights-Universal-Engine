@@ -36,18 +36,18 @@
 
 - **布局组**（横向、纵向）按顺序（可反转）排列启用的、不忽略布局的子节点：内边距、间距、子节点对齐（九种）；控制子节点尺寸时子节点取首选尺寸，否则取自己的尺寸；主轴上剩下的空间按子节点的弹性尺寸分（强制展开算 1）；放不下首选尺寸时，每个子节点按同一个比例取在最小尺寸与首选尺寸之间（比例 = (可用 − 最小之和) ÷ (首选之和 − 最小之和)）；交叉轴上强制展开或有弹性尺寸时占满。
 - **首选尺寸**：布局元素给出的，否则布局组按子节点算出的（主轴上相加加间距，交叉轴上取最大，再加内边距），否则文字量出的，否则矩形自己的尺寸；不小于布局元素的最小尺寸。**最小尺寸**：布局元素给出的，否则布局组按子节点的最小尺寸同样算出（不控制尺寸时取子节点自己的尺寸），否则为 0。
-- **网格布局组**：启用的、不忽略布局的子节点按格子尺寸从左上起一行一行排，加间距和内边距，整块按子节点对齐放在矩形里。每行的列数：固定列数；固定行数时按子节点数算出；否则为宽度放得下的格数；至少 1。首选尺寸：宽为固定列数（不固定时取子节点数的平方根向上取整）个格子，高为按当前宽度排出的行数个格子，各加间距和内边距。
+- **网格布局组**：启用的、不忽略布局的子节点按格子尺寸排，加间距和内边距，整块按子节点对齐放在矩形里。起始轴为横向时一行一行排，每行的列数：固定列数；固定行数时按子节点数算出；否则为宽度放得下的格数；至少 1。起始轴为纵向时一列一列排，每列的行数：固定行数；固定列数时按子节点数算出；否则为高度放得下的格数；至少 1。起始角在右边时列从右往左数，在下边时行从下往上数。首选尺寸：宽为固定列数（不固定时取子节点数的平方根向上取整）个格子，高为按当前宽度排出的行数个格子，各加间距和内边距。
 - **内容尺寸适配**：锚点不拉伸的那一轴，尺寸取首选尺寸。
 - 页面自己放置的节点（如单位条的底板，界面-19）不参加所在布局组的排列。
 
-- 来源：Unity UI 手册「Auto Layout」<https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/UIAutoLayout.html>（放不下时在最小与首选之间按比例取，Unity UI 源码 LayoutGroup.cs SetChildrenAlongAxis <https://github.com/Unity-Technologies/uGUI/blob/2019.1/UnityEngine.UI/UI/Core/Layout/LayoutGroup.cs>；关卡详情目标面板里「最高纪录」的高度 58.28 与预制件里 Unity 存下的一致）、「Grid Layout Group」<https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/script-GridLayoutGroup.html>；只实现到这里列出的程度（网格只从左上角横向排），为推断 INF-0114
+- 来源：Unity UI 手册「Auto Layout」<https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/UIAutoLayout.html>（放不下时在最小与首选之间按比例取，Unity UI 源码 LayoutGroup.cs SetChildrenAlongAxis <https://github.com/Unity-Technologies/uGUI/blob/2019.1/UnityEngine.UI/UI/Core/Layout/LayoutGroup.cs>；关卡详情目标面板里「最高纪录」的高度 58.28 与预制件里 Unity 存下的一致）、「Grid Layout Group」<https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/script-GridLayoutGroup.html>；只实现到这里列出的程度，为推断 INF-0114；网格按起始轴、起始角定位格子的算法见 Unity UI 源码 GridLayoutGroup.cs SetCellsAlongAxis <https://github.com/Unity-Technologies/uGUI/blob/2019.1/UnityEngine.UI/UI/Core/Layout/GridLayoutGroup.cs>
 
 ### 界面-4 图形与文字
 
 - **图片**：精灵图乘以颜色（逐通道相乘，不透明度相乘）。类型：简单（拉伸，保持比例时居中缩放进矩形）、九宫格（四角保持原尺寸、边和中间拉伸，矩形比边距之和小时四角按比例缩小；左右或上下边距相接、中间一列或一行没有宽度时，拉伸相接处那一列或一行像素）、平铺（按精灵图原尺寸重复）、填充（横向从左或右、纵向从下或上、360° 从下右上左之一顺时针或逆时针，按填充量裁掉其余）。没有精灵图的图片画成它的颜色。页面给的图片（头像、技能图标）铺满矩形。
 - **渐变**：颜色点乘以图形的颜色，竖带从左到右，否则从下到上。颜色点的位置按枢轴在矩形中心时的坐标算：枢轴在一条边上时，这条边处的位置是 0.5。
 - **画布组**的不透明度乘到整棵子树。
-- **文字**：字号、粗体斜体、九种对齐、颜色、描边（四个角各一份）或投影（一份）；富文本的颜色、粗体、斜体、字号标签；横向不换行时不换行，否则在矩形宽度内换行；宽度按自身内容定的文字（内容尺寸适配取首选宽度，或横向布局组按首选宽度设置子节点而不拉伸）和纵向截断、矩形只容得下一行的文字也不换行（高度由布局组或内容尺寸适配设定的除外，它的高度就是全部行）；最佳适配时字号取能放进矩形的最大整数字号（不超过最大、不小于最小）。字体按预制件要的字体名换成页面提供的字体，没给出时按文字（只有拉丁字符的用拉丁字体，否则用中文字体）；原字体的小写字母也画成大写的（Novecento 系），文字按大写显示。
+- **文字**：字号、粗体斜体、九种对齐、颜色、描边（四个角各一份）或投影（一份）；富文本的颜色、粗体、斜体、字号标签；横向不换行时不换行，否则在矩形宽度内换行；宽度按自身内容定的文字（内容尺寸适配取首选宽度，或横向布局组按首选宽度设置子节点而不拉伸）和纵向截断、矩形只容得下一行的文字也不换行（高度由布局组或内容尺寸适配设定的除外，它的高度就是全部行）；最佳适配时字号取能放进矩形的最大整数字号（不超过最大、不小于最小）。字体按预制件要的字体名换成页面提供的字体，没给出时按文字（只有拉丁字符的用拉丁字体，否则用中文字体）；原字体的小写字母也画成大写的（Novecento 系），文字按大写显示。富文本整段作为一个行内文字排版，带颜色的部分和前后文字一起换行。
 - **遮罩**：矩形遮罩、图形遮罩和软遮罩把子树裁到自己的矩形里；软遮罩读另一个节点的图形时（界面包的 `softMask.mask`），子树只透过那个图形的精灵图显示：在那个图形的矩形里（不再裁到软遮罩自己的矩形），按精灵图的不透明度，或读颜色通道时按它的亮度（`softMask.ch`），矩形外不显示；图形遮罩不显示自己的图形时不画它。**模板遮罩**：兄弟节点中第一个带模板的图形写模板（有只写模板的图形时取它），后面的读：只遮读者所在的兄弟节点；写模板的图形名字带 mask 或没有精灵图时只写不画。模板形状是写者的精灵图，或材质给出的圆、圆角矩形。读者的比较方式为「不等于」时（界面包的 `stencilOut`），它画在写者形状以外的地方。
 
 - 来源：Unity UI 手册「Image」「Text」「Mask」「Rect Mask 2D」<https://docs.unity3d.com/Packages/com.unity.ugui@1.0/manual/UIVisualComponents.html>；字体替换、模板遮罩的分组规则为推断 INF-0115；渐变颜色点位置的起点为推断 INF-0189；软遮罩读颜色通道时按亮度画为推断 INF-0192
@@ -241,15 +241,16 @@
 
 ### 界面-27 滚动视图
 
-- **范围**：内容在视口里滚动（可横、可竖）；内容的边不能离开视口内侧。内容比视口小时按它的轴心当成视口大小。
+- **范围**：内容在视口里滚动（可横、可竖）；内容的边不能离开视口内侧。内容比视口小时按它的轴心当成视口大小。内容不必在视口下面（可以是视口的兄弟节点），位置按两者在界面里的位置之差算。
 - **拖动**：指针按下后移动超过 10 个 CSS 像素才算拖动，内容跟着指针走；弹性模式下拖过边时按 Unity 的橡皮筋公式（超出量 × 0.55 ÷ 视口尺寸）只显示一部分超出，夹住模式下不能拖出边。拖动过的这次按下不算点按。拖动开始后视图才接管指针，没拖动的按下照常点到视图里的按钮。
 - **松手后**：弹性模式下超出边时按弹性时间平滑回弹（Unity 的 SmoothDamp）；否则有惯性时按松手前的速度继续滑，每秒速度乘以减速率，低于每秒 1 像素停下；夹住模式始终留在范围内。
 - **滚轮**：沿滚动轴移动滚轮的像素量（换算成参考像素）乘以灵敏度。
 - **滚动条**：值为归一化位置，大小为视口与内容之比；把手的锚点按方向放在 `值 × (1 − 大小)` 起的一段（反向从另一端起）。显示方式为需要时显示时，内容放得下就隐藏。
 - **拖动适配**：内容放得下时不能拖，`hide` 节点隐藏；还有内容的方向显示箭头。
 - **翻页**：松手时滚到最近的一页（一页为视口宽或高），松手时速度超过每秒 200 像素则翻到速度方向的下一页，用翻页时间缓出。
+- 页面可以读出视图在两个方向上的偏移，也可以把内容放到给定的偏移并停下它的运动（重新填充列表时回到开头）。
 
-- 来源：Unity UI 源码 ScrollRect.cs（RubberDelta、LateUpdate、CalculateOffset）<https://github.com/Unity-Technologies/uGUI/blob/2019.1/UnityEngine.UI/UI/Core/ScrollRect.cs>、Scrollbar.cs（UpdateVisuals）<https://github.com/Unity-Technologies/uGUI/blob/2019.1/UnityEngine.UI/UI/Core/Scrollbar.cs>、Unity 手册「Mathf.SmoothDamp」<https://docs.unity3d.com/ScriptReference/Mathf.SmoothDamp.html>；拖动起点、滚轮的换算、翻页的规则为推断 INF-0178
+- 来源：Unity UI 源码 ScrollRect.cs（RubberDelta、LateUpdate、CalculateOffset，内容的范围在视口的坐标里算：GetBounds）<https://github.com/Unity-Technologies/uGUI/blob/2019.1/UnityEngine.UI/UI/Core/ScrollRect.cs>、Scrollbar.cs（UpdateVisuals）<https://github.com/Unity-Technologies/uGUI/blob/2019.1/UnityEngine.UI/UI/Core/Scrollbar.cs>、Unity 手册「Mathf.SmoothDamp」<https://docs.unity3d.com/ScriptReference/Mathf.SmoothDamp.html>；拖动起点、滚轮的换算、翻页的规则为推断 INF-0178
 
 ### 界面-28 嵌套预制件与容器
 

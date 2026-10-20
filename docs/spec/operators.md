@@ -16,7 +16,7 @@
 
 ### 干员-2 技能与技能等级
 
-干员带一个技能（第几个技能，从 0 数）出战，技能等级 1–7，专精 1–3 记作 8–10，取 skill_table 中这个技能的第（等级 − 1）级数据（技能-1）。精英化阶段低于技能的解锁阶段时不能带这个技能；技能没有那么多级时取最后一级。技能能否主动关闭（技能-7）、技能期间的攻击范围（技能-8）也按这一级的说明和范围编号判断；训练数据的每一级记录说明原文（`description`）和范围编号（`rangeId`，没有为 null）。
+干员带一个技能（第几个技能，从 0 数）出战，技能等级 1–7，专精 1–3 记作 8–10，取 skill_table 中这个技能的第（等级 − 1）级数据（技能-1）。精英化阶段低于技能的解锁阶段时不能带这个技能；技能没有那么多级时取最后一级。技能能否主动关闭（技能-7）、技能期间的攻击范围（技能-8）也按这一级的说明和范围编号判断；训练数据的每一级记录说明原文（`description`）和范围编号（`rangeId`，没有为 null），每个技能记录名字（`name`，取第一级的名字，界面显示用）。
 
 - 来源：数据：character_table 的 skills[]（skillId、unlockCond.phase）、skill_table[].levels[]；[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「专精3等级的推进之王碎颅击」等写法；专精记作 8–10 是设计决定
 
@@ -24,7 +24,9 @@
 
 分支特性的 blackboard（职业-7）取特性候选中已经解锁的最后一个：解锁阶段不高于干员的精英化阶段（同一阶段时解锁等级不高于干员等级），需要的潜能不高于干员的潜能。没有特性记录的干员 blackboard 为空。候选带范围编号时一并记作 `rangeId`（散射手的 1-3，傀儡师替身的范围，职业-16），没有时不写。
 
-- 来源：数据：character_table 的 trait.candidates[]（unlockCondition.phase、unlockCondition.level、requiredPotentialRank、rangeId、blackboard）；取最后一个已解锁的候选为推断 INF-0079
+特性的说明原文（character_table 的 `description`）记在训练数据的 `description`，干员的拉丁字母代号（`appellation`）记在 `appellation`，都是界面显示用（召唤物的 `description` 是它的说明，召唤-1）。
+
+- 来源：数据：character_table 的 trait.candidates[]（unlockCondition.phase、unlockCondition.level、requiredPotentialRank、rangeId、blackboard）、description、appellation；取最后一个已解锁的候选为推断 INF-0079
 
 ### 干员-4 天赋
 

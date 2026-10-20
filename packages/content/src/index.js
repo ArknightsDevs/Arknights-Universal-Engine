@@ -203,7 +203,9 @@ export { BRANCHES, coveredBranch, withTrait } from './traits.js';
 export { LEVELS, TESTING, levelAt } from './levels.js';
 export { withBuilders } from './fortress.js';
 export { foeBehaviors, withFoeExtras, FOE_EXTRAS } from './foes.js';
-export { ROSTER, rosterSource, loadTraining, operatorAt } from './operators.js';
+export { ROSTER, rosterSource, loadTraining, operatorAt, statsAt } from './operators.js';
+/** @typedef {import('./operators.js').Training} Training @typedef {import('./skills.js').SkillLevel} SkillLevel */
+export { textPair } from './compat/records.js';
 export { TOKENS, SUMMON_PAGES, loadToken, tokenAt } from './tokens.js';
 export { KIT_SOURCE, KIT_FILES, KITS_ENABLED, KIT_DIFFERENCES, loadKits } from './compat/kitmod.js';
 export { MAPPING, mappedUrl } from './compat/mapping.js';

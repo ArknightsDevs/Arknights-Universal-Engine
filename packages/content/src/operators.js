@@ -18,11 +18,11 @@ import rangeTable from '../data/ranges.json' with { type: 'json' };
 /** @typedef {Record<string, number>} Stats */
 /**
  * An operator's training data (干员-1…干员-5), as @aue/data writes it.
- * @typedef {{ name: string, position: 'MELEE' | 'RANGED', profession: string, branch: string, powers: string[], rarity: number,
+ * @typedef {{ name: string, appellation?: string, position: 'MELEE' | 'RANGED', profession: string, branch: string, powers: string[], rarity: number,
  *   mainPower: { nationId: string | null, groupId: string | null, teamId: string | null },
  *   phases: { maxLevel: number, range: { row: number, col: number }[], frames: { level: number, stats: Stats }[] }[],
  *   favor: { level: number, stats: Stats } | null, potentials: Stats[],
- *   skills: ({ id: string, phase: number, levels: import('./skills.js').SkillLevel[], token?: string } | null)[],
+ *   skills: ({ id: string, name: string, phase: number, levels: import('./skills.js').SkillLevel[], token?: string } | null)[],
  *   traits: { phase: number, level: number, potential: number, rangeId?: string, bb: Stats }[], talents: TalentCandidate[][], modules: Module[], tokens?: string[],
  *   description?: string | null }} Training
  */

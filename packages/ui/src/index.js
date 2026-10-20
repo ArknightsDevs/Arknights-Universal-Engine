@@ -3,10 +3,11 @@
 // sliders, taps and templates.
 export { createUi, UI_CSS } from './ui.js';
 export { Screen, setSlider } from './screen.js';
+export { scrollOf, scrollTo } from './scroll.js';
 export { Animator, loops } from './anim.js';
 export { UiNode, build, nodeAt, refNode, setText, setPicture, stencilScan } from './node.js';
 export { layout } from './layout.js';
-export { arrange, groupPref, prefSize, groupKids, gridArrange, gridPref, gridColumns } from './groups.js';
+export { arrange, groupPref, prefSize, groupKids, gridArrange, gridPref, gridColumns, gridCells } from './groups.js';
 export { canvasSize, rectBox, transformCss, originCss, copyRect, DEF_RT, FULL_RT } from './rect.js';
 export { evalKeys, applyCurve, spriteAt } from './curves.js';
 export { richHtml, isRich, faceOf, alignCss, shadowCss, bestFit, DEFAULT_FONTS } from './text.js';

@@ -258,7 +258,8 @@ export function setText(s, value) {
   const txt = value == null ? '' : String(value), tc = s.n.comps.text;
   if (s.txt === txt && s.t.dataset.set) return;
   s.txt = txt; s.t.dataset.set = '1';
-  if (tc.rich !== 0 && isRich(txt)) s.t.innerHTML = richHtml(txt);
+  // rich text in one inline run: the text box lays its children out as flex items, which would split it into columns
+  if (tc.rich !== 0 && isRich(txt)) s.t.innerHTML = `<span class="aue-r">${richHtml(txt)}</span>`;
   else s.t.textContent = txt;
   const [family, weight, caps] = faceOf(s.scr.ctx.fonts, tc.font, txt, tc.style);
   s.t.style.fontFamily = family; s.t.style.fontWeight = String(weight); s.t.style.textTransform = caps ? 'uppercase' : '';
