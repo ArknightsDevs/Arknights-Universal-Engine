@@ -21,11 +21,11 @@ test('a target to a side faces that side (渲染-4)', () => {
   assert.deepEqual(facingDir(3, 1), { dir: DIR.RIGHT, flip: false });
 });
 
-test('a target more above than aside faces up or down (渲染-4)', () => {
+test('only a target inside the narrow band around straight up takes the back model (渲染-4)', () => {
   assert.deepEqual(facingDir(0, 3), { dir: DIR.UP, flip: false });
-  assert.deepEqual(facingDir(0, -3), { dir: DIR.DOWN, flip: false });
-  assert.equal(facingDir(1, 3)?.dir, DIR.UP);
-  assert.equal(facingDir(1, -3)?.dir, DIR.DOWN);
+  assert.deepEqual(facingDir(0, -3), { dir: DIR.DOWN, flip: false }, 'straight below is the front model');
+  assert.equal(facingDir(1, 3)?.dir, DIR.RIGHT, '1 up 3 aside is 18 degrees off: not the band');
+  assert.equal(facingDir(0.1, 1)?.dir, DIR.UP, '5.7 degrees off: the band');
 });
 
 test('almost straight above or below keeps the left / right the model had (渲染-4)', () => {
