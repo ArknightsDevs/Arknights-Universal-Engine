@@ -159,9 +159,9 @@ export function poseFigure(f, frame, camera) {
   for (const [s, x] of Object.entries(f.sides)) x.object.visible = s === side;
   const c = clipAt(f, frame, side);
   f.sides[side].show(c.name, c.time, c.loop, flip);
-  // edge-on at the narrowest frame, full width at both ends, the height eased the other way so the turn reads
+  // edge-on at the narrowest frame, full width at both ends; the height does not change
   const squeeze = f.turn === null ? 1 : Math.abs(1 - 2 * k);
-  f.group.scale.set(squeeze, 2 - squeeze, 1);
+  f.group.scale.set(squeeze, 1, 1);
   f.group.quaternion.copy(camera.quaternion);
 }
 

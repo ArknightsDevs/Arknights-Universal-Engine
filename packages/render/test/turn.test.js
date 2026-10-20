@@ -63,12 +63,11 @@ test('a turn squeezes to zero on its middle frame and swaps the skeleton there (
   assert.ok(shown.length > 0, 'the clip was asked for');
 });
 
-test('the height swells opposite the width (渲染-4)', () => {
+test('the height does not change during a turn (渲染-4)', () => {
   const { f } = stub();
   f.turn = { since: 0, side: 'front', flip: false };
   f.side = 'back'; f.flip = true;
   /** @type {number[]} */ const heights = [];
-  for (let frame = 0; frame <= TURN_FRAMES; frame++) { poseFigure(f, frame, camera); heights.push(Number(f.group.scale.y.toFixed(3))); }
-  assert.ok(Math.max(...heights) > 1.8, 'the narrowest frame is the tallest');
-  assert.equal(heights[heights.length - 1], 1, 'and it settles back to 1');
+  for (let frame = 0; frame <= TURN_FRAMES; frame++) { poseFigure(f, frame, camera); heights.push(f.group.scale.y); }
+  assert.deepEqual(heights, heights.map(() => 1), 'the model keeps its height while it squeezes');
 });
