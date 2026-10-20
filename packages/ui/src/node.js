@@ -41,6 +41,7 @@ export class UiNode {
     this.el = doc.createElement('div');
     /** @type {HTMLElement | null} */ this.g = null;
     /** @type {HTMLElement | null} */ this.t = null;
+    /** a scrolling image's background, inside its graphic and moved by a transform (界面-4) @type {HTMLElement | null} */ this.uv = null;
     /** @type {UiNode[]} */ this.kids = [];
     this.rt = copyRect(rectOf(n, parent !== null));
     /** @type {(number | null)[] | null} */ this.lp = null;

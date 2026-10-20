@@ -31,6 +31,7 @@ const pack = () => ({
       N('hidden', img('sprite/a', { mat: { kind: 'none' } })),
       N('add', img('sprite/a', { mat: { kind: 'add' } })),
       N('warped', img('sprite/a', { mat: { kind: 'none', fx: 'warp', noise: 'sprite/a', speed: [0.01, 0.01], amount: [0.02, 0.02] } })),
+      N('scroll', img('sprite/a', { type: 2, mat: { kind: 'uv', uv: [0.5, 0.25] } }), [], R({ size: [200, 100] })),
       N('label', { text: { text: 'hi', size: 20, style: 0, align: 4, color: [1, 1, 1, 1], best: 0, hwrap: 1, font: 'Novecentowide-Normal' } }),
       N('fit', { text: { text: '12345', size: 70, style: 0, align: 4, color: [1, 1, 1, 1], best: 1, min: 1, max: 70, hwrap: 0 }, csf: [0, 0] }, [], R({ size: [100, 92] })),
       N('btn', { button: PRESS, ...img('sprite/a') }, [N('collider', { nodraw: 'raycast' })]),
@@ -146,6 +147,19 @@ test('[界面-4] images: the sprite tinted, the colour without one, nothing for 
   scr.text('label', '<b>x</b>');
   assert.equal(/** @type {any} */ (scr.one('label')).t.textContent, 'x');
   assert.equal(css(/** @type {any} */ (scr.one('label')).t).fontFamily, 'var(--aue-ui-latin)');
+});
+
+test('[界面-4] a scrolling image: its background on an element inside it a period larger on every side, moved by a transform as time goes', () => {
+  const { ui, scr } = setup();
+  ui.tick(0);
+  const s = /** @type {any} */ (scr.one('scroll')), u = s.uv;
+  assert.ok(u && s.g.children.includes(u), 'the inner element');
+  assert.deepEqual([css(s.g).backgroundImage, css(s.g).overflow], ['none', 'hidden']);
+  assert.deepEqual([css(u).backgroundImage, css(u).backgroundSize, css(u).backgroundRepeat, css(u).left, css(u).top, css(u).width, css(u).height, css(u).willChange],
+    ['url("/u/sprites/a.webp")', '10px 10px', 'repeat', '-10px', '-10px', 'calc(100% + 20px)', 'calc(100% + 20px)', 'transform']);
+  assert.equal(css(u).transform, 'translate3d(0.0px, 0.0px, 0)');
+  ui.tick(0.5);
+  assert.equal(css(u).transform, 'translate3d(-2.5px, 1.3px, 0)', 'a quarter and an eighth of the period');
 });
 
 test('[界面-9] graphics not drawn: an unknown material, a hidden mask graphic, a raycast-only graphic', () => {

@@ -109,7 +109,7 @@ export function gradientCss(grad, color, pivot = [0.5, 0.5]) {
 
 /** Writes a style when it changed. @param {UiNode} s @param {HTMLElement} el @param {string} k @param {string} v */
 export function sty(s, el, k, v) {
-  const key = (el === s.el ? '' : el === s.g ? 'g.' : 't.') + k;
+  const key = (el === s.el ? '' : el === s.g ? 'g.' : el === s.uv ? 'u.' : 't.') + k;
   if (s.css.get(key) !== v) { s.css.set(key, v); el.style.setProperty(k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`).replace(/^webkit-/, '-webkit-'), v); }
 }
 
@@ -173,20 +173,58 @@ function paintImage(s, g, im, w, h) {
     return;
   }
   if (s.shade) { unshade(s); s.paintKey = ''; }
-  const key = `${s.sprite}|${s.picture}|${col.slice(0, 3).map((v) => v.toFixed(2)).join(',')}|${Math.round(w)}x${Math.round(h)}`;
+  const { uv, tw, th } = scrollOf(s, im, w, h);
+  const key = `${s.sprite}|${s.picture}|${col.slice(0, 3).map((v) => v.toFixed(2)).join(',')}|${Math.round(w)}x${Math.round(h)}|${uv ? 'uv' : ''}`;
   if (key !== s.paintKey) {
     s.paintKey = key;
-    for (const [k, v] of imageBackground(s, im, col, w, h)) sty(s, g, k, v);
+    paintBackground(s, g, imageBackground(s, im, col, w, h), uv ? [tw, th] : null);
   }
   sty(s, g, 'opacity', String(+col[3].toFixed(3)));
-  const uv = uvSpeed(im.mat);
-  if (uv && w > 0) {
-    const sp = s.sprite ? s.scr.ctx.pack.sprites[s.sprite] : undefined, t = s.scr.ctx.time;
-    const tw = im.type === 2 && sp ? sp.w : w, th = im.type === 2 && sp ? sp.h : h;
-    sty(s, g, 'backgroundRepeat', 'repeat');
-    sty(s, g, 'backgroundPosition', `${(-(uv[0] * t) % 1 * tw).toFixed(1)}px ${((uv[1] * t) % 1 * th).toFixed(1)}px`);
+  if (uv && s.uv) {
+    const t = s.scr.ctx.time;
+    sty(s, s.uv, 'transform', `translate3d(${(-(uv[0] * t) % 1 * tw).toFixed(1)}px, ${((uv[1] * t) % 1 * th).toFixed(1)}px, 0)`);
   }
   paintCut(s, g, im);
+}
+
+/**
+ * How an image scrolls (界面-4): its material's speed (none for an empty box) and the period it repeats at — its
+ * sprite's size when tiled, else its own.
+ * @param {UiNode} s @param {Record<string, any>} im @param {number} w @param {number} h
+ */
+function scrollOf(s, im, w, h) {
+  const uv = w > 0 ? uvSpeed(im.mat) : null, sp = s.sprite ? s.scr.ctx.pack.sprites[s.sprite] : undefined;
+  return { uv, tw: im.type === 2 && sp ? sp.w : w, th: im.type === 2 && sp ? sp.h : h };
+}
+
+/**
+ * An image's background (界面-4), on its graphic — or, for one that scrolls (界面-4), on an element inside it one
+ * period [tw, th] larger on every side, tiled at that period, that a transform moves: moving the background itself
+ * made the browser paint the whole layer again each frame, and a large one (the entry page's ground under its 3D map)
+ * went missing on the frames a slower GPU could not paint it in time — the page flickered.
+ * @param {UiNode} s @param {HTMLElement} g @param {[string, string][]} bg @param {number[] | null} period
+ */
+function paintBackground(s, g, bg, period) {
+  if (!period) {
+    if (s.uv) { s.uv.remove(); s.uv = null; sty(s, g, 'overflow', ''); for (const k of [...s.css.keys()]) if (k.startsWith('u.')) s.css.delete(k); }
+    for (const [k, v] of bg) sty(s, g, k, v);
+    return;
+  }
+  const [tw, th] = period;
+  if (!s.uv) {
+    s.uv = /** @type {HTMLElement} */ (g.ownerDocument.createElement('div'));
+    Object.assign(s.uv.style, { position: 'absolute', pointerEvents: 'none', willChange: 'transform' });
+    g.appendChild(s.uv);
+  }
+  for (const [k] of bg) if (k !== 'backgroundColor') sty(s, g, k, k === 'backgroundImage' ? 'none' : '');
+  sty(s, g, 'backgroundColor', bg.find(([k]) => k === 'backgroundColor')?.[1] ?? '');
+  sty(s, g, 'overflow', 'hidden');
+  for (const [k, v] of bg) if (k !== 'backgroundColor') sty(s, s.uv, k, v);
+  sty(s, s.uv, 'backgroundSize', `${tw}px ${th}px`);
+  sty(s, s.uv, 'backgroundRepeat', 'repeat');
+  sty(s, s.uv, 'backgroundPosition', '0px 0px');
+  sty(s, s.uv, 'left', `${-tw}px`); sty(s, s.uv, 'top', `${-th}px`);
+  sty(s, s.uv, 'width', `calc(100% + ${2 * tw}px)`); sty(s, s.uv, 'height', `calc(100% + ${2 * th}px)`);
 }
 
 /** A wiping image's mask now, as CSS, or null (no wipe, or its texture not loaded). @param {UiNode} s @param {Material | undefined} mat */
