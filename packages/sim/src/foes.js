@@ -46,7 +46,7 @@ export const BOLT_RADIUS = 0.3;
  * @property {(t: Unit, init: import('./buffs.js').BuffInit) => void} addBuff
  * @property {(t: Unit, key: string) => void} removeBuff
  * @property {(t: Unit, key: string, o?: object) => void} applyStatus
- * @property {(t: Unit, dmg: { type: DamageType, amount: number }) => number} dealDamage
+ * @property {(t: Unit, dmg: { type: DamageType, amount: number, sourceless?: boolean }) => number} dealDamage
  * @property {(t: Unit, el: string, amount: number) => number} dealEp
  * @property {(t: Unit, amount: number) => number} heal
  * @property {(n: number) => void} gainCost no effect for an enemy
@@ -153,7 +153,8 @@ function contextOf(w, c, e, of) {
     addBuff: (t, init) => { addBuff(t, makeBuff({ src: e.id, ...init })); },
     removeBuff: (t, key) => { removeBuff(t, key); },
     applyStatus: (t, key, o) => { inflict(w, t, /** @type {any} */ (key), { ...o, src: e }); },
-    dealDamage: (t, dmg) => dealDamage(w, e, t, dmg, c),
+    // sourceless is no source at all (敌能-50), not the credited sourceless hit of 伤害-7.
+    dealDamage: (t, dmg) => dealDamage(w, dmg.sourceless ? null : e, t, dmg, c),
     dealEp: (t, el, amount) => dealEp(w, t, /** @type {any} */ (el), amount, e),
     heal: (t, amount) => heal(w, e, t, amount),
     gainCost: () => {},

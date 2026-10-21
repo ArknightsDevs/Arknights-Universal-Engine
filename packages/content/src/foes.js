@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-34): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-34, 敌能-50): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read. They act only through the context (ADR 0055).
 
@@ -12,6 +12,7 @@ import { sarkazBehaviors } from './sarkaz.js';
 import { devourerBehaviors } from './devourers.js';
 import { refractBehaviors } from './refract.js';
 import { statueBehaviors } from './statue.js';
+import { periodicBehaviors } from './periodic.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -87,6 +88,14 @@ export const FOE_EXTRAS = Object.freeze({
   // 深池暗影术师/深池暗影术师队长: 不会攻击飞行单位 — its own talent, not part of 折射
   enemy_1168_dumage: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88&oldid=367785` },
   enemy_1168_dumage_2: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88%E9%98%9F%E9%95%BF&oldid=367786` },
+  // 狂暴宿主 / 冬灵血巫: 自身每秒受到 N 无来源真实伤害. `self` marks the six pages that were read (敌能-50); the same
+  // `{ damage }` shape on unread enemies stays uncovered. The two throwers also refuse flyers (noFly, 敌能-33).
+  enemy_1062_rager: { talents: { periodic_damage: { self: 1 } }, source: `${PRTS}%E7%8B%82%E6%9A%B4%E5%AE%BF%E4%B8%BB%E5%A3%AB%E5%85%B5&oldid=375739` },
+  enemy_1062_rager_2: { talents: { periodic_damage: { self: 1 } }, source: `${PRTS}%E7%8B%82%E6%9A%B4%E5%AE%BF%E4%B8%BB%E7%BB%84%E9%95%BF&oldid=375736` },
+  enemy_1063_rageth: { talents: { periodic_damage: { self: 1 }, noFly: {} }, source: `${PRTS}%E7%8B%82%E6%9A%B4%E5%AE%BF%E4%B8%BB%E6%8A%95%E6%8E%B7%E6%89%8B&oldid=375737` },
+  enemy_1063_rageth_2: { talents: { periodic_damage: { self: 1 }, noFly: {} }, source: `${PRTS}%E7%8B%82%E6%9A%B4%E5%AE%BF%E4%B8%BB%E6%8E%B7%E9%AA%A8%E6%89%8B&oldid=375738` },
+  enemy_1089_ltlntc: { talents: { periodic_damage: { self: 1 } }, source: `${PRTS}%E5%86%AC%E7%81%B5%E8%A1%80%E5%B7%AB&oldid=386577` },
+  enemy_1089_ltlntc_2: { talents: { periodic_damage: { self: 1 } }, source: `${PRTS}%E5%86%AC%E7%81%B5%E8%A1%80%E5%B7%AB%E5%A4%A7%E5%B8%88&oldid=375740` },
 });
 
 /**
@@ -254,6 +263,7 @@ const PowerHit = Object.freeze({
 export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
   ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...devourerBehaviors, ...refractBehaviors, ...statueBehaviors,
+  ...periodicBehaviors,
 });
 
 /**
@@ -270,6 +280,7 @@ export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp', 'Stronger', 
 export const FOE_NEEDS = Object.freeze({
   boom: Object.freeze(['radius', 'delay']), Boom: Object.freeze(['radius', 'delay']), ranged: Object.freeze(['scale']),
   CrossAttack: Object.freeze(['bolts', 'hold', 'charge']), Targets: Object.freeze(['n']), 1: Object.freeze(['ammo']),
+  periodic_damage: Object.freeze(['self']),
 });
 
 /**
