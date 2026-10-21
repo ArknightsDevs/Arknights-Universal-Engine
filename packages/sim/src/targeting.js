@@ -2,7 +2,8 @@
 // 阻挡, then 仇恨值 compared at a precision of 0.1, then the order they appeared in — by a stable insertion sort.
 import { KIND } from '@aue/schema';
 import { offsetTile } from './dir.js';
-import { bodyKeys } from './body.js';
+import { bodyKeys, cornerIn, crossing } from './body.js';
+import { ENEMY_COLLIDER_RADIUS } from './constants.js';
 import { roundHalfEven } from '@aue/math';
 import { statsOf } from './attrs.js';
 
@@ -26,11 +27,25 @@ export function rangeKeys(grid, at, offsets, extend = 0) {
   return keys;
 }
 
-/** Whether any tile of a unit is among the keys (体积-1, 体积-2). @param {Unit} u @param {Set<number>} keys @param {Grid} grid */
-export function inKeys(u, keys, grid) {
+/** Whether tile (r, c) is on the grid and among the keys. @param {Set<number>} keys @param {Grid} grid @param {number} r @param {number} c */
+const keyed = (keys, grid, r, c) => r >= 0 && r < grid.rows && c >= 0 && c < grid.cols && keys.has(r * grid.cols + c);
+
+/**
+ * Whether a unit is in a range of tiles (索敌-1, 体积-5): a huge unit when a tile of its rectangle is (体积-2); a regular
+ * enemy when its collider overlaps one of them — its own tile, or the next row, column or diagonal tile its circle
+ * reaches (`byTile`: by its own tile alone, as 谬因 searches); any other unit by its tile (体积-1). No allocation: the
+ * targeting of every frame asks it for every unit.
+ * @param {Unit} u @param {Set<number>} keys @param {Grid} grid @param {boolean} [byTile]
+ */
+export function inKeys(u, keys, grid, byTile = false) {
   if (/** @type {any} */ (u).hitArea) return bodyKeys(u, grid).some((k) => keys.has(k));
   const r = roundHalfEven(u.y), col = roundHalfEven(u.x);
-  return r >= 0 && r < grid.rows && col >= 0 && col < grid.cols && keys.has(r * grid.cols + col);
+  if (keyed(keys, grid, r, col)) return true;
+  if (byTile || u.kind !== KIND.ENEMY) return false;
+  const dy = u.y - r, dx = u.x - col, sr = crossing(dy, ENEMY_COLLIDER_RADIUS), sc = crossing(dx, ENEMY_COLLIDER_RADIUS);
+  if (sr !== 0 && keyed(keys, grid, r + sr, col)) return true;
+  if (sc !== 0 && keyed(keys, grid, r, col + sc)) return true;
+  return sr !== 0 && sc !== 0 && cornerIn(dx, dy, ENEMY_COLLIDER_RADIUS) && keyed(keys, grid, r + sr, col + sc);
 }
 
 /**
@@ -41,8 +56,28 @@ export function inKeys(u, keys, grid) {
  * @property {boolean} [canHitStealth] it can select 隐匿 units (职业-31)
  */
 
-/** Whether a unit's flags make it 隐匿 now: `stealth`, not undone by an aura (`unstealth`, 职业-34). @param {Record<string, boolean>} f */
-export const stealthed = (f) => !!f.stealth && !f.unstealth;
+/** Whether a stealth-off window for this source is still running (索敌-2). @param {Unit} u @param {string} key */
+const windowOpen = (u, key) => u.buffs.some((o) => o.key === `stealthOff:${key}` && o.left !== 0);
+
+/**
+ * Whether 隐匿 is in effect (索敌-2): the flag, not undone by `unstealth` (职业-34). An enemy's is not, while it is
+ * blocked or every stealth source still has its restore window; an operator's is not lifted by a block. A flag with no
+ * source buff has nothing to time, so it stays.
+ * @param {Unit} u
+ */
+export function stealthed(u) {
+  const f = statsOf(u).flags;
+  if (!f.stealth || f.unstealth) return false;
+  if (u.kind !== KIND.ENEMY) return true;
+  if (u.blockedBy >= 0) return false;
+  let sourced = false, open = false;
+  for (const b of u.buffs) {
+    if (!b.flags.stealth) continue;
+    sourced = true;
+    if (!windowOpen(u, b.key)) open = true;
+  }
+  return !sourced || open;
+}
 
 /**
  * Whether a unit can be selected by the other side (索敌-2): on the field and not disappeared (路线-4), not 无法选中,
@@ -53,7 +88,7 @@ export const stealthed = (f) => !!f.stealth && !f.unstealth;
 export function selectable(u, sel = {}) {
   if (u.hp <= 0 || u.hidden) return false;
   const s = statsOf(u), f = s.flags;
-  if (f.untargetable || (stealthed(f) && !sel.canHitStealth) || (f.sleep && !sel.canHitSleep) || f.sidelined) return false;
+  if (f.untargetable || (stealthed(u) && !sel.canHitStealth) || (f.sleep && !sel.canHitSleep) || f.sidelined) return false;
   if (f.camou && !sel.ignoreCamou) return false;
   return !s.flying || !!sel.canHitFly;
 }
