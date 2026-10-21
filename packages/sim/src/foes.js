@@ -5,6 +5,7 @@ import { secondsToFrames, FPS } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { addBuff, removeBuff, makeBuff, retune, setLeft } from './buffs.js';
+import { setAmmo } from './skills.js';
 import { inflict } from './status.js';
 import { dealDamage, heal, setHp, knockDown } from './damage.js';
 import { dealEp } from './elements.js';
@@ -94,6 +95,11 @@ export const BOLT_RADIUS = 0.3;
  * @property {(t: Unit, area: 'cross' | 'square') => Unit[]} around the units it may attack on a unit's tile and the four
  *   tiles next to it (a cross) or the eight around it (a square), in creation order (敌能-29)
  * @property {() => Unit[]} enemies every enemy on the field that is not neutral, selectable or not (敌能-25)
+ * @property {(u: Unit) => number} ammoOf shots left on a unit's running ammo skill, otherwise 0 (敌能-49, 技能-4)
+ * @property {(u: Unit, n: number) => void} spendAmmo takes that many shots, not below 0, and does not end the skill (敌能-49)
+ * @property {(u: Unit, key: string, frames: number, mods: Record<string, number>) => void} renew sets that buff's frames
+ *   left and replaces its modifiers; adds it when the unit has none (敌能-49)
+ * @property {() => Unit[]} ours operators and our devices still on the field (敌能-49)
  */
 
 /**
@@ -103,6 +109,8 @@ export const BOLT_RADIUS = 0.3;
  * @property {(ctx: FoeContext) => void} [tick]
  * @property {(ctx: FoeContext, cands: Unit[]) => Unit[]} [targets]
  * @property {(ctx: FoeContext, mods: AttackMods) => AttackMods} [attack]
+ * @property {(ctx: FoeContext, target: Unit) => boolean} [connect] before the main hit of its normal attack is settled
+ *   (a splash, a chain and an aftershock are not this): true cancels that hit (敌能-49)
  * @property {(ctx: FoeContext) => void} [death]
  * @property {(ctx: FoeContext, target: Unit, dealt: number, ranged: boolean) => void} [hit] a hit of its normal attack
  *   dealt damage (`ranged`: it came by a projectile)
@@ -188,6 +196,17 @@ function contextOf(w, c, e, of) {
       w.bolts.push({ src: e.id, x: e.x, y: e.y, dx: b.dx, dy: b.dy, type: b.type, amount: b.amount, status: b.status ?? null, blast: b.blast ?? 0 });
       w.events.push({ type: 'bolt', id: e.id });
     },
+    ...lateContext(w, c, e, ab),
+  };
+}
+
+/**
+ * The rest of an ability's context (敌能-2, 敌能-49). Split so `contextOf` stays within the line limit.
+ * @param {World} w @param {Content} c @param {Unit} e @param {Record<string, number>} ab
+ * @returns {Pick<FoeContext, 'setHp' | 'resetSkills' | 'onWay' | 'detour' | 'release' | 'placeDevice' | 'summon' | 'remove' | 'devour' | 'lend' | 'around' | 'enemies' | 'ammoOf' | 'spendAmmo' | 'renew' | 'ours'>}
+ */
+function lateContext(w, c, e, ab) {
+  return {
     setHp: (t, hp) => { setHp(t, hp); },
     resetSkills: () => { for (const s of defOf(c, e).skills ?? []) ab[`${s.key}.cd`] = secondsToFrames(s.initCooldown); },
     onWay: (u) => wayKeys(c, e).includes(keyAt(c.level, u.x, u.y)),
@@ -200,7 +219,37 @@ function contextOf(w, c, e, of) {
     lend: (t, key, init) => { lend(e, t, key, init); },
     around: (t, area) => around(w, e, t, area),
     enemies: () => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0),
+    ammoOf: (u) => ammoLeft(c, u),
+    spendAmmo: (u, n) => { const st = u.skill; if (st && ammoLeft(c, u) > 0) setAmmo(st, st.ammo - n); },
+    renew: (u, key, frames, mods) => { renewBuff(e, u, key, frames, mods); },
+    ours: () => w.units.filter(ourUnit),
   };
+}
+
+/** Shots left on a running ammo skill (敌能-49, 技能-4); 0 when the unit has none running. @param {Content} c @param {Unit} u */
+function ammoLeft(c, u) {
+  const st = u.skill;
+  if (!st?.active || u.kind !== KIND.OPERATOR) return 0;
+  return c.operators[u.key]?.skill?.ammo ? st.ammo : 0;
+}
+
+/**
+ * A buff's remaining time replaced, its modifiers replaced with `mods` (敌能-49). The same key stays where it is in
+ * the list. A unit without it gains one.
+ * @param {Unit} src @param {Unit} u @param {string} key @param {number} frames @param {Record<string, number>} mods
+ */
+function renewBuff(src, u, key, frames, mods) {
+  const b = u.buffs.find((x) => x.key === key);
+  if (!b) { addBuff(u, makeBuff({ key, src: src.id, left: frames, mods })); return; }
+  setLeft(b, frames);
+  if (!sameMods(mods, b.mods)) retune(u, b, b.value, mods);
+}
+
+/** An operator, or a device of ours, still on the field (敌能-49). A neutral unit is neither. @param {Unit} u */
+function ourUnit(u) {
+  if (u.hp <= 0 || u.hidden) return false;
+  if (u.kind === KIND.OPERATOR) return true;
+  return u.kind === KIND.DEVICE && u.base.hostile !== true;
 }
 
 /** Frames a lent buff lasts without being given again (敌能-25): it outlasts the next frame's buff tick. */
@@ -313,6 +362,17 @@ export function foeAttack(w, c, e, mods) {
   let out = mods;
   each(w, c, e, 'attack', (b, ctx) => { if (b.attack) out = b.attack(ctx, out); });
   return out;
+}
+
+/**
+ * Before the main hit of an enemy's normal attack (敌能-49). True when an ability cancels it: no HP damage, no
+ * 元素损伤, no on-hit status, displacement, `attackHit` or SP. A splash, a chain and an aftershock do not ask.
+ * @param {World} w @param {Content} c @param {Unit} e @param {Unit} t
+ */
+export function foeConnect(w, c, e, t) {
+  let stop = false;
+  each(w, c, e, 'connect', (b, ctx) => { if (!stop && b.connect?.(ctx, t)) stop = true; });
+  return stop;
 }
 
 /** Whether an enemy rides a carrier (敌能-16). @param {Unit} u */
