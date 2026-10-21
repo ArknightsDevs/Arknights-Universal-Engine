@@ -147,6 +147,7 @@ export function endSkill(w, c, op, reason = 'duration') {
   const st = /** @type {SkillState} */ (op.skill);
   behaviorOf(c, st.id).end?.(contextOf(w, c, op), reason);
   removeBuff(op, 'spendAtk');
+  removeBuff(op, 'skillFlags');
   st.active = false; st.armed = false; st.dur = -1; st.ammo = 0;
   restartCharge(op);
   w.events.push({ type: 'skill', id: op.id, active: 0 });
@@ -197,10 +198,21 @@ export function activate(w, c, op, reason = 'auto', free = false) {
   w.events.push({ type: 'skill', id: op.id, active: 1 });
   talentSkillStart(w, c, op);
   behaviorOf(c, st.id).start?.(contextOf(w, c, op));
+  holdFlags(op, def, kind);
   if (def.alchemy) throwAlchemy(w, c, op, def.alchemy);
   grantSummons(w, c, op, 'start');
   emit(w, 'skillStart', { unit: op, reason });
   if (kind === 'instant') endSkill(w, c, op, 'instant');
+}
+
+/**
+ * The flags a skill's description gives while it runs (技能-9, e.g. 不死): a buff `skillFlags` from its start until it
+ * ends, whatever its behaviour; none for a skill that does not run (instant, next attack).
+ * @param {Unit} op @param {SkillDef} def @param {SkillKind} kind
+ */
+function holdFlags(op, def, kind) {
+  const flags = def.extra?.flags;
+  if (flags && kind !== 'instant' && kind !== 'next') addBuff(op, makeBuff({ key: 'skillFlags', src: op.id, flags }));
 }
 
 /**
