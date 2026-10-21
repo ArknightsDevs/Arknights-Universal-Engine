@@ -221,16 +221,21 @@ export function board(u) {
 }
 
 /**
- * A passenger alights (敌能-16): it appears at the centre of its carrier's tile and goes on with its route from there
- * — a wait it was in is skipped.
+ * A passenger alights (敌能-16). It appears at the centre of `at`, unless `how.exact`, and goes on from there.
+ * `how.route` switches it to that route and leg first — the carrier's remaining route. A wait it is then on is skipped.
  * @param {Content} c @param {Unit} u @param {{ x: number, y: number }} at
+ * @param {{ exact?: boolean, route?: number, leg?: number }} [how]
  */
-export function alight(c, u, at) {
-  u.x = Math.round(at.x);
-  u.y = Math.round(at.y);
+export function alight(c, u, at, how) {
+  u.x = how?.exact ? at.x : Math.round(at.x);
+  u.y = how?.exact ? at.y : Math.round(at.y);
   u.hidden = false;
+  if (how?.route !== undefined) {
+    u.route = how.route;
+    u.leg = how.leg ?? u.leg;
+  }
   const legs = legsOf(c.level.routes[u.route]), leg = legs[u.leg];
-  if (leg.t === 'wait' || leg.t === 'until') endLeg(u, legs);
+  if (leg && (leg.t === 'wait' || leg.t === 'until')) endLeg(u, legs);
   u.path = [];
   u.pt = 0;
   u.wait = -1;
@@ -244,6 +249,28 @@ export function alight(c, u, at) {
 export function joinRoute(c, u) {
   const legs = legsOf(c.level.routes[u.route]), leg = legs[u.leg];
   if (leg.t === 'wait' || leg.t === 'until') endLeg(u, legs);
+}
+
+/**
+ * While 恐惧 or 诱导 moves the enemy (状态-10, 状态-11): disappearing and appearing still happen, and a wait keeps
+ * counting down — these are not 「无法移动」, which would freeze the wait (移动-1). A move leg is not walked; its plan is
+ * dropped so the route starts again from wherever the induced move leaves the enemy.
+ * @param {World} w @param {Content} c @param {Unit} e
+ */
+export function yieldRoute(w, c, e) {
+  if (e.route < 0) return;
+  const legs = legsOf(c.level.routes[e.route]);
+  for (let guard = legs.length + 2; guard > 0; guard--) {
+    const leg = legs[e.leg];
+    if (!leg || leg.t === 'move') { e.path = []; e.pt = 0; return; }
+    if (leg.t === 'wait' || leg.t === 'until') {
+      if (holds(w, e, leg, false)) return;
+    } else {
+      e.hidden = leg.t === 'disappear';
+      if (leg.t === 'appear') { e.x = leg.x; e.y = leg.y; }
+    }
+    endLeg(e, legs);
+  }
 }
 
 /**

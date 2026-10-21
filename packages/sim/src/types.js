@@ -134,6 +134,7 @@
  *   much (技能-10)
  * @property {SkillAllies} [allies] what it gives the friendly units in its attack range while it runs (技能-11)
  * @property {AlchemyDef} [alchemy] the 炼金单元 it throws as it starts; it is then an instant skill (技能-13)
+ * @property {'start' | 'end'} [doll] the skill switches a 傀儡师 to its 替身 as it starts, or after it ends on its own (职业-15)
  */
 /**
  * What a skill's 炼金单元 does (技能-13). `at`: thrown at the enemies (the operator's target, else the farthest tile ahead in
@@ -210,7 +211,7 @@
  * @property {{ cells: Cell[], scale: number, outside: boolean } | null} zone its attack's (or heal's) 倍率 × scale for a target
  *   inside these tiles around it, turned with it — or, `outside`, for one outside them (职业-11)
  * @property {Chain | null} chain its attack or heal jumps on from its first target (职业-11)
- * @property {number} healOnHit a hit of its attack that deals damage heals the most wounded operator in its range by this share of it (职业-11)
+ * @property {number} healOnHit damage it deals an enemy heals one operator by this share of that damage (职业-11)
  * @property {boolean} attackInSkill it makes normal attacks only while its skill runs (职业-12)
  * @property {Record<string, number>} idleMods modifiers while its skill does not run (职业-12)
  * @property {Record<string, boolean>} idleFlags flags while its skill does not run (职业-12)
@@ -715,6 +716,7 @@
  *   its 失衡 slide: speed (tiles/s) and 硬直 frames left (位移-3); a pull on it — its point, its puller's centre, its force,
  *   the distance it began at, its frames left, whether it stopped (位移-4)
  * @property {number} anim schema ANIM
+ * @property {Drift} [drift] 恐惧 / 诱导 movement, present once either has been applied (状态-10, 状态-11)
  * @property {number} [summoner] the id of the unit that summoned it (召唤-4, 召唤-6); left out for others
  * @property {number} [expires] the frame a summon with a time leaves at (召唤-9); left out for others
  * @property {{ level: number, top: number, pts: number }} [fac] a facility's level, highest level reached and progress (守御-3)
@@ -725,6 +727,34 @@
  * An attack under way (攻击-2): frames until it lands, frames since it began, the ids of its locked targets, its mods;
  * a channel's hits still to come (敌能-6).
  * @typedef {{ wind: number, since: number, targets: number[], mods: import('./skills.js').AttackMods, left?: number, now?: boolean, free?: boolean }} Swing
+ */
+/**
+ * 恐惧 / 诱导 movement kept on the enemy (状态-10, 状态-11), so a snapshot restores the same frames. `way` is the
+ * temporary path as flat [x, y, …]; `head` is the point it walks toward. `marks` are attract targets in application
+ * order, `n` matching the buff's counter. `placed` is 1 after a frame of this movement has recorded `seenX`/`seenY`.
+ * @typedef {object} Drift
+ * @property {number} fearSeq how many fears have been applied
+ * @property {number} seenSeq the application the tile list was built for
+ * @property {number} fearN fear buffs seen at the end of the last fear frame
+ * @property {number} self 1 when the fear has no source or the source is the enemy
+ * @property {number} hx hit position when the latest fear was applied
+ * @property {number} hy
+ * @property {number} srcX effect-source position then
+ * @property {number} srcY
+ * @property {number[]} tiles reachable tile keys, with too-far picks already removed
+ * @property {number} aim checkpoint tile key, −1 when there is none
+ * @property {number} ax checkpoint x
+ * @property {number} ay checkpoint y
+ * @property {number[]} way
+ * @property {number} head
+ * @property {number} placed
+ * @property {number} seenX position at the end of the last induced frame
+ * @property {number} seenY
+ * @property {string} stamp grid stamp that path was planned against
+ * @property {string} mode 'fear', 'attract', or ''
+ * @property {number} nextMark next attract mark id
+ * @property {number} attractN mark id the path currently aims at
+ * @property {{ n: number, src: number, x: number, y: number, fixed: number }[]} marks
  */
 /**
  * A delayed explosion (敌能-3): where, how far it reaches, frames left, whether it reaches flying units, its source's id
@@ -768,6 +798,7 @@
  * @property {number} ammo shots left of an ammo skill
  * @property {number} at the frame it started
  * @property {number} [spend] the deployment cost it takes to start (技能-10)
+ * @property {boolean} [dollPending] set until this frame's flush when the skill has asked to switch to the 替身 (职业-15); absent otherwise, so a snapshot of a skill that never asked stays the same
  */
 
 /**
