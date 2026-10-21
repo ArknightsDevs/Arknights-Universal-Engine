@@ -52,6 +52,8 @@ export const BOLT_RADIUS = 0.3;
  * @property {{ get: (k: string) => number, set: (k: string, v: number) => void }} state its own ability state
  * @property {boolean} blocked
  * @property {boolean} hurt it took damage since its last turn
+ * @property {number} taken how many accepted hits it has taken, at the 受击回复 gate, since an ability of its first read this
+ *   (敌能-38); an enemy no ability asks about keeps no count
  * @property {boolean} unblocked its block ended since its last turn
  * @property {boolean} fell it fell into a 地穴 (地图-4)
  * @property {boolean} ready a skill's cooldown is over
@@ -158,6 +160,7 @@ function contextOf(w, c, e, of) {
     state: { get: (k) => ab[`${name}.${k}`] ?? 0, set: (k, v) => { ab[`${name}.${k}`] = v; } },
     blocked: e.blockedBy >= 0,
     hurt: (ab['@hurt'] ?? 0) === 1,
+    get taken() { if (!Object.hasOwn(ab, '@taken')) ab['@taken'] = 0; return ab['@taken']; },
     unblocked: (ab['@unblocked'] ?? 0) === 1,
     fell: (ab['@fell'] ?? 0) === 1,
     ready: skill !== null && (ab[`${name}.cd`] ?? 0) <= 0,
@@ -169,11 +172,7 @@ function contextOf(w, c, e, of) {
     allies: (radius) => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0 && !u.hidden && dist2(u, e) <= radius * radius),
     talentOf: (u, t) => (u.kind === KIND.ENEMY ? defOf(c, u).talents?.[t] ?? null : null),
     buffValue: (u, key) => u.buffs.find((b) => b.key === key)?.value ?? null,
-    setBuff: (u, key, value, mods) => {
-      const b = u.buffs.find((x) => x.key === key);
-      if (b) retune(u, b, value, mods);
-      else addBuff(u, makeBuff({ key, src: e.id, value, mods }));
-    },
+    setBuff: (u, key, value, mods) => { setBuffOf(e, u, key, value, mods); },
     blocker: () => (e.blockedBy >= 0 ? w.units.find((u) => u.id === e.blockedBy) ?? null : null),
     tagsOf: (u) => (u.kind === KIND.ENEMY ? defOf(c, u).tags ?? [] : []),
     tileKey: () => { const [r, col] = tileOf(e); return tileAt(c.level, r, col)?.key ?? ''; },
@@ -200,6 +199,16 @@ function contextOf(w, c, e, of) {
     around: (t, area) => around(w, e, t, area),
     enemies: () => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0),
   };
+}
+
+/**
+ * The context's `setBuff` (敌能-2): retunes the buff of this key the unit holds, or gives it one from the enemy.
+ * @param {Unit} e @param {Unit} u @param {string} key @param {number} value @param {Record<string, number>} mods
+ */
+function setBuffOf(e, u, key, value, mods) {
+  const b = u.buffs.find((x) => x.key === key);
+  if (b) retune(u, b, value, mods);
+  else addBuff(u, makeBuff({ key, src: e.id, value, mods }));
 }
 
 /** Frames a lent buff lasts without being given again (敌能-25): it outlasts the next frame's buff tick. */
