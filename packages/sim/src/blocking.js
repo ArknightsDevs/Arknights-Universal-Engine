@@ -1,5 +1,6 @@
 // Blocking (docs/spec/blocking.md 阻挡-1…阻挡-4): an operator stops the enemies that come within its block radius, as
 // many as its block count holds; a blocked enemy stays where it is until it is released.
+import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { tileAt } from './level.js';
@@ -7,6 +8,7 @@ import { tileOf } from './body.js';
 import { BLOCK_RADIUS_SQ } from './constants.js';
 import { friendly } from './targeting.js';
 import { sameGround } from './works.js';
+import { makeBuff, addBuff, setLeft, removeBuff } from './buffs.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./attrs.js').Stats} Stats */
@@ -15,7 +17,7 @@ import { sameGround } from './works.js';
 export const canBlock = (s) => !(s.flags.stun || s.flags.sleep || s.flags.sidelined);
 
 /** Whether an enemy can be blocked now (阻挡-1): not 无法被阻挡, 恐惧, 浮空 or 沉睡. @param {Stats} s */
-export const blockable = (s) => !(s.flags.unblockable || s.flags.fear || s.flags.levitate || s.flags.sleep);
+export const blockable = (s) => !(s.flags.unblockable || s.flags.fear || s.flags.attract || s.flags.levitate || s.flags.sleep);
 
 /** The enemies a unit blocks, in the order they were blocked (阻挡-3). @param {World} w @param {Unit} op @returns {Unit[]} */
 export function heldBy(w, op) {
@@ -53,10 +55,40 @@ export function blockBy(w, e, by) {
   return e.blockedBy === by.id;
 }
 
-/** Releases an enemy (阻挡-3). @param {Unit} e */
+/** 3 seconds, in frames (索敌-2, 时间-2): the delay when a stealth source does not name its own. */
+const STEALTH_RESTORE = secondsToFrames(3);
+
+/** The frames a stealth source waits after the block ends (索敌-2): its `restore`, or 3 seconds. @param {import('./types.js').Buff} b */
+const restoreFrames = (b) => (typeof b.restore === 'number' ? b.restore : STEALTH_RESTORE);
+
+/**
+ * Starts each stealth source's restore window (索敌-2). A source with no positive delay drops its window, and that pass
+ * is second so it wins when two sources share a key — one source still outside a window keeps 隐匿.
+ * @param {Unit} e
+ */
+function armStealth(e) {
+  if (e.kind !== KIND.ENEMY || e.hp <= 0) return;
+  const sources = e.buffs.filter((b) => b.flags.stealth);
+  for (const b of sources) {
+    const frames = restoreFrames(b);
+    if (!(frames > 0)) continue;
+    const key = `stealthOff:${b.key}`, off = e.buffs.find((o) => o.key === key);
+    if (off) setLeft(off, frames);
+    else addBuff(e, makeBuff({ key, flags: { stealthOff: true }, left: frames }));
+  }
+  for (const b of sources) if (!(restoreFrames(b) > 0)) removeBuff(e, `stealthOff:${b.key}`);
+}
+
+/**
+ * Releases an enemy (阻挡-3). Letting go of a block — and only that — starts its 隐匿 windows (索敌-2), so retreat,
+ * a fallen blocker and a kit's unblock all do.
+ * @param {Unit} e
+ */
 export function release(e) {
+  const held = e.blockedBy >= 0;
   e.blockedBy = -1;
   e.blockedAt = -1;
+  if (held) armStealth(e);
 }
 
 /**
@@ -74,13 +106,15 @@ function deployOffset(w, op, e) {
 }
 
 /**
- * Whether `op` may take `e` now (阻挡-2): it is alive and can block, it blocks this motion, and its block count holds
- * the enemy's weight on top of what it already holds.
+ * Whether `op` may take `e` now (阻挡-2, 阻挡-1): it is alive and can block, it is not refusing new contact
+ * (`noNewBlock`), it blocks this motion, and its block count holds the enemy's weight on top of what it already holds.
+ * A unit with `noNewBlock` keeps enemies it already blocks; 迷狂牢笼 judges new blocks when it is created or refreshed
+ * (character_table token_10055_phatm2_mndclv.description), and content assigns those with `blockBy`.
  * @param {World} w @param {Content} c @param {Unit} op @param {Stats} es
  */
 function takes(w, c, op, es) {
   const os = statsOf(op), cap = blockCap(c, op);
-  if (op.hp <= 0 || !canBlock(os) || !blocksMotion(c, op, os, es.flying) || cap <= 0) return false;
+  if (op.hp <= 0 || !canBlock(os) || os.flags.noNewBlock || !blocksMotion(c, op, os, es.flying) || cap <= 0) return false;
   return blockLoad(w, op) + es.blockCnt <= cap;
 }
 
@@ -95,22 +129,33 @@ function blockCap(c, op) {
 }
 
 /**
- * Blocks an enemy if it can be (阻挡-1): of the units that may take it and whose block radius it is inside —
- * (dx² + dy²) < r², r² = 0.49999037 for ground enemies, 0.79995137 for flying ones — the nearest, the earliest
- * created of equals. Returns whether the enemy is blocked.
+ * Squared block radius of one candidate (常量-3). Ground stays 0.49999037. Flying is 0.79995137 × k², where
+ * k = 1 + the summed `blockRadiusScale` additives (推断 INF-0288), at least 0: the default lower bound of 阻挡半径倍率
+ * (数值范围). A negative sum shrinks the flying radius, down to nothing.
+ * @param {Stats} os @param {boolean} flying
+ */
+function radiusSq(os, flying) {
+  if (!flying) return BLOCK_RADIUS_SQ.ground;
+  const scale = 1 + (os.sum.blockRadiusScale ?? 0), k = scale > 0 ? scale : 0;
+  return BLOCK_RADIUS_SQ.fly * k * k;
+}
+
+/**
+ * Blocks an enemy if it can be (阻挡-1): of the units that may take it and whose own block radius it is inside —
+ * (dx² + dy²) < r², r² from 常量-3 for that unit — the nearest, the earliest created of equals. Returns whether the
+ * enemy is blocked.
  * @param {World} w @param {Content} c @param {Unit} e
  */
 export function tryBlock(w, c, e) {
   if (e.blockedBy >= 0) return true;
   const es = statsOf(e);
   if (e.hidden || e.base.neutral === true || !blockable(es)) return false;
-  const r2 = es.flying ? BLOCK_RADIUS_SQ.fly : BLOCK_RADIUS_SQ.ground;
   /** @type {Unit | null} */
   let best = null, bd = Infinity;
   for (const op of w.units) {
     if (op.kind === KIND.ENEMY || !friendly(op) || !sameGround(c, op, e)) continue;
     const dx = e.x - op.x, dy = e.y - op.y, d2 = dx * dx + dy * dy;
-    if (d2 < r2 && d2 < bd && takes(w, c, op, es)) { best = op; bd = d2; }
+    if (d2 < radiusSq(statsOf(op), es.flying) && d2 < bd && takes(w, c, op, es)) { best = op; bd = d2; }
   }
   if (!best) return false;
   e.blockedBy = best.id;
