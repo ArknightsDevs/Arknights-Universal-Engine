@@ -20,6 +20,10 @@ import { withKitTrait } from '../src/compat/kits.js';
 const OPS = join(oracleDir(), 'server', 'sim', 'content', 'kits', 'ops');
 /** @type {[string, string, Function][]} file, character id, factory */
 const kits = [];
+/** The chess kits' modules by file, and the files that did not load with why. @type {Map<string, any>} */
+const chessKits = new Map();
+/** @type {string[]} */
+const chessFailed = [];
 before(async () => {
   const compat = new URL('../src/compat/', import.meta.url).href;
   register(new URL('hook.js', compat), { data: { root: pathToFileURL(`${oracleDir()}/`).href, compat } });
@@ -27,6 +31,13 @@ before(async () => {
     const mod = await loadUnderGrid(() => import(pathToFileURL(join(OPS, f)).href));
     const [charId, factory] = Object.entries(mod.default)[0];
     kits.push([f, charId, factory]);
+  }
+  for (const f of readdirSync(OPS).filter((x) => x.startsWith('chess_')).sort()) {
+    try {
+      chessKits.set(f, await loadUnderGrid(() => import(pathToFileURL(join(OPS, f)).href)));
+    } catch (e) {
+      chessFailed.push(`${f}: ${/** @type {Error} */ (e).message}`);
+    }
   }
 });
 
@@ -44,6 +55,15 @@ test('[兼容-2] the pinned oracle’s 72 operator kits load unchanged; a name t
   assert.equal(kits.length, 72);
   for (const [f, charId, factory] of kits) assert.equal(typeof factory, 'function', `${f} ${charId}`);
   assert.throws(() => targeting.aggroCmp(), (e) => e instanceof CompatGap && e.what === 'targeting.aggroCmp');
+});
+
+test('[兼容-2] the pinned oracle’s 129 chess kits load too, each exporting the factories of its chess records', () => {
+  assert.deepEqual(chessFailed, []);
+  assert.equal(chessKits.size, 129);
+  for (const [f, mod] of chessKits) {
+    const entries = Object.entries(mod.default ?? {});
+    assert.ok(entries.length > 0 && entries.every(([k, v]) => k.startsWith('chess_char_') && typeof v === 'function'), f);
+  }
 });
 
 test('[兼容-2] the stand-in direction helpers: facing-RIGHT offsets turned a quarter per step, row 0 at the bottom', () => {
@@ -114,4 +134,7 @@ test('[兼容-5] a kitted operator follows its kit’s trait: no aftershock besi
   assert.deepEqual([soul.trait?.summonBlocked, soul.trait?.summonBlockedScale], [true, 1], 'its kit multiplies its hits itself');
   const plain = { ...op, branch: 'sword', trait: { hits: 2 } };
   assert.equal(withKitTrait(plain, entry({}), lv), plain, 'nothing to follow: the record as it is');
+  const moduled = withKitTrait({ ...op, branch: 'executor', trait: { whiles: [{ when: 'alone4', mods: { atkPct: 0.1 } }], vs: [{ when: 'near', atk: 1.1 }], far: { min: 1, max: 4, dmg: 0.1 } } }, entry({}), lv);
+  assert.deepEqual([moduled.trait?.whiles, moduled.trait?.vs, moduled.trait?.far, moduled.trait?.crowd, moduled.trait?.packed], [[], [], null, null, null],
+    'a module\'s trait additions are its kit\'s (职业-17, 职业-18)');
 });

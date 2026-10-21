@@ -201,12 +201,15 @@ export const SPEC_BEHAVIOR = Object.freeze({
   /** @param {any} ctx @param {any} mods */
   /**
    * A spec's attacks (兼容-5): the operator's own attack with the spec's overrides only — the blackboard's attack keys are
-   * the spec's to read (令's S3 atk_scale is its pulses', not her attacks').
+   * the spec's to read (令's S3 atk_scale is its pulses', not her attacks'), and so are the timed modifiers, HP back,
+   * 元素损伤 and push or pull its description gives the engine's skill (技能-9).
    * @param {any} ctx @param {any} mods
    */
   attack(ctx, mods) {
     const r = specOf(ctx.self);
-    return r ? attackOf(r.spec, { ...mods, scale: 1, times: 1, targets: 1 }) : mods;
+    if (!r) return mods;
+    const { hitDebuff: _d, selfHeal: _h, epScale: _e, displace: _p, ...own } = mods;
+    return attackOf(r.spec, { ...own, scale: 1, times: 1, targets: 1 });
   },
 });
 

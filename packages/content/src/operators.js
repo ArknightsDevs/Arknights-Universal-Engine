@@ -4,8 +4,16 @@
 import index from '../data/operators/index.json' with { type: 'json' };
 import { withTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
-import { unlockedAt, talentsAt, alwaysOnBb, teamPart, rangePart, critPart, timedPart, deployPart } from './talents.js';
+import { unlockedAt, talentsAt, alwaysOnBb, alwaysModsOf, teamPart, rangePart, critPart, timedPart, deployPart, forSkill } from './talents.js';
+import { whileParts, targetPart, hitPart, attackPart, stackPart, spParts, gritPart, auraParts, perParts, specialParts } from './talentparts.js';
+import { deckParts } from './talentdeck.js';
+import { moreParts, talentRange } from './talentmore.js';
+import { aroundParts } from './talentaround.js';
+import { healParts } from './talentheal.js';
+import { fightParts } from './talentfight.js';
+import { lastParts } from './talentlast.js';
 import { dollOf } from './doll.js';
+import rangeTable from '../data/ranges.json' with { type: 'json' };
 
 /** @typedef {import('@aue/sim').OperatorDef} OperatorDef */
 /**
@@ -16,18 +24,19 @@ import { dollOf } from './doll.js';
 /** @typedef {Record<string, number>} Stats */
 /**
  * An operator's training data (干员-1…干员-5), as @aue/data writes it.
- * @typedef {{ name: string, position: 'MELEE' | 'RANGED', profession: string, branch: string, powers: string[], rarity: number,
+ * @typedef {{ name: string, appellation?: string, position: 'MELEE' | 'RANGED', profession: string, branch: string, powers: string[], rarity: number,
  *   mainPower: { nationId: string | null, groupId: string | null, teamId: string | null },
  *   phases: { maxLevel: number, range: { row: number, col: number }[], frames: { level: number, stats: Stats }[] }[],
  *   favor: { level: number, stats: Stats } | null, potentials: Stats[],
- *   skills: ({ id: string, phase: number, levels: import('./skills.js').SkillLevel[], token?: string } | null)[],
+ *   skills: ({ id: string, name: string, phase: number, levels: import('./skills.js').SkillLevel[], token?: string } | null)[],
  *   traits: { phase: number, level: number, potential: number, rangeId?: string, bb: Stats }[], talents: TalentCandidate[][], modules: Module[], tokens?: string[],
  *   description?: string | null }} Training
  */
 /**
- * A talent candidate (干员-4): unlock, name and description (null for a hidden one), range id, numeric and text blackboard.
+ * A talent candidate (干员-4): unlock, name and description (null for a hidden one), range id, numeric and text blackboard,
+ * the talent it is (prefabKey).
  * @typedef {{ phase: number, level: number, potential: number, name: string | null, description: string | null, rangeId: string | null,
- *   bb: Stats, text?: Record<string, string>, hidden: boolean, token: string | null }} TalentCandidate
+ *   bb: Stats, text?: Record<string, string>, hidden: boolean, token: string | null, prefab: string | null }} TalentCandidate
  */
 /**
  * A module (干员-5): its levels with the attribute additions (the operator's and each token's), and the parts.
@@ -35,10 +44,14 @@ import { dollOf } from './doll.js';
  *   levels: { level: number, stats: Stats, tokens: Record<string, Stats>, parts: ModulePart[] }[] }} Module
  */
 /**
+ * A module part's talent candidate (干员-5): the talent index and the talent it is (prefabKey), unlock, texts, blackboard.
+ * @typedef {{ index: number, prefab: string | null, phase: number, level: number, potential: number, name: string | null, upgrade: string | null,
+ *   rangeId: string | null, bb: Stats, text?: Record<string, string>, hidden: boolean, modes: number[] | null }} ModuleTalent
+ */
+/**
  * @typedef {{ target: string, token: boolean, gameTag: string | null, mapTag: string | null,
  *   trait: { phase: number, level: number, potential: number, add: string | null, override: string | null, rangeId: string | null, bb: Stats, text?: Record<string, string> }[],
- *   talents: { index: number, phase: number, level: number, potential: number, name: string | null, upgrade: string | null, rangeId: string | null,
- *     bb: Stats, text?: Record<string, string>, hidden: boolean, modes: number[] | null }[] }} ModulePart
+ *   talents: ModuleTalent[] }} ModulePart
  */
 
 /** Every operator there is training data for, by id: name, rarity, profession, branch. */
@@ -94,17 +107,39 @@ export function moduleAt(t, b) {
 }
 
 /**
- * The talents at a training (干员-6, 干员-7): each talent's own candidate, or the module's upgrade of it — the last
- * unlocked candidate of the level's talent parts (not a token's, valid in every mode and map) for that talent, its
- * upgrade text as the description.
+ * The unlocked candidates of a module level's talent parts that are the operator's (not a token's, valid in every mode
+ * and map), in order (干员-7).
+ * @param {Build} b @param {ModuleLevel | null} mod @returns {ModuleTalent[]}
+ */
+const moduleTalents = (b, mod) => (mod?.parts ?? []).filter((p) => p.target.startsWith('TALENT') && !p.token && !p.gameTag && !p.mapTag)
+  .flatMap((p) => p.talents.filter((c) => unlockedAt(c, b)));
+
+/**
+ * A talent as a module candidate that is it upgrades it (干员-7): the candidate's data, its upgrade text (or the talent's
+ * text), the talent's being hidden (or the candidate's), the candidate's range id (or the talent's).
+ * @param {ModuleTalent} c @param {import('./talents.js').Talent | null | undefined} cur @returns {import('./talents.js').Talent}
+ */
+const upgradeOf = (c, cur) => ({ description: c.upgrade || (cur?.description ?? null), bb: c.bb, hidden: cur ? cur.hidden : c.hidden, rangeId: c.rangeId ?? cur?.rangeId ?? null });
+
+/**
+ * The talents at a training (干员-6, 干员-7), with its module's upgrades. A module candidate that is one of the
+ * operator's talents (its prefabKey) upgrades it: the candidate's data, its upgrade text as the description; one more of
+ * these for a talent, the last. Then a shown candidate that is none of them adds to the talent at its index: its upgrade
+ * text, and its keys the talent does not have (the talent's own values kept). Hidden ones and those of no index are the
+ * module's own (hiddenAt).
  * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @returns {import('./talents.js').Talent[]}
  */
 function upgradedTalents(t, b, mod) {
   /** @type {(import('./talents.js').Talent | null)[]} */
-  const out = talentsAt(t, b);
-  for (const p of mod?.parts ?? []) {
-    if (!p.target.startsWith('TALENT') || p.token || p.gameTag || p.mapTag) continue;
-    for (const c of p.talents) if (c.index >= 0 && unlockedAt(c, b)) out[c.index] = { description: c.upgrade, bb: c.bb, hidden: c.hidden };
+  const out = talentsAt(t, b), cands = moduleTalents(b, mod);
+  const talentOf = (/** @type {ModuleTalent} */ c) => (c.prefab === null ? -1 : t.talents.findIndex((cs) => cs.some((x) => x.prefab === c.prefab)));
+  for (const c of cands) {
+    const i = talentOf(c);
+    if (i >= 0) out[i] = upgradeOf(c, out[i]);
+  }
+  for (const c of cands) {
+    const cur = c.index >= 0 && !c.hidden && talentOf(c) < 0 ? out[c.index] : null;
+    if (cur) out[c.index] = { description: c.upgrade || cur.description, bb: { ...c.bb, ...cur.bb }, hidden: cur.hidden, rangeId: cur.rangeId ?? null };
   }
   return out.filter((c) => c !== null);
 }
@@ -125,29 +160,82 @@ export function traitAt(t, b, mod = moduleAt(t, b)) {
 }
 
 /**
- * The team parts of a training's talents (干员-9), with its module's upgrades: those for the deck and those on the field.
- * @param {Training} t @param {Build} b
+ * The talents at a training with its module's upgrades (干员-7). @param {Training} t @param {Build} b
+ * @returns {import('./talents.js').Talent[]}
+ */
+export const upgradedTalentsAt = (t, b) => upgradedTalents(t, b, moduleAt(t, b));
+
+/** The blackboard of a training's module's own talents (干员-7). @param {Training} t @param {Build} b @returns {Stats} */
+export const moduleOwnAt = (t, b) => hiddenAt(b, moduleAt(t, b));
+
+/**
+ * The team parts of a training's talents (干员-9), with its module's upgrades: those for the deck and those on the field,
+ * the deck parts' (干员-29, 干员-31) after them.
+ * @param {Training} t @param {Build} b @returns {{ deck: import('@aue/sim').TeamTalent[], field: import('@aue/sim').TeamTalent[] }}
  */
 export function teamTalentsAt(t, b) {
-  const parts = upgradedTalents(t, b, moduleAt(t, b)).map(teamPart).filter((p) => p !== null);
-  return { deck: parts.filter((p) => p.when === 'deck'), field: parts.filter((p) => p.when === 'field').map(({ when, ...rest }) => rest) };
+  const talents = upgradedTalents(t, b, moduleAt(t, b)), parts = talents.map(teamPart).filter((p) => p !== null), decks = talents.map(deckParts);
+  return { deck: [...parts.filter((p) => p.when === 'deck'), ...decks.flatMap((p) => p?.deck ?? []), ...talents.flatMap((c) => aroundParts(c)?.deck ?? [])],
+    field: [...parts.filter((p) => p.when === 'field').map(({ when, ...rest }) => rest), ...decks.flatMap((p) => p?.field ?? [])] };
+}
+
+/** A list field when it has items. @param {string} k @param {unknown[]} v */
+const listed = (k, v) => (v.length ? { [k]: v } : {});
+
+/**
+ * What a training's talents add to its trait (干员-17…干员-34, 职业-24…职业-35): their conditional parts (`whiles`, the
+ * special parts' too), target parts (`vs`, the special parts' too), preferred targets (`prefer`), answers to bursts
+ * (`burstOn`), pulses (`pulses`), hit parts (`onHit`), what they add to the attacks — 法术伤害 riding on each
+ * hit (`extraArts`, summed), more targets (`targets`, the most) —, their stacks (`stacks`, the special parts' too), SP (`talentSp`), 坚忍 (`grit`,
+ * the first), auras on blocked enemies (`auras`), next attacks (`nextAttack`) and the special, deck and other parts'
+ * (干员-29…干员-34) single fields (the first of each), their hit parts after the others'; null when there is none.
+ * @param {import('./talents.js').Talent[]} talents @returns {Partial<import('@aue/sim').TraitDef> | null}
+ */
+function talentTraitOf(talents) {
+  const attacks = talents.map(attackPart).filter((p) => p !== null), extraArts = attacks.reduce((n, p) => n + (p.extraArts ?? 0), 0);
+  const targets = Math.max(0, ...attacks.map((p) => p.targets ?? 0)), grit = talents.map(gritPart).find((p) => p !== null), packed = attacks.find((p) => p.packed)?.packed;
+  const auras = talents.flatMap((c) => auraParts(c, rangeTable.ranges).auras);
+  const special = [...talents.map((c) => specialParts(c).trait), ...talents.map((c) => deckParts(c)?.trait ?? null), ...talents.map(moreParts), ...talents.map((c) => aroundParts(c)?.trait ?? null),
+    ...talents.map((c) => healParts(c)?.trait ?? null), ...talents.map((c) => fightParts(c)?.trait ?? null),
+    ...talents.map((c) => lastParts(c)?.trait ?? null)]
+    .filter((p) => p !== null);
+  const singles = Object.assign({}, ...special.map(({ whiles, nextAttack, vs, prefer, stacks, burstOn, pulses, onHit, fieldBuffs, ...rest }) => rest).reverse());
+  const out = {
+    ...singles, ...listed('whiles', [...talents.flatMap(whileParts), ...talents.flatMap(perParts), ...special.flatMap((p) => p.whiles ?? [])]),
+    ...listed('nextAttack', special.flatMap((p) => p.nextAttack ?? [])), ...listed('vs', [...talents.map(targetPart).filter((p) => p !== null), ...special.flatMap((p) => p.vs ?? [])]),
+    ...listed('prefer', special.flatMap((p) => p.prefer ?? [])), ...listed('burstOn', special.flatMap((p) => p.burstOn ?? [])),
+    ...listed('pulses', special.flatMap((p) => p.pulses ?? [])), ...listed('fieldBuffs', special.flatMap((p) => p.fieldBuffs ?? [])),
+    ...listed('onHit', [...talents.map(hitPart).filter((p) => p !== null), ...special.flatMap((p) => p.onHit ?? [])]), ...(extraArts > 0 ? { extraArts } : {}), ...(targets > 0 ? { targets } : {}),
+    ...listed('stacks', [...talents.map(stackPart).filter((p) => p !== null), ...special.flatMap((p) => p.stacks ?? [])]), ...listed('talentSp', talents.flatMap(spParts)), ...(grit ? { grit } : {}), ...listed('auras', auras),
+    ...(packed ? { packed } : {}),
+  };
+  return Object.keys(out).length ? out : null;
 }
 
 /**
- * The talent fields of an operator record (干员-6, 干员-9, 干员-11…干员-14): the always-on part's 部署费用 and 再部署时间
- * to fold in and the rest as `talentBb`, the on-field team talents, the in-range, chance, timed and deployment talents — each only
- * when there is one.
+ * The talent fields of an operator record (干员-6, 干员-9, 干员-11…干员-14, 干员-16…干员-19): the talents as they read for
+ * the skill brought (干员-6); the always-on part's 部署费用 and 再部署时间 to fold in and the rest as `talentBb`, its
+ * effects' modifiers as `talentMods`, the on-field team talents, the in-range, chance, timed and deployment talents, what
+ * they add to the trait (`talentTrait`), and the attack speed it gives every unit while on the field (引星棘刺's 视界:
+ * `attack_speed_ally`, `attack_speed_enemy`, doubled on straight roads of `cnt` tiles: 部署-5) — each only when there is one.
  * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod
  */
 function talentFields(t, b, mod) {
-  const talents = upgradedTalents(t, b, mod), { cost = 0, respawn_time: respawn = 0, ...talentBb } = alwaysOnBb(talents);
+  const talents = upgradedTalents(t, b, mod).map((c) => forSkill(c, b.skill)), { cost = 0, respawn_time: respawn = 0, ...talentBb } = alwaysOnBb(talents);
+  const talentMods = alwaysModsOf(talents), talentTrait = talentTraitOf(talents);
   /** @type {[string, unknown[]][]} */
-  const lists = [['fieldTalents', teamTalentsAt(t, b).field], ['rangeTalents', talents.map(rangePart).filter((p) => p !== null)],
-    ['critTalents', talents.map(critPart).filter((p) => p !== null)], ['timedTalents', talents.map(timedPart).filter((p) => p !== null)],
+  const lists = [['fieldTalents', teamTalentsAt(t, b).field],
+    ['rangeTalents', [...talents.map(rangePart).filter((p) => p !== null), ...talents.flatMap((c) => auraParts(c, rangeTable.ranges).range), ...talents.flatMap((c) => specialParts(c).range),
+      ...talents.flatMap((c) => aroundParts(c)?.range ?? []), ...talents.flatMap((c) => healParts(c)?.range ?? []),
+      ...talents.flatMap((c) => fightParts(c)?.range ?? []), ...talents.flatMap((c) => lastParts(c)?.range ?? [])]],
+    ['critTalents', [...talents.map(critPart).filter((p) => p !== null), ...talents.flatMap((c) => fightParts(c)?.crit ?? []), ...talents.flatMap((c) => lastParts(c)?.crit ?? [])]], ['timedTalents', talents.map(timedPart).filter((p) => p !== null)],
     ['deployTalents', talents.map(deployPart).filter((p) => p !== null)]];
+  const aspd = talents.find((x) => Number.isFinite(x.bb.attack_speed_ally) && Number.isFinite(x.bb.attack_speed_enemy))?.bb;
   return {
     cost, respawn,
-    fields: { ...(Object.keys(talentBb).length ? { talentBb } : {}), ...Object.fromEntries(lists.filter(([, v]) => v.length > 0)) },
+    fields: { ...(Object.keys(talentBb).length ? { talentBb } : {}), ...(Object.keys(talentMods).length ? { talentMods } : {}), ...Object.fromEntries(lists.filter(([, v]) => v.length > 0)),
+      ...(talentTrait ? { talentTrait } : {}),
+      ...(aspd ? { fieldAspd: { ally: aspd.attack_speed_ally, enemy: aspd.attack_speed_enemy, cnt: aspd.cnt ?? 6, allyExtra: aspd.attack_speed_ally_extra ?? 0, enemyExtra: aspd.attack_speed_enemy_extra ?? 0 } } : {}) },
   };
 }
 
@@ -158,30 +246,60 @@ function talentFields(t, b, mod) {
  * or module not unlocked yet.
  * @param {Training} t @param {Build} b @returns {OperatorDef}
  */
-export const operatorAt = (t, b) => recordAt(t, b, moduleAt(t, b));
+export const operatorAt = (t, b) => recordAt(t, b, moduleAt(t, b), (b.module ?? -1) >= 0 ? t.modules[/** @type {number} */ (b.module)]?.type : undefined);
 
 /**
- * The blackboard of a module level's hidden talents (干员-7): the unlocked candidates of its talent parts that upgrade no
- * talent of the operator (index −1; not a token's, valid in every mode and map), in order — what the module adds to its
- * trait without a blackboard of the trait's own (解放者 LIB-X 「部署后获得+100%加成」: init_atk).
+ * The blackboard of a module level's own talents (干员-7): its unlocked talent candidates (not a token's, valid in every
+ * mode and map) that are hidden or of no talent index (−1, −2), merged in order — what the module adds to its trait
+ * without a blackboard of the trait's own (解放者 LIB-X 「部署后获得+100%加成」: init_atk; the effects of a part that only
+ * shows a trait line, such as 杰西卡 MAR-Y's attack_speed 8).
  * @param {Build} b @param {ModuleLevel | null} mod @returns {Stats}
  */
-function hiddenAt(b, mod) {
-  /** @type {Stats} */
-  let bb = {};
-  for (const p of mod?.parts ?? []) {
-    if (!p.target.startsWith('TALENT') || p.token || p.gameTag || p.mapTag) continue;
-    for (const c of p.talents) if (c.index < 0 && unlockedAt(c, b)) bb = { ...bb, ...c.bb };
-  }
-  return bb;
+const hiddenAt = (b, mod) => Object.assign({}, ...moduleTalents(b, mod).filter((c) => c.index < 0 || c.hidden).map((c) => c.bb));
+
+/**
+ * The text a module level adds to its operator's trait (干员-5): its trait parts' unlocked candidates' added and
+ * replacing descriptions (not a token's, valid in every mode and map), in order, joined.
+ * @param {Build} b @param {ModuleLevel | null} mod
+ */
+const moduleTextAt = (b, mod) => (mod?.parts ?? []).filter((p) => (p.target.startsWith('TRAIT') || p.target === 'DISPLAY') && !p.token && !p.gameTag && !p.mapTag)
+  .flatMap((p) => p.trait.filter((c) => unlockedAt(c, b)).map((c) => `${c.add ?? ''}${c.override ?? ''}`)).join('\n');
+
+/**
+ * The attack range a module level gives its operator (干员-7): the last of its own talents' unlocked candidates (index
+ * −1, −2; not a token's, valid in every mode and map) with a range id and no blackboard — the range of a part that only
+ * shows 「攻击范围扩大」 (夜莺 RIN-X y-3) —, as offsets (干员-8); null when none has one. A candidate with numbers and a range
+ * id is a talent's area, not the attack range (推进之王 SOL-Y x-5) — unless the module's text says 「攻击范围扩大」 (白面鸮
+ * RIN-X: y-3 beside its new SP aura).
+ * @param {Build} b @param {ModuleLevel | null} mod @returns {{ row: number, col: number }[] | null}
+ */
+function moduleRangeAt(b, mod) {
+  const widens = /攻击范围扩大/.test(moduleTextAt(b, mod).replace(/<[^>]*>/g, ''));
+  const id = moduleTalents(b, mod).filter((c) => c.index < 0 && c.rangeId && (widens || Object.keys(c.bb).length === 0)).at(-1)?.rangeId;
+  return id ? /** @type {Record<string, { row: number, col: number }[]>} */ (rangeTable.ranges)[id] ?? null : null;
+}
+
+/**
+ * A skill with what its operator's talents add to its 炼金单元 (技能-13): 锡人's 凋敝魂灵 `skill@damage_scale` (its damage ×),
+ * 引星棘刺's 心相 `projectile_extend` (seconds more while another operator is in her range), 旅骨's 潜水作业 `hitrate` and
+ * `heavy_hitrate` from 重量 `value` on (the ground enemies' 命中率 in it).
+ * @param {import('@aue/sim').SkillDef} skill @param {{ bb: Record<string, number> }[]} talents
+ */
+function withAlchemyTalents(skill, talents) {
+  if (!skill.alchemy) return skill;
+  const of = (/** @type {string} */ k) => talents.find((x) => Number.isFinite(x.bb[k]))?.bb, mul = of('skill@damage_scale')?.['skill@damage_scale'] ?? 0;
+  const extend = of('projectile_extend')?.projectile_extend ?? 0, hit = of('hitrate');
+  const hitRate = hit ? { mul: 1 + hit.hitrate, ...(Number.isFinite(hit.heavy_hitrate) ? { heavyMul: 1 + hit.heavy_hitrate, weight: hit.value ?? 3 } : {}) } : null;
+  return { ...skill, alchemy: { ...skill.alchemy, ...(mul > 0 ? { dmgMul: mul } : {}), ...(extend > 0 ? { extend } : {}), ...(hitRate ? { hitRate } : {}) } };
 }
 
 /**
  * A training's record (operatorAt) with the module level given: the operator's own, or what its owner's module gives a
  * summon (召唤-2).
- * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @returns {OperatorDef}
+ * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @param {string} [type] the module's type, for the branch trait (职业-7)
+ * @returns {OperatorDef}
  */
-export function recordAt(t, b, mod) {
+export function recordAt(t, b, mod, type) {
   const phase = t.phases[b.elite];
   if (!phase) throw new RangeError(`${t.name}: no elite phase ${b.elite}`);
   const slot = b.skill >= 0 ? t.skills[b.skill] : undefined;
@@ -189,10 +307,10 @@ export function recordAt(t, b, mod) {
   const s = statsAt(t, b, mod), level = slot ? slot.levels[clamp(b.skillLevel, 1, slot.levels.length) - 1] : null;
   const { cost, respawn, fields } = talentFields(t, b, mod), traitBb = traitAt(t, b);
   const rec = withTrait({
-    name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, range: phase.range, traitBb, hiddenBb: hiddenAt(b, mod),
+    name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, rarity: t.rarity, range: moduleRangeAt(b, mod) ?? talentRange(upgradedTalents(t, b, mod), rangeTable.ranges) ?? phase.range, traitBb, hiddenBb: hiddenAt(b, mod), ...(mod && type ? { moduleType: type, moduleText: moduleTextAt(b, mod) } : {}),
     maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: Math.max(0, s.cost + cost), blockCnt: s.blockCnt, baseAttackTime: s.baseAttackTime,
     respawnTime: Math.max(0, s.respawnTime + respawn), aspd: s.aspd, tauntLevel: s.tauntLevel, massLevel: s.massLevel,
-    ...fields, ...(slot && level ? { skill: skillDefOf(slot.id, level) } : {}),
+    ...fields, ...(slot && level ? { skill: withAlchemyTalents(skillDefOf(slot.id, level), upgradedTalents(t, b, mod)) } : {}),
   });
   // a 傀儡师's 替身: its own range, flying units, its attack and aura (职业-16)
   return rec.trait?.doll ? { ...rec, trait: { ...rec.trait, doll: { ...rec.trait.doll, ...dollOf(t, b, mod, traitBb) } } } : rec;

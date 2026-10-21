@@ -1,7 +1,7 @@
 // Screens on a page (docs/spec/ui.md 界面-1, 界面-3–界面-9), in a minimal document.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createUi, copyRect, DEF_RT, refNode } from '../src/index.js';
+import { createUi, copyRect, DEF_RT, refNode, LARGE_CANVAS_MAX } from '../src/index.js';
 import { fakeDocument, fakeHost } from './dom.js';
 
 /** @typedef {import('../src/node.js').PackNode} PackNode */
@@ -31,6 +31,11 @@ const pack = () => ({
       N('hidden', img('sprite/a', { mat: { kind: 'none' } })),
       N('add', img('sprite/a', { mat: { kind: 'add' } })),
       N('warped', img('sprite/a', { mat: { kind: 'none', fx: 'warp', noise: 'sprite/a', speed: [0.01, 0.01], amount: [0.02, 0.02] } })),
+      N('scroll', img('sprite/a', { type: 2, mat: { kind: 'uv', uv: [0.5, 0.25] } }), [], R({ size: [200, 100] })),
+      // the entry page's ground under its 3D map: a tile scrolling over 3000 × 3000, the edge cut by a circle over it
+      N('ground', img('sprite/a', { type: 2, mat: { kind: 'uv', uv: [0.5, 0.25] } }), [], R({ size: [3000, 3000] })),
+      N('edge', img(null, { type: 2, color: [0.5, 0.5, 0.5, 1], mat: { kind: 'circle', shape: [1, 0.49, 0.005, 0.5] } }), [], R({ size: [3000, 3000] })),
+      N('dot', img(null, { color: [0.5, 0.5, 0.5, 1], mat: { kind: 'circle', shape: [0.5, 0.3, 0.005, 0.005] } }), [], R({ size: [100, 100] })),
       N('label', { text: { text: 'hi', size: 20, style: 0, align: 4, color: [1, 1, 1, 1], best: 0, hwrap: 1, font: 'Novecentowide-Normal' } }),
       N('fit', { text: { text: '12345', size: 70, style: 0, align: 4, color: [1, 1, 1, 1], best: 1, min: 1, max: 70, hwrap: 0 }, csf: [0, 0] }, [], R({ size: [100, 92] })),
       N('btn', { button: PRESS, ...img('sprite/a') }, [N('collider', { nodraw: 'raycast' })]),
@@ -114,6 +119,17 @@ test('[界面-3] short of space, a group that sets its children\'s heights gives
   assert.ok(Math.abs(record.box[3] - 58.27991) < 1e-4, 'as the prefab saved it from Unity');
 });
 
+test('[界面-3] across, a group that sets the widths of its children holds the room there is between the minimum and preferred width of each', () => {
+  // the operator select page's skill text: a long description in a column of 100 takes the 100, not its one-line width
+  const le = (/** @type {number} */ min, /** @type {number} */ pref) => ({ le: { ignore: 0, min: [min, -1], pref: [pref, 20], flex: [-1, -1] } });
+  const column = N('column', { lg: { ...col, pad: [5, 5, 0, 0], cw: 1, ch: 1 } }, [N('long', le(-1, 300)), N('short', le(-1, 50)), N('wide', le(120, 300))], R({ size: [110, 100] }));
+  const ui = createUi({ pack: /** @type {any} */ ({ ...pack(), screens: { m: N('m', {}, [column]) } }), host: fakeHost(fakeDocument()) });
+  const s = ui.open('m');
+  ui.tick(0);
+  const w = (/** @type {string} */ name) => /** @type {any} */ (s.one(`column/${name}`)).box[2];
+  assert.deepEqual([w('long'), w('short'), w('wide')], [100, 50, 120], 'the inner 100; its own 50; never under its minimum 120');
+});
+
 test('[界面-4] texts that wrap at their width, and those sized to their own width or one line high that do not', () => {
   const { scr } = setup();
   const ws = (/** @type {string} */ name) => css(/** @type {any} */ (scr.one(name)).t).whiteSpace ?? '';
@@ -146,6 +162,35 @@ test('[界面-4] images: the sprite tinted, the colour without one, nothing for 
   scr.text('label', '<b>x</b>');
   assert.equal(/** @type {any} */ (scr.one('label')).t.textContent, 'x');
   assert.equal(css(/** @type {any} */ (scr.one('label')).t).fontFamily, 'var(--aue-ui-latin)');
+});
+
+test('[界面-4] a scrolling image: its background on an element inside it a period larger on every side, moved by a transform as time goes', () => {
+  const { ui, scr } = setup();
+  ui.tick(0);
+  const s = /** @type {any} */ (scr.one('scroll')), u = s.uv;
+  assert.ok(u && s.g.children.includes(u), 'the inner element');
+  assert.deepEqual([css(s.g).backgroundImage, css(s.g).overflow], ['none', 'hidden']);
+  assert.deepEqual([css(u).backgroundImage, css(u).backgroundSize, css(u).backgroundRepeat, css(u).left, css(u).top, css(u).width, css(u).height, css(u).willChange],
+    ['url("/u/sprites/a.webp")', '10px 10px', 'repeat', '-10px', '-10px', 'calc(100% + 20px)', 'calc(100% + 20px)', 'transform']);
+  assert.equal(css(u).transform, 'translate3d(0.0px, 0.0px, 0)');
+  ui.tick(0.5);
+  assert.equal(css(u).transform, 'translate3d(-2.5px, 1.3px, 0)', 'a quarter and an eighth of the period');
+});
+
+test('[界面-4] a large scrolling image and a large circle-cut colour are canvases of their own, at a capped resolution; small ones stay as they were', () => {
+  const { ui, scr } = setup();
+  ui.tick(0);
+  const ground = /** @type {any} */ (scr.one('ground')), edge = /** @type {any} */ (scr.one('edge')), dot = /** @type {any} */ (scr.one('dot'));
+  assert.equal(ground.uv.tagName, 'CANVAS', 'the tiles drawn once into a canvas');
+  assert.deepEqual([ground.uv.width, ground.uv.height], [LARGE_CANVAS_MAX, LARGE_CANVAS_MAX], '3020 square at most 2048 pixels');
+  assert.deepEqual([css(ground.uv).left, css(ground.uv).width, css(ground.uv).backgroundImage], ['-10px', 'calc(100% + 20px)', undefined]);
+  ui.tick(0.5);
+  assert.equal(css(ground.uv).transform, 'translate3d(-2.5px, 1.3px, 0)', 'moved as the small one is');
+  assert.equal(/** @type {any} */ (scr.one('scroll')).uv.tagName, 'DIV');
+  assert.equal(edge.uv.tagName, 'CANVAS', 'the ring drawn into a canvas');
+  assert.deepEqual([css(edge.g).maskImage ?? '', css(edge.g).backgroundImage, css(edge.uv).width], ['', 'none', '100%'], 'not masked by the browser');
+  assert.ok((css(dot.g).maskImage ?? '').startsWith('radial-gradient('), 'a small one is');
+  assert.equal(dot.uv, null);
 });
 
 test('[界面-9] graphics not drawn: an unknown material, a hidden mask graphic, a raycast-only graphic', () => {
@@ -235,4 +280,22 @@ test('[界面-8] templates instantiated into a list, their references resolved i
   assert.deepEqual(list.kids, [c, b]);
   assert.equal(scr.all.filter((s) => s.n.name === 'x').length, 2, 'the removed instance has left the screen');
   assert.throws(() => scr.instantiate(list, 'nothing'));
+});
+
+test('[界面-1] the pack\'s sprites load, each settled one counted for a loading screen, a missing one too', async () => {
+  const doc = fakeDocument(), ui = createUi({ pack: { ...pack(), sprites: { 'sprite/a': pack().sprites['sprite/a'], 'sprite/b': { w: 1, h: 1, uri: 'missing.webp' } } }, host: fakeHost(doc), base: 'http://x/' });
+  const real = /** @type {any} */ (globalThis).Image;
+  /** A stand-in image: loads unless its source names a missing file. */
+  /** @type {any} */ (globalThis).Image = class {
+    /** @type {(() => void) | null} */ onload = null;
+    /** @type {(() => void) | null} */ onerror = null;
+    set src(/** @type {string} */ v) { queueMicrotask(() => (v.includes('missing') ? this.onerror?.() : this.onload?.())); }
+  };
+  try {
+    /** @type {number[][]} */
+    const heard = [];
+    await ui.load((n, total) => heard.push([n, total]));
+    assert.deepEqual(heard, [[1, 2], [2, 2]]);
+    assert.deepEqual([...ui.ctx.imgs.keys()], ['sprite/a'], 'the missing one not kept');
+  } finally { /** @type {any} */ (globalThis).Image = real; }
 });

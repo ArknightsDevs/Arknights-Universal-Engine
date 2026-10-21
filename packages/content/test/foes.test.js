@@ -8,17 +8,18 @@ import { levelContent, FOE_EXTRAS } from '../src/index.js';
 
 /** @typedef {import('@aue/sim').World} World @typedef {import('@aue/sim').Unit} Unit */
 
-const real = levelContent('act1multi_01', 'NORMAL');
+const real = levelContent('act1multi_01', 'NORMAL'), gangs = levelContent('act1multi_06', 'NORMAL');
 
 /**
  * The tiny map with the real enemies and behaviours: `keys` spawn in frame 0 and are put at their (row, col), rooted;
- * then, in frame 1, operators (key, row, col) are deployed with all the cost they need, with a million HP.
- * @param {[string, number, number][]} foes @param {[string, number, number][]} ops
+ * then, in frame 1, operators (key, row, col) are deployed with all the cost they need, with a million HP. The enemies
+ * are act1multi_01's unless `from` gives a level's content.
+ * @param {[string, number, number][]} foes @param {[string, number, number][]} ops @param {any} [from]
  */
-function arena(foes, ops) {
+function arena(foes, ops, from = real) {
   const c = /** @type {any} */ (tinyContent());
-  c.enemies = { ...c.enemies, ...real.enemies };
-  c.behaviors = real.behaviors;
+  c.enemies = { ...c.enemies, ...from.enemies };
+  c.behaviors = from.behaviors;
   c.level.waves = [oneWave(foes.map(([k]) => spawnAt(0, k)))];
   c.level.options = { ...c.level.options, initialCost: 99, maxCost: 99, characterLimit: 9 };
   for (const o of Object.values(c.operators)) Object.assign(o, { cost: 0, maxHp: 1e6 });
@@ -70,6 +71,22 @@ test('[敌能-6] [敌能-5] "喷射罐": 3 arts hits over 4 s, then 3 s of coold
   const g0 = g.hp, ev2 = run(w, c, 2);
   assert.equal(ev2.filter((x) => x.type === 'blast').length, 1);
   assert.ok(g0 - g.hp > 0 && g.buffs.some((b) => b.key === 'cold' || b.key === 'enemyCold' || b.key === 'enemyFreeze'));
+});
+
+test('[敌能-5] [敌能-13] 辐能源石虫: its ordinary attack stays ordinary; knocked down, after 0.5 s an arts explosion of 400 % within 1.25, no cold, and 1 能量 for every other enemy with it', () => {
+  const { c, w, e, es, ops: [g], first } = arena([['enemy_1352_eslime', 1, 2], ['enemy_1356_egun', 2, 5]], [['guard', 1, 2]], gangs);
+  const ev = [...first, ...run(w, c, 120)];
+  const atk = attrs.statsOf(e).atk;
+  assert.ok(ev.filter((x) => x.type === 'attack' && x.id === e.id).length >= 2, 'it attacks at its interval');
+  assert.equal(HP - g.hp, ev.filter((x) => x.type === 'hit' && x.id === e.id).length * atk * (1 - 0 / 100), 'ordinary arts hits at 100 %');
+  const energy = (/** @type {any} */ u) => u.buffs.find((/** @type {any} */ b) => b.key === 'energy');
+  const before = energy(es[1])?.value ?? 0, g0 = g.hp;
+  e.hp = 0;
+  const after = run(w, c, 16);
+  assert.deepEqual(after.filter((x) => x.type === 'blast').map((x) => x.f), [w.frame - 1], 'knocked down, 15 frames later');
+  assert.equal(g0 - g.hp, atk * 4, 'arts, the guard has no RES');
+  assert.ok(!g.buffs.some((b) => b.key === 'cold'), 'no cold without freeze');
+  assert.equal(energy(es[1])?.value, before + 1);
 });
 
 test('[敌能-7] "投石机": the first attack reaches 2.5 tiles, arts, on the target and the tiles next to it; then melee only', () => {

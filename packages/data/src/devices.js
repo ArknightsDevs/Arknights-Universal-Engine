@@ -31,6 +31,28 @@ function attributesAt(phase, level, p) {
   }));
 }
 
+/** A deploy cost at a phase (守御-4): its first key frame's, when it has one. @param {unknown} phase @param {string} p */
+function costAt(phase, p) {
+  const frame = asObject(asArray(field(asObject(phase, p), 'attributesKeyFrames', p), `${p}.attributesKeyFrames`)[0], `${p}.attributesKeyFrames[0]`);
+  const data = asObject(field(frame, 'data', p), `${p}.data`);
+  return data.cost === undefined ? {} : { cost: asNumber(data.cost, `${p}.data.cost`, 0, 99) };
+}
+
+/**
+ * Each talent's blackboard at a phase, in order: its last candidate unlocked at it (a facility's modes, 守御-3).
+ * @param {Record<string, unknown>} c the character table entry @param {number} phase @param {string} p @returns {Record<string, number>[]}
+ */
+function talentList(c, phase, p) {
+  return asArray(c.talents ?? [], `${p}.talents`).map((t, i) => {
+    const cands = asArray(field(asObject(t, `${p}.talents[${i}]`), 'candidates', `${p}.talents[${i}]`), `${p}.talents[${i}].candidates`);
+    const unlocked = cands.filter((x) => (PHASE[String(/** @type {any} */ (x)?.unlockCondition?.phase)] ?? 0) <= phase).at(-1);
+    return Object.fromEntries(asArray(/** @type {any} */ (unlocked)?.blackboard ?? [], `${p}.talents[${i}].blackboard`).map((e) => {
+      const o = asObject(e, `${p}.talents[${i}].blackboard[]`);
+      return [asString(field(o, 'key', p), `${p}.key`), asNumber(field(o, 'value', p), `${p}.value`, -1e9, 1e9)];
+    }));
+  });
+}
+
 /**
  * Its talents' blackboard at a phase: every talent's last candidate unlocked at it, their keys merged in order.
  * @param {Record<string, unknown>} c the character table entry @param {number} phase @param {string} p @returns {Record<string, number>}
@@ -50,8 +72,9 @@ function talentBb(c, phase, p) {
 }
 
 /**
- * The records of the devices among a level's predefined units (关卡-6), by key: name, attributes and talents' blackboard
- * at the training its first instance has; none for the stage control.
+ * The records of the devices among a level's predefined units and token cards (关卡-6, 关卡-7), by key: name, attributes,
+ * talents' blackboard merged and each talent's (`talents`, 守御-3) at the training its first instance has, and its deploy
+ * cost (a token card's, 守御-4); none for the stage control.
  * @param {unknown} charTable character_table.json @param {unknown} raw level.predefines @returns {Record<string, Record<string, unknown>>}
  */
 export function devicesOf(charTable, raw) {
@@ -59,13 +82,17 @@ export function devicesOf(charTable, raw) {
   const pd = asObject(raw, 'level.predefines'), table = asObject(charTable, 'character_table');
   /** @type {Record<string, Record<string, unknown>>} */
   const out = {};
-  for (const k of ['characterInsts', 'tokenInsts']) {
+  for (const k of ['characterInsts', 'tokenInsts', 'tokenCards']) {
     for (const [i, x] of (Array.isArray(pd[k]) ? pd[k] : []).entries()) {
-      const p = `level.predefines.${k}[${i}]`, inst = asObject(field(asObject(x, p), 'inst', p), `${p}.inst`), key = asString(field(inst, 'characterKey', `${p}.inst`), `${p}.inst.characterKey`);
+      const p = `level.predefines.${k}[${i}]`, o = asObject(x, p), inst = asObject(field(o, 'inst', p), `${p}.inst`), key = asString(field(inst, 'characterKey', `${p}.inst`), `${p}.inst.characterKey`);
+      // a predefined operator (波次-7) is no device
+      if (k === 'characterInsts' && !o.alias && o.position) continue;
       if (key === STAGE_CONTROLLER || Object.hasOwn(out, key) || !Object.hasOwn(table, key)) continue;
       const cp = `character_table[${key}]`, c = asObject(table[key], cp), phase = PHASE[String(inst.phase)] ?? 0, level = typeof inst.level === 'number' ? inst.level : 1;
       const phases = asArray(field(c, 'phases', cp), `${cp}.phases`);
-      out[key] = { name: asString(field(c, 'name', cp), `${cp}.name`), ...attributesAt(phases[Math.min(phase, phases.length - 1)], level, `${cp}.phases[${phase}]`), talentBb: talentBb(c, phase, cp) };
+      const at = phases[Math.min(phase, phases.length - 1)], ap = `${cp}.phases[${phase}]`;
+      out[key] = { name: asString(field(c, 'name', cp), `${cp}.name`), ...attributesAt(at, level, ap), talentBb: talentBb(c, phase, cp), talents: talentList(c, phase, cp),
+        ...costAt(at, ap) };
     }
   }
   return out;

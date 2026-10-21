@@ -1,14 +1,16 @@
 // The deploy cards (docs/spec/ui.md 界面-10, 界面-23): one card a deck operator not on the field, in the deck's order along
 // the bottom of the screen — its avatar, profession, rarity, elite phase and deploy cost; greyed while it cannot be
-// deployed; the 再部署 countdown over it while it waits; raised while selected. A summon's card shows the copies held.
+// deployed; the 再部署 countdown over it while it waits; raised while selected. A summon's card shows the copies held, a
+// counted card (堡垒守御's builders, 界面-39) the cards left.
 import { refNode } from '../node.js';
 
 /** @typedef {import('../node.js').UiNode} UiNode */
 /** @typedef {import('../screen.js').Screen} Screen */
 /**
  * A deck operator's card as the page gives it: its avatar (a URL; none: the card has none), profession (the data's
- * name: WARRIOR, SNIPER, …), rarity 1–6, elite phase 0–2, 再部署时间 in seconds; `summon` for a summon's card (界面-23).
- * @typedef {{ id: string, avatar: string | null, profession: string, rarity: number, phase: number, respawn: number, summon?: boolean }} DeckCard
+ * name: WARRIOR, SNIPER, …), rarity 1–6, elite phase 0–2, 再部署时间 in seconds; `summon` for a summon's card (界面-23),
+ * `pool` for a counted card (界面-39).
+ * @typedef {{ id: string, avatar: string | null, profession: string, rarity: number, phase: number, respawn: number, summon?: boolean, pool?: boolean }} DeckCard
  */
 /**
  * What a card shows now: its cost, its countdown, whether it may be deployed, the copies a summon's card holds (−1: none shown).
@@ -21,9 +23,11 @@ import { refNode } from '../node.js';
  */
 /**
  * The deck's state: the frame and frames a second, the cost the player has, each card's cost now and the frame it may
- * be deployed again from, the operators on the field, how many more the player may deploy, the summon cards.
- * @typedef {{ frame: number, fps: number, cost: number, cards: Record<string, { cost: number, ready: number }>, deployed: string[], slots: number,
- *   summons?: Record<string, SummonCardState> }} DeckState
+ * be deployed again from, the operators on the field, how many more the player may deploy, the summon cards, the cards
+ * held back (the engine's 波次-9); the counted cards left and whether they may be deployed now (界面-39); a card locked
+ * by the enemy that devoured its operator (the engine's 敌能-30).
+ * @typedef {{ frame: number, fps: number, cost: number, cards: Record<string, { cost: number, ready: number, locked?: boolean }>, deployed: string[], slots: number,
+ *   summons?: Record<string, SummonCardState>, hidden?: string[], counts?: Record<string, number>, building?: boolean }} DeckState
  */
 
 /**
@@ -37,20 +41,35 @@ function countdown(d, s, ready) {
 }
 
 /**
- * The cards shown (界面-10, 界面-23): the deck's operators not on the field and the summon cards shown, in the deck's
- * order; an operator's usable when not waiting, its cost is paid and a deploy slot is left; a summon's when not waiting,
- * a copy is held, fewer are on the field than may be, its cost is paid and — when it takes a place — a slot is left.
+ * The cards shown (界面-10, 界面-23, 界面-39): the deck's operators not on the field nor held back, the summon cards shown
+ * and the counted cards with some left, in the deck's order; an operator's usable when not waiting nor locked, its cost
+ * is paid and a deploy slot is left; a summon's when not waiting, a copy is held, fewer are on the field than may be, its cost is paid
+ * and — when it takes a place — a slot is left; a counted card's when they may be deployed now and its cost is paid.
  * @param {DeckCard[]} deck @param {DeckState} s @returns {CardView[]}
  */
 export function cardViews(deck, s) {
-  return deck.filter((d) => (d.summon ? !!s.summons?.[d.id]?.shown : !s.deployed.includes(d.id))).map((d) => {
+  return deck.filter((d) => shownCard(d, s)).map((d) => {
+    if (d.pool) return poolView(d, s);
     if (d.summon) {
       const m = /** @type {SummonCardState} */ (s.summons?.[d.id]), t = countdown(d, s, m.ready);
       return { id: d.id, cost: m.cost, ...t, count: m.held, usable: !t.waiting && m.held > 0 && !m.full && m.cost <= s.cost && (!m.occupy || s.slots > 0) };
     }
     const c = s.cards[d.id] ?? { cost: 0, ready: 0 }, t = countdown(d, s, c.ready);
-    return { id: d.id, cost: c.cost, ...t, count: -1, usable: !t.waiting && c.cost <= s.cost && s.slots > 0 };
+    return { id: d.id, cost: c.cost, ...t, count: -1, usable: !t.waiting && !c.locked && c.cost <= s.cost && s.slots > 0 };
   });
+}
+
+/** A counted card's view (界面-39): the cards left; usable when they may be deployed now and its cost is paid. @param {DeckCard} d @param {DeckState} s @returns {CardView} */
+function poolView(d, s) {
+  const cost = s.cards[d.id]?.cost ?? 0;
+  return { id: d.id, cost, waiting: false, wait: 0, ratio: 0, count: s.counts?.[d.id] ?? 0, usable: !!s.building && cost <= s.cost };
+}
+
+/** Whether a card is shown (界面-10, 界面-23, 界面-39). @param {DeckCard} d @param {DeckState} s */
+function shownCard(d, s) {
+  if (d.summon) return !!s.summons?.[d.id]?.shown;
+  if (d.pool) return (s.counts?.[d.id] ?? 0) > 0;
+  return !s.deployed.includes(d.id) && !s.hidden?.includes(d.id);
 }
 
 /**

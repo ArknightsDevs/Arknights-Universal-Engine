@@ -221,6 +221,16 @@ export function alight(c, u, at) {
 }
 
 /**
+ * An enemy brought in by another (敌能-22) goes on with that one's route from the leg it was given — that leg skipped
+ * when it is a wait, as for a passenger (敌能-16).
+ * @param {Content} c @param {Unit} u
+ */
+export function joinRoute(c, u) {
+  const legs = legsOf(c.level.routes[u.route]), leg = legs[u.leg];
+  if (leg.t === 'wait' || leg.t === 'until') endLeg(u, legs);
+}
+
+/**
  * One frame of an enemy's route (路线-1…路线-3), for an enemy free to follow it (not blocked, not attacking, able to
  * move): disappearing and appearing take no time, waits hold it, moves spend `speed` tiles, the rest carrying over to
  * the next leg. Returns true when it reached the end of its route.

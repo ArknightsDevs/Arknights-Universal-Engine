@@ -1,23 +1,29 @@
-// Enemy abilities (docs/spec/foes.md 敌能-1…敌能-4): the hooks through which the content's behaviours act on an enemy's
-// talents and skills, the skills' cooldowns, delayed explosions and 直击 bolts.
+// Enemy abilities (docs/spec/foes.md 敌能-1…敌能-4, 敌能-22, 敌能-30): the hooks through which the content's behaviours
+// act on an enemy's talents and skills, the skills' cooldowns, delayed explosions, 直击 bolts, the enemies an enemy
+// brings in and 吞噬.
 import { secondsToFrames, FPS } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
-import { addBuff, removeBuff, makeBuff, retune } from './buffs.js';
+import { addBuff, removeBuff, makeBuff, retune, setLeft } from './buffs.js';
 import { inflict } from './status.js';
-import { dealDamage, heal, setHp } from './damage.js';
+import { dealDamage, heal, setHp, knockDown } from './damage.js';
 import { dealEp } from './elements.js';
-import { selectable, sortAllies, friendly } from './targeting.js';
+import { selectable, sortAllies, friendly, evadesGround } from './targeting.js';
 import { tileOf } from './body.js';
 import { tileAt } from './level.js';
 import { board, alight, detour, wayKeys } from './routes.js';
 import { release } from './blocking.js';
 import { spawnDevice } from './devices.js';
 import { keyAt } from './paths.js';
+import { bringIn, hatch } from './broods.js';
+import { devour } from './deck.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').EnemyDef} EnemyDef @typedef {import('./types.js').Blast} Blast @typedef {import('./types.js').Bolt} Bolt */
 /** @typedef {import('./types.js').DamageType} DamageType @typedef {import('./skills.js').AttackMods} AttackMods */
+
+/** The cooldown, in frames, of a skill used once (its record's cooldown below 0, 敌能-2): longer than any battle. */
+const ONCE = 2147483647;
 
 /** A 直击 bolt's speed in tiles per second, and the radius it hits within (敌能-4). */
 export const BOLT_SPEED = 10;
@@ -47,8 +53,9 @@ export const BOLT_RADIUS = 0.3;
  * @property {boolean} blocked
  * @property {boolean} hurt it took damage since its last turn
  * @property {boolean} unblocked its block ended since its last turn
+ * @property {boolean} fell it fell into a 地穴 (地图-4)
  * @property {boolean} ready a skill's cooldown is over
- * @property {() => void} use a skill was used: its cooldown starts again
+ * @property {() => void} use a skill was used: its cooldown starts again — one with a cooldown below 0 is not ready again
  * @property {(seconds: number) => number} frames seconds as whole frames (时间-2)
  * @property {(name: string) => Record<string, number> | null} talent another talent's blackboard
  * @property {(radius: number) => Unit[]} foes the units it may attack within `radius` of it
@@ -76,6 +83,16 @@ export const BOLT_RADIUS = 0.3;
  * @property {() => void} release its block ends (阻挡-3)
  * @property {(key: string) => boolean} placeDevice places a device of the level's record `key` on its tile (装置-5): whether
  *   it stands there
+ * @property {(key: string, o: import('./broods.js').BringIn) => Unit[]} summon brings in enemies of a key on its route
+ *   (敌能-22): those that appeared now
+ * @property {(u: Unit) => void} remove an enemy's HP to 0 outright: it is knocked down at the frame's end (敌能-24)
+ * @property {(t: Unit) => boolean} devour 吞噬 (敌能-30): whether the unit was devoured
+ * @property {(t: Unit, key: string, init: { mods?: Record<string, number>, flags?: Record<string, boolean>, value?: number }) => void} lend
+ *   gives a unit a buff of a key that lasts while it is given again each turn (敌能-25): it ends within two frames of the
+ *   last
+ * @property {(t: Unit, area: 'cross' | 'square') => Unit[]} around the units it may attack on a unit's tile and the four
+ *   tiles next to it (a cross) or the eight around it (a square), in creation order (敌能-29)
+ * @property {() => Unit[]} enemies every enemy on the field that is not neutral, selectable or not (敌能-25)
  */
 
 /**
@@ -142,8 +159,9 @@ function contextOf(w, c, e, of) {
     blocked: e.blockedBy >= 0,
     hurt: (ab['@hurt'] ?? 0) === 1,
     unblocked: (ab['@unblocked'] ?? 0) === 1,
+    fell: (ab['@fell'] ?? 0) === 1,
     ready: skill !== null && (ab[`${name}.cd`] ?? 0) <= 0,
-    use: () => { if (skill) ab[`${name}.cd`] = secondsToFrames(skill.cooldown); },
+    use: () => { if (skill) ab[`${name}.cd`] = skill.cooldown < 0 ? ONCE : secondsToFrames(skill.cooldown); },
     frames: secondsToFrames,
     talent: (t) => defOf(c, e).talents?.[t] ?? null,
     foes: (radius) => w.units.filter((u) => isFoeOf(u, e) && selectable(u) && dist2(u, e) <= radius * radius),
@@ -175,7 +193,46 @@ function contextOf(w, c, e, of) {
     detour: (row, col) => { detour(c, e, row, col); },
     release: () => { release(e); },
     placeDevice: (key) => { const [r, col] = tileOf(e); return spawnDevice(w, c, key, r, col); },
+    summon: (key, o) => bringIn(w, c, e, key, o),
+    remove: (u) => { if (u.kind === KIND.ENEMY) knockDown(u); },
+    devour: (t) => devour(e, t),
+    lend: (t, key, init) => { lend(e, t, key, init); },
+    around: (t, area) => around(w, e, t, area),
+    enemies: () => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0),
   };
+}
+
+/** Frames a lent buff lasts without being given again (敌能-25): it outlasts the next frame's buff tick. */
+const LENT = 2;
+
+/** Whether two sets of mods are the same. @param {Record<string, number>} a @param {Record<string, number>} b */
+const sameMods = (a, b) => Object.keys(a).length === Object.keys(b).length && Object.keys(a).every((k) => a[k] === b[k]);
+
+/**
+ * A buff enemy `e` lends unit `t` (敌能-25): made the first time, its frames left back to LENT each time after — retuned
+ * when its value or mods changed.
+ * @param {Unit} e @param {Unit} t @param {string} key @param {{ mods?: Record<string, number>, flags?: Record<string, boolean>, value?: number }} init
+ */
+function lend(e, t, key, init) {
+  const b = t.buffs.find((x) => x.key === key);
+  if (!b) { addBuff(t, makeBuff({ key, src: e.id, left: LENT, ...init })); return; }
+  setLeft(b, LENT);
+  const mods = init.mods ?? {}, value = init.value ?? b.value;
+  if (value !== b.value || !sameMods(mods, b.mods)) retune(t, b, value, mods);
+}
+
+/**
+ * The units enemy `e` may attack on unit `t`'s tile and the tiles around it (敌能-29): a cross or a square; on the field,
+ * selectable or not, not evading a ground attacker; in creation order.
+ * @param {World} w @param {Unit} e @param {Unit} t @param {'cross' | 'square'} area @returns {Unit[]}
+ */
+function around(w, e, t, area) {
+  const [r, col] = tileOf(t);
+  return w.units.filter((u) => {
+    if (u.hp <= 0 || u.hidden || !isFoeOf(u, e) || evadesGround(e, u)) return false;
+    const [ur, uc] = tileOf(u), dr = Math.abs(ur - r), dc = Math.abs(uc - col);
+    return area === 'square' ? Math.max(dr, dc) <= 1 : dr + dc <= 1;
+  });
 }
 
 /**
@@ -351,8 +408,9 @@ function blow(w, c) {
   w.blasts = keep;
 }
 
-/** The bolts, then the explosions due this frame (帧-1 step 8, 敌能-3, 敌能-4). @param {World} w @param {Content} c */
+/** The bolts, the explosions due this frame, then the enemies brought in due now (帧-1 step 8, 敌能-3, 敌能-4, 敌能-22). @param {World} w @param {Content} c */
 export function foeEffects(w, c) {
   flyBolts(w, c);
   blow(w, c);
+  hatch(w, c);
 }

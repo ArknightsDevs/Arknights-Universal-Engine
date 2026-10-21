@@ -30,7 +30,7 @@ function reachGoal(w, c, e) {
 function enemyTurn(w, c, e) {
   foeTick(w, c, e);
   if (e.slide) {
-    slideStep(c, e);
+    slideStep(c, e, w);
     e.anim = ANIM.IDLE;
     return;
   }

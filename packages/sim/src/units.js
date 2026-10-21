@@ -52,13 +52,13 @@ function fresh(w, base, buffs = []) {
 }
 
 /**
- * The buffs an operator is deployed with (部署-4, 部署-7, 符文-3): its always-on talents' attribute keys as one buff
- * without an end; its seat runes' modifiers as another (`rune`); each timed talent as a buff `timed:<index>` — for a
- * 'during' one its modifiers for its time, for the others a step a time (timedBehaviors).
+ * The buffs an operator is deployed with (部署-4, 部署-7, 符文-3): its always-on talents' attribute keys and their effects'
+ * modifiers as one buff without an end; its seat runes' modifiers as another (`rune`); each timed talent as a buff
+ * `timed:<index>` — for a 'during' one its modifiers for its time, for the others a step a time (timedBehaviors).
  * @param {OperatorDef} d
  */
 function talentBuffs(d) {
-  const mods = statMods(d.talentBb ?? {});
+  const mods = { ...statMods(d.talentBb ?? {}), ...d.talentMods };
   const timed = (d.timedTalents ?? []).map((t, i) => (t.kind === 'during'
     ? makeBuff({ key: `timed:${i}`, left: secondsToFrames(t.seconds), mods: t.mods })
     : makeBuff({ key: `timed:${i}`, every: Math.max(1, secondsToFrames(t.seconds)), fixed: true })));
@@ -104,16 +104,19 @@ export function makeDevice(w, c, p) {
 }
 
 /**
- * An enemy at the start of its route (spec 出怪-1): the centre of the start tile, moved by the route's spawn offset.
- * `frag` is the frame its fragment began (路线-1), `wave` the wave that waits for it (波次-3; −1 for none), `unharmful`
- * whether it costs no life at the goal (目标-1).
- * @param {World} w @param {Content} c @param {{ key: string, route: number, frag?: number, wave?: number, unharmful?: boolean }} e @returns {Unit}
+ * An enemy at the start of its route (spec 出怪-1): the centre of the start tile, moved by the route's spawn offset —
+ * or, brought in by another enemy (敌能-22), at the point and on the leg of `place`. `frag` is the frame its fragment began
+ * (路线-1), `wave` the wave that waits for it (波次-3; −1 for none), `unharmful` whether it costs no life at the goal
+ * (目标-1).
+ * @param {World} w @param {Content} c
+ * @param {{ key: string, route: number, frag?: number, wave?: number, unharmful?: boolean, place?: { leg: number, x: number, y: number } }} e @returns {Unit}
  */
 export function makeEnemy(w, c, e) {
   const r = c.level.routes[e.route], start = r.start, off = r.spawnOffset ?? { x: 0, y: 0 };
+  const p = e.place ?? { leg: 0, x: start.col + off.x, y: start.row + off.y }, tile = e.place ? tileAt(c.level, Math.round(p.y), Math.round(p.x)) : tileAt(c.level, start.row, start.col);
   return {
-    id: w.nextId++, kind: KIND.ENEMY, key: e.key, owner: -1, x: start.col + off.x, y: start.row + off.y,
-    z: heightLevel(tileAt(c.level, start.row, start.col)), dir: DEFAULT_DIR, ...fresh(w, baseOf(c.enemies[e.key])), route: e.route, leg: 0,
+    id: w.nextId++, kind: KIND.ENEMY, key: e.key, owner: -1, x: p.x, y: p.y,
+    z: heightLevel(tile), dir: DEFAULT_DIR, ...fresh(w, baseOf(c.enemies[e.key])), route: e.route, leg: p.leg,
     frag: e.frag ?? w.frame, wave: e.wave ?? -1, ...(e.unharmful ? { unharmful: true } : {}), ab: {}, anim: ANIM.MOVE, paid: 0,
   };
 }

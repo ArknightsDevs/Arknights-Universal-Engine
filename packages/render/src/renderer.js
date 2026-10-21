@@ -3,14 +3,16 @@
 // bars) over it with the depth cleared (ADR 0027). The page owns the loop: it calls update() with each render state
 // from the worker and render() once per animation frame.
 import * as THREE from 'three';
-import { applyPose, DEFAULT_VIEW, screenOf, tileWorld } from './camera.js';
-import { createTerrain } from './terrain.js';
+import { KIND } from '@aue/schema';
+import { applyPose, DEFAULT_VIEW, STEP_HEIGHT, screenOf, tileWorld } from './camera.js';
+import { createTerrain, tileKeys } from './terrain.js';
 import { createKitTerrain } from './kit.js';
 import { createHighlight } from './highlight.js';
 import { createRange } from './range.js';
+import { createTileMarks } from './tilemarks.js';
 import { createEffects } from './effects.js';
 import { FPS } from './figure.js';
-import { createUnits } from './units.js';
+import { createUnits, unitTextureKey } from './units.js';
 import { createOverlays } from './overlays.js';
 import { createPlacing } from './placing.js';
 import { spineModel } from './spine.js';
@@ -32,8 +34,12 @@ import { spineModel } from './spine.js';
  *   textures
  * @property {import('./fx/player.js').FxPack | null} [effects] the units' attack effects (渲染-10…渲染-12); none without
  * @property {Record<string, number>} [skills] each operator's skill (1-based) by its key, for its skill's own effects
+ * @property {number} [seat] the seat of the player watching (0 by default): their partner's co-op goals take the partner's
+ *   marker (渲染-12)
  * @property {number} [pixelScale] the player's 清晰度 (渲染-15): the canvas's pixel ratio is the device's times this (default 1)
  * @property {boolean} [attackEffects] whether the attacks' effects are drawn (渲染-15; default true)
+ * @property {Map<string, import('./devicemesh.js').DeviceMeshModel>} [deviceMeshes] devices' mesh models by content key (渲染-20)
+ * @property {Set<string>} [flyers] content keys of the flying enemies, drawn in the air (渲染-21)
  */
 
 /** The events that set off attack effects (渲染-10, 渲染-11); the player may turn them off (渲染-15). */
@@ -47,6 +53,23 @@ export const pixelRatioOf = (device, scale) => (device || 1) * Math.min(2, Math.
 
 /** The textures without the start and end tiles' markers when the effects draw them (渲染-12). @param {RendererOptions} o */
 const terrainTextures = (o) => (o.effects?.data.named?.tile_start ? new Map([...o.textures].filter(([k]) => !/^tile:tile_(start|end)/.test(k))) : o.textures);
+
+/**
+ * Where things land on the canvas, in its CSS pixels (渲染-13): `screenOf` a point of the field — tile coordinates
+ * (fractions allowed) and a height level (0 ground, 1 high ground); `barsAt` where a unit's bars hang — under its feet,
+ * a flyer's in the air over the ground's level (渲染-21).
+ * @param {THREE.Camera} camera @param {{ width: number, height: number, highland?: number }} field @param {HTMLCanvasElement} canvas
+ * @param {(id: number) => number} lift how high over its feet a unit is drawn
+ */
+function canvasPoints(camera, field, canvas, lift) {
+  const on = (/** @type {[number, number, number]} */ p) => screenOf(camera, p, canvas.clientWidth, canvas.clientHeight);
+  return {
+    /** @param {number} col @param {number} row @param {number} heightLevel */
+    screenOf: (col, row, heightLevel) => on(tileWorld(field, col, row, heightLevel)),
+    /** @param {import('@aue/schema').ViewUnit} u */
+    barsAt: (u) => { const up = lift(u.id); return on(tileWorld(field, u.x, u.y, up > 0 ? up / (field.highland ?? STEP_HEIGHT) : u.z)); },
+  };
+}
 
 /** Battle time from the frames the renderer is given: 30 a second, interpolated up to a frame past the last. */
 function battleClock() {
@@ -73,12 +96,11 @@ export function createBattleRenderer(o) {
   scene.background = new THREE.Color(0x404040);
   const highlight = createHighlight(o.level), patch = highlight.patch;
   const terrain = o.kit ? createKitTerrain(o.level, o.kit, terrainTextures(o), patch) : createTerrain(o.level, o.textures, patch);
-  const units = createUnits(o.textures, o.models, o.foeDevices), field = { ...o.level, highland: o.kit?.kit.highland };
-  const range = createRange(field, o.textures.get('ui:range')), effects = o.effects ? createEffects(o.effects, field, { skills: o.skills }) : null, clock = battleClock();
-  const placing = createPlacing(o.textures, o.models ?? new Map(), field);
-  scene.add(terrain.object, range.object, units.shadows, placing.object, units.object, ...(effects ? [effects.object] : []));
-  const overlays = createOverlays(o.bars === false ? new Map() : o.textures, o.leaders, o.foeDevices);
-  const ray = new THREE.Raycaster();
+  const units = createUnits(o.textures, o.models, o.foeDevices, o.deviceMeshes, o.flyers), field = { ...o.level, highland: o.kit?.kit.highland };
+  const range = createRange(field, o.textures.get('ui:range')), marks = createTileMarks(field, o.textures.get('ui:range')), clock = battleClock();
+  const effects = o.effects ? createEffects(o.effects, field, { skills: o.skills, seat: o.seat ?? 0 }) : null, placing = createPlacing(o.textures, o.models ?? new Map(), field);
+  scene.add(terrain.object, range.object, marks.object, units.shadows, units.indicators, placing.object, units.object, ...(effects ? [effects.object] : []));
+  const overlays = createOverlays(o.bars === false ? new Map() : o.textures, o.leaders, o.foeDevices), ray = new THREE.Raycaster();
 
   let scale = o.pixelScale ?? 1, attackFx = o.attackEffects !== false;
   const resize = () => {
@@ -102,18 +124,21 @@ export function createBattleRenderer(o) {
      */
     update(view, keys, events = []) {
       units.update(view, keys, field, performance.now(), events);
-      overlays.update(view, keys, field, units.shows);
+      overlays.update(view, keys, field, units.shows, units.lift);
       clock.seen(view.frame, performance.now());
       effects?.update(view, keys, attackFx ? events : events.filter((e) => !ATTACK_EVENTS.has(String(e.type))));
     },
+    /** The facilities' levels by unit id (守御-3, 渲染-20); those not given are at 0. */ levels: units.setLevels,
     /** Highlights the tiles (keys row × width + col) the selected operator can be deployed on (渲染-8); null for none. @param {Iterable<number> | null} keys */
     highlight: (keys) => highlight.set(keys),
     /** Shows an attack range (渲染-9): tile keys, healing or not; null for none. @param {Iterable<number> | null} keys @param {boolean} [heal] */
     range: (keys, heal) => range.show(keys, heal),
+    /** Shows the marked tiles (渲染-19); null for none. @param {readonly import('./tilemarks.js').TileMark[] | null} list */
+    marks: (list) => marks.show(list),
     /** Shows the operator being placed (渲染-14); null for none. @param {import('./placing.js').Placing | null} p */
     placing: (p) => placing.set(p),
     render() {
-      range.tick(performance.now() / 1000);
+      const now = performance.now() / 1000; range.tick(now); marks.tick(now);
       units.pose(camera);
       placing.pose(camera);
       overlays.pose(camera);
@@ -124,12 +149,7 @@ export function createBattleRenderer(o) {
       renderer.clearDepth();
       renderer.render(overlays.scene, camera);
     },
-    /**
-     * Where a point of the field lands on the canvas, in its CSS pixels (渲染-13): tile coordinates (fractions allowed)
-     * and a height level (0 ground, 1 high ground).
-     * @param {number} col @param {number} row @param {number} heightLevel
-     */
-    screenOf: (col, row, heightLevel) => screenOf(camera, tileWorld(field, col, row, heightLevel), o.canvas.clientWidth, o.canvas.clientHeight),
+    ...canvasPoints(camera, field, o.canvas, units.lift),
     /** The tile under a point of the canvas, or null. @param {number} x @param {number} y client coordinates */
     pick(x, y) {
       const r = o.canvas.getBoundingClientRect();
@@ -141,7 +161,7 @@ export function createBattleRenderer(o) {
     shows: (id) => units.shows(id),
     /** What the last frame drew and what the GPU holds (for measuring): draw calls, triangles, geometries, textures and their estimated bytes. */
     stats: () => drawStats(renderer, [scene, overlays.scene]),
-    dispose() { terrain.dispose(); range.dispose(); highlight.dispose(); units.dispose(); placing.dispose(); overlays.dispose(); effects?.dispose(); renderer.dispose(); },
+    dispose() { terrain.dispose(); range.dispose(); marks.dispose(); highlight.dispose(); units.dispose(); placing.dispose(); overlays.dispose(); effects?.dispose(); renderer.dispose(); },
   };
 }
 
@@ -173,13 +193,29 @@ export function drawStats(renderer, scenes) {
   return { calls: render.calls, triangles: render.triangles, geometries: memory.geometries, textures: memory.textures, sceneTextures: tex.size, textureBytes: Math.round(bytes) };
 }
 
+/** The battle UI's textures the renderer draws with (渲染-5, 渲染-6, 渲染-8, 渲染-9, 渲染-14). */
+const UI_TEXTURES = Object.freeze(['ui:bar', 'ui:shadow', 'ui:range', 'ui:directionRing', 'ui:directionArrow']);
+
 /**
- * Loads the textures a manifest lists (relative to baseUrl), as sRGB.
- * @param {{ files: Record<string, { file: string }> }} manifest @param {string} baseUrl @returns {Promise<Map<string, THREE.Texture>>}
+ * The texture keys a match draws with: the UI's, the level's tiles' (渲染-7), each unit's card by its kind (渲染-1,
+ * 渲染-16) — operators by character ID, enemies and devices by key.
+ * @param {import('./terrain.js').TerrainLevel} level @param {{ operators: Iterable<string>, enemies: Iterable<string>, devices?: Iterable<string> }} units
+ * @returns {string[]}
  */
-export async function loadTextures(manifest, baseUrl) {
-  const loader = new THREE.TextureLoader(), out = new Map();
-  await Promise.all(Object.entries(manifest.files).map(async ([key, f]) => {
+export function matchTextureKeys(level, units) {
+  return [...UI_TEXTURES, ...tileKeys(level).map((k) => `tile:${k}`), ...[...units.operators].map((k) => unitTextureKey(KIND.OPERATOR, k)),
+    ...[...units.enemies].map((k) => unitTextureKey(KIND.ENEMY, k)), ...[...(units.devices ?? [])].map((k) => unitTextureKey(KIND.DEVICE, k))];
+}
+
+/**
+ * Loads the textures a manifest lists (relative to baseUrl), as sRGB: all of them, or only those of the keys given
+ * (a match's, 渲染-1) that it lists.
+ * @param {{ files: Record<string, { file: string }> }} manifest @param {string} baseUrl @param {Iterable<string>} [keys]
+ * @returns {Promise<Map<string, THREE.Texture>>}
+ */
+export async function loadTextures(manifest, baseUrl, keys) {
+  const loader = new THREE.TextureLoader(), out = new Map(), want = keys ? new Set(keys) : null;
+  await Promise.all(Object.entries(manifest.files).filter(([key]) => !want || want.has(key)).map(async ([key, f]) => {
     const t = await loader.loadAsync(new URL(f.file, baseUrl).href);
     t.colorSpace = THREE.SRGBColorSpace;
     out.set(key, t);

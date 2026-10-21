@@ -109,3 +109,8 @@ test('[音频-4] a bank in the unit\'s dub when the data has its copy and the as
   const x = { keyOf: () => 'char_101_sora#0', operators: { 'char_101_sora#0': {} }, enemies: {}, seat: 0, stages: 1, has, voiceLang, dubOf: () => 'JP' };
   assert.deepEqual(soundsOf([{ type: 'deploy', id: 1 }], x), ['battle.ON_UNIT_BORN.char_101_sora@JP'], 'the frame\'s banks in the dub');
 });
+
+test('[音频-5] [mod-11] an operator a mod adds speaks with the voice of the operator it looks like', () => {
+  const x = { ...X, keyOf: () => 'mine:alt#0', operators: { 'mine:alt#0': { look: 'char_a', skill: { type: 'MANUAL', cost: 30 } } } };
+  assert.deepEqual(voicesOf([{ type: 'deploy', id: 1 }, { type: 'skill', id: 1, active: 1 }], x, new Set()), [{ char: 'char_a', type: 'PLACE_CHAR' }, { char: 'char_a', type: 'SKILL_ACTIVE' }]);
+});

@@ -48,6 +48,15 @@ function gitCommit(dir) {
 }
 
 /**
+ * A level's stage table entry (关卡-4): the stage of its id, else the first stage that plays its level file (堡垒守御's
+ * stage ids differ from their levels', and two stages may share one level). @param {Record<string, unknown>} stages @param {string} id
+ */
+function stageOf(stages, id) {
+  if (Object.hasOwn(stages, id)) return stages[id];
+  return Object.values(stages).find((s) => String(/** @type {any} */ (s)?.levelId ?? '').toLowerCase().endsWith(`/level_${id}`));
+}
+
+/**
  * Extract level `id` from a checkout, with its camera view from a map file when given (the first vector of its path)
  * and its code and name from the stage table (关卡-4), its stages' task texts from the activity table (关卡-5).
  * @param {string} root the checkout directory @param {string} id @param {{ file: string, source: string }} [map]
@@ -64,7 +73,7 @@ export function extractLevelFromCheckout(root, id, map) {
     id, level: readJson(file), enemyDb: readJson(join(data, 'levels', 'enemydata', 'enemy_database.json')),
     handbook: readJson(join(data, 'excel', 'enemy_handbook_table.json')), commit: gitCommit(root),
     view: map && vectors ? { vector: vectors[0], source: map.source } : undefined,
-    stage: /** @type {{ stages: Record<string, unknown> }} */ (readJson(join(data, 'excel', 'stage_table.json'))).stages[id],
+    stage: stageOf(/** @type {{ stages: Record<string, unknown> }} */ (readJson(join(data, 'excel', 'stage_table.json'))).stages, id),
     missions: missionsOf(data, id),
     charTable: readJson(join(data, 'excel', 'character_table.json')),
   });

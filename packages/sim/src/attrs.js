@@ -46,16 +46,20 @@ export const ATTRS = Object.freeze({
 });
 
 /**
- * Mod keys the damage step reads from each buff in turn (伤害-8), so they are not summed into the stats: the taken
- * multipliers of 脆弱 and the like, and dodging.
+ * Mod keys the damage step reads from each buff in turn (伤害-8, 伤害-12), so they are not summed into the stats: the
+ * taken multipliers of 脆弱 and the like, dodging, 抵挡, and the taken multipliers by the source; those by the source's tag
+ * begin `from:` or `fromPA:` (JUDGE_PREFIXES).
  */
-export const JUDGE_KEYS = Object.freeze(['dmgTakenMul', 'physTakenMul', 'artsTakenMul', 'trueTakenMul', 'elementalTakenMul', 'dodgePhys', 'dodgeArts']);
+export const JUDGE_KEYS = Object.freeze(['dmgTakenMul', 'physTakenMul', 'artsTakenMul', 'trueTakenMul', 'elementalTakenMul', 'dodgePhys', 'dodgeArts',
+  'dodgeMelee', 'blockAll', 'blockPA', 'blockPhys', 'blockRangedPhys', 'airTakenMul']);
+/** The beginnings of the damage step's own keys by the source's tag (伤害-12). */
+export const JUDGE_PREFIXES = Object.freeze(['from:', 'fromPA:']);
 
 /**
  * Multipliers kept as products besides the attributes' own (属性-2): the source's and the healer's (伤害-7, 伤害-11), and
  * the attacker's 攻击力倍率 (伤害-6).
  */
-const CHANNELS = Object.freeze(['dmgDealtMul', 'physDealtMul', 'artsDealtMul', 'healingDealtMul', 'healingTakenMul', 'epTakenMul', 'atkScaleMul']);
+const CHANNELS = Object.freeze(['dmgDealtMul', 'physDealtMul', 'artsDealtMul', 'healingDealtMul', 'healingTakenMul', 'epTakenMul', 'epDealtMul', 'atkScaleMul']);
 
 /** Each attribute key's kind: 0 直接加算, 1 直接乘算, 2 最终加算, 3 最终乘算. */
 const KIND_OF = new Map(Object.values(ATTRS).flatMap((a) => a.keys.map((k, i) => /** @type {[string, number]} */ ([k, i]))));
@@ -71,7 +75,7 @@ const ROLES = new Map();
 function roleOf(k) {
   let r = ROLES.get(k);
   if (r === undefined) {
-    r = JUDGE.has(k) ? 0 : isProduct(k) ? 1 : 2;
+    r = JUDGE.has(k) || JUDGE_PREFIXES.some((p) => k.startsWith(p)) ? 0 : isProduct(k) ? 1 : 2;
     if (ROLES.size < 4096) ROLES.set(k, r);
   }
   return r;
@@ -165,7 +169,7 @@ export const intervalFrames = (bat, aspd) => secondsAtSpeedToFrames(bat, Math.mi
 /**
  * @typedef {Record<keyof typeof ATTRS, number> & {
  *   interval: number,
- *   dmgDealtMul: number, physDealtMul: number, artsDealtMul: number, healingDealtMul: number, healingTakenMul: number, epTakenMul: number, atkScaleMul: number,
+ *   dmgDealtMul: number, physDealtMul: number, artsDealtMul: number, healingDealtMul: number, healingTakenMul: number, epTakenMul: number, epDealtMul: number, atkScaleMul: number,
  *   flags: Record<string, boolean>, flying: boolean, invincible: boolean, disabled: boolean, immobile: boolean,
  *   sum: Record<string, number>, prod: Record<string, number>
  * }} Stats

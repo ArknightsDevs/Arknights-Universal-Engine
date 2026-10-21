@@ -5,11 +5,13 @@
 // plays at the target's chest. An effect is placed as its prefab says: as it is, mirrored with the unit's facing, or
 // turned toward the attack's direction. While an operator's skill runs, its attacks take the skill's own effects.
 // Besides the attacks (渲染-12): the start and end tiles carry their marker effects, a unit its statuses' effects for as
-// long as it has them, and deploying and dying play theirs. Effects keep battle time: they follow 2× and pause.
+// long as it has them, and deploying and dying play theirs. A thrown 炼金单元 (渲染-25) flies to where it lands and plays
+// its effects there until it ends. Effects keep battle time: they follow 2× and pause.
 import * as THREE from 'three';
 import { KIND, DIR, SKILL_STATE, STATUS_BIT } from '@aue/schema';
 import { toThree, tileWorld } from './camera.js';
 import { FxInstance, rootAt, rootAlong, rootToward, effectLead } from './fx/player.js';
+import { FPS } from './figure.js';
 
 /**
  * The effects' constants (渲染-11): the chest's height above the feet (tiles, along the models' up — the camera's), the
@@ -24,7 +26,7 @@ const LIFT = /** @type {Record<number, number>} */ ({ 2: FX.chest, 4: FX.head })
 /**
  * @typedef {import('./fx/player.js').FxPack} FxPack
  * @typedef {{ feet: number[], facing: number, dir: number[], kind: number, running: boolean, seen: number }} Place
- * @typedef {{ width: number, height: number, highland?: number, tiles?: { key: string, height: string }[][] }} FxLevel
+ * @typedef {{ width: number, height: number, highland?: number, tiles?: { key: string, height: string, goal?: string }[][] }} FxLevel
  */
 /** How an effect is turned: the unit's facing (±1) and a direction on the ground. @typedef {{ facing: number, dir: number[] }} Way */
 
@@ -41,12 +43,27 @@ function rootFor(e, o, way) {
   return rootAt(o, e.rt === 1 ? (e.ld ? -way.facing : way.facing) : 1);
 }
 /** @typedef {{ inst: FxInstance, src: number, target: number, pos: number[], d0: number, h0: number, arc: number, speed: number, t: number, T: number }} Flight */
+/**
+ * A thrown 炼金单元 (渲染-25): its throw in the pack, its landing tile and height, its trail's flight (from, to, arc, the
+ * seconds it takes) and the seconds since it was thrown; its end; its drift (tiles a second, radius growth a second, the
+ * seconds it drifts) from its radius; the effects it plays where it landed once it has.
+ * @typedef {{ Z: any, x: number, y: number, z: number, from: number[], to: number[], arc: number, T: number, t: number, end: number, vx: number, vy: number,
+ *   grow: number, drift: number, r0: number, trail: FxInstance | null, landed: FxInstance[] | null }} Pot
+ */
 
-/** The marker effect of a start or end tile (渲染-12), or null: co-op end tiles take the first co-op end marker. @param {string} key @param {Record<string, string>} named */
-function markerOf(key, named) {
-  if (key.startsWith('tile_start')) return named.tile_start ?? null;
-  if (key === 'tile_end_cooperate') return named.tile_end_coop_1 ?? named.tile_end ?? null;
-  return key.startsWith('tile_end') ? named.tile_end ?? null : null;
+/** The seat a co-op goal belongs to (the engine's 合作-1): side A seat 0, side B seat 1; −1 for one of no single seat. @param {string | undefined} goal */
+const goalSeat = (goal) => (goal === 'A' ? 0 : goal === 'B' ? 1 : -1);
+
+/**
+ * The marker effect of a start or end tile (渲染-12), or null: a co-op goal of the viewer's partner takes the second co-op
+ * end marker, the others the first.
+ * @param {{ key: string, goal?: string }} t @param {Record<string, string>} named @param {number} seat the viewer's
+ */
+function markerOf(t, named, seat) {
+  if (t.key.startsWith('tile_start')) return named.tile_start ?? null;
+  if (t.key !== 'tile_end_cooperate') return t.key.startsWith('tile_end') ? named.tile_end ?? null : null;
+  const own = goalSeat(t.goal), mate = own >= 0 && own !== seat ? named.tile_end_coop_2 : undefined;
+  return mate ?? named.tile_end_coop_1 ?? named.tile_end ?? null;
 }
 
 const NOWHERE = Object.freeze({ facing: 1, dir: [1, 0, 0] });
@@ -60,15 +77,25 @@ export function cameraAxes(camera) {
 }
 
 
+/**
+ * A 炼金单元 event's drift (渲染-25): tiles a second along the columns and rows, radius growth a second, the seconds it
+ * drifts, the radius it started with. @param {Record<string, string | number>} e
+ */
+const driftOf = (e) => ({ vx: Number(e.vx) || 0, vy: Number(e.vy) || 0, grow: Number(e.grow) || 0, drift: (Number(e.drift) || 0) / FPS, r0: Number(e.r) || 1 });
+
 class Effects {
-  /** @param {FxPack} pack @param {FxLevel} level @param {{ skills?: Record<string, number> }} [o] each operator's skill (1-based) by its key */
+  /**
+   * @param {FxPack} pack @param {FxLevel} level
+   * @param {{ skills?: Record<string, number>, seat?: number }} [o] each operator's skill (1-based) by its key; the viewer's seat (0 by default)
+   */
   constructor(pack, level, o = {}) {
-    this.pack = pack; this.level = level; this.object = new THREE.Group(); this.skills = o.skills ?? {};
+    this.pack = pack; this.level = level; this.object = new THREE.Group(); this.skills = o.skills ?? {}; this.seat = o.seat ?? 0;
     /** @type {Record<string, string>} effects by role */ this.named = pack.data.named ?? {};
     /** @type {Map<string, { inst: FxInstance, id: number, lift: number }>} a unit's status effects by `id:bit` */ this.statuses = new Map();
     this.leads = new Map(Object.keys(pack.data.fx).map((k) => [k, effectLead(pack.data.fx[k])]));
     /** @type {FxInstance[]} */ this.live = [];
     /** @type {Flight[]} */ this.flights = [];
+    /** @type {Pot[]} the 炼金单元 on the field */ this.pots = [];
     /** @type {Map<number, Place>} */ this.places = new Map();
     /** @type {Map<number, string>} */ this.keys = new Map();
     /** @type {Map<number, number>} the frame a unit's start effect last played */ this.started = new Map();
@@ -81,7 +108,7 @@ class Effects {
   /** The start and end tiles' marker effects, lasting, drawn before the units (after the range, before the shadows). */
   markers() {
     (this.level.tiles ?? []).forEach((cols, row) => cols.forEach((t, col) => {
-      const n = markerOf(t.key, this.named);
+      const n = markerOf(t, this.named, this.seat);
       if (n) this.play(n, toThree(tileWorld(this.level, col, row, t.height === 'HIGHLAND' ? 1 : 0)), NOWHERE, 'loop', MARKER_ORDER);
     }));
   }
@@ -167,6 +194,49 @@ class Effects {
     });
   }
 
+  /**
+   * A 炼金单元 thrown (渲染-25; the engine's 技能-13): its thrower's skill's throw in the pack (`z` by the skill's number) —
+   * its trail flies from the thrower's chest to the landing tile at its speed along its arc, then what it plays where it
+   * lands loops there until the 炼金单元's frames are over. Without a throw in the pack, nothing.
+   * @param {Record<string, string | number>} e
+   */
+  alchemy(e) {
+    const src = Number(e.src), key = this.keys.get(src) ?? '', Z = this.pack.data.by[key]?.z?.[this.skills[key]];
+    if (!Z) return;
+    const x = Number(e.x), y = Number(e.y), z = this.heightAt(x, y), at = this.places.get(src);
+    const to = toThree(tileWorld(this.level, x, y, z)), from = at ? this.chest(at.feet) : to, d = [to[0] - from[0], 0, to[2] - from[2]], dist = Math.hypot(d[0], d[2]);
+    const trail = Z.t && dist > 1e-3 ? this.play(Z.t, from, { facing: 1, dir: d }, 'trail') : null;
+    this.pots.push({ Z, x, y, z, from, to, arc: Z.arc || 0, T: trail ? dist / (Z.v || FX.speed) : 0, t: 0, end: Number(e.frames) / FPS, ...driftOf(e), trail, landed: null });
+  }
+
+  /** A tile's height level: 1 on high ground. @param {number} x the column @param {number} y the row */
+  heightAt(x, y) { return this.level.tiles?.[y]?.[x]?.height === 'HIGHLAND' ? 1 : 0; }
+
+  /**
+   * The 炼金单元 over dt seconds (渲染-25): the trail along its arc until it lands, then its effects at the landing tile —
+   * moved by its drift and scaled with its radius while it drifts —; all of them stop when it ends.
+   * @param {number} dt
+   */
+  potsStep(dt) {
+    this.pots = this.pots.filter((p) => {
+      p.t += dt;
+      if (p.t >= p.end) { p.trail?.stop(); for (const i of p.landed ?? []) i.stop(); return false; }
+      if (!p.landed && p.t >= p.T) {
+        p.trail?.stop(); p.trail = null;
+        p.landed = /** @type {any[]} */ (p.Z.r ?? []).map((n) => this.play(n, p.to, NOWHERE, 'loop')).filter((i) => i !== null);
+      } else if (p.trail) {
+        const k = p.t / p.T, pos = [0, 1, 2].map((i) => p.from[i] + (p.to[i] - p.from[i]) * k);
+        pos[1] += p.arc * 4 * k * (1 - k);
+        p.trail.R = rootAlong(pos, [p.to[0] - p.from[0], 0, p.to[2] - p.from[2]]);
+      }
+      if (p.landed && p.drift > 0) {
+        const s = Math.min(p.t, p.drift), o = toThree(tileWorld(this.level, p.x + p.vx * s, p.y + p.vy * s, p.z)), k = (p.r0 + p.grow * s) / p.r0;
+        for (const i of p.landed) { const R = rootAt(o, 1); i.R = { o, ex: R.ex.map((v) => v * k), ey: R.ey.map((v) => v * k), ez: R.ez.map((v) => v * k) }; }
+      }
+      return true;
+    });
+  }
+
   /** The units' places: operators face by their direction, enemies by how they moved. @param {import('@aue/schema').View} view */
   track(view) {
     for (const u of view.units) {
@@ -216,6 +286,7 @@ class Effects {
       else if (e.type === 'shot') this.shot(id, target);
       else if (e.type === 'hit' || e.type === 'heal') this.hit(id, target);
       else if (e.type === 'deploy' || e.type === 'death') this.role(String(e.type), id);
+      else if (e.type === 'alchemy') this.alchemy(e);
     }
   }
 
@@ -224,6 +295,7 @@ class Effects {
     const cam = cameraAxes(camera);
     this.up = cam.up;
     this.fly(dt);
+    this.potsStep(dt);
     for (const s of this.statuses.values()) { const at = this.places.get(s.id); if (at) s.inst.R = { ...s.inst.R, o: this.lifted(at.feet, s.lift) }; }
     this.live = this.live.filter((i) => {
       i.step(dt);
@@ -235,12 +307,12 @@ class Effects {
 
   count() { return this.live.length; }
 
-  dispose() { for (const i of this.live) i.dispose(); this.live = []; this.flights = []; this.statuses.clear(); this.object.clear(); }
+  dispose() { for (const i of this.live) i.dispose(); this.live = []; this.flights = []; this.pots = []; this.statuses.clear(); this.object.clear(); }
 }
 
 /**
  * The effects system for a level. @param {FxPack} pack @param {FxLevel} level
- * @param {{ skills?: Record<string, number> }} [o] each operator's skill (1-based) by its content key
+ * @param {{ skills?: Record<string, number>, seat?: number }} [o] each operator's skill (1-based) by its content key; the viewer's seat
  */
 export const createEffects = (pack, level, o) => new Effects(pack, level, o);
 

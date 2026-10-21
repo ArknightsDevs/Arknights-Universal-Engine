@@ -30,14 +30,14 @@ export function rayPass(s) {
 const selectable = (s) => s.n.comps.button ?? s.n.comps.toggle ?? s.n.comps.input ?? null;
 
 /**
- * Whether a node's buttons work (界面-24, 界面-25): in a pack that marks its tap targets, by the state the page set it
- * (not disabled), else when the groups above let it and its Selectable is interactable; in other packs (the battle
+ * Whether a node's buttons work (界面-24, 界面-25): by the state the page set it (not disabled); else, in a pack that
+ * marks its tap targets, when the groups above let it and its Selectable is interactable; in other packs (the battle
  * pack, whose buttons the page enables itself) always.
  * @param {UiNode} s
  */
 export function usable(s) {
-  if (!s.scr.ctx.rays) return true;
   if (s.look != null) return s.look !== 2;
+  if (!s.scr.ctx.rays) return true;
   return s.interDown && selectable(s)?.interactable !== 0;
 }
 

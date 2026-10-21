@@ -1,7 +1,7 @@
 // The battle HUD (docs/spec/ui.md 界面-10–界面-14) on a small pack shaped like the battle UI's, in a minimal document.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createUi, createBattleHud, cardViews, cardWidth, waitText, placeSummons, costView, costFlash, flashColor, speedSprite, coopSpeedSprite, reviveText, dragFacing, ARROW_DIRS,
+import { createUi, createBattleHud, cardViews, cardWidth, waitText, placeSummons, costView, costFlash, flashColor, speedSprite, coopSpeedSprite, reviveText, dragFacing, groundOffset, ARROW_DIRS,
   homography, mapPoint, matrix3d, groundTransform, copyRect, DEF_RT } from '../src/index.js';
 import { fakeDocument, fakeHost } from './dom.js';
 
@@ -28,8 +28,8 @@ const battle = N('UI', {}, [
   ]),
   N('perspective_root', { canvas: {} }, [
     N('dir', {}, [N('arrows', {}, ['up', 'right', 'down', 'left'].map((d) => N(d, img(), [N('fill', img())]))),
-      N('cancel', {}, [N('btn_cancel', img()), N('btn_drag_back', img())]), N('joystick', img())], R({ amin: [0, 0], amax: [1, 1], size: [0, 0], scale: [2.5, 2.5] })),
-    N('menu', {}, [N('withdraw', { button: { ...PRESS, target: '@perspective_root/menu/withdraw' }, ...img() }), N('skill', {}, [N('icon', img(null)),
+      N('cancel', {}, [N('btn_cancel', img()), N('btn_drag_back', img())]), N('joystick', img(), [N('Thumb', img())], R({ size: [426, 426] }))], R({ amin: [0, 0], amax: [1, 1], size: [0, 0], scale: [2.5, 2.5] })),
+    N('menu', {}, [N('withdraw', { button: { ...PRESS, target: '@perspective_root/menu/withdraw' }, ...img() }), N('skill', {}, [N('icon', { button: { ...PRESS, colors: { ...PRESS.colors, disabled: [0.5, 0.5, 0.5, 1] }, target: '@perspective_root/menu/skill/icon' }, ...img(null) }),
       N('toNext', slider('@perspective_root/menu/skill/toNext/fill'), [N('fill', img('sprite/a', { type: 3, fillMethod: 1 }))]),
       N('casting', slider('@perspective_root/menu/skill/casting/fill'), [N('fill', img('sprite/a', { type: 3, fillMethod: 1 }))]),
       ...['ready', 'notReady', 'stop', 'auto', 'bullet'].map((k) => N(k, img()))])], R({ size: [560, 560], pos: [0, 551], scale: [2, 2] })),
@@ -61,7 +61,7 @@ const hud = {
     range: '@orthogonal_root/top/range', status: { panel: '@orthogonal_root/top/status', life: '@orthogonal_root/top/status/life', enemies: '@orthogonal_root/top/status/enemies' },
     speedSprites: ['sprite/x0', 'sprite/x1', 'sprite/x2', 'sprite/x3'] },
   direction: { root: '@perspective_root/dir', arrows: ['up', 'right', 'down', 'left'].map((d) => `@perspective_root/dir/arrows/${d}`), cancel: '@perspective_root/dir/cancel',
-    colors: { normal: [1, 1, 1, 1], highlight: [1, 0.9, 0.7, 1] } },
+    colors: { normal: [1, 1, 1, 1], highlight: [1, 0.9, 0.7, 1] }, joystick: { area: '@perspective_root/dir/joystick', thumb: '@perspective_root/dir/joystick/Thumb', returns: 1, relative: 1 } },
   menu: { root: '@perspective_root/menu', skill: '@perspective_root/menu/skill/icon', icon: '@perspective_root/menu/skill/icon', withdraw: '@perspective_root/menu/withdraw',
     toNext: '@perspective_root/menu/skill/toNext', casting: '@perspective_root/menu/skill/casting', panel: '@perspective_root/menu/skill', bullet: '@perspective_root/menu/skill/bullet',
     ...Object.fromEntries(['ready', 'notReady', 'stop', 'auto'].map((k) => [k, `@perspective_root/menu/skill/${k}`])) },
@@ -97,6 +97,8 @@ test('[界面-10] the cards: those not on the field in the deck\'s order; waitin
   assert.deepEqual(cardViews(DECK, state({ deployed: ['a'], slots: 0 })).map((x) => [x.id, x.usable]), [['b', false], ['c', false]], 'no slot left: none usable');
   assert.equal(cardViews([{ ...DECK[0], respawn: 0 }], state({ cards: { a: { cost: 1, ready: 400 } } }))[0].ratio, 0);
   assert.equal(cardViews([DECK[0]], state({ cards: {} }))[0].cost, 0);
+  assert.deepEqual(cardViews(DECK, state({ hidden: ['b'] })).map((x) => x.id), ['a', 'c'], 'a card held back is not shown (波次-9)');
+  assert.equal(cardViews([DECK[0]], state({ cards: { a: { cost: 1, ready: 0, locked: true } } }))[0].usable, false, 'locked by its devourer (the engine\'s 敌能-30)');
   assert.equal(cardWidth(10, 1920, [109, 178]), 178);
   assert.equal(cardWidth(12, 1920, [109, 178]), 160);
   assert.equal(cardWidth(30, 1920, [109, 178]), 109);
@@ -281,6 +283,8 @@ test('[界面-13] the direction selector: shown on a point, the pointed arrow li
   assert.equal(dragFacing([-80, 30], east, north, 40), 2);
   assert.equal(dragFacing([0, 80], east, north, 40), 3);
   assert.deepEqual([...ARROW_DIRS], [1, 0, 3, 2]);
+  assert.deepEqual(groundOffset([150, -30], east, north), [1.5, 0.5], 'a drag split along the ground');
+  assert.deepEqual(groundOffset([5, 5], [1, 1], [2, 2]), [0, 0]);
   const { ui, hud } = setup();
   const d = hud.direction, s = d.screen;
   assert.equal(s.root.active, false);
@@ -293,7 +297,15 @@ test('[界面-13] the direction selector: shown on a point, the pointed arrow li
   assert.deepEqual(node(s.one('arrows/up/fill')).color, [1, 0.9, 0.7, 1]);
   assert.deepEqual(node(s.one('arrows/left')).color, [1, 1, 1, 1]);
   assert.deepEqual(s.root.rt.scale, [2.5, 2.5], 'its own rect kept');
-  assert.deepEqual([node(s.one('btn_drag_back')).active, node(s.one('joystick')).active], [false, false]);
+  assert.deepEqual([node(s.one('btn_drag_back')).active, node(s.one('joystick')).active], [false, true], 'the drag handle shown');
+  const thumb = node(s.one('joystick/Thumb'));
+  assert.deepEqual(thumb.rt.pos, [0, 0], 'at the centre');
+  d.drag([0.337, -0.1685]);
+  assert.ok(Math.abs(thumb.rt.pos[0] - 40) < 1e-9 && Math.abs(thumb.rt.pos[1] + 20) < 1e-9, 'moved by the drag on the ground (0.00337 tiles a canvas pixel, the selector at 2.5×)');
+  d.drag([5.055, 6.74]);
+  assert.ok(Math.abs(Math.hypot(...thumb.rt.pos) - 213) < 1e-9 && Math.abs(thumb.rt.pos[0] / thumb.rt.pos[1] - 0.75) < 1e-9, 'held within half its area');
+  d.drag(null);
+  assert.deepEqual(thumb.rt.pos, [0, 0], 'back at the centre');
   /** @type {string[]} */
   const got = [];
   hud.on('cancel', () => got.push('cancel'));
@@ -321,6 +333,14 @@ test('[界面-14] the operator menu: retreat and the skill button by the skill\'
   m.show((e, n) => [e, n], { icon: '/s.webp', manual: false, state: 'running', share: 0.25, stoppable: true });
   assert.deepEqual(['casting', 'stop', 'auto', 'ready'].map((k) => at(`skill/${k}`).active), [true, true, true, false]);
   assert.equal(at('casting/fill').fill, 0.25);
+  m.show((e, n) => [e, n], { icon: '/s.webp', manual: true, state: 'ready', share: 1, blocked: true });
+  assert.equal(at('skill/ready').active, false, 'kept from starting it: no ready mark');
+  assert.deepEqual(at('skill/icon').tint, [0.5, 0.5, 0.5, 1], 'the disabled colour');
+  ui.tick(0);
+  /** @type {any} */ (s.one('skill/icon')).el.fire('click');
+  assert.deepEqual(got, [], 'and no answer');
+  m.show((e, n) => [e, n], { icon: '/s.webp', manual: true, state: 'ready', share: 1 });
+  assert.equal(at('skill/icon').tint, null, 'free again: as it is');
   m.show((e, n) => [e, n], null);
   assert.equal(at('skill').active, false, 'no skill: no button');
   m.show((e, n) => [e, n], { icon: null, manual: true, state: 'ready', share: 1 });

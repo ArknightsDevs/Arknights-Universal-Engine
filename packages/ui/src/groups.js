@@ -86,6 +86,9 @@ function childSizes(g, kids, inner, main) {
   return { sizes, total };
 }
 
+/** Unity's Mathf.Clamp: below the minimum the minimum, else above the maximum the maximum. @param {number} v @param {number} lo @param {number} hi */
+const between = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
 /**
  * Places a group's children in its w × h rect: each child's `lgRect` from the group's top-left corner; children it
  * does not lay out get none.
@@ -103,7 +106,9 @@ export function arrange(s, w, h) {
   let cur = (main === 0 ? g.pad[0] : g.pad[2]) + (inner[main] - total) * alignMain;
   kids.forEach((k, i) => {
     const z = sizes[i];
-    if (ctrlCross && (forceCross || flexOf(k, cross) > 0)) z[cross] = inner[cross];
+    // across, a child it sizes fills the inner size when it expands, else takes it held between its minimum and
+    // preferred size (a long wrapping text takes the room there is)
+    if (ctrlCross) z[cross] = forceCross || flexOf(k, cross) > 0 ? inner[cross] : between(inner[cross], minSize(k, cross), z[cross]);
     const c0 = (cross === 0 ? g.pad[0] : g.pad[2]) + (inner[cross] - z[cross]) * alignCross;
     k.lgRect = main === 0 ? { x: cur, y: c0, w: z[0], h: z[1] } : { x: c0, y: cur, w: z[0], h: z[1] };
     cur += z[main] + g.spacing;
@@ -140,16 +145,42 @@ export function gridPref(s, ax) {
 }
 
 /**
- * Places a grid's children in cells of its cell size, row by row from the upper left, the block aligned in its w × h
- * rect by its child alignment.
+ * A grid's columns and rows for n children at its w × h, and the cell of the i-th (界面-3), as Unity counts them: filling
+ * across first (start axis 0) a row holds its columns (gridColumns); filling down first (start axis 1) a column holds
+ * the fixed row count, the children over the fixed column count, or as many cells as fit down its height. The start
+ * corner flips the columns (1 upper right, 3 lower right) and the rows (2 lower left, 3 lower right).
+ * @param {Grid} g @param {number} n @param {number} w @param {number} h
+ * @returns {{ cols: number, rows: number, at: (i: number) => [number, number] }}
+ */
+export function gridCells(g, n, w, h) {
+  const down = g.axis === 1, per = down ? gridRows(g, n, h) : gridColumns(g, n, w);
+  const cols = down ? Math.ceil(n / per) : per, rows = down ? Math.min(per, n) : Math.ceil(n / per);
+  /** @param {number} i @returns {[number, number]} */
+  const at = (i) => {
+    const c = down ? Math.floor(i / per) : i % per, r = down ? i % per : Math.floor(i / per);
+    return [g.corner % 2 === 1 ? cols - 1 - c : c, g.corner >= 2 ? rows - 1 - r : r];
+  };
+  return { cols, rows, at };
+}
+
+/** A down-first grid's rows a column (gridCells): fixed, over a fixed column count, or as many as fit down its height. @param {Grid} g @param {number} n @param {number} h */
+function gridRows(g, n, h) {
+  if (g.constraint === 2) return Math.max(1, g.count);
+  if (g.constraint === 1) return Math.max(1, Math.ceil(n / Math.max(1, g.count)));
+  return Math.max(1, Math.floor((h - g.pad[2] - g.pad[3] + g.spacing[1] + 0.001) / (g.cell[1] + g.spacing[1])));
+}
+
+/**
+ * Places a grid's children in cells of its cell size (gridCells), the block aligned in its w × h rect by its child
+ * alignment.
  * @param {UiNode} s @param {number} w @param {number} h
  */
 export function gridArrange(s, w, h) {
-  const g = /** @type {Grid} */ (s.n.comps.grid), kids = groupKids(s), cols = gridColumns(g, kids.length, w), rows = Math.ceil(kids.length / cols);
+  const g = /** @type {Grid} */ (s.n.comps.grid), kids = groupKids(s), { cols, rows, at } = gridCells(g, kids.length, w, h);
   const bw = cols * g.cell[0] + Math.max(0, cols - 1) * g.spacing[0], bh = rows * g.cell[1] + Math.max(0, rows - 1) * g.spacing[1];
   const x0 = g.pad[0] + (w - g.pad[0] - g.pad[1] - bw) * (g.align % 3) / 2, y0 = g.pad[2] + (h - g.pad[2] - g.pad[3] - bh) * Math.floor(g.align / 3) / 2;
   kids.forEach((k, i) => {
-    const c = i % cols, r = Math.floor(i / cols);
+    const [c, r] = at(i);
     k.lgRect = { x: x0 + c * (g.cell[0] + g.spacing[0]), y: y0 + r * (g.cell[1] + g.spacing[1]), w: g.cell[0], h: g.cell[1] };
   });
   for (const k of s.kids) if (!kids.includes(k)) k.lgRect = null;

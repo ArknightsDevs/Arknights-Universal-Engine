@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step, stateHash, paths } from '@aue/sim';
-import { levelContent, levelAt, LEVELS, matchContent } from '../src/index.js';
+import { levelContent, levelAt, LEVELS, matchContent, OFFICIAL_SOURCE } from '../src/index.js';
 import { uncoveredAbilities } from '../src/foes.js';
 import { profiledDevices } from '../src/devices.js';
 import hard02 from '../data/levels/act1multi_hard-02.json' with { type: 'json' };
@@ -97,22 +97,42 @@ test('[同步-9] [部署-2] a match\'s content: its level, each seat\'s deck at 
   assert.equal(w.units.filter((u) => u.owner === 0).length, 1);
 });
 
-test('[关卡-2] more co-op levels: act2multi_rm01, act1multi_06 and act1multi_hard-02 load; act1multi_rm07 waits for its enemies\' abilities, act1multi_02 for its sight system', () => {
+test('[敌能-22] [敌能-23] the real IG-14 plays out headless the same way twice, with the enemies others bring in', () => {
+  const c = levelContent('act1multi_rm07', 'NORMAL');
+  /** @returns {[number, Record<string, number>]} */
+  const play = () => {
+    const w = createWorld(c, { seed: 5, players: 2 });
+    /** @type {Record<string, number>} */
+    const seen = {};
+    for (let f = 0; f < 30 * 200 && w.result < 0; f++) for (const e of step(w, c)) seen[e.type] = (seen[e.type] ?? 0) + 1;
+    return [stateHash(w), seen];
+  };
+  const [h1, seen] = play(), [h2] = play();
+  assert.equal(h1, h2);
+  assert.ok(seen.spawn > 10 && seen.end === 1, JSON.stringify(seen));
+  assert.ok(['enemy_1137_plasm', 'enemy_1138_tumor', 'enemy_1139_hologc', 'enemy_1221_dzomg'].every((k) => k in c.enemies), 'the enemies others bring in');
+});
+
+test('[关卡-2] more co-op levels: act2multi_rm01, act1multi_06, act1multi_hard-02 and act1multi_rm07 load; act1multi_02 waits for its sight system', () => {
   assert.deepEqual(['act1multi_01', 'act1multi_02', 'act1multi_06', 'act1multi_hard-02', 'act1multi_rm07', 'act2multi_rm01'].every((id) => id in LEVELS), true);
   assert.deepEqual(['NORMAL', 'FOUR_STAR'].map((d) => levelAt('act1multi_hard-02', /** @type {any} */ (d)).level.code), ['IG-S-2', 'IG-S-2']);
   assert.deepEqual(['NORMAL', 'FOUR_STAR'].map((d) => levelAt('act2multi_rm01', /** @type {any} */ (d)).level.stages?.map((s) => s.objective)), [['protect', 'protect'], ['protect', 'protect']]);
   assert.deepEqual(['NORMAL', 'FOUR_STAR'].map((d) => levelAt('act1multi_06', /** @type {any} */ (d)).level.stages?.length), [2, 2], 'act1multi_06 now loads');
-  assert.throws(() => levelAt('act1multi_rm07', 'NORMAL'), /enemy abilities not supported yet: warn, Awake/);
+  assert.equal(levelAt('act1multi_rm07', 'NORMAL').level.code, 'IG-14');
+  assert.throws(() => levelAt('act1multi_rm07', 'FOUR_STAR'), /runes not supported yet: env_gbuff_new_with_verify, env_system_new/);
   assert.throws(() => levelAt('act1multi_02', 'NORMAL'), /runes not supported yet: env_system_new/);
   assert.throws(() => levelAt('nope', 'NORMAL'), /no level nope/);
-  assert.deepEqual(uncoveredAbilities([{ talents: { dead: {}, Light: {}, DmgUp: {}, boom: {}, x: {} }, skills: [{ key: 'PowerHit' }, { key: 'y' }] }].map((e) => /** @type {any} */ (e))), ['x', 'y']);
+  assert.deepEqual(uncoveredAbilities([{ talents: { dead: {}, Light: {}, DmgUp: {}, boom: { radius: 1, delay: 0 }, x: {} }, skills: [{ key: 'PowerHit' }, { key: 'y' }] }].map((e) => /** @type {any} */ (e))), ['x', 'y']);
+  assert.deepEqual(uncoveredAbilities([{ talents: { boom: { radius: 1 }, ranged: {} }, skills: [{ key: 'CrossAttack', bb: { bolts: 3, hold: 0, charge: 0 } }] }].map((e) => /** @type {any} */ (e))), ['boom', 'ranged'],
+    'a behaviour lacking values it needs (FOE_NEEDS) is none yet');
 });
 
 test('[关卡-2] char_blockcnt_add: act1multi_06 at 突袭 takes one off every operator\'s block count', async () => {
   const blocks = { ...LEVELS, x: { ...LEVELS.act1multi_01, difficulties: { NORMAL: LEVELS.act1multi_01.difficulties.NORMAL, FOUR_STAR: { ...LEVELS.act1multi_01.difficulties.FOUR_STAR, blockAdd: LEVELS.act1multi_06.difficulties.FOUR_STAR.blockAdd } } } };
   assert.deepEqual([LEVELS.act1multi_06.difficulties.NORMAL.blockAdd, LEVELS.act1multi_06.difficulties.FOUR_STAR.blockAdd], [undefined, -1]);
   const deck = [{ id: 'char_122_beagle', build: { elite: 0, level: 30, potential: 1, trust: 0, skill: 0, skillLevel: 4 } }];
-  const easy = await matchContent({ level: 'x', difficulty: 'NORMAL', seed: 1, decks: [deck] }, blocks), hard = await matchContent({ level: 'x', difficulty: 'FOUR_STAR', seed: 1, decks: [deck] }, blocks);
+  const source = { ...OFFICIAL_SOURCE, levels: blocks };
+  const easy = await matchContent({ level: 'x', difficulty: 'NORMAL', seed: 1, decks: [deck] }, { source }), hard = await matchContent({ level: 'x', difficulty: 'FOUR_STAR', seed: 1, decks: [deck] }, { source });
   assert.equal(hard.operators['char_122_beagle#0'].blockCnt, easy.operators['char_122_beagle#0'].blockCnt - 1);
 });
 

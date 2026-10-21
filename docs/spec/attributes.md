@@ -24,7 +24,7 @@
 - **范围**：只计入生效的 Buff（状态-2）。伤判类修饰器（受到伤害倍率、闪避）不在这里汇总，而是在结算时逐个处理（伤害-8）。
 - **键名**：每项属性的四类修饰器的键名见下表，沿用 Stronghold 内容接口的名字。没有对应名字的属性，四个键是 `<前缀>Flat`、`<前缀>Pct`、`<前缀>Final`、`<前缀>Mul`。
   - 表外以 `Mul` 结尾的键按最终乘算相乘，其余的键相加。
-  - 其中这几个乘区由伤害和治疗读取（伤害-7、伤害-11）：伤害倍率 `dmgDealtMul`、`physDealtMul`、`artsDealtMul`，治疗倍率 `healingDealtMul`，受到治疗倍率 `healingTakenMul`；元素损伤读取受到元素损伤倍率 `epTakenMul`（元素-2）；攻击读取攻击力倍率乘区 `atkScaleMul`（伤害-6）。
+  - 其中这几个乘区由伤害和治疗读取（伤害-7、伤害-11）：伤害倍率 `dmgDealtMul`、`physDealtMul`、`artsDealtMul`，治疗倍率 `healingDealtMul`，受到治疗倍率 `healingTakenMul`；元素损伤读取受到元素损伤倍率 `epTakenMul`（元素-2），干员造成的元素损伤再乘它的元素损伤倍率 `epDealtMul`（职业-17）；攻击读取攻击力倍率乘区 `atkScaleMul`（伤害-6）。
 
 | 属性 | 基础字段 | 直接加算 | 直接乘算 | 最终加算 | 最终乘算 |
 |---|---|---|---|---|---|
@@ -85,6 +85,6 @@
 
 ### 属性-6 生命回复
 
-每帧的 Buff 阶段之后（帧-1 第 5 步），每个在场、生命低于最大生命值的单位回复 生命回复速度 ÷ 30 点生命，不超过最大生命值。生命回复不是治疗：不产生表现事件，不受治疗倍率影响，禁疗不阻止它。
+每帧的 Buff 阶段之后（帧-1 第 5 步），每个在场、生命低于最大生命值的单位回复（生命回复速度 + 生命回复速度（百分比）× 最大生命值）÷ 30 点生命，不超过最大生命值。生命回复速度（百分比）是 Buff 修饰器 `hpRegenRatio` 之和，限在 0 到 1 之间（干员-16）。生命回复不是治疗：不产生表现事件，不受治疗倍率影响，禁疗不阻止它。
 
-- 来源：[PRTS「数值范围」oldid=439605](https://prts.wiki/index.php?title=%E6%95%B0%E5%80%BC%E8%8C%83%E5%9B%B4&oldid=439605)：HP_RECOVERY_PER_SEC 生命回复速度，下限 0，未给出时 0；[PRTS「异常效果」oldid=440606](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=440606) 禁疗：「增减生命回复速度或生命回复速度（百分比）属性的效果不会被识别为治疗类能力」；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 重伤在禁疗之外另把生命回复速度归零；每帧按 1/30 回复、禁疗不阻止为推断 INF-0093
+- 来源：[PRTS「数值范围」oldid=439605](https://prts.wiki/index.php?title=%E6%95%B0%E5%80%BC%E8%8C%83%E5%9B%B4&oldid=439605)：HP_RECOVERY_PER_SEC 生命回复速度，下限 0，未给出时 0；HP_RECOVERY_PER_SEC_BY_MAX_HP_RATIO 生命回复速度（百分比），0 到 1，未给出时 0，「基于最大生命值的百分比的生命回复」；[PRTS「异常效果」oldid=440606](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=440606) 禁疗：「增减生命回复速度或生命回复速度（百分比）属性的效果不会被识别为治疗类能力」；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 重伤在禁疗之外另把生命回复速度归零；每帧按 1/30 回复、禁疗不阻止为推断 INF-0093

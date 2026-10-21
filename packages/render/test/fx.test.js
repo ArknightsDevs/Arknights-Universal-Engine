@@ -7,7 +7,7 @@ import { KIND, DIR, SKILL_STATE, STATUS_BIT } from '@aue/schema';
 import { mm, evalKeys, grad, startColor, trackAt, trackValue, scroll, uvThrough, euler, rot } from '../src/fx/curves.js';
 import { FxSystem, shapePoint } from '../src/fx/system.js';
 import { FxBatch, fxMaterial, quad, strip, particleAxes } from '../src/fx/geometry.js';
-import { FxInstance, rootAt, rootToward, rootAlong, effectLead } from '../src/fx/player.js';
+import { FxInstance, rootAt, rootToward, rootAlong, effectLead, sizesOf } from '../src/fx/player.js';
 import { createEffects, FX } from '../src/effects.js';
 
 const near = (/** @type {number} */ a, /** @type {number} */ b, e = 1e-6) => Math.abs(a - b) < e;
@@ -94,6 +94,13 @@ test('[渲染-10] triangles: a quad takes its sheet cell; a strip faces the came
   b.dispose();
 });
 
+test('[渲染-10] sizes: one start size grows alike on every axis, or apart when the system sizes the axes apart; 3D start sizes their own', () => {
+  const q = { size: 0.5, sizeY: 0, sizeZ: 0, r2: 0.3 };
+  assert.deepEqual(sizesOf({ sizeOL: C(2) }, q, 0.5), { size: 1, sizeY: 1, sizeZ: 1 });
+  assert.deepEqual(sizesOf({ sizeOL: C(2), sizeOLY: C(0.1), sizeOLZ: C(1) }, q, 0.5), { size: 1, sizeY: 0.05, sizeZ: 0.5 }, 'a streak from one start size');
+  assert.deepEqual(sizesOf({ size3D: 1, sizeOL: C(2) }, { ...q, sizeY: 0.25, sizeZ: 0 }, 0.5), { size: 1, sizeY: 0.5, sizeZ: 1 }, '3D start sizes, alike over life');
+});
+
 test('[渲染-10] an instance: it waits, plays, stops at its cap, fades, and is done', () => {
   const tex = new Map([['a', new THREE.Texture()]]), e = { d: 0.5, w: 0.2, ps: [sys({ life: C(0.3) })], tr: [{ kind: 'trail', tex: 'a', time: 0.3, grad: { c: [[1, 1, 1, 0]], a: [[1, 0]] }, texMode: 0, width: 0.1, blend: 'add' }] };
   const i = new FxInstance(e, rootAt([0, 0, 0], 1), { kind: 'hit', tex, rand: seeded() });
@@ -161,3 +168,48 @@ test('[渲染-12] markers on the start and end tiles, a skill\'s own hit, deploy
   fx.dispose();
 });
 
+test('[渲染-12] co-op goals by the viewer: their own goal and one of no single side take the first co-op marker, the partner\'s the second', () => {
+  const lasting = { d: 0.5, ps: [sys({ loop: true, rate: C(5), bursts: [] })], tr: [] };
+  const data = { by: {}, named: { tile_end_coop_1: 'blue', tile_end_coop_2: 'teal' }, fx: { blue: lasting, teal: { ...lasting } } };
+  const end = (/** @type {string | undefined} */ goal) => ({ key: 'tile_end_cooperate', height: 'LOWLAND', ...(goal ? { goal } : {}) });
+  const level = { width: 3, height: 1, tiles: [[end('A'), end('B'), end(undefined)]] };
+  const seen = (/** @type {number | undefined} */ seat) => {
+    const fx = createEffects({ data, textures: new Map() }, level, seat === undefined ? {} : { seat });
+    const kinds = fx.live.map((i) => (i.e === data.fx.blue ? 'blue' : 'teal'));
+    fx.dispose();
+    return kinds;
+  };
+  assert.deepEqual(seen(0), ['blue', 'teal', 'blue'], 'seat 0: goal A its own');
+  assert.deepEqual(seen(1), ['teal', 'blue', 'blue'], 'seat 1: goal B its own');
+  assert.deepEqual(seen(undefined), ['blue', 'teal', 'blue'], 'no seat given: seat 0');
+  const only = createEffects({ data: { ...data, named: { tile_end_coop_1: 'blue' } }, textures: new Map() }, level, { seat: 0 });
+  assert.equal(only.live.filter((i) => i.e === data.fx.blue).length, 3, 'a pack without the second marker: the first');
+  only.dispose();
+});
+
+
+test('[渲染-25] a 炼金单元: its trail flies to the landing tile, its effects loop there, drift and grow with it, and stop at its end', () => {
+  const tex = new Map([['a', new THREE.Texture()]]), lasting = () => ({ d: 0.5, ps: [sys({ loop: true, rate: C(5), bursts: [] })], tr: [] });
+  const data = { by: { alc: { z: { 2: { t: 'trail', v: 2, arc: 0.5, r: ['range', 'token'] } } } }, fx: { trail: lasting(), range: lasting(), token: lasting() } };
+  const fx = createEffects({ data, textures: tex }, { width: 4, height: 2 }, { skills: { alc: 2 } });
+  const unit = { id: 1, kind: KIND.OPERATOR, owner: 0, x: 0, y: 0, z: 0, dir: DIR.RIGHT, hp: 1, maxHp: 1, anim: 0, sp: -1, spCost: 0, skill: 0, skillLeft: -1, status: 0 };
+  const view = /** @type {any} */ ({ frame: 1, players: [], units: [unit] }), cam = new THREE.PerspectiveCamera();
+  cam.updateMatrixWorld();
+  fx.update(view, { 1: 'alc' }, [{ type: 'alchemy', id: 9, src: 1, x: 2, y: 0, r: 1, frames: 120, vx: 0.5, vy: 0, grow: 1, drift: 90 }]);
+  const named = (/** @type {string} */ n) => fx.live.filter((i) => i.e === data.fx[/** @type {keyof typeof data.fx} */ (n)] && !i.stopped);
+  assert.deepEqual([named('trail').length, named('range').length], [1, 0], 'thrown: the trail, nothing landed yet');
+  const t0 = named('trail')[0].R.o[0];
+  fx.step(0.5, cam);
+  assert.ok(named('trail')[0].R.o[0] > t0, 'it flies east');
+  fx.step(0.6, cam);
+  assert.deepEqual([named('trail').length, named('range').length, named('token').length], [0, 1, 1], 'two tiles at 2 a second: landed after a second');
+  const range = named('range')[0], o0 = range.R.o[0];
+  fx.step(0.5, cam);
+  assert.ok(range.R.o[0] > o0 && Math.hypot(...range.R.ex) > 1, 'it drifts east and grows');
+  fx.step(2.5, cam);
+  assert.deepEqual([range.stopped, fx.pots.length], [true, 0], 'four seconds: over');
+  const none = createEffects({ data: { by: {}, fx: {} }, textures: tex }, { width: 4, height: 2 });
+  none.update(view, { 1: 'op' }, [{ type: 'alchemy', id: 9, src: 1, x: 2, y: 0, r: 1, frames: 90, vx: 0, vy: 0, grow: 0, drift: 0 }]);
+  assert.equal(none.pots.length, 0, 'no throw in the pack: nothing');
+  fx.dispose(); none.dispose();
+});

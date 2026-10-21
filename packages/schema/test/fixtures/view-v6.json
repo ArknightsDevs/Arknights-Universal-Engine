@@ -1,5 +1,5 @@
 {
-  "$comment": "Render state version 5, written by hand from the layout in ADR 0053 (version 2 adds each unit's SP, SP cost, skill state and skill frames left; version 3 its statuses, STATUS_BIT or-ed; version 4 its element, element value share and burst flag; version 5 the unit kind DEVICE, here the third unit). A layout change must bump VIEW_VERSION and replace this file.",
+  "$comment": "Render state version 6, written by hand from the layout in ADR 0053 (version 2 adds each unit's SP, SP cost, skill state and skill frames left; version 3 its statuses, STATUS_BIT or-ed; version 4 its element, element value share and burst flag; version 5 the unit kind DEVICE, here the third unit; version 6 a 傀儡师's form, the second unit in its 替身). A layout change must bump VIEW_VERSION and replace this file.",
   "view": {
     "frame": 42,
     "players": [
@@ -31,7 +31,8 @@
         "status": 0,
         "element": 0,
         "ep": 1,
-        "burst": 0
+        "burst": 0,
+        "form": 0
       },
       {
         "id": 3,
@@ -51,7 +52,8 @@
         "status": 514,
         "element": 3,
         "ep": 0.375,
-        "burst": 0
+        "burst": 0,
+        "form": 2
       },
       {
         "id": 2,
@@ -71,12 +73,13 @@
         "status": 9,
         "element": 1,
         "ep": 0.5,
-        "burst": 1
+        "burst": 1,
+        "form": 0
       }
     ]
   },
   "numbers": [
-    5,
+    6,
     42,
     3,
     2,
@@ -102,6 +105,7 @@
     0,
     1,
     0,
+    0,
     3,
     0,
     1,
@@ -122,6 +126,7 @@
     0,
     2,
     2,
+    2,
     -1,
     0.25,
     3.125,
@@ -137,6 +142,7 @@
     9,
     1,
     0.5,
-    1
+    1,
+    0
   ]
 }

@@ -18,14 +18,15 @@
     "check": "aue-check",
     "ci": "pnpm run oracle && pnpm run lint && pnpm run typecheck && pnpm run types && pnpm run coverage && pnpm run check",
     "oracle": "aue-check oracle",
-    "simcheck": "node packages/simcheck/src/cli.js"
+    "simcheck": "node packages/simcheck/src/cli.js",
+    "aue": "node packages/sdk/src/cli.js"
   },
   "devDependencies": {
     "@aue/lint": "workspace:*",
     "@aue/testkit": "workspace:*",
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.18.0",
-    "eslint": "^10.11.0",
+    "eslint": "^10.13.0",
     "fast-check": "^4.10.2",
     "globals": "^17.12.0",
     "typescript": "6.0.3"

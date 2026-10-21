@@ -1,9 +1,9 @@
-// The server side of lockstep (spec 同步-3, 同步-5…同步-8): the clock, sealing frames, relaying commands, the arbiter's
-// own simulation, desync recovery, the speed and pause controls. Transport-agnostic: messages come in through the
+// The server side of lockstep (spec 同步-3, 同步-5…同步-8, 同步-13): the clock, sealing frames, relaying commands, the
+// arbiter's own simulation, desync recovery, the speed and pause controls, the seats' signals. Transport-agnostic: messages come in through the
 // methods (already validated with clientMessageProblem) and go out through `send`.
 import { PROTOCOL_VERSION } from '@aue/schema';
 import { createWorld, step, stateHash, takeSnapshot, contentHash } from '@aue/sim';
-import { MAX_AHEAD, HASH_HISTORY, HASH_EVERY, framesAt, PAUSE_ASK_MS, RESUME_MS } from './constants.js';
+import { MAX_AHEAD, HASH_HISTORY, HASH_EVERY, framesAt, PAUSE_ASK_MS, RESUME_MS, SIGNAL_RATE } from './constants.js';
 
 /** @typedef {import('@aue/schema').Command} Command @typedef {import('@aue/schema').ServerMessage} ServerMessage */
 /** @typedef {import('@aue/schema').Match} Match */
@@ -12,9 +12,11 @@ import { MAX_AHEAD, HASH_HISTORY, HASH_EVERY, framesAt, PAUSE_ASK_MS, RESUME_MS 
  * The host's options: the content and the match settings it was made from (同步-9; none when the clients know the
  * content otherwise), the seats, the seed, the transport, the desync report; `hashEvery`, the frames between the
  * arbiter's kept hashes, a divisor of HASH_EVERY — the clients report every HASH_EVERY frames (同步-5), so by default
- * it hashes only those; 1 keeps every frame's (tests).
+ * it hashes only those; 1 keeps every frame's (tests); `signals`, the mode's rule for the seats' signals (同步-13): only
+ * those it lets through are passed on; `absent`, the seats nobody plays (a training's partner, 同步-14).
  * @typedef {{ content: import('@aue/sim').Content, seats: number, seed: number, send: (seat: number, msg: ServerMessage) => void,
- *   onDesync?: (d: Desync) => void, match?: Match | null, hashEvery?: number }} HostOptions
+ *   onDesync?: (d: Desync) => void, match?: Match | null, hashEvery?: number,
+ *   signals?: (seat: number, s: import('@aue/schema').Signal, now: number) => boolean, absent?: readonly number[] }} HostOptions
  */
 
 export class LockstepHost {
@@ -56,6 +58,9 @@ export class LockstepHost {
     this.askedAt = 0;
     /** @type {number | null} */
     this.resumeAt = null;
+    /** each seat's signal allowance and when it was last counted (同步-13) */
+    /** @type {Map<number, { n: number, at: number }>} */
+    this.allowance = new Map();
   }
 
   /**
@@ -97,11 +102,20 @@ export class LockstepHost {
     this.broadcastControl();
   }
 
-  /** A seat's page has loaded the battle: once every seat's has, the battle begins (同步-11). @param {number} seat @param {number} now */
+  /** Whether a seat is one nobody plays (同步-14). @param {number} seat */
+  absent(seat) { return this.o.absent?.includes(seat) ?? false; }
+
+  /** Whether a seat plays alone: every other seat absent (同步-14). @param {number} seat */
+  alone(seat) { return Array.from({ length: this.o.seats }, (_, s) => s).every((s) => s === seat || this.absent(s)); }
+
+  /**
+   * A seat's page has loaded the battle: once every seat's has — but for the absent ones (同步-14) —, the battle begins
+   * (同步-11). @param {number} seat @param {number} now
+   */
   ready(seat, now) {
     this.rebase(now);
     this.loaded.add(seat);
-    if (this.loaded.size >= this.o.seats) this.begun = true;
+    if (Array.from({ length: this.o.seats }, (_, s) => s).every((s) => this.loaded.has(s) || this.absent(s))) this.begun = true;
   }
 
   /** A seat's connection closed. With nobody left the clock stops (同步-6). @param {number} seat @param {number} now */
@@ -128,13 +142,13 @@ export class LockstepHost {
   }
 
   /**
-   * A seat asks to pause (同步-8): alone it pauses at once; with a mate, the mate must agree. A pause already on or asked
+   * A seat asks to pause (同步-8): alone — the others absent too (同步-14) — it pauses at once; with a mate, the mate must agree. A pause already on or asked
    * for changes nothing.
    * @param {number} seat @param {number} now
    */
   pause(seat, now) {
     if (this.held || this.asker >= 0) return;
-    if (this.o.seats === 1) { this.rebase(now); this.held = true; }
+    if (this.alone(seat)) { this.rebase(now); this.held = true; }
     else { this.asker = seat; this.askedAt = now; }
     this.broadcastControl();
   }
@@ -147,10 +161,10 @@ export class LockstepHost {
     this.broadcastControl();
   }
 
-  /** Any seat resumes a pause (同步-8): after RESUME_MS the clock runs again. @param {number} _seat @param {number} now */
-  resume(_seat, now) {
+  /** Any seat resumes a pause (同步-8): after RESUME_MS the clock runs again — at once for a seat alone (同步-14). @param {number} seat @param {number} now */
+  resume(seat, now) {
     if (!this.held || this.resumeAt !== null) return;
-    this.resumeAt = now + RESUME_MS;
+    if (this.alone(seat)) { this.held = false; this.clock = { ms: now, battle: this.clock.battle }; } else this.resumeAt = now + RESUME_MS;
     this.broadcastControl();
   }
 
@@ -163,6 +177,22 @@ export class LockstepHost {
       this.broadcastControl();
     }
     if (this.asker >= 0 && now - this.askedAt >= PAUSE_ASK_MS) { this.asker = -1; this.broadcastControl(); }
+  }
+
+  /**
+   * A seat's signal (同步-13): once the battle has begun and until it ends, passed on with the seat to every connected
+   * seat — at most SIGNAL_RATE a second from a seat, and only what the mode's rule lets through.
+   * @param {number} seat @param {import('@aue/schema').Signal} s @param {number} now
+   */
+  signal(seat, s, now) {
+    if (!this.begun || this.world.result >= 0) return;
+    const a = this.allowance.get(seat) ?? { n: SIGNAL_RATE, at: now };
+    a.n = Math.min(SIGNAL_RATE, a.n + ((now - a.at) / 1000) * SIGNAL_RATE);
+    a.at = now;
+    this.allowance.set(seat, a);
+    if (a.n < 1 || (this.o.signals && !this.o.signals(seat, s, now))) return;
+    a.n -= 1;
+    for (const to of this.connected) this.o.send(to, { t: 'signal', seat, s });
   }
 
   /** A seat's state hash after `frame` frames (同步-5). @param {number} seat @param {number} frame @param {number} hash */

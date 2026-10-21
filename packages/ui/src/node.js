@@ -41,6 +41,7 @@ export class UiNode {
     this.el = doc.createElement('div');
     /** @type {HTMLElement | null} */ this.g = null;
     /** @type {HTMLElement | null} */ this.t = null;
+    /** a scrolling image's background, inside its graphic and moved by a transform (界面-4) @type {HTMLElement | null} */ this.uv = null;
     /** @type {UiNode[]} */ this.kids = [];
     this.rt = copyRect(rectOf(n, parent !== null));
     /** @type {(number | null)[] | null} */ this.lp = null;
@@ -149,6 +150,12 @@ export function refNode(s, ref) {
 }
 
 /**
+ * The first clip of a node's own animation (界面-5: the clips its animation component holds), or null — what a
+ * controller names by the node alone plays. @param {UiNode | null | undefined} s
+ */
+export const ownClip = (s) => /** @type {string | null} */ (s?.n.comps.anim?.clips?.[0] ?? null);
+
+/**
  * Builds a node and its subtree (界面-9: a graphic is drawn only when its material's shader is one the engine knows; a
  * mask graphic hidden by its Mask, stencil and raycast-only graphics are not drawn).
  * @param {PackNode} n @param {UiNode | null} parent @param {string} path @param {Owner} scr
@@ -251,7 +258,8 @@ export function setText(s, value) {
   const txt = value == null ? '' : String(value), tc = s.n.comps.text;
   if (s.txt === txt && s.t.dataset.set) return;
   s.txt = txt; s.t.dataset.set = '1';
-  if (tc.rich !== 0 && isRich(txt)) s.t.innerHTML = richHtml(txt);
+  // rich text in one inline run: the text box lays its children out as flex items, which would split it into columns
+  if (tc.rich !== 0 && isRich(txt)) s.t.innerHTML = `<span class="aue-r">${richHtml(txt)}</span>`;
   else s.t.textContent = txt;
   const [family, weight, caps] = faceOf(s.scr.ctx.fonts, tc.font, txt, tc.style);
   s.t.style.fontFamily = family; s.t.style.fontWeight = String(weight); s.t.style.textTransform = caps ? 'uppercase' : '';

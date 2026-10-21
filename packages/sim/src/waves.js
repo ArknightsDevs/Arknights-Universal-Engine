@@ -1,16 +1,17 @@
 // Waves (docs/spec/waves.md 波次-1…波次-6, 结束-1): the level's waves one after another, a wave's fragments one after
 // another, a fragment's actions side by side; hidden groups act only when enabled, random alternatives are drawn when
 // their wave begins, predefined units come into effect and leave. The battle is won when the last wave is over and
-// lost when every player is down.
+// lost when every player is down. In 堡垒守御 each wave is a defence with a time limit and the next begins after a rest
+// (守御-1).
 import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
-import { makeEnemy } from './units.js';
 import { isDown } from './coop.js';
 import { weightedPick } from './rng.js';
 import { stageOf, startStage, resting } from './stage.js';
-import { foeSpawn } from './foes.js';
-import { emit } from './bus.js';
+import { spawnEnemy } from './spawn.js';
+import { defendStart, defendEnd, cutDefence, mayBegin } from './fortress.js';
 import { placeDevice, withdrawDevice } from './devices.js';
+import { placePredefined, isPredefinedOperator } from './predefined.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Wave} Wave @typedef {import('./types.js').WaveAction} WaveAction @typedef {import('./types.js').Schedule} Schedule */
@@ -107,25 +108,34 @@ function beginWave(w, c, at) {
   const chosen = groupsOf(wave).map((ids) => ids[weightedPick(w, ids.map((i) => all[i].weight ?? 1))]);
   w.sched = { wave: next, step: 'pre', at, frag: 0, fragAt: -1, fired: [], chosen };
   w.events.push({ type: 'wave', index: next });
+  if (w.fortress) defendStart(w, c, next, spawnTotal(c, wave, w.sched));
+}
+
+/** The enemies a wave spawns that it waits for (波次-3): the counts of its acting SPAWN actions. @param {Content} c @param {Wave} wave @param {Schedule} s */
+function spawnTotal(c, wave, s) {
+  const on = acting(c, wave, s);
+  return actionsOf(wave).reduce((n, a, i) => n + (on[i] && a.type === 'SPAWN' && !a.dontBlockWave ? a.count : 0), 0);
 }
 
 /**
- * One action acting once (波次-1, 波次-6): an enemy spawns, a predefined unit comes into effect or leaves.
+ * One action acting once (波次-1, 波次-6, 波次-7, 波次-8): an enemy spawns, a predefined unit comes into effect or leaves,
+ * a story is told.
  * @param {World} w @param {Content} c @param {WaveAction} a @param {number} fragAt @param {number} wave
  */
 function act(w, c, a, fragAt, wave) {
   if (a.type === 'SPAWN') {
-    const u = makeEnemy(w, c, { key: a.key, route: a.route, frag: fragAt, wave: a.dontBlockWave ? -1 : wave, unharmful: a.unharmful });
-    w.units.push(u);
-    w.events.push({ type: 'spawn', id: u.id, key: u.key });
-    foeSpawn(w, c, u);
-    emit(w, 'deploy', { unit: u, initial: false });
-    emit(w, 'enemySpawn', { enemy: u });
+    spawnEnemy(w, c, a, fragAt, a.dontBlockWave ? -1 : wave);
+  } else if (a.type === 'ACTIVATE' && isPredefinedOperator(c, a.key)) {
+    // an operator comes back each time it is activated off the field, after the intermission too (波次-7)
+    if (!w.predefined.includes(a.key)) { w.predefined.push(a.key); w.events.push({ type: 'predefine', key: a.key, on: 1 }); }
+    placePredefined(w, c, a.key);
   } else if (a.type === 'ACTIVATE' && !w.predefined.includes(a.key)) {
     w.predefined.push(a.key);
     w.events.push({ type: 'predefine', key: a.key, on: 1 });
     placeDevice(w, c, a.key);
     if (stageOf(c, a.key) >= 0) startStage(w, c, stageOf(c, a.key));
+  } else if (a.type === 'STORY') {
+    w.events.push({ type: 'story', key: a.key });
   } else if (a.type === 'WITHDRAW' && w.predefined.includes(a.key)) {
     w.predefined = w.predefined.filter((k) => k !== a.key);
     w.events.push({ type: 'predefine', key: a.key, on: 0 });
@@ -165,18 +175,15 @@ function runFragment(w, c, wave) {
 const waiting = (w) => w.units.some((u) => u.kind === KIND.ENEMY && u.hp > 0 && u.wave === w.sched.wave);
 
 /**
- * One step of the schedule at this frame; returns whether it moved on (and may move again this frame).
+ * One step of the schedule at this frame; returns whether it moved on (and may move again this frame). In 堡垒守御 a
+ * defence's time limit cuts its wave, and the next wave waits for the rest (守御-1).
  * @param {World} w @param {Content} c
  */
 function advance(w, c) {
   const s = w.sched, wave = c.level.waves[s.wave];
   if (s.step === 'done') return false;
-  if (s.step === 'post') {
-    const due = s.wave < 0 ? 0 : s.at + frames(wave.postDelay);
-    if (w.frame < due) return false;
-    beginWave(w, c, due);
-    return true;
-  }
+  if (cutDefence(w, c)) return true;
+  if (s.step === 'post') return endPost(w, c, wave);
   if (s.step === 'pre') {
     if (w.frame < s.at + frames(wave.preDelay)) return false;
     w.sched = { ...s, step: 'frags', at: s.at + frames(wave.preDelay) };
@@ -187,6 +194,18 @@ function advance(w, c) {
   const timeUp = wave.maxWait >= 0 && w.frame >= s.at + frames(wave.maxWait);
   if (waiting(w) && !timeUp) return false;
   w.sched = { ...s, step: 'post', at: timeUp && waiting(w) ? s.at + frames(wave.maxWait) : w.frame };
+  defendEnd(w, c);
+  return true;
+}
+
+/**
+ * A wave's postDelay (波次-2): when it is over — in 堡垒守御 also the rest after it (守御-1) — the next wave begins.
+ * Whether it did. @param {World} w @param {Content} c @param {Wave | undefined} wave the wave before, none before the first
+ */
+function endPost(w, c, wave) {
+  const s = w.sched, due = s.wave < 0 || !wave ? 0 : s.at + frames(wave.postDelay);
+  if (w.frame < due || !mayBegin(w, s.wave + 1)) return false;
+  beginWave(w, c, w.fortress ? w.frame : due);
   return true;
 }
 
@@ -197,15 +216,15 @@ export function tickWaves(w, c) {
 
 /**
  * Whether the battle has ended (结束-1), checked at the end of a frame: lost when every player is down; won when the
- * last co-op stage has passed or, in a level without stages, when the level's waves are all over. The first result
- * stands.
+ * last co-op stage has passed, in 堡垒守御 when the last defence is over (守御-1) or, in another level without stages,
+ * when the level's waves are all over. The first result stands.
  * @param {World} w @param {Content} c
  */
 export function checkEnd(w, c) {
   if (w.result >= 0) return;
   const stages = c.level.stages ?? [];
   const lost = w.players.length > 0 && w.players.every(isDown);
-  const won = stages.length > 0 ? w.stage.passed === stages.length : c.level.waves.length > 0 && w.sched.step === 'done';
+  const won = stages.length > 0 ? w.stage.passed === stages.length : w.fortress ? w.fortress.phase === 'over' : c.level.waves.length > 0 && w.sched.step === 'done';
   if (!lost && !won) return;
   w.result = lost ? 0 : 1;
   w.events.push({ type: 'end', result: w.result });

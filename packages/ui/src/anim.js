@@ -83,6 +83,12 @@ export class Animator {
     else p.o.onEvent?.(e.data ?? e.kind);
   }
 
+  /** Stops a clip playing on a node (界面-5): it stays where it is, its promise resolves. @param {UiNode | null} s @param {string} name */
+  stop(s, name) {
+    const clip = this.clips[name];
+    if (s && clip) this.drop((p) => p.s === s && p.clip === clip);
+  }
+
   /** Ends the clips matching a test (their promises resolve). @param {(p: Playing) => boolean} test */
   drop(test) {
     this.playing = this.playing.filter((p) => { if (test(p)) { p.done(); return false; } return true; });

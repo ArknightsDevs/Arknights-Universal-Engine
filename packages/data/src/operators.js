@@ -80,6 +80,8 @@ export function extractTraining(raw, id, rangesRaw, skillsRaw, equipment) {
   const favor = asArray(c.favorKeyFrames ?? [], `${p}.favorKeyFrames`).map((f, k) => asObject(f, `${p}.favorKeyFrames[${k}]`)).at(-1);
   return {
     name: asString(field(c, 'name', p), `${p}.name`),
+    // its code name in Latin letters (Kal'tsit), shown under the name
+    appellation: typeof c.appellation === 'string' ? c.appellation : '',
     position: asString(field(c, 'position', p), `${p}.position`),
     profession: asString(field(c, 'profession', p), `${p}.profession`),
     branch: asString(field(c, 'subProfessionId', p), `${p}.subProfessionId`),
@@ -95,8 +97,8 @@ export function extractTraining(raw, id, rangesRaw, skillsRaw, equipment) {
     talents: talentsOf(c.talents, `${p}.talents`),
     modules: modulesOf(id, equipment),
     ...tokensOf(c, p),
-    // a summon's description says what it is (召唤-1): 不会受到攻击…
-    ...(c.profession === 'TOKEN' ? { description: c.description === null || c.description === undefined ? null : asString(c.description, `${p}.description`) } : {}),
+    // a summon's description says what it is (召唤-1): 不会受到攻击…; an operator's is its trait's text (干员-3)
+    description: c.description === null || c.description === undefined ? null : asString(c.description, `${p}.description`),
   };
 }
 
@@ -212,13 +214,14 @@ function potentialOf(raw, p) {
   return out;
 }
 
-/** One skill slot with every level of its skill (干员-2). @param {unknown} raw @param {string} p @param {unknown} skillsRaw */
+/** One skill slot with its skill's name and every level of it (干员-2). @param {unknown} raw @param {string} p @param {unknown} skillsRaw */
 function skillOf(raw, p, skillsRaw) {
   const s = asObject(raw, p), id = asString(field(s, 'skillId', p), `${p}.skillId`);
   const sp = `skills[${id}]`, levels = asArray(field(asObject(field(asObject(skillsRaw, 'skills'), id, 'skills'), sp), 'levels', sp), `${sp}.levels`);
   const token = s.overrideTokenKey === null || s.overrideTokenKey === undefined ? null : asString(s.overrideTokenKey, `${p}.overrideTokenKey`);
+  const first = levels.length ? asObject(levels[0], `${sp}.levels[0]`) : {};
   return {
-    id, phase: phaseOf(asObject(field(s, 'unlockCond', p), `${p}.unlockCond`).phase, `${p}.unlockCond.phase`),
+    id, name: typeof first.name === 'string' ? first.name : '', phase: phaseOf(asObject(field(s, 'unlockCond', p), `${p}.unlockCond`).phase, `${p}.unlockCond.phase`),
     levels: levels.map((l, i) => levelOf(l, `${sp}.levels[${i}]`)), ...(token ? { token } : {}),
   };
 }

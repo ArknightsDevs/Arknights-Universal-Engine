@@ -44,6 +44,7 @@ export function play(s) {
       else if (msg.t === 'pause') host.pause(seat, now);
       else if (msg.t === 'pauseReply') host.pauseReply(seat, msg.accept, now);
       else if (msg.t === 'ready') host.ready(seat, now);
+      else if (msg.t === 'signal') host.signal(seat, msg.s, now);
       else host.resume(seat, now);
     });
   };

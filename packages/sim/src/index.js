@@ -4,6 +4,7 @@ export { createWorld, step, stateHash } from './world.js';
 export { takeSnapshot, restoreSnapshot } from './snapshot.js';
 export { toView } from './view.js';
 export { deployProblem, fitsTile } from './commands.js';
+export { predefinedKey } from './predefined.js';
 export { reachKeys, placedReach, setRange, setExtraRange } from './reach.js';
 export { healsNow } from './modes.js';
 export { rangeCell, pickTarget, targetsOf, setAtkCd, traitScale, attackNow, boomerangStrike } from './combat.js';
@@ -29,6 +30,8 @@ export * as doll from './doll.js';
 export * as displacement from './displacement.js';
 export { moveOperator, canMoveTo } from './move.js';
 export * as devices from './devices.js';
+export * as fortress from './fortress.js';
+export * as facilities from './facilities.js';
 export * as swing from './swing.js';
 export * as coop from './coop.js';
 export * as waves from './waves.js';
@@ -53,6 +56,10 @@ export { reserveIds } from './units.js';
 /** @typedef {import('./types.js').SkillDef} SkillDef */
 /** @typedef {import('./skills.js').SkillBehavior} SkillBehavior */
 /** @typedef {import('./types.js').TraitDef} TraitDef */
+/** @typedef {import('./types.js').VsScale} VsScale */
+/** @typedef {import('./types.js').WhileMods} WhileMods */
+/** @typedef {import('./types.js').TalentHit} TalentHit @typedef {import('./types.js').TalentStack} TalentStack @typedef {import('./types.js').TalentSp} TalentSp @typedef {import('./types.js').NextAttack} NextAttack */
+/** @typedef {import('./types.js').ModuleAura} ModuleAura */
 /** @typedef {import('./types.js').Doll} Doll */
 /** @typedef {import('./types.js').OperatorDef} OperatorDef @typedef {import('./types.js').TeamTalent} TeamTalent @typedef {import('./types.js').RangeTalent} RangeTalent @typedef {import('./types.js').CritTalent} CritTalent @typedef {import('./types.js').TimedTalent} TimedTalent @typedef {import('./types.js').DeployTalent} DeployTalent @typedef {import('./types.js').CarriedEffect} CarriedEffect */
 /** @typedef {import('./types.js').SummonDef} SummonDef @typedef {import('./types.js').SummonCard} SummonCard */

@@ -1,8 +1,9 @@
 // The units' bars (docs/spec/ui.md 界面-19, 界面-20): each drawn unit gets the battle UI's unit HUD at the point of
 // the canvas under its feet — an operator its HP bar and, with a skill, its SP bar (the cast bar while the skill
 // runs) on their background plate; an enemy its HP bar (a leader its own); a unit with an element value below its
-// maximum the element dial of its 当前损伤元素. The bars are the pack's prefabs placed by its grid; their parts (the
-// slider, the slider trailing it, the dial's images) come from the pack's `hud.units.bars`.
+// maximum the element dial of its 当前损伤元素; an operator of this seat whose skill can start by hand or be stopped the
+// skill mark, the pack's mark panel at its feet (its marks stand above the panel's centre). The bars are the pack's prefabs placed by its grid; their parts (the slider, the
+// slider trailing it, the dial's images) come from the pack's `hud.units.bars`, the mark's from `hud.units.skillMark`.
 import { refNode } from '../node.js';
 import { setSlider } from '../screen.js';
 
@@ -11,16 +12,18 @@ import { setSlider } from '../screen.js';
 /**
  * A unit as its bars show it: where its feet are on the canvas (reference pixels from the top left), whether it is an
  * operator, an enemy or a leader, its HP share, its skill (none, or its state and the share filled), its element
- * (none, or the element 1–5, the value's share and whether it is in a burst).
+ * (none, or the element 1–5, the value's share and whether it is in a burst), its skill mark (none; ready to start by
+ * hand; running and able to be stopped).
  * @typedef {{ id: number, at: number[], kind: 'char' | 'enemy' | 'boss', hp: number,
- *   sp: { state: 'charging' | 'ready' | 'running', share: number } | null, el: { element: number, share: number, burst: boolean } | null }} UnitBar
+ *   sp: { state: 'charging' | 'ready' | 'running', share: number } | null, el: { element: number, share: number, burst: boolean } | null,
+ *   mark?: 'ready' | 'stop' | null }} UnitBar
  */
 /**
  * A bar prefab's parts (references from its root): its slider; the slider trailing it and whether that one is appended
  * to the fill's end; an element dial's hit and burst images, icon and centre colour.
  * @typedef {{ slider: string, back?: string, end?: number, hit?: string, burst?: string, icon?: string, color?: string }} BarParts
  */
-/** @typedef {{ root: UiNode, kind: string, hp: UiNode, sp: UiNode | null, spName: string, ep: UiNode | null }} Hud */
+/** @typedef {{ root: UiNode, kind: string, hp: UiNode, sp: UiNode | null, spName: string, ep: UiNode | null, mark: UiNode | null, markName: string }} Hud */
 
 /** The prefab of each bar by the unit's kind. */
 const PREFABS = Object.freeze({ char: { hp: 'bar.charHp', back: 'bar.charBack', ep: 'bar.charEp' }, enemy: { hp: 'bar.enemyHp', back: 'bar.enemyBack', ep: 'bar.enemyEp' },
@@ -59,7 +62,7 @@ function makeHud(scr, layer, u, kind) {
   const root = scr.instantiate(layer, 'unit'), at = (/** @type {string} */ ref) => /** @type {UiNode} */ (refNode(root, ref));
   const p = PREFABS[kind], hp = scr.instantiate(at(u.groupA), p.hp);
   if (p.back) { const back = scr.instantiate(at(u.plugins), p.back, 0); back.free = true; }
-  return { root, kind, hp, sp: null, spName: '', ep: null };
+  return { root, kind, hp, sp: null, spName: '', ep: null, mark: null, markName: '' };
 }
 
 /**
@@ -89,6 +92,25 @@ function fill(scr, u, h, b) {
   }
   if (h.sp && b.sp) setBar(h.sp, u.bars?.[want], b.sp.state === 'ready' ? 1 : b.sp.share);
   showElement(scr, u, h, b);
+  showMark(scr, u, h, b);
+}
+
+/**
+ * The skill mark (界面-19): the pack's mark panel at the unit's feet showing only the part for the mark — the ready
+ * mark, or the stop mark — made again when the mark changes, removed without one.
+ * @param {Screen} scr @param {Record<string, any>} u @param {Hud} h @param {UnitBar} b
+ */
+function showMark(scr, u, h, b) {
+  const want = b.kind === 'char' && b.mark && u.skillMark && scr.ctx.pack.screens['unit.skillMark'] ? b.mark : '';
+  if (want === h.markName) return;
+  if (h.mark) { scr.remove(h.mark); h.mark = null; }
+  h.markName = want;
+  if (!want) return;
+  h.mark = scr.instantiate(h.root, 'unit.skillMark');
+  for (const [part, ref] of Object.entries(u.skillMark)) {
+    const n = part === 'count' ? null : refNode(h.mark, ref);
+    if (n) n.active = part === want;
+  }
 }
 
 /**

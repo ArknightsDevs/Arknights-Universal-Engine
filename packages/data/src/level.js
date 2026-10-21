@@ -2,7 +2,7 @@
 // what each difficulty changes, and its enemies with the level's overrides. Pure functions over parsed game data.
 import { asArray, asNumber, asObject, asString, field } from './validate.js';
 import { extractEdges, extractTiles, readRoute } from './skeleton-world.js';
-import { extractWaves, predefinesOf, stagesOf, maskCovers } from './waves.js';
+import { branchesOf, extractWaves, predefinesOf, stagesOf, maskCovers, levelCardsOf } from './waves.js';
 import { devicesOf } from './devices.js';
 import { extractOptions } from './skeleton.js';
 import { enemyOf, sharedEnemies, damageTypeOf } from './enemies.js';
@@ -12,7 +12,8 @@ import { enemyOf, sharedEnemies, damageTypeOf } from './enemies.js';
 /**
  * What a difficulty changes (关卡-2): hidden groups enabled, the life point, enemy multipliers, enemy replacements, and
  * the runes not supported yet.
- * @typedef {{ hiddenGroups: string[], lifePoint?: number, maxCost?: number, blockAdd?: number, enemyMul: EnemyMul[], replace: Record<string, string>, unsupported: string[] }} DifficultyRules
+ * @typedef {{ hiddenGroups: string[], lifePoint?: number, maxCost?: number, blockAdd?: number, costScale?: number, enemyMul: EnemyMul[], replace: Record<string, string>,
+ *   unsupported: string[] }} DifficultyRules
  */
 
 /** The runes 关卡-2 applies or that other clauses read (共同敌手, 合作-2). */
@@ -51,6 +52,7 @@ export function difficultyOf(runesRaw, difficulty) {
     else if (key === 'level_hidden_group_disable') disabled.push(String(field(bb, 'key', `${rp}.blackboard`)));
     else if (key === 'global_lifepoint') out.lifePoint = num('value');
     else if (key === 'cbuff_max_cost') out.maxCost = num('max_cost');
+    else if (key === 'global_cost_recovery_mul') out.costScale = num('scale');
     else if (key === 'char_blockcnt_add') out.blockAdd = asNumber(field(bb, 'value', `${rp}.blackboard`), `${rp}.blackboard.value`, -10, 10);
     else if (key === 'level_enemy_replace') out.replace[String(field(bb, 'key', `${rp}.blackboard`))] = String(field(bb, 'value', `${rp}.blackboard`));
     else if (key === 'enemy_attribute_mul') {
@@ -66,21 +68,23 @@ export function difficultyOf(runesRaw, difficulty) {
 }
 
 /**
- * The level's routes, kept in data order, and the map from a data route index to the content's.
- * @param {unknown} routesRaw
+ * The level's routes in first-use order, and the maps from a data route index — of its routes, or of its extra routes
+ * (a branch's, 守御-6) — to the content's. @param {unknown} routesRaw @param {unknown} extraRaw level.extraRoutes
  */
-function routeTable(routesRaw) {
-  const all = asArray(routesRaw, 'level.routes');
-  /** @type {Map<number, number>} */
+function routeTable(routesRaw, extraRaw) {
+  const all = asArray(routesRaw, 'level.routes'), extra = asArray(extraRaw ?? [], 'level.extraRoutes');
+  /** @type {Map<string, number>} */
   const renumber = new Map();
   /** @type {import('./skeleton-world.js').Route[]} */
   const routes = [];
-  const routeOf = (/** @type {number} */ index) => {
-    if (index >= all.length || all[index] === null) throw new Error(`a spawn uses route ${index}, which does not exist`);
-    if (!renumber.has(index)) { renumber.set(index, routes.length); routes.push(readRoute(all[index], `level.routes[${index}]`)); }
-    return /** @type {number} */ (renumber.get(index));
+  /** The route a spawn names, among the level's routes or its extra ones (a branch's, 守御-6), numbered in first-use order. @param {unknown[]} list @param {string} name @param {number} index */
+  const use = (list, name, index) => {
+    if (index >= list.length || list[index] === null) throw new Error(`a spawn uses ${name} ${index}, which does not exist`);
+    const k = `${name}:${index}`;
+    if (!renumber.has(k)) { renumber.set(k, routes.length); routes.push(readRoute(list[index], `level.${name}[${index}]`)); }
+    return /** @type {number} */ (renumber.get(k));
   };
-  return { routes, routeOf };
+  return { routes, routeOf: (/** @type {number} */ i) => use(all, 'routes', i), extraOf: (/** @type {number} */ i) => use(extra, 'extraRoutes', i) };
 }
 
 /**
@@ -122,6 +126,56 @@ function withTasks(stages, missions) {
 }
 
 /**
+ * The enemies of a level with those their abilities bring (关卡-1, 敌能-22): every enemy key a talent's or skill's
+ * blackboard names (a split, a summon, a rebirth as another), and theirs in turn; sorted by key.
+ * @param {string[]} keys @param {(key: string) => Record<string, any>} make @returns {Record<string, Record<string, any>>}
+ */
+export function withSummoned(keys, make) {
+  /** @type {Record<string, Record<string, any>>} */
+  const out = {};
+  const queue = [...keys];
+  while (queue.length > 0) {
+    const k = /** @type {string} */ (queue.shift());
+    if (Object.hasOwn(out, k)) continue;
+    out[k] = make(k);
+    queue.push(...summonedBy(out[k]));
+  }
+  return Object.fromEntries(Object.keys(out).toSorted().map((k) => [k, out[k]]));
+}
+
+/** The enemy keys an enemy's abilities name (敌能-22). @param {Record<string, any>} e @returns {string[]} */
+export const summonedBy = (e) => [...Object.values(e.talents ?? {}), ...(e.skills ?? []).map((/** @type {any} */ s) => s.bb)]
+  .flatMap((bb) => Object.values(bb)).filter((v) => typeof v === 'string' && /^enemy_\w+$/.test(v));
+
+/** The global buff that makes a level 堡垒守御 (守御-1). */
+const FORTRESS_BUFF = 'cooperate_fortress_global_buff';
+
+/**
+ * 堡垒守御's settings (守御-1, 守御-2) from the level's global buff: rest, defence and last defence times, the life a rest
+ * gives, `rest_add`; none for another level. @param {unknown} raw level.globalBuffs
+ */
+function fortressField(raw) {
+  const buff = asArray(raw ?? [], 'level.globalBuffs').map((x, i) => asObject(x, `level.globalBuffs[${i}]`)).find((x) => x.prefabKey === FORTRESS_BUFF);
+  if (!buff) return {};
+  const p = `level.globalBuffs[${FORTRESS_BUFF}]`;
+  const bb = Object.fromEntries(asArray(field(buff, 'blackboard', p), `${p}.blackboard`).map((e, i) => {
+    const o = asObject(e, `${p}.blackboard[${i}]`);
+    return [asString(field(o, 'key', p), `${p}.key`), o.value];
+  }));
+  const num = (/** @type {string} */ k) => asNumber(field(bb, k, p), `${p}.${k}`, 0, 1e6);
+  return { fortress: { rest: num('rest_time'), wave: num('wave_time'), waveLast: num('wave_time_last'), life: num('life_point'), restAdd: num('rest_add') } };
+}
+
+/** The level's branches (守御-6), only when it has some. @param {Record<string, unknown>} branches */
+const branchesField = (branches) => (Object.keys(branches).length > 0 ? { branches } : {});
+
+/** The level's own cards (关卡-7), only when it has some. @param {unknown} raw level.predefines */
+function cardsField(raw) {
+  const cards = levelCardsOf(raw);
+  return cards.operators.length || cards.tokens.length ? { cards } : {};
+}
+
+/**
  * A whole level (关卡-1…关卡-5): `id` names it in the content.
  * @param {{ id: string, level: unknown, enemyDb: unknown, handbook?: unknown, commit: string, view?: { vector: unknown, source: string }, stage?: unknown,
  *   missions?: unknown, charTable?: unknown }} input
@@ -130,23 +184,27 @@ function withTasks(stages, missions) {
 export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage, missions, charTable }) {
   const lv = asObject(level, 'level');
   const { width, height, tiles } = extractTiles(field(lv, 'mapData', 'level')), blockEdges = extractEdges(lv.mapData);
-  const { routes, routeOf } = routeTable(field(lv, 'routes', 'level'));
-  const waves = extractWaves(field(lv, 'waves', 'level'), routeOf);
+  const { routes, routeOf, extraOf } = routeTable(field(lv, 'routes', 'level'), lv.extraRoutes);
+  // a branch's spawns name the level's extra routes (守御-6)
+  const waves = extractWaves(field(lv, 'waves', 'level'), routeOf), branches = branchesOf(lv.branches, extraOf);
   const runes = lv.runes ?? null, difficulties = { NORMAL: difficultyOf(runes, 'NORMAL'), FOUR_STAR: difficultyOf(runes, 'FOUR_STAR') };
-  const spawned = waves.flatMap((w) => w.fragments.flatMap((f) => f.actions.filter((a) => a.type === 'SPAWN').map((a) => a.key)));
+  const frags = [...waves.flatMap((w) => w.fragments), ...Object.values(branches).flat()];
+  const spawned = frags.flatMap((f) => f.actions.filter((a) => a.type === 'SPAWN').map((a) => a.key));
   const keys = [...new Set([...spawned, ...Object.values(difficulties).flatMap((d) => Object.values(d.replace))])].toSorted();
   const refs = new Map(asArray(lv.enemyDbRefs ?? [], 'level.enemyDbRefs').map((r, i) => {
     const o = asObject(r, `level.enemyDbRefs[${i}]`);
     return [asString(field(o, 'id', `level.enemyDbRefs[${i}]`), `level.enemyDbRefs[${i}].id`), o];
   }));
   const shared = sharedEnemies(runes);
+  const enemies = withSummoned(keys, (k) => ({ ...enemyOf(enemyDb, k, refs.get(k)), ...damageTypeOf(handbook, k), ...(shared.has(k) ? { shared: true } : {}) }));
   return {
     source: { repo: 'Kengxxiao/ArknightsGameData', commit, server: 'zh_CN', ...(view ? { view: view.source } : {}) },
     level: { id, ...stageNames(stage), width, height, options: extractOptions(field(lv, 'options', 'level')), tiles, ...(blockEdges.length > 0 ? { blockEdges } : {}),
-      routes, waves, predefines: predefinesOf(lv.predefines), stages: withTasks(stagesOf(lv.predefines), missions),
+      routes, waves, ...branchesField(branches), predefines: predefinesOf(lv.predefines), stages: withTasks(stagesOf(lv.predefines), missions), ...cardsField(lv.predefines),
+      ...fortressField(lv.globalBuffs),
       ...(view ? { view: viewOf(view.vector) } : {}), ...(typeof lv.bgmEvent === 'string' && lv.bgmEvent ? { bgm: lv.bgmEvent } : {}) },
     difficulties,
-    enemies: Object.fromEntries(keys.map((k) => [k, { ...enemyOf(enemyDb, k, refs.get(k)), ...damageTypeOf(handbook, k), ...(shared.has(k) ? { shared: true } : {}) }])),
+    enemies,
     ...(charTable ? { devices: devicesOf(charTable, lv.predefines) } : {}),
   };
 }

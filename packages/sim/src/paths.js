@@ -66,8 +66,14 @@ const open = (m, k, fly) => passable(m.tiles[Math.floor(k / m.width)][k % m.widt
 export const HOLE_COST = 1_000_000;
 /** Whether a tile is a 地穴 (地图-4). @param {Tile | null} t */
 export const isHole = (t) => !!t && t.key === 'tile_hole';
-/** The cost of a step out of tile k (寻路-1, 地图-4). @param {LevelMap} m @param {number} k @param {boolean} fly */
-const costOut = (m, k, fly) => (!fly && isHole(m.tiles[Math.floor(k / m.width)][k % m.width]) ? HOLE_COST : 1);
+/** The ground pathing cost of a step out of a 类障碍物地块 (寻路-1: a built 液压式高台, 守御-5). */
+export const OBSTACLE_COST = 1000;
+/** The cost of a step out of tile k (寻路-1, 地图-4, 守御-5). @param {LevelMap} m @param {number} k @param {boolean} fly */
+function costOut(m, k, fly) {
+  if (fly) return 1;
+  const t = m.tiles[Math.floor(k / m.width)][k % m.width];
+  return isHole(t) ? HOLE_COST : t.obstacle ? OBSTACLE_COST : 1;
+}
 /** Whether a line of sight may pass a tile (寻路-2): passable, and for ground units no 地穴 (地图-4). @param {LevelMap} m @param {number} k @param {boolean} fly */
 const seeThrough = (m, k, fly) => open(m, k, fly) && (fly || !isHole(m.tiles[Math.floor(k / m.width)][k % m.width]));
 

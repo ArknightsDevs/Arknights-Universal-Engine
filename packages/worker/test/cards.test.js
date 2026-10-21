@@ -30,7 +30,15 @@ test('[界面-23] [召唤-4] [召唤-8] the summon cards: shown with their owner
   assert.deepEqual([s.wolf.shown, s.wolf.held, s.wolf.full], [false, 0, true], '默认: all used, none shown');
   assert.deepEqual([s.mark.shown, s.mark.held, s.mark.full], [true, 0, true], '唯一: shown while its one is on the field');
   assert.equal(operatorCards(w, c, 0).slots, 0, 'the guard and the wolf (部署占用数 1) take the two places');
-  assert.deepEqual(operatorCards(w, c, 0).cards.guard, { cost: 5, ready: 0 });
+  assert.deepEqual(operatorCards(w, c, 0).cards.guard, { cost: 5, ready: 0, locked: false });
+});
+
+test('[波次-9] the cards held back: a hidden level token card until its alias comes into effect', () => {
+  const h = /** @type {any} */ ({ ...c, level: { ...c.level, cards: { operators: [], tokens: [{ key: 'sniper', alias: 'cheer', count: 1, hidden: true }] } } });
+  const w = createWorld(h, { seed: 1, players: 1 });
+  assert.deepEqual(operatorCards(w, h, 0).hidden, ['sniper']);
+  w.predefined.push('cheer');
+  assert.deepEqual(operatorCards(w, h, 0).hidden, []);
 });
 
 test('[召唤-4] [渲染-8] a summon that may only stand in its owner\'s range: its marks are the free tiles the owner reaches now', () => {
@@ -39,4 +47,39 @@ test('[召唤-4] [渲染-8] a summon that may only stand in its owner\'s range: 
   step(w, c, [[0, deploy({})]]);
   assert.deepEqual(deployableKeys(w, c, 'wolf', 0), [1 * 6 + 3], 'the guard reaches (1, 2) and (1, 3); it stands on (1, 2)');
   assert.ok(deployableKeys(w, c, 'mark', 0).length > 1, 'any other summon: every tile it fits');
+});
+
+/** The tiny level as 堡垒守御 (the engine's 守御-1…守御-5): a facility of `kind` on (0, 1), each seat a plain builder card. @param {string} kind */
+function fortressOf(kind) {
+  const f = /** @type {any} */ (tinyContent());
+  f.level.fortress = { rest: 10, wave: 20, waveLast: 30, life: 1, restAdd: 0 };
+  f.level.cards = { operators: [], tokens: [{ key: 'worker', alias: 'worker', count: 2, hidden: false }] };
+  f.level.predefines = [{ alias: 'fac#1', key: 'fac', hidden: false, row: 0, col: 1, dir: 'UP' }];
+  const rec = { name: 'd', maxHp: 1000, atk: 0, def: 0, res: 0, blockCnt: 3, baseAttackTime: 1, aspd: 100, tauntLevel: -1, massLevel: 0, talentBb: {} };
+  f.devices = { fac: { ...rec, facility: { kind, modes: [{ sp: 1, cost: 3 }, { sp: 1, cost: 4, value_char: 1 }, { sp: 1, cost: 5 }, {}] } }, worker: { ...rec, builder: { sp: 'sp', hits: 5, life: 6 } } };
+  f.operators['worker#0'] = { name: 'worker', position: 'ALL', cost: 0, blockCnt: 0, baseAttackTime: 1, maxHp: 100, atk: 100, def: 0, res: 0, range: [], profession: 'TRAP',
+    trait: { free: true, noAttack: true }, respawnTime: 0, builder: { sp: 'sp', hits: 5, life: 6 } };
+  f.decks = [['guard', 'sniper', 'worker#0']];
+  return f;
+}
+
+test('[界面-39] [守御-4] a builder\'s marks: none in a defence; in a rest the free tiles next to a facility below level 3 it fits', () => {
+  const f = fortressOf('workshop'), w = /** @type {any} */ (createWorld(f, { seed: 1, players: 1 }));
+  assert.deepEqual(deployableKeys(w, f, 'worker#0', 0), []);
+  w.fortress.phase = 'rest';
+  assert.deepEqual(deployableKeys(w, f, 'worker#0', 0), [0 * 6 + 2, 1 * 6 + 1], 'the high ground beside it and the road above it; not the floor');
+  w.units.find((/** @type {any} */ u) => u.fac).fac.level = 3;
+  assert.deepEqual(deployableKeys(w, f, 'worker#0', 0), [], 'at level 3 it takes no builder');
+});
+
+test('[界面-39] [守御-5] a built 临时休息舱 adds deploy places; a built 液压式高台 is a tile for ranged operators', () => {
+  const lounge = fortressOf('lounge'), w = /** @type {any} */ (createWorld(lounge, { seed: 1, players: 1 }));
+  w.units.find((/** @type {any} */ u) => u.fac).fac.level = 1;
+  assert.equal(operatorCards(w, lounge, 0).slots, 3);
+  const pf = fortressOf('platform');
+  pf.level.predefines[0] = { ...pf.level.predefines[0], row: 1, col: 4 };
+  const w2 = /** @type {any} */ (createWorld(pf, { seed: 1, players: 1 }));
+  assert.equal(deployableKeys(w2, pf, 'sniper', 0).includes(1 * 6 + 4), false);
+  w2.units.find((/** @type {any} */ u) => u.fac).fac.level = 1;
+  assert.equal(deployableKeys(w2, pf, 'sniper', 0).includes(1 * 6 + 4), true);
 });

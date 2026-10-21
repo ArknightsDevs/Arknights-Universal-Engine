@@ -16,11 +16,20 @@ import { CLAMPED, dragged, handleSpan, normalized, outOf, pageOf, range, settle 
 /** Pointer moves (CSS pixels) a drag needs before it starts, like Unity's event system. */
 export const DRAG_START = 10;
 
-/** A node's box relative to an ancestor: the boxes added up the tree (without transforms). @param {UiNode} s @param {UiNode} top */
-function relBox(s, top) {
+/** A node's box in its screen: the boxes added up the tree (without transforms). @param {UiNode} s */
+function screenBox(s) {
   let x = 0, y = 0;
-  for (let n = /** @type {UiNode | null} */ (s); n && n !== top; n = n.parent) { x += n.box?.[0] ?? 0; y += n.box?.[1] ?? 0; }
+  for (let n = /** @type {UiNode | null} */ (s); n; n = n.parent) { x += n.box?.[0] ?? 0; y += n.box?.[1] ?? 0; }
   return [x, y];
+}
+
+/**
+ * A node's box relative to another's: its viewport's, which need not hold it (a content beside its viewport, as the
+ * game's operator list has it). @param {UiNode} s @param {UiNode} top
+ */
+function relBox(s, top) {
+  const a = screenBox(s), b = screenBox(top);
+  return [a[0] - b[0], a[1] - b[1]];
 }
 
 /**
@@ -139,6 +148,26 @@ function step(v, dt) {
   return true;
 }
 
+/** Each node's scroll view. @type {WeakMap<UiNode, View>} */
+const views = new WeakMap();
+
+/** A scroll view's offsets on each axis (界面-27; up and right positive), [0, 0] for a node without one. @param {UiNode} s @returns {[number, number]} */
+export function scrollOf(s) {
+  const v = views.get(s);
+  return v ? [v.ax[0].off, v.ax[1].off] : [0, 0];
+}
+
+/**
+ * Puts a scroll view's content at offsets (界面-27), stopping its motion: the page's way back to the start of a list it
+ * fills anew. Nothing for a node without one. @param {UiNode} s @param {number} x @param {number} y
+ */
+export function scrollTo(s, x, y) {
+  const v = views.get(s);
+  if (!v) return;
+  v.ax = [{ off: x, vel: 0 }, { off: y, vel: 0 }]; v.prev = [x, y]; v.drag = null; v.snap = null;
+  v.content.rt.pos[0] = v.base[0] + x; v.content.rt.pos[1] = v.base[1] + y;
+}
+
 /**
  * Makes a node's scroll view work (界面-27): pointer drags and the wheel on the node, the clock moving the content.
  * @param {UiNode} s a node with a scroll view
@@ -157,5 +186,6 @@ export function attachScroll(s) {
   // a tap that turned into a drag does not reach the nodes under it
   el.addEventListener('click', (e) => { if (v.wasDrag) { e.stopPropagation(); v.wasDrag = false; } }, true);
   s.scr.ctx.tickers?.add({ scr: s.scr, step: (dt) => step(v, dt) });
+  views.set(s, v);
   return v;
 }

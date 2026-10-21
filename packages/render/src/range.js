@@ -13,7 +13,8 @@ export const RANGE = Object.freeze({
   attack: Object.freeze([1, 0.6, 0.12]), heal: Object.freeze([0.25, 0.86, 1]), opacity: 0.749, speed: 0.5, lift: 0.2,
 });
 
-const VERTEX = `uniform float lift;
+/** The range's shaders: the striped texture in a colour, scrolled; its depth taken higher than it lies (渲染-9, 渲染-19). */
+export const VERTEX = `uniform float lift;
 varying vec2 vUv;
 void main() {
   vUv = uv;
@@ -22,7 +23,7 @@ void main() {
   vec4 raised = projectionMatrix * viewMatrix * (world + vec4(0.0, lift, 0.0, 0.0));
   gl_Position.z = raised.z / raised.w * gl_Position.w;
 }`;
-const FRAGMENT = `uniform sampler2D map;
+export const FRAGMENT = `uniform sampler2D map;
 uniform vec3 color;
 uniform float opacity;
 uniform float shift;

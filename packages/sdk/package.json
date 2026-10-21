@@ -1,0 +1,25 @@
+{
+  "name": "@aue/sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "the SDK for mod authors: the aue command line (new, check, test, pack), the mods' JSON Schemas",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./schemas/pack.schema.json": "./schemas/pack.schema.json",
+    "./schemas/data.schema.json": "./schemas/data.schema.json"
+  },
+  "bin": {
+    "aue": "./src/cli.js"
+  },
+  "dependencies": {
+    "@aue/content": "workspace:*",
+    "@aue/math": "workspace:*",
+    "@aue/schema": "workspace:*",
+    "@aue/sim": "workspace:*"
+  },
+  "aue": {
+    "node": true
+  }
+}

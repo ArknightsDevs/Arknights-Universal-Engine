@@ -11,6 +11,8 @@ import { dealDamage, setHp } from '../src/damage.js';
 import { dollPhase, DOLL_PHASE } from '../src/doll.js';
 import { applyStatus } from '../src/status.js';
 import { targetsOf } from '../src/combat.js';
+import { toView } from '../src/view.js';
+import { readView } from '@aue/schema';
 
 /** @typedef {import('../src/types.js').Unit} Unit @typedef {import('../src/types.js').World} World */
 
@@ -143,4 +145,28 @@ test('[职业-16] a 替身\'s aura: the ground enemies in its range slowed (最�
   assert.equal(stateHash(snap), stateHash(w), 'a snapshot keeps the aura\'s second');
   run(w, c, 1);
   assert.deepEqual([dollPhase(guard), statsOf(near).moveSpeed, near.buffs.some((b) => b.key.startsWith('doll:'))], [DOLL_PHASE.OUT, 1, false], 'the 替身 gone, the slow too');
+});
+
+test('[职业-16] a 替身 whose attacks deal arts damage and that takes less physical and arts damage', () => {
+  const { w, c, guard } = arena({ arts: true, taken: 0.6 });
+  setHp(guard, 0);
+  run(w, c, 31);
+  assert.equal(dollPhase(guard), DOLL_PHASE.DOLL);
+  const e = foe(w, c, 1, 1, { def: 1000, res: 0 });
+  /** @type {any[]} */
+  const ev = [];
+  for (let i = 0; i < 40 && !ev.some((x) => x.type === 'hit'); i++) ev.push(...step(w, c, []));
+  assert.equal(ev.find((x) => x.type === 'hit' && x.target === e.id)?.damage, statsOf(guard).atk, 'arts: no defence');
+  const hp = guard.hp;
+  dealDamage(w, e, guard, { type: 'phys', amount: 100 + statsOf(guard).def }, c);
+  assert.equal(hp - guard.hp, 60);
+});
+
+test('[职业-15] [渲染-24] the render state shows a 傀儡师\'s form: its own, switching in, the 替身, switching back', () => {
+  const { w, c, guard } = arena();
+  const form = () => readView(toView(w)).units.find((u) => u.id === guard.id)?.form;
+  const seen = [form()];
+  setHp(guard, 0);
+  for (let i = 0; i < 160; i++) { step(w, c, []); if (seen.at(-1) !== form()) seen.push(form()); }
+  assert.deepEqual(seen, [0, 1, 2, 3, 0]);
 });

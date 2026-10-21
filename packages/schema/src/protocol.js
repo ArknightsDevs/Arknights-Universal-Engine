@@ -1,12 +1,12 @@
 // The network messages, version 8 (ADR 0053; version 2 adds the skill command, version 3 the cost request and its answer,
 // and the speed and pause controls, version 4 the match settings in the welcome, version 5 the content hash in it,
 // version 6 the ready message: the page has loaded the battle, version 7 the replay in the welcome and the resync, version 8 the seats' runes
-// in the match settings). Messages from browsers are untrusted: the server accepts one only when
+// in the match settings, version 9 the signals between seats: 同步-13, version 10 the 「休整完毕」 command: 守御-2). Messages from browsers are untrusted: the server accepts one only when
 // clientMessageProblem returns null — exact fields, integers in range, short ids, nothing else.
 import { isRecord, isInt, isId, keyProblem } from './checks.js';
 import { matchProblem } from './match.js';
 
-export const PROTOCOL_VERSION = 8;
+export const PROTOCOL_VERSION = 10;
 
 /** Largest frame number (about 9.5 hours at 30 frames per second). */
 export const MAX_FRAME = 1_000_000;
@@ -18,7 +18,8 @@ export const MAX_SEAT = 7;
 /** @typedef {{ type: 'skill', unit: number }} SkillCommand */
 /** @typedef {{ type: 'ask' }} AskCommand */
 /** @typedef {{ type: 'answer', accept: number }} AnswerCommand */
-/** @typedef {DeployCommand | RetreatCommand | SkillCommand | AskCommand | AnswerCommand} Command */
+/** @typedef {{ type: 'rest' }} RestCommand */
+/** @typedef {DeployCommand | RetreatCommand | SkillCommand | AskCommand | AnswerCommand | RestCommand} Command */
 
 /** @type {Record<string, (c: Record<string, unknown>) => string | null>} */
 const COMMANDS = {
@@ -30,7 +31,27 @@ const COMMANDS = {
   skill: (c) => keyProblem(c, ['type', 'unit']) ?? (!isInt(c.unit, 1, 0x7fffffff) ? 'skill.unit is not a unit id' : null),
   ask: (c) => keyProblem(c, ['type']),
   answer: (c) => keyProblem(c, ['type', 'accept']) ?? (!isInt(c.accept, 0, 1) ? 'answer.accept is not 0 or 1' : null),
+  rest: (c) => keyProblem(c, ['type']),
 };
+
+/** Most fields a signal has besides its kind (同步-13). */
+export const SIGNAL_FIELDS = 5;
+/** Largest number a signal field holds. */
+export const SIGNAL_MAX = 9999;
+
+/**
+ * Why a signal (同步-13) is malformed, or null: its kind a short id, at most SIGNAL_FIELDS more fields, each a whole
+ * number from 0 to SIGNAL_MAX or a short id.
+ * @param {unknown} s @returns {string | null}
+ */
+export function signalProblem(s) {
+  if (!isRecord(s)) return 'signal is not an object';
+  if (!isId(s.kind)) return 'signal.kind is not an id';
+  const rest = Object.keys(s).filter((k) => k !== 'kind');
+  if (rest.length > SIGNAL_FIELDS) return `a signal has at most ${SIGNAL_FIELDS} fields besides its kind`;
+  for (const k of rest) if (!/^[a-z][a-zA-Z0-9]{0,15}$/.test(k) || !(isInt(s[k], 0, SIGNAL_MAX) || isId(s[k]))) return `signal.${k.slice(0, 16)} is malformed`;
+  return null;
+}
 
 /** @param {unknown} c @returns {string | null} why the command is malformed, or null */
 export function commandProblem(c) {
@@ -55,6 +76,7 @@ const CLIENT = {
   pauseReply: (m) => keyProblem(m, ['t', 'accept']) ?? (!isInt(m.accept, 0, 1) ? 'pauseReply.accept is not 0 or 1' : null),
   resume: (m) => keyProblem(m, ['t']),
   ready: (m) => keyProblem(m, ['t']),
+  signal: (m) => keyProblem(m, ['t', 's']) ?? signalProblem(m.s),
 };
 
 /**
@@ -92,6 +114,7 @@ const SERVER = {
   resync: (m) => keyProblem(m, ['t', 'snapshot', 'frame', 'replay']) ?? (!isInt(m.frame, -1, MAX_FRAME) ? 'resync.frame out of range' : null)
     ?? (m.replay === null ? null : sealedCommandsProblem(m.replay)),
   error: (m) => keyProblem(m, ['t', 'code', 'message']) ?? (typeof m.code !== 'string' || typeof m.message !== 'string' ? 'error fields are not strings' : null),
+  signal: (m) => keyProblem(m, ['t', 'seat', 's']) ?? (!isInt(m.seat, 0, MAX_SEAT) ? 'signal.seat out of range' : null) ?? signalProblem(m.s),
   control: (m) => keyProblem(m, ['t', 'fast', 'held', 'asker', 'resuming'])
     ?? (!Array.isArray(m.fast) || m.fast.length > MAX_SEAT + 1 || !m.fast.every((f) => isInt(f, 0, 1)) ? 'control.fast is not a list of 0 and 1' : null)
     ?? (!isInt(m.held, 0, 1) || !isInt(m.asker, -1, MAX_SEAT) || !isInt(m.resuming, 0, 1) ? 'control fields out of range' : null),
@@ -116,7 +139,9 @@ export function serverMessageProblem(m) {
 /** @typedef {{ t: 'pauseReply', accept: number }} PauseReplyMessage */
 /** @typedef {{ t: 'resume' }} ResumeMessage */
 /** The page has loaded the battle (同步-11). @typedef {{ t: 'ready' }} ReadyMessage */
-/** @typedef {HelloMessage | CommandMessage | HashMessage | SpeedMessage | PauseMessage | PauseReplyMessage | ResumeMessage | ReadyMessage} ClientMessage */
+/** A signal between seats (同步-13): its kind and a few small fields. @typedef {{ kind: string, [field: string]: string | number }} Signal */
+/** @typedef {{ t: 'signal', s: Signal }} SignalMessage */
+/** @typedef {HelloMessage | CommandMessage | HashMessage | SpeedMessage | PauseMessage | PauseReplyMessage | ResumeMessage | ReadyMessage | SignalMessage} ClientMessage */
 
 /**
  * A training (干员-1, 干员-2, 干员-7); without the module fields, no module.
@@ -141,4 +166,5 @@ export function serverMessageProblem(m) {
  * counting down.
  * @typedef {{ t: 'control', fast: number[], held: number, asker: number, resuming: number }} ControlMessage
  */
-/** @typedef {WelcomeMessage | FramesMessage | RestampMessage | ResyncMessage | ErrorMessage | ControlMessage} ServerMessage */
+/** A seat's signal, passed on to every connected seat (同步-13). @typedef {{ t: 'signal', seat: number, s: Signal }} SeatSignalMessage */
+/** @typedef {WelcomeMessage | FramesMessage | RestampMessage | ResyncMessage | ErrorMessage | ControlMessage | SeatSignalMessage} ServerMessage */

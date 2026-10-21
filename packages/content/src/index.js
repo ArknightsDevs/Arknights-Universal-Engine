@@ -4,28 +4,43 @@ import skeleton from '../data/skeleton.json' with { type: 'json' };
 import timings from '../data/timings.json' with { type: 'json' };
 import { withTrait, withOwnTrait } from './traits.js';
 import { skillDefOf } from './skills.js';
-import { levelAt, LEVELS } from './levels.js';
-import { foeBehaviors, withFoeExtras } from './foes.js';
-import { loadTraining, operatorAt, teamTalentsAt } from './operators.js';
-import { TOKENS, loadToken, tokenAt } from './tokens.js';
-import { teamFits } from '@aue/sim';
+import { levelAt } from './levels.js';
+import { foeBehaviors, withFoeExtras, withoutIncomplete } from './foes.js';
+import { operatorAt, teamTalentsAt } from './operators.js';
+import { TOKENS, tokenAt } from './tokens.js';
+import { teamFits, predefinedKey } from '@aue/sim';
 import { skillBehaviors } from './skills.js';
 import { kitsBehaviors, withKitTrait } from './compat/kits.js';
 import { defOf, tokenDefOf } from './compat/records.js';
 import { KIT_SOURCE } from './compat/kitmod.js';
 import { seatRules, withRunes } from './runes.js';
 import { carriedDef } from './carried.js';
+import { withBuilders } from './fortress.js';
+import { OFFICIAL_SOURCE } from './mods/source.js';
 
 /** The official behaviours: skills (技能-6) and enemy abilities (敌能-2). */
 const BEHAVIORS = Object.freeze({ skills: skillBehaviors, foes: foeBehaviors });
 
-/** Enemies with their PRTS extras (敌能-5…) and attack timings (攻击-2). @param {Record<string, any>} enemies */
-const enemiesOf = (enemies) => Object.fromEntries(Object.entries(enemies).map(([k, e]) => [k, { ...withFoeExtras(k, e), ...attackOf(k) }]));
+/**
+ * Enemies with their PRTS extras (敌能-5…) and attack timings (攻击-2); an ability that still lacks values its behaviour
+ * needs does not act (a level being tested, 关卡-8). @param {Record<string, any>} enemies
+ */
+const enemiesOf = (enemies) => Object.fromEntries(Object.entries(enemies).map(([k, e]) => [k, { ...withoutIncomplete(withFoeExtras(k, e)), ...attackOf(k) }]));
 
 /** A unit's attack timing from data/timings.json (攻击-2), when its skeleton gave one. @param {string} key */
 function attackOf(key) {
   const t = /** @type {Record<string, { duration: number, hit: number }>} */ (timings.units)[key];
   return t ? { attack: { duration: t.duration, hit: t.hit } } : {};
+}
+
+/**
+ * An operator's look and attack timing (攻击-2): one a mod adds has the figure, the voice and so the attack timing of the
+ * official operator it names (mod-11).
+ * @param {import('./mods/source.js').ContentSource} source @param {string} id
+ */
+function looks(source, id) {
+  const look = source.roster[id]?.look;
+  return look ? { look, ...attackOf(look) } : attackOf(id);
 }
 
 /**
@@ -56,11 +71,11 @@ export function levelContent(id, difficulty) {
 }
 
 /**
- * An operator record without its talent fields (干员-6…干员-15) — a 傀儡师's 替身 without its talents' parts, its range
+ * An operator record without its talent fields (干员-6…干员-19) — a 傀儡师's 替身 without its talents' parts, its range
  * kept (职业-16) —: a kit applies its talents itself (兼容-6).
  * @param {import('@aue/sim').OperatorDef} op @returns {import('@aue/sim').OperatorDef}
  */
-function withoutTalents({ talentBb, fieldTalents, rangeTalents, critTalents, timedTalents, deployTalents, ...rest }) {
+function withoutTalents({ talentBb, talentMods, talentTrait, fieldTalents, rangeTalents, critTalents, timedTalents, deployTalents, ...rest }) {
   const doll = rest.trait?.doll;
   return doll ? { ...rest, trait: { ...rest.trait, doll: { ...doll, attack: true, aura: null } } } : rest;
 }
@@ -71,39 +86,57 @@ function withoutTalents({ talentBb, fieldTalents, rangeTalents, critTalents, tim
  * (召唤-2), keyed "summon id#seat", with their owner's key (`summoner`). An operator with a loaded kit (兼容-6,
  * kitmod.js) fights by its kit: its record without its talents, its team talents not given by the engine, its kit's
  * world setup and skill behaviours; the content names the commit and the kits it uses. A seat's runes (符文-1) change its
- * operators and summons, and its deploy limit (level.options.characterLimitAdd); runes not supported throw.
+ * operators and summons, and its deploy limit (level.options.characterLimitAdd); runes not supported throw. In 堡垒守御
+ * every seat's deck has the level's builders too (守御-4). The levels, operators and summons come from the content
+ * source — the official content, or it with mods (mod-8) —; the content names the mods it is made with.
  * @param {{ level: string, difficulty: 'NORMAL' | 'FOUR_STAR', seed: number, decks: { id: string, build: import('./operators.js').Build }[][], runes?: import('./runes.js').SeatRune[][] }} match
- * @param {Readonly<Record<string, any>>} [levels] the extracted levels (LEVELS)
- * @param {Readonly<Record<string, import('./compat/kitmod.js').KitFactory>>} [kits] loaded kit factories by character id
+ * @param {{ source?: import('./mods/source.js').ContentSource, kits?: Readonly<Record<string, import('./compat/kitmod.js').KitFactory>> }} [o] the content
+ *   source (default: the official content) and the loaded kit factories by character id
  * @returns {Promise<import('@aue/sim').Content>}
  */
-export async function matchContent(match, levels = LEVELS, kits = {}) {
-  const lv = levelAt(match.level, match.difficulty, undefined, levels);
+export async function matchContent(match, { source = OFFICIAL_SOURCE, kits = {} } = {}) {
+  const lv = levelAt(match.level, match.difficulty, undefined, source.levels);
   /** @type {Record<string, import('@aue/sim').OperatorDef>} */
   const operators = {};
   /** @type {Record<string, import('./compat/kits.js').KitEntry>} */
   const entries = {};
   const decks = await Promise.all(match.decks.map(async (deck, seat) => {
     const built = await Promise.all(deck.map(async ({ id, build }) => {
-      const t = await loadTraining(id), factory = Object.hasOwn(kits, id) ? kits[id] : null;
-      if (factory) entries[`${id}#${seat}`] = { factory, def: defOf(id, t, build), tokens: await tokenDefsOf(id, t, build) };
+      const t = await source.training(id), factory = Object.hasOwn(kits, id) ? kits[id] : null;
+      if (factory) entries[`${id}#${seat}`] = { factory, def: defOf(id, t, build), tokens: await tokenDefsOf(source, t, build) };
       const entry = entries[`${id}#${seat}`];
       return { id, key: `${id}#${seat}`, op: entry ? withKitTrait(withoutTalents(operatorAt(t, build)), entry, lv.level) : operatorAt(t, build), team: entry ? [] : teamTalentsAt(t, build).deck };
     }));
     const team = built.flatMap((x) => x.team);
     for (const { id, key, op } of built) {
       const withTeam = withDeckTalents(op, team);
-      operators[key] = withOwnTrait(id, { ...withTeam, blockCnt: Math.max(0, withTeam.blockCnt + lv.blockAdd), char: id, ...attackOf(id) });
+      operators[key] = withOwnTrait(id, { ...withTeam, blockCnt: Math.max(0, withTeam.blockCnt + lv.blockAdd), char: id, ...looks(source, id) });
     }
-    for (const { id, build } of deck) Object.assign(operators, await summonsOf(id, build, seat, lv.blockAdd, Object.hasOwn(kits, id)));
+    for (const { id, build } of deck) Object.assign(operators, await summonsOf(source, { id, build, seat, blockAdd: lv.blockAdd, kit: Object.hasOwn(kits, id) }));
     return built.map((x) => x.key);
   }));
+  await withPredefined(source, operators, lv.level, lv.blockAdd);
   const limitAdd = await withSeatRunes(operators, decks, match.runes ?? []);
+  withBuilders(lv.level, lv.devices, operators, decks);
   const used = [...new Set(Object.keys(entries).map((k) => k.split('#')[0]))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const kb = used.length ? kitsBehaviors(entries) : null;
   const behaviors = kb ? { ...BEHAVIORS, world: kb.world, skills: { ...BEHAVIORS.skills, ...kb.skills }, buffs: kb.buffs, traits: kb.traits } : BEHAVIORS;
   const level = limitAdd.some((n) => n !== 0) ? { ...lv.level, options: { ...lv.level.options, characterLimitAdd: limitAdd } } : lv.level;
-  return /** @type {any} */ ({ level, enemies: enemiesOf(lv.enemies), devices: lv.devices, operators, decks, behaviors, ...(used.length ? { kits: { sha: KIT_SOURCE.sha, used } } : {}) });
+  return /** @type {any} */ ({ level, enemies: enemiesOf(lv.enemies), devices: lv.devices, operators, decks, behaviors, ...(used.length ? { kits: { sha: KIT_SOURCE.sha, used } } : {}),
+    ...(source.mods.length ? { mods: source.mods.map((m) => ({ ...m })) } : {}) });
+}
+
+/**
+ * The level's predefined operators (波次-7), each at its training, under its predefined key; their summons too.
+ * @param {import('./mods/source.js').ContentSource} source
+ * @param {Record<string, import('@aue/sim').OperatorDef>} operators @param {import('@aue/sim').Content['level']} level @param {number} blockAdd
+ */
+async function withPredefined(source, operators, level, blockAdd) {
+  for (const p of level.predefines ?? []) {
+    if (!p.build) continue;
+    const op = operatorAt(await source.training(p.key), p.build);
+    operators[predefinedKey(p.alias)] = withOwnTrait(p.key, { ...op, blockCnt: Math.max(0, op.blockCnt + blockAdd), char: p.key, ...looks(source, p.key) });
+  }
 }
 
 /**
@@ -132,39 +165,46 @@ async function withSeatRunes(operators, decks, runes) {
 
 /**
  * The defs a kit receives for an operator's summons at its training (兼容-3), by summon id.
- * @param {string} id @param {import('./operators.js').Training} owner @param {import('./operators.js').Build} build
+ * @param {import('./mods/source.js').ContentSource} source @param {import('./operators.js').Training} owner @param {import('./operators.js').Build} build
  */
-async function tokenDefsOf(id, owner, build) {
+async function tokenDefsOf(source, owner, build) {
   const ids = (owner.tokens ?? []).filter((t) => Object.hasOwn(TOKENS, t));
-  return Object.fromEntries(await Promise.all(ids.map(async (t) => [t, tokenDefOf(t, await loadToken(t), owner, build)])));
+  return Object.fromEntries(await Promise.all(ids.map(async (t) => [t, tokenDefOf(t, await source.token(t), owner, build)])));
 }
 
 /**
  * An operator's summons at its training (召唤-1, 召唤-2), by key "summon id#seat": each with its owner's key and its id;
  * without their talents when the owner has a kit (兼容-6: its kits apply them).
- * @param {string} id @param {import('./operators.js').Build} build @param {number} seat @param {number} blockAdd @param {boolean} kit
+ * @param {import('./mods/source.js').ContentSource} source
+ * @param {{ id: string, build: import('./operators.js').Build, seat: number, blockAdd: number, kit: boolean }} o
  * @returns {Promise<Record<string, import('@aue/sim').OperatorDef>>}
  */
-async function summonsOf(id, build, seat, blockAdd, kit) {
-  const owner = await loadTraining(id), ids = (owner.tokens ?? []).filter((t) => Object.hasOwn(TOKENS, t));
+async function summonsOf(source, { id, build, seat, blockAdd, kit }) {
+  const owner = await source.training(id), ids = (owner.tokens ?? []).filter((t) => Object.hasOwn(TOKENS, t));
   const recs = await Promise.all(ids.map(async (t) => {
-    const made = tokenAt(await loadToken(t), t, owner, build), r = kit ? withoutTalents(made) : made;
+    const made = tokenAt(await source.token(t), t, owner, build), r = kit ? withoutTalents(made) : made;
     return [`${t}#${seat}`, { ...r, blockCnt: Math.max(0, r.blockCnt + blockAdd), char: t, summoner: `${id}#${seat}`, ...attackOf(t) }];
   }));
   return Object.fromEntries(recs);
 }
 
+/** Adds modifiers to others: a product's (…Mul) multiplied, the rest summed. @param {Record<string, number>} to @param {Record<string, number>} add */
+function addMods(to, add) {
+  for (const [k, v] of Object.entries(add)) to[k] = k.endsWith('Mul') ? (to[k] ?? 1) * v : (to[k] ?? 0) + v;
+}
+
 /**
- * An operator with its deck's team talents (干员-9): each one for its profession or one of its factions adds its
- * 部署费用 (not below 0), its 初始技力 to the skill's initial SP, and its other keys to `talentBb`.
+ * An operator with its deck's team talents (干员-9): each one for its profession or one of its factions — and, with a
+ * `maxCost`, for an operator whose deploy cost is at most that (干员-31) — adds its 部署费用 (not below 0), its 初始技力
+ * to the skill's initial SP, its other keys to `talentBb` and its effects to `talentMods` (a product's multiplied).
  * @param {import('@aue/sim').OperatorDef} op @param {import('@aue/sim').TeamTalent[]} team
  * @returns {import('@aue/sim').OperatorDef}
  */
 function withDeckTalents(op, team) {
-  const mine = team.filter((p) => teamFits(p, op));
+  const mine = team.filter((p) => teamFits(p, op) && (p.maxCost === undefined || op.cost <= p.maxCost));
   if (mine.length === 0) return op;
   /** @type {Record<string, number>} */
-  const bb = { ...op.talentBb };
+  const bb = { ...op.talentBb }, mods = { ...op.talentMods };
   let cost = op.cost, sp = 0;
   for (const p of mine) {
     for (const [k, v] of Object.entries(p.bb)) {
@@ -172,8 +212,10 @@ function withDeckTalents(op, team) {
       else if (k === 'sp') sp += v;
       else bb[k] = (bb[k] ?? 0) + v;
     }
+    addMods(mods, p.mods ?? {});
   }
-  return { ...op, cost: Math.max(0, cost), ...(Object.keys(bb).length ? { talentBb: bb } : {}), ...(op.skill && sp ? { skill: { ...op.skill, init: op.skill.init + sp } } : {}) };
+  return { ...op, cost: Math.max(0, cost), ...(Object.keys(bb).length ? { talentBb: bb } : {}), ...(Object.keys(mods).length ? { talentMods: mods } : {}),
+    ...(op.skill && sp ? { skill: { ...op.skill, init: op.skill.init + sp } } : {}) };
 }
 
 /** Where the attack timings come from: the skeletons' sources (攻击-2). */
@@ -184,11 +226,22 @@ export const skeletonSource = skeleton.source;
 
 export { skillDefOf, skillBehaviors } from './skills.js';
 export { BRANCHES, coveredBranch, withTrait, OPERATOR_TRAITS, withOwnTrait } from './traits.js';
-export { LEVELS, levelAt } from './levels.js';
+export { LEVELS, TESTING, levelAt } from './levels.js';
+export { withBuilders } from './fortress.js';
 export { foeBehaviors, withFoeExtras, FOE_EXTRAS } from './foes.js';
-export { ROSTER, rosterSource, loadTraining, operatorAt } from './operators.js';
+export { ROSTER, rosterSource, loadTraining, operatorAt, statsAt } from './operators.js';
+/** @typedef {import('./operators.js').Training} Training @typedef {import('./skills.js').SkillLevel} SkillLevel */
+export { textPair } from './compat/records.js';
 export { TOKENS, SUMMON_PAGES, loadToken, tokenAt } from './tokens.js';
 export { KIT_SOURCE, KIT_FILES, KITS_ENABLED, KIT_DIFFERENCES, loadKits } from './compat/kitmod.js';
 export { MAPPING, mappedUrl } from './compat/mapping.js';
 export { PROFESSION_BITS, seatRules, withRunes } from './runes.js';
 export { CARRIED, CARRIED_PROFILES, loadCarried, carriedDef } from './carried.js';
+export { OFFICIAL_SOURCE, createSource } from './mods/source.js';
+export { readMod, loadOrder } from './mods/order.js';
+export { applyPatch, PatchError } from './mods/patch.js';
+export { recordProblems, tableSchemas } from './mods/shapes.js';
+export { strictJson } from './mods/strict.js';
+export { sha256, sha256Text } from './mods/sha256.js';
+export { modIndex, fetchMods, hostedSource } from './mods/hosted.js';
+/** @typedef {import('./mods/source.js').ContentSource} ContentSource @typedef {import('./mods/order.js').ModInput} ModInput @typedef {import('./mods/order.js').ModReport} ModReport @typedef {import('./mods/hosted.js').ModIndex} ModIndex */

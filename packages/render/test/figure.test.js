@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ANIM } from '@aue/schema';
 import { newFigure, follow, attacked, dies, deathOver, clipAt } from '../src/figure.js';
-import { tinyModel } from './model.js';
+import { tinyModel, formsModel, dollModel } from './model.js';
+import { dollRoles } from '../src/roles.js';
 
 /** A view unit doing `anim`. @param {number} kind @param {number} anim */
 const unit = (kind, anim) => ({ id: 1, kind, owner: 0, x: 1, y: 1, z: 0, dir: 0, hp: 1, maxHp: 1, anim, sp: -1, spCost: 0, skill: 0, skillLeft: -1, status: 0, element: 0, ep: 1, burst: 0 });
@@ -43,4 +44,51 @@ test('[渲染-3] a figure that died plays its die clip once and is over after it
   assert.deepEqual(at(clipAt(f, 75)), ['Die', 0.5, false]);
   assert.equal(deathOver(f, 77), false);
   assert.equal(deathOver(f, 78), true);
+});
+
+test('[渲染-3] a model with forms: the first form clips until its first attack, which plays that form attack; the next form after', () => {
+  const f = /** @type {import('../src/figure.js').Figure} */ (newFigure({ front: formsModel() }, unit(1, ANIM.MOVE), 0));
+  follow(f, unit(1, ANIM.MOVE), 0);
+  assert.deepEqual(at(clipAt(f, 3)), ['A_Move', 0.1, true]);
+  follow(f, unit(1, ANIM.ATTACK), 10);
+  attacked(f, 0, 10);
+  assert.deepEqual(at(clipAt(f, 13)), ['A_Attack', 0.1, false]);
+  assert.deepEqual(at(clipAt(f, 28)), ['B_Idle', 0.1, true], 'the attack over: the next form');
+  attacked(f, 0, 30);
+  assert.deepEqual(at(clipAt(f, 33)), ['B_Attack', 0.1, false]);
+  follow(f, unit(1, ANIM.MOVE), 50);
+  assert.deepEqual(at(clipAt(f, 53)), ['B_Move', 0.1, true]);
+  assert.equal(dies(f, 60), true);
+  assert.equal(clipAt(f, 63).name, 'B_Die');
+});
+
+test('[渲染-24] a 傀儡师\'s clips by form: the switch in once, the 替身\'s own clips, the switch back once, its own again', () => {
+  const u = (/** @type {number} */ form, anim = ANIM.IDLE) => ({ ...unit(0, anim), form });
+  const f = /** @type {import('../src/figure.js').Figure} */ (newFigure({ front: dollModel() }, u(0), 0));
+  follow(f, u(0), 0);
+  assert.deepEqual(at(clipAt(f, 30)), ['Idle', 0.6, true]);
+  follow(f, u(1), 30);
+  assert.deepEqual([at(clipAt(f, 33)), at(clipAt(f, 45))], [['Doll_SwitchIn', 0.1, false], ['Idle', 0.1, true]]);
+  follow(f, u(2), 45);
+  assert.deepEqual(at(clipAt(f, 48)), ['Doll_Idle', 0.2, true], 'the 替身\'s idle on from the end of the switch');
+  attacked(f, 0, 48);
+  assert.deepEqual(at(clipAt(f, 51)), ['Doll_Attack', 0.1, false]);
+  follow(f, u(3), 70);
+  assert.deepEqual(at(clipAt(f, 73)), ['Doll_SwitchOut', 0.1, false]);
+  follow(f, u(0), 90);
+  assert.deepEqual(at(clipAt(f, 93)), ['Idle', 0.366666667, true], 'its own idle on from the end of the switch back');
+});
+
+test('[渲染-24] the 替身 clips of the three ways models name them; none for a model without', () => {
+  assert.deepEqual(dollRoles(['Attack_A', 'Attack_B', 'Die_A', 'Die_B', 'Idle_A', 'Idle_B', 'Start_A', 'Start_B']), {
+    own: { idle: 'Idle_A', move: 'Idle_A', attack: 'Attack_A', die: 'Die_A', start: 'Start_A' },
+    doll: { idle: 'Idle_B', move: 'Idle_B', attack: 'Attack_B', die: 'Die_B', start: null, in: 'Start_B', out: 'Start_A' },
+  });
+  assert.deepEqual(dollRoles(['Attack', 'Idle', 'Start', 'Doll_Attack_Loop', 'Doll_Idle', 'Doll_Die', 'Doll_Skill_2_SwitchIn', 'Doll_Skill_1_SwitchIn', 'Doll_SwitchOut'])?.doll,
+    { idle: 'Doll_Idle', move: 'Doll_Idle', attack: 'Doll_Attack_Loop', die: 'Doll_Die', start: null, in: 'Doll_Skill_1_SwitchIn', out: 'Doll_SwitchOut' });
+  assert.deepEqual(dollRoles(['Attack_A', 'Attack_B', 'Idle', 'Start', 'Doll_Skill_1_Idle', 'Doll_Skill_1_Attack', 'Doll_Skill_1_SwitchIn', 'Doll_Skill_2_Loop'])?.doll,
+    { idle: 'Doll_Skill_1_Idle', move: 'Doll_Skill_1_Idle', attack: 'Doll_Skill_1_Attack', die: null, start: null, in: 'Doll_Skill_1_SwitchIn', out: 'Start' }, 'skill sets: the first skill\'s');
+  assert.equal(dollRoles(['Idle', 'Attack', 'Start']), null);
+  const enemy = /** @type {import('../src/figure.js').Figure} */ (newFigure({ front: dollModel() }, unit(1, ANIM.IDLE), 0));
+  assert.equal(enemy.dolls.front, null, 'enemies have none');
 });

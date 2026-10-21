@@ -69,3 +69,97 @@ test('[技能-9] what descriptions add, on real skills: blocked targets, 二连�
   assert.deepEqual(red.attack.hitStatus.key, 'stun');
   assert.equal(def('skcom_atk_up[3]').extra, undefined, 'nothing it does not read');
 });
+
+/** An operator's skill at elite 2, skill level 7, from its training record. @param {string} id @param {number} skill */
+async function skillAt(id, skill) {
+  const { loadTraining, operatorAt } = await import('../src/index.js');
+  return /** @type {any} */ (operatorAt(await loadTraining(id), { elite: 2, level: 1, potential: 1, trust: 0, skill, skillLevel: 7 }).skill);
+}
+
+test('[技能-4] [技能-5] real skills that say 持续时间无限 run until closed; an attribute shown without a percent is 直接加算', async () => {
+  const [whitew, lisa, surtr, quercu] = await Promise.all([skillAt('char_140_whitew', 0), skillAt('char_358_lisa', 1), skillAt('char_350_surtr', 2), skillAt('char_492_quercu', 0)]);
+  assert.deepEqual([whitew, lisa, surtr].map((s) => [s.forever, skills.kindOf(s)]), [[true, 'duration'], [true, 'duration'], [true, 'duration']], '拉普兰德 S1, 铃兰 S2, 史尔特尔 S3');
+  assert.deepEqual([quercu.forever, quercu.stoppable], [true, true], '夏栎 S1: 技能持续时间无限，可主动关闭技能');
+  assert.deepEqual(surtr.extra.mods, { hpPct: 0, hpFlat: 5000 }, '生命上限+{max_hp}');
+  assert.equal(def('skcom_atk_up[3]').forever, undefined);
+});
+
+test('[技能-10] real skills that cost deployment cost to start: the first sentence\'s 「消耗…点部署费用」, not an 装备应变\'s', async () => {
+  const [catap1, catap2, hadiya1, hadiya2] = await Promise.all([skillAt('char_1049_catap2', 0), skillAt('char_1049_catap2', 1), skillAt('char_394_hadiya', 0), skillAt('char_394_hadiya', 1)]);
+  assert.deepEqual([catap1.spend, catap2.spend, hadiya1.spend, hadiya2.spend], [20, 5, undefined, 10]);
+});
+
+test('[技能-11] real 鼓舞: the attributes after each ratio, 其他 or not, a block count for the allies; those keys none of the 吟游者\'s own', async () => {
+  const [sora, heidi1, heidi2, dolris1, skadi2, cetsyr3] = await Promise.all([skillAt('char_101_sora', 1), skillAt('char_4045_heidi', 0), skillAt('char_4045_heidi', 1),
+    skillAt('char_4184_dolris', 0), skillAt('char_1012_skadi2', 1), skillAt('char_4134_cetsyr', 2)]);
+  assert.deepEqual([sora.allies, sora.extra.mods], [{ others: true, inspire: { atk: 0.9 } }, { atkPct: 0 }], '空 S2 战斗之歌 (skill level 7)');
+  assert.deepEqual([heidi1.allies, heidi1.extra.mods], [{ others: false, inspire: { atk: 0.9 }, mods: { blockCnt: -3 } }, { atkPct: 0, blockCnt: 0 }], '海蒂 S1');
+  assert.deepEqual([heidi2.allies, heidi2.extra.mods], [{ others: false, inspire: { def: 0.5, maxHp: 0.2 }, mods: { blockCnt: 1 } }, { defPct: 0, hpPct: 0, blockCnt: 0 }], '海蒂 S2: {def}防御力和{max_hp}生命值上限');
+  assert.deepEqual([dolris1.allies, dolris1.extra], [{ others: false, inspire: { atk: 0.4, def: 0.4 } }, undefined], '三角初华 S1: {attack@atk}攻击力与防御力');
+  assert.deepEqual([skadi2.allies, skadi2.extra.mods, skadi2.forever], [{ others: true, inspire: { atk: 0.45, def: 0.45 } }, { atkPct: 0, defPct: 0 }, true], '浊心斯卡蒂 S2: def a ratio too');
+  assert.deepEqual([cetsyr3.allies, cetsyr3.extra.mods], [{ others: true, inspire: { maxHp: 0.8 } }, { hpPct: 0 }], '魔王 S3: {max_hp}的最大生命值');
+  assert.equal(def('skcom_atk_up[3]').allies, undefined);
+});
+
+test('[技能-12] 史尔特尔 S3 黄昏: her whole maximum HP healed at its start, then 生命流失 every 0.2 s rising evenly to 20 % a second over 60 s', async () => {
+  const c = /** @type {any} */ (tinyContent());
+  c.operators.guard.skill = { ...(await skillAt('char_350_surtr', 2)), init: 99 };
+  c.behaviors = { skills: skillBehaviors };
+  c.level.waves = [];
+  const w = createWorld(c, { seed: 1, players: 1 });
+  step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 }]]);
+  const g = w.units[0];
+  g.hp = 10;
+  step(w, c, [[0, { type: 'skill', unit: g.id }]]);
+  const max = attrs.statsOf(g).maxHp;
+  assert.deepEqual([max, g.hp], [1000 + 5000, 6000], 'healed in full after +5000');
+  for (let i = 0; i < 6; i++) step(w, c, []);
+  const first = 6000 - g.hp;
+  assert.ok(Math.abs(first - max * 0.2 * (0.2 / 60) * 0.2) < 1e-6, `the first loss at 0.2 s: ${first}`);
+  for (let i = 0; i < 30 * 70; i++) { step(w, c, []); g.hp = max; }
+  const before = g.hp;
+  for (let i = 0; i < 6; i++) step(w, c, []);
+  assert.ok(Math.abs(before - g.hp - max * 0.2 * 0.2) < 1e-6, 'past 60 s: 20 % a second, a fifth of it every 0.2 s');
+});
+
+test('[技能-13] the 炼金师\' skills from the real data: where each 炼金单元 goes, how long and wide, what it does; the talents\' additions', async () => {
+  const [tin1, tin2, hb1, hb2, th1, th2, th3] = await Promise.all([skillAt('char_4151_tinman', 0), skillAt('char_4151_tinman', 1), skillAt('char_4232_hbound', 0),
+    skillAt('char_4232_hbound', 1), skillAt('char_1039_thorn2', 0), skillAt('char_1039_thorn2', 1), skillAt('char_1039_thorn2', 2)]);
+  assert.deepEqual(tin1.alchemy, { at: 'enemy', seconds: 8, radius: 1, scale: 0.6, foeMods: { atkMul: 0.75 }, dmgMul: 1.2 }, '锡人 S1 “老科利”: 虚弱, 凋敝魂灵');
+  assert.deepEqual(tin2.alchemy, { at: 'enemy', seconds: 12, radius: 2, scale: 0.8, regen: 0.2, dmgMul: 1.2 }, '锡人 S2 “大拉里”');
+  const hitRate = { mul: 0.91, heavyMul: 0.87, weight: 3 };
+  assert.deepEqual(hb1.alchemy, { at: 'enemy', seconds: 9, radius: 1.5, interval: 1, scale: 0.6, foeMods: { movePct: -0.4 }, hitRate }, '旅骨 S1 触礁, 潜水作业');
+  assert.deepEqual(hb2.alchemy, { at: 'enemy', seconds: 32, radius: 2, interval: 1, scale: 0.17, heavy: { weight: 3, scale: 1.5, mods: { movePct: -0.7 } }, hitRate }, '旅骨 S2 座浅: 重量大于等于3');
+  assert.deepEqual(th1.alchemy, { at: 'ally', seconds: 7, radius: 0, square: true, regen: 0.14, allyMods: { defFlat: 75 }, extend: 3 }, '引星棘刺 S1: 落点和周围8格, 心相');
+  assert.deepEqual([th2.alchemy.drift.speed, th2.alchemy.drift.seconds, Math.round(th2.alchemy.drift.grow * 1000) / 1000, th2.alchemy.foeMods], [0.1, 15, 0.143, { healingTakenMul: 0.5 }], '引星棘刺 S2');
+  assert.deepEqual([th3.alchemy, skills.kindOf(tin1)], [undefined, 'instant'], 'S3 throws several: not read');
+});
+
+test('[技能-9] hit effects from the real data: 沉默, 寒冷, 沉睡, a status at a chance, timed modifiers, HP back, 元素损伤; line breaks written as \n', async () => {
+  const { ROSTER: roster } = await import('../src/index.js');
+  const id = (/** @type {string} */ name) => /** @type {string} */ (Object.entries(roster).find(([, r]) => r.name === name)?.[0]);
+  const at = async (/** @type {string} */ name, /** @type {number} */ s) => {
+    const { loadTraining, operatorAt } = await import('../src/index.js'), t = await loadTraining(id(name));
+    return /** @type {any} */ (operatorAt(t, { elite: t.phases.length - 1, level: 1, potential: 1, trust: 0, skill: s, skillLevel: 7 }).skill).extra;
+  };
+  const [jie, aurora, erato, tippi, may, vulcan, linshi, meteor, frost] = await Promise.all([at('孑', 0), at('极光', 1), at('埃拉托', 0), at('缇缇', 0), at('梅', 1), at('火神', 1),
+    at('凛视', 0), at('陨星', 1), at('霜叶', 0)]);
+  assert.deepEqual(jie.attack.hitStatus, { key: 'silence', seconds: 1 }, '孑 S1: 攻击目标失去特殊能力{attack@silence}秒\n持续时间无限');
+  assert.deepEqual([aurora.attack.hitStatus.key, erato.attack.hitStatus.key], ['cold', 'sleep']);
+  assert.deepEqual([tippi.attack.hitStatus, may.attack.hitStatus], [{ key: 'sleep', seconds: 2.4, prob: 0.4 }, { key: 'stun', seconds: 1, prob: 0.3 }]);
+  assert.equal(vulcan.attack.selfHeal, 0.07, '火神 S2: 每次攻击恢复自身最大生命值的{hp_ratio}');
+  assert.deepEqual([linshi.attack.element, linshi.attack.epScale, linshi.attack.type], ['DARK', 0.5, 'arts'], '凛视 S1: 附带{ep_damage_ratio}攻击力的凋亡损伤');
+  assert.deepEqual([meteor.attack.hitDebuff, meteor.mods.defPct], [{ seconds: 10, mods: { defFlat: -210 } }, 0], '陨星 S2: 防御力-{-def} (a number), none of hers');
+  assert.deepEqual(frost.attack.hitDebuff, { seconds: 2.5, mods: { movePct: -0.35 } }, '霜叶 S1');
+});
+
+test('[技能-9] pushes and pulls from the real data: 拖拽至面前 a pull, 往攻击方向…推开 along the facing, 弹开 away; none for closing a skill', async () => {
+  const { ROSTER: roster, loadTraining, operatorAt } = await import('../src/index.js');
+  const at = async (/** @type {string} */ name, /** @type {number} */ s) => {
+    const t = await loadTraining(/** @type {string} */ (Object.entries(roster).find(([, r]) => r.name === name)?.[0]));
+    return /** @type {any} */ (operatorAt(t, { elite: t.phases.length - 1, level: 1, potential: 1, trust: 0, skill: s, skillLevel: 7 }).skill).extra;
+  };
+  const [cliff, shaw, croissant, swire] = await Promise.all([at('崖心', 0), at('阿消', 0), at('可颂', 1), at('琳琅诗怀雅', 2)]);
+  assert.deepEqual([cliff.attack.displace.pull, shaw.attack.displace.along, croissant.attack.displace.pull, croissant.attack.displace.along], [true, true, false, undefined]);
+  assert.equal(swire?.attack?.displace, undefined, '琳琅诗怀雅 S3: 主动关闭技能时……推开');
+});

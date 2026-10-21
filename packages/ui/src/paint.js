@@ -109,7 +109,7 @@ export function gradientCss(grad, color, pivot = [0.5, 0.5]) {
 
 /** Writes a style when it changed. @param {UiNode} s @param {HTMLElement} el @param {string} k @param {string} v */
 export function sty(s, el, k, v) {
-  const key = (el === s.el ? '' : el === s.g ? 'g.' : 't.') + k;
+  const key = (el === s.el ? '' : el === s.g ? 'g.' : el === s.uv ? 'u.' : 't.') + k;
   if (s.css.get(key) !== v) { s.css.set(key, v); el.style.setProperty(k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`).replace(/^webkit-/, '-webkit-'), v); }
 }
 
@@ -173,20 +173,139 @@ function paintImage(s, g, im, w, h) {
     return;
   }
   if (s.shade) { unshade(s); s.paintKey = ''; }
-  const key = `${s.sprite}|${s.picture}|${col.slice(0, 3).map((v) => v.toFixed(2)).join(',')}|${Math.round(w)}x${Math.round(h)}`;
+  if (largeRing(s, im, w, h)) { paintRing(s, g, im, col, [w, h]); return; }
+  const { uv, tw, th } = scrollOf(s, im, w, h);
+  const key = `${s.sprite}|${s.picture}|${col.slice(0, 3).map((v) => v.toFixed(2)).join(',')}|${Math.round(w)}x${Math.round(h)}|${uv ? 'uv' : ''}`;
   if (key !== s.paintKey) {
     s.paintKey = key;
-    for (const [k, v] of imageBackground(s, im, col, w, h)) sty(s, g, k, v);
+    paintBackground(s, g, imageBackground(s, im, col, w, h), uv ? [tw, th] : null, [w, h]);
   }
   sty(s, g, 'opacity', String(+col[3].toFixed(3)));
-  const uv = uvSpeed(im.mat);
-  if (uv && w > 0) {
-    const sp = s.sprite ? s.scr.ctx.pack.sprites[s.sprite] : undefined, t = s.scr.ctx.time;
-    const tw = im.type === 2 && sp ? sp.w : w, th = im.type === 2 && sp ? sp.h : h;
-    sty(s, g, 'backgroundRepeat', 'repeat');
-    sty(s, g, 'backgroundPosition', `${(-(uv[0] * t) % 1 * tw).toFixed(1)}px ${((uv[1] * t) % 1 * th).toFixed(1)}px`);
+  if (uv && s.uv) {
+    const t = s.scr.ctx.time;
+    sty(s, s.uv, 'transform', `translate3d(${(-(uv[0] * t) % 1 * tw).toFixed(1)}px, ${((uv[1] * t) % 1 * th).toFixed(1)}px, 0)`);
   }
   paintCut(s, g, im);
+}
+
+/**
+ * How an image scrolls (界面-4): its material's speed (none for an empty box) and the period it repeats at — its
+ * sprite's size when tiled, else its own.
+ * @param {UiNode} s @param {Record<string, any>} im @param {number} w @param {number} h
+ */
+function scrollOf(s, im, w, h) {
+  const uv = w > 0 ? uvSpeed(im.mat) : null, sp = s.sprite ? s.scr.ctx.pack.sprites[s.sprite] : undefined;
+  return { uv, tw: im.type === 2 && sp ? sp.w : w, th: im.type === 2 && sp ? sp.h : h };
+}
+
+/**
+ * A scrolling or a ring-shaped image as large as this (reference pixels²) or larger is drawn into a canvas of its own,
+ * its longer side at most LARGE_CANVAS_MAX pixels (界面-4).
+ */
+export const LARGE_CANVAS_AREA = 2048 * 2048, LARGE_CANVAS_MAX = 2048;
+
+/**
+ * An image's background (界面-4), on its graphic — or, for one that scrolls (界面-4), on a layer inside it one period
+ * [tw, th] larger on every side, tiled at that period, that a transform moves: moving the background itself made the
+ * browser paint the whole layer again each frame, and a large one (the entry page's ground under its 3D map) went
+ * missing on the frames a slower GPU could not paint it in time — the page flickered. A large one's layer is a canvas
+ * the tiles are drawn into once at a capped resolution: tiled by the browser, a layer that size under the map's
+ * perspective took GPU memory enough that phones dropped the UI above it.
+ * @param {UiNode} s @param {HTMLElement} g @param {[string, string][]} bg @param {number[] | null} period @param {number[]} size
+ */
+function paintBackground(s, g, bg, period, size) {
+  if (!period) {
+    if (s.uv) dropScrollLayer(s, g);
+    for (const [k, v] of bg) sty(s, g, k, v);
+    return;
+  }
+  const [tw, th] = period, big = size[0] * size[1] >= LARGE_CANVAS_AREA;
+  if (s.uv && (s.uv.tagName === 'CANVAS') !== big) dropScrollLayer(s, g);
+  if (!s.uv) {
+    s.uv = /** @type {HTMLElement} */ (g.ownerDocument.createElement(big ? 'canvas' : 'div'));
+    Object.assign(s.uv.style, { position: 'absolute', pointerEvents: 'none', willChange: 'transform' });
+    g.appendChild(s.uv);
+  }
+  for (const [k] of bg) if (k !== 'backgroundColor') sty(s, g, k, k === 'backgroundImage' ? 'none' : '');
+  sty(s, g, 'backgroundColor', bg.find(([k]) => k === 'backgroundColor')?.[1] ?? '');
+  sty(s, g, 'overflow', 'hidden');
+  sty(s, s.uv, 'left', `${-tw}px`); sty(s, s.uv, 'top', `${-th}px`);
+  sty(s, s.uv, 'width', `calc(100% + ${2 * tw}px)`); sty(s, s.uv, 'height', `calc(100% + ${2 * th}px)`);
+  if (big) drawTiles(/** @type {HTMLCanvasElement} */ (s.uv), bg, [size[0] + 2 * tw, size[1] + 2 * th]);
+  else tileLayer(s, s.uv, bg, tw, th);
+}
+
+/**
+ * Whether an image is a large plain colour cut by a circle shape (界面-4; the entry page's ground edge under its 3D
+ * map): drawn into a canvas, not masked by the browser. @param {UiNode} s @param {Record<string, any>} im @param {number} w @param {number} h
+ */
+const largeRing = (s, im, w, h) => im.mat?.kind === 'circle' && !!im.mat.shape && !s.n.comps.mask && !s.sprite && !s.picture && w * h >= LARGE_CANVAS_AREA;
+
+/**
+ * A large ring-shaped colour (界面-4) in a canvas filling its graphic, at a resolution whose longer side is at most
+ * LARGE_CANVAS_MAX pixels: the ring's opacity over the ellipse of the rect as the CSS mask samples it. A mask that size
+ * under the map's perspective took GPU memory enough that phones dropped the UI above it.
+ * @param {UiNode} s @param {HTMLElement} g @param {Record<string, any>} im @param {number[]} col @param {number[]} size
+ */
+function paintRing(s, g, im, col, [w, h]) {
+  sty(s, g, 'opacity', String(+col[3].toFixed(3)));
+  const key = `ring|${col.slice(0, 3).map((v) => v.toFixed(2)).join(',')}|${Math.round(w)}x${Math.round(h)}`;
+  if (key === s.paintKey) return;
+  s.paintKey = key;
+  if (s.uv && s.uv.tagName !== 'CANVAS') dropScrollLayer(s, g);
+  for (const k of ['backgroundImage', 'backgroundColor', 'maskImage', 'webkitMaskImage']) sty(s, g, k, k === 'backgroundImage' ? 'none' : '');
+  if (!s.uv) {
+    s.uv = /** @type {HTMLElement} */ (g.ownerDocument.createElement('canvas'));
+    Object.assign(s.uv.style, { position: 'absolute', pointerEvents: 'none', left: '0px', top: '0px', width: '100%', height: '100%' });
+    g.appendChild(s.uv);
+  }
+  const c = /** @type {HTMLCanvasElement} */ (s.uv), k = Math.min(1, LARGE_CANVAS_MAX / Math.max(w, h, 1));
+  c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+  const x = c.getContext?.('2d');
+  if (!x) return;
+  // the ellipse of the rect as a circle of the canvas's width, squeezed to its height
+  x.setTransform(1, 0, 0, c.height / c.width, c.width / 2, c.height / 2);
+  const grad = x.createRadialGradient(0, 0, 0, 0, 0, c.width), rgb = col.slice(0, 3).map((v) => Math.round(v * 255)).join(',');
+  for (let i = 0; i <= 71; i++) grad.addColorStop(i / 100, `rgba(${rgb},${+ringAlpha(im.mat.shape, i / 100).toFixed(3)})`);
+  x.fillStyle = grad;
+  x.fillRect(-c.width / 2, -c.width / 2, c.width, c.width);
+}
+
+/** A small scrolling image's layer tiled by the browser at its period. @param {UiNode} s @param {HTMLElement} el @param {[string, string][]} bg @param {number} tw @param {number} th */
+function tileLayer(s, el, bg, tw, th) {
+  for (const [k, v] of bg) if (k !== 'backgroundColor') sty(s, el, k, v);
+  sty(s, el, 'backgroundSize', `${tw}px ${th}px`);
+  sty(s, el, 'backgroundRepeat', 'repeat');
+  sty(s, el, 'backgroundPosition', '0px 0px');
+}
+
+/** A scrolling image's layer gone (it no longer scrolls, or it changed size class). @param {UiNode} s @param {HTMLElement} g */
+function dropScrollLayer(s, g) {
+  s.uv?.remove(); s.uv = null;
+  sty(s, g, 'overflow', '');
+  for (const k of [...s.css.keys()]) if (k.startsWith('u.')) s.css.delete(k);
+}
+
+/**
+ * A large scrolling image's tiles drawn into its canvas of W × H reference pixels once its picture loads: the canvas
+ * at a resolution whose longer side is at most LARGE_CANVAS_MAX pixels, the tiles at their size in reference pixels.
+ * @param {HTMLCanvasElement} c @param {[string, string][]} bg @param {number[]} WH
+ */
+function drawTiles(c, bg, [W, H]) {
+  const url = /url\("(.*)"\)/.exec(bg.find(([k]) => k === 'backgroundImage')?.[1] ?? '')?.[1];
+  const k = Math.min(1, LARGE_CANVAS_MAX / Math.max(W, H, 1));
+  c.width = Math.max(1, Math.round(W * k)); c.height = Math.max(1, Math.round(H * k));
+  const x = c.getContext?.('2d');
+  if (!url || !x) return;
+  const img = new (/** @type {any} */ (c.ownerDocument.defaultView)).Image();
+  img.onload = () => {
+    if (c.parentNode === null) return;
+    x.setTransform(k, 0, 0, k, 0, 0);
+    x.clearRect(0, 0, W, H);
+    x.fillStyle = /** @type {CanvasPattern} */ (x.createPattern(img, 'repeat'));
+    x.fillRect(0, 0, W, H);
+  };
+  img.src = url;
 }
 
 /** A wiping image's mask now, as CSS, or null (no wipe, or its texture not loaded). @param {UiNode} s @param {Material | undefined} mat */

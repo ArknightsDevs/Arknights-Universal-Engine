@@ -7,7 +7,16 @@ import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff } from './buffs.js';
 import { inflict } from './status.js';
 import { dealDamage, heal } from './damage.js';
+import { draw } from './rng.js';
 import { dealEp } from './elements.js';
+import { vsDamage, vsHeal, vsEp } from './vs.js';
+import { afterOwnHit } from './riders.js';
+import { talentKill, talentDealt, dotOnHit } from './talentfx.js';
+import { trackTime } from './talenttime.js';
+import { lifeDeploy } from './talentlife.js';
+import { dealtSp } from './talentmore.js';
+import { fightKill, comboHit, afterNonLethal } from './talentfight.js';
+import { rangeKeys, inKeys } from './targeting.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').TraitDef} TraitDef @typedef {import('./types.js').OperatorDef} OperatorDef */
@@ -21,15 +30,24 @@ import { dealEp } from './elements.js';
 export const defaultTrait = (position) => ({
   antiAir: position !== 'MELEE', blockedFirst: position === 'MELEE', filter: 'HATRED_DES', secondary: '', targets: 1,
   heal: false, hits: 1, mods: {}, flags: {}, killCost: 0, refund: 0.5, hitStatus: null, splash: null, aftershock: 0, unblockedScale: 1, selfHeal: 0, selfHealMax: Infinity, selfHealOn: 'attack',
-  rangedTiles: false, skillArts: false, immuneBlocking: [], hpDrain: 0, costDrain: null, zone: null, chain: null, healOnHit: 0,
-  attackInSkill: false, idleMods: {}, idleFlags: {}, idleAirOnly: false, skillSplash: null, liftoffBlock: 0, fortress: 0, charge: null, skillHeal: 0, bullets: null, store: 0, epHeal: 0, funnel: null, boomerang: null, noAttack: false, free: false, regenAura: 0,
-  summonBlocked: false, summonBlockedScale: 1, trapTiles: false, doll: null, rangeTiles: false, bb: {},
+  rangedTiles: false, meleeTiles: false, skillArts: false, immuneBlocking: [], hpDrain: 0, costDrain: null, zone: null, chain: null, healOnHit: 0,
+  attackInSkill: false, idleMods: {}, idleFlags: {}, idleAirOnly: false, skillSplash: null, liftoffBlock: 0, fortress: 0, charge: null, skillHeal: 0, bullets: null, store: 0, epHeal: 0, funnel: null, boomerang: null, noAttack: false, free: false, noInspire: false, spendAtk: null, regenAura: 0,
+  summonBlocked: false, summonBlockedScale: 1, trapTiles: false, doll: null, rangeTiles: false, vs: [], far: null, crowd: null, packed: null, whiles: [], extraArts: 0, counterArts: 0, epRider: null, burstHit: null, spOn: null, payStack: null, auras: [],
+  firstCost: 0, firstRetreatRespawn: 1, refundUncapped: false, freeSummons: 0, summonRangedTiles: false, summonBoost: null, aftershocks: 1, secondLife: null, pushBoost: null, pullBoost: null, pullTrauma: null, rangedRefund: 0, onHit: [], stacks: [], talentSp: [], grit: null, nextAttack: [], rhythm: null, idleShield: null, layers: null, lowHp: null,
+  lastStand: null, frostLife: null, costLife: null, hurt: null, reflect: null, prefer: [], hurtSleeping: false, sleepDot: 0, lowestArts: null,
+  burstOn: [], pulses: [], palsyHit: 0, epOnHit: 0, healDot: null, startCost: 0, costCuts: [], retreatCut: 0, deployCut: null, costRate: 1, aloneCost: 0, deploySp: [],
+  allySkill: null, spPulse: null, hurtAttackSp: 0, deployPick: [], downHeal: [], deployBuff: null, fieldRegen: 0, healGives: null, groundEpHeal: 1, seeStealth: false,
+  minDamage: null, deployStun: null, deployBlast: null, fieldBuffs: [], shareGain: null, stackShare: null, healShare: 0, healMore: 0, statusHeal: null, lowHeal: null,
+  overhealBarrier: null, healBarrier: null, skillEndHeal: null, resistRegen: 0, overflowBarrier: 0, sameTarget: null, skipStatus: '', attackerMods: null, hitStatusPlus: 0,
+  energyScale: 1, kindStack: null, slainKinds: false, skillStrike: null, spendBoost: null, stayVuln: null, combo: null, nonLethal: null, chargedRider: 0, fieldVs: null,
+  powerAttacks: null, timedBlast: null, firstBlock: null, bb: {},
 });
 
 /**
  * Each record's last trait and what it was made from — its position, its trait object and that object's own fields in
- * order — given again while they are the same (the trait is asked for many times a frame). Not part of the state.
- * @type {WeakMap<OperatorDef, { trait: TraitDef, position: string, src: unknown, fields: unknown[] }>}
+ * order, its talents' additions — given again while they are the same (the trait is asked for many times a frame). Not
+ * part of the state.
+ * @type {WeakMap<OperatorDef, { trait: TraitDef, position: string, src: unknown, fields: unknown[], talents: unknown }>}
  */
 const traitMemo = new WeakMap();
 
@@ -52,16 +70,48 @@ function sameFields(o, fields) {
   return i === fields.length;
 }
 
+/** The single fields only talents give (职业-26…职业-35): each the talents' when they have it. */
+const TALENT_ONLY = Object.freeze(/** @type {const} */ (['rhythm', 'idleShield', 'layers', 'lowHp', 'lastStand', 'frostLife', 'costLife', 'hurt', 'reflect', 'hurtSleeping', 'sleepDot', 'lowestArts', 'palsyHit', 'epOnHit', 'healDot',
+  'startCost', 'costCuts', 'retreatCut', 'deployCut', 'costRate', 'aloneCost', 'deploySp', 'allySkill', 'spPulse', 'hurtAttackSp', 'deployPick', 'downHeal', 'deployBuff',
+  'fieldRegen', 'healGives', 'groundEpHeal', 'seeStealth', 'minDamage', 'deployStun', 'deployBlast', 'fieldBuffs', 'shareGain', 'stackShare', 'healShare', 'healMore', 'statusHeal',
+  'lowHeal', 'overhealBarrier', 'healBarrier', 'skillEndHeal', 'resistRegen', 'overflowBarrier', 'sameTarget', 'skipStatus', 'attackerMods', 'hitStatusPlus', 'energyScale', 'kindStack',
+  'slainKinds', 'skillStrike', 'spendBoost', 'stayVuln', 'combo', 'nonLethal', 'chargedRider', 'fieldVs', 'powerAttacks', 'timedBlast', 'firstBlock']));
+
 /**
- * An operator record's trait: its own fields over the defaults of its position (职业-1). The same object as the last
- * time while the record's position and trait fields are the same; never change it.
+ * A trait with what its operator's talents add (职业-24…职业-27, 职业-30): their conditional modifiers, target 倍率, hit
+ * effects, stacks, SP, auras and next attacks after the trait's own, their 法术伤害 on each hit and their first
+ * deployment's cost added to its, their number of targets when it is more than a number the trait has, their 坚忍 and
+ * the fields only talents give, their 倍率 by the enemies a splash reaches and their second life when the trait has none.
+ * @param {TraitDef} t @param {Partial<TraitDef> | undefined} a @returns {TraitDef}
+ */
+function withTalents(t, a) {
+  if (!a) return t;
+  const more = typeof a.targets === 'number' && typeof t.targets === 'number' && a.targets > t.targets;
+  const only = Object.fromEntries(TALENT_ONLY.filter((k) => a[k]).map((k) => [k, a[k]]));
+  return {
+    ...t, ...talentLists(t, a), extraArts: t.extraArts + (a.extraArts ?? 0), firstCost: t.firstCost + (a.firstCost ?? 0), ...(more ? { targets: a.targets } : {}),
+    ...(a.grit ? { grit: a.grit } : {}), ...only, ...(a.packed && !t.packed ? { packed: a.packed } : {}), ...(a.secondLife && !t.secondLife ? { secondLife: a.secondLife } : {}),
+  };
+}
+
+/** The trait's lists with its talents' after them (职业-24…职业-26, 职业-28, 职业-29). @param {TraitDef} t @param {Partial<TraitDef>} a */
+const talentLists = (t, a) => ({
+  whiles: [...t.whiles, ...(a.whiles ?? [])], vs: [...t.vs, ...(a.vs ?? [])], onHit: [...t.onHit, ...(a.onHit ?? [])], stacks: [...t.stacks, ...(a.stacks ?? [])],
+  talentSp: [...t.talentSp, ...(a.talentSp ?? [])], auras: [...t.auras, ...(a.auras ?? [])], nextAttack: [...t.nextAttack, ...(a.nextAttack ?? [])],
+  prefer: [...t.prefer, ...(a.prefer ?? [])], burstOn: [...t.burstOn, ...(a.burstOn ?? [])], pulses: [...t.pulses, ...(a.pulses ?? [])],
+});
+
+/**
+ * An operator record's trait: its own fields over the defaults of its position (职业-1), with its talents' additions
+ * (职业-24). The same object as the last time while the record's position, trait fields and talents' additions are the
+ * same; never change it.
  * @param {OperatorDef} d @returns {TraitDef}
  */
 export function traitOfDef(d) {
   const m = traitMemo.get(d);
-  if (m !== undefined && m.position === d.position && m.src === d.trait && sameFields(d.trait, m.fields)) return m.trait;
-  const trait = { ...defaultTrait(d.position), ...d.trait };
-  traitMemo.set(d, { trait, position: d.position, src: d.trait, fields: fieldsOf(d.trait) });
+  if (m !== undefined && m.position === d.position && m.src === d.trait && m.talents === d.talentTrait && sameFields(d.trait, m.fields)) return m.trait;
+  const trait = withTalents({ ...defaultTrait(d.position), ...d.trait }, d.talentTrait);
+  traitMemo.set(d, { trait, position: d.position, src: d.trait, fields: fieldsOf(d.trait), talents: d.talentTrait });
   return trait;
 }
 
@@ -148,8 +198,8 @@ export function actorContext(w, c, op, bb) {
     removeBuff: (t, key) => { removeBuff(t, key); },
     applyStatus: (t, key, o) => { inflict(w, t, key, { ...o, src: op }); },
     dealDamage: (t, dmg) => creditedDamage(w, c, op, t, dmg),
-    dealEp: (t, el, amount) => dealEp(w, t, el, amount, op),
-    heal: (t, amount) => heal(w, op, t, amount),
+    dealEp: (t, el, amount) => dealEp(w, t, el, amount * vsEp(w, c, op, t), op),
+    heal: (t, amount) => heal(w, op, t, amount * vsHeal(w, c, op, t)),
     gainCost: (n) => { gainCost(w, c, op.owner, n); },
   };
 }
@@ -186,7 +236,7 @@ export function traitSkip(w, c, op) {
 /**
  * A newly deployed operator's trait (职业-4, 职业-10): its lasting modifiers and flags as a buff, its upkeep —
  * the HP drain each second, the cost it consumes — as buffs without an end — unless its behaviour owns them (职业-6),
- * then its behaviour's deploy.
+ * then its talents' trackers and their buffs on its life (职业-26, 职业-27), then its behaviour's deploy.
  * @param {World} w @param {Content} c @param {Unit} op
  */
 export function traitDeploy(w, c, op) {
@@ -196,27 +246,66 @@ export function traitDeploy(w, c, op) {
     if (t.hpDrain > 0) addBuff(op, makeBuff({ key: 'drain', src: op.id, every: FPS, fixed: true, value: t.hpDrain }));
     if (t.costDrain) addBuff(op, makeBuff({ key: 'upkeep', src: op.id, every: secondsToFrames(t.costDrain.every), fixed: true, value: t.costDrain.cost }));
   }
+  trackTime(w, c, op);
+  lifeDeploy(w, c, op);
   behaviorOf(c, op)?.deploy?.(contextOf(w, c, op));
 }
 
 /**
- * After each hit of an operator's attack (职业-4): the trait's status on the target, then its behaviour.
+ * After each hit of an operator's attack (职业-4, 职业-24): the trait's status on the target, its talents' hit effects in
+ * order, then its behaviour.
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target
  */
 export function traitHit(w, c, op, target) {
   const t = traitOf(c, op);
-  if (t.hitStatus && target.hp > 0) inflict(w, target, t.hitStatus.key, { seconds: t.hitStatus.seconds, src: op });
+  if (t.hitStatus && target.hp > 0) inflict(w, target, t.hitStatus.key, { seconds: t.hitStatus.seconds + (t.hitStatus.key === 'sluggish' ? t.hitStatusPlus : 0), src: op, ...(t.hitStatus.value !== undefined ? { value: t.hitStatus.value } : {}) });
+  t.onHit.forEach((h, i) => { if ((h.when !== 'beyondRange' || !inBaseRange(c, op, target)) && (h.during === undefined || w.frame - op.born < secondsToFrames(h.during))) talentHit(w, op, target, { h, i }); });
   behaviorOf(c, op)?.hit?.(contextOf(w, c, op), target);
 }
 
+/** Whether a target has a tile in an operator's own range without its extensions (职业-34: 「原本攻击范围」). @param {Content} c @param {Unit} op @param {Unit} t */
+function inBaseRange(c, op, t) {
+  const grid = { rows: c.level.height, cols: c.level.width };
+  return inKeys(t, rangeKeys(grid, op, op.range ?? c.operators[op.key].range, 0), grid);
+}
+
 /**
- * An operator's attack or skill killed an enemy (职业-5): the trait's cost, then its behaviour.
+ * A talent's effect on a target its operator's attack hit (职业-24, 职业-25), while the target has HP (and is blocked by no
+ * unit, for one that says so): once on each enemy for a
+ * `first` one — the target keeps a buff `seen:<operator id>:<n>` without an end —; at its chance (one draw) when it has
+ * one; its status (状态-5), or its modifiers for its seconds as a buff `talentHit:<operator id>:<n>`, the time starting
+ * again at each hit; its damage over time (dotOnHit).
+ * @param {World} w @param {Unit} op @param {Unit} target @param {{ h: import('./types.js').TalentHit, i: number }} at
+ */
+function talentHit(w, op, target, { h, i }) {
+  if (target.hp <= 0 || (h.when === 'unblocked' && target.blockedBy >= 0)) return;
+  if (h.first) {
+    const seen = `seen:${op.id}:${i}`;
+    if (target.buffs.some((b) => b.key === seen)) return;
+    addBuff(target, makeBuff({ key: seen, src: op.id }));
+  }
+  if (h.prob !== undefined && draw(w) >= h.prob) return;
+  if (h.status) inflict(w, target, h.status.key, { seconds: h.status.seconds, src: op, ...(h.status.value !== undefined ? { value: h.status.value } : {}) });
+  if (h.debuff) {
+    const key = `talentHit:${op.id}:${i}`;
+    removeBuff(target, key);
+    addBuff(target, makeBuff({ key, src: op.id, left: secondsToFrames(h.debuff.seconds), mods: h.debuff.mods }));
+  }
+  if (h.dot) dotOnHit(op, target, h.dot, i);
+  if (h.ep && target.hp > 0) dealEp(w, target, /** @type {import('./elements.js').Element} */ (h.ep.el), h.ep.amount, op);
+}
+
+/**
+ * An operator's attack or skill killed an enemy (职业-5, 职业-25): the trait's cost, its talents on kinds and 重伤 (fightKill,
+ * 职业-34), its talents' kill (talentKill), then its behaviour.
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target
  */
 export function traitKill(w, c, op, target) {
   if (op.kind !== KIND.OPERATOR || target.kind !== KIND.ENEMY) return;
   const t = traitOf(c, op);
   if (t.killCost > 0) gainCost(w, c, op.owner, t.killCost);
+  fightKill(w, c, op, target);
+  talentKill(w, c, op);
   behaviorOf(c, op)?.kill?.(contextOf(w, c, op), target);
 }
 
@@ -226,20 +315,27 @@ export function traitKill(w, c, op, target) {
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target @param {import('./damage.js').Damage} dmg
  */
 export function creditedDamage(w, c, op, target, dmg) {
+  vsDamage(w, c, op, target, dmg);
   const alive = target.hp > 0, taken = dealDamage(w, op, target, dmg, c);
   traitDealt(w, c, op, target, { dmg, taken });
   if (alive && target.hp <= 0) traitKill(w, c, op, target);
+  afterOwnHit(w, c, op, target, { dmg, taken });
   return taken;
 }
 
 /**
  * An operator's heal for a hit it dealt (职业-9): a trait that heals itself for every hit (`selfHealOn` 'damage', 武者)
  * restores its `selfHeal` once for each hit of its that took HP from an enemy — any hit with it as the source, an
- * attack's or not; 生命流失 and a sourceless hit (伤害-7) aside.
+ * attack's or not; 生命流失 and a sourceless hit (伤害-7) aside. Such a hit is also a step of its talents' damage stacks
+ * (职业-25) and gives their SP for damage (职业-31); a run of hits counts it, a blow that may not kill leaves 重伤 (职业-34).
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target @param {{ dmg: import('./damage.js').Damage, taken: number }} hit the hit and the HP it took
  */
 export function traitDealt(w, c, op, target, hit) {
   if (!(hit.taken > 0) || hit.dmg.hpLoss || hit.dmg.sourceless || target.kind !== KIND.ENEMY || op.hp <= 0) return;
   const t = traitOf(c, op);
   if (t.selfHealOn === 'damage' && t.selfHeal > 0) w.events.push({ type: 'heal', id: op.id, target: op.id, amount: heal(w, op, op, t.selfHeal, { trait: true }) });
+  if (t.stacks.length) talentDealt(c, op, hit.dmg);
+  if (t.talentSp.length) dealtSp(w, c, op);
+  comboHit(w, c, op);
+  afterNonLethal(w, c, op, target);
 }

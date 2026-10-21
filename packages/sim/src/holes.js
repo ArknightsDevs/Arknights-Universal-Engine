@@ -14,6 +14,6 @@ export function fallIntoHoles(w, c) {
   for (const e of w.units) {
     if (e.kind !== KIND.ENEMY || e.hp <= 0 || e.hidden || statsOf(e).flying) continue;
     const k = keyAt(m, e.x, e.y);
-    if (k >= 0 && isHole(m.tiles[Math.floor(k / m.width)][k % m.width])) setHp(e, 0);
+    if (k >= 0 && isHole(m.tiles[Math.floor(k / m.width)][k % m.width])) { e.ab['@fell'] = 1; setHp(e, 0); }
   }
 }

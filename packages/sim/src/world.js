@@ -8,17 +8,19 @@ import { hashValue, HASH_START } from './hash.js';
 import { enemiesAct } from './enemies.js';
 import { newSchedule, visiblePredefines, tickWaves, checkEnd } from './waves.js';
 import { placeDevice } from './devices.js';
+import { placePredefined } from './predefined.js';
 import { newStageState, tickStage, stageCount } from './stage.js';
 import { releaseAll } from './blocking.js';
 import { operatorsAttack, shotsFly } from './combat.js';
+import { tickAlchemy } from './alchemy.js';
 import { foeEffects, foeDeath, foeFatal, releasePassengers } from './foes.js';
 import { applyCommand } from './commands.js';
-import { leaveField } from './deck.js';
+import { leaveField, startCost, costRate } from './deck.js';
 import { coolSummons, dismissSummons, expireSummons } from './summons.js';
 import { tickRevival, tickRequests, neutralDown } from './coop.js';
 import { tickBuffs } from './buffs.js';
 import { STATUS_BEHAVIORS } from './status.js';
-import { BURST_BEHAVIORS } from './elements.js';
+import { BURST_BEHAVIORS, epRegenAll } from './elements.js';
 import { upkeepBehaviors, timedBehaviors } from './upkeep.js';
 import { chargeBehavior } from './modes.js';
 import { auras } from './aura.js';
@@ -29,41 +31,59 @@ import { emit, hasHook, runTimers } from './bus.js';
 import { fallIntoHoles } from './holes.js';
 import { tacticalFatal, tacticalBehaviors } from './tactical.js';
 import { dollFatal, dollBehaviors } from './doll.js';
+import { secondLifeFatal } from './riders.js';
+import { talentDeaths, TALENT_BEHAVIORS } from './talentfx.js';
+import { healHooks, HEAL_BEHAVIORS } from './talentheal.js';
+import { FIGHT_BEHAVIORS, timedBlasts } from './talentfight.js';
+import { foeBehaviors } from './talentfoe.js';
+import { elementHooks, elementBehaviors } from './talentelem.js';
+import { holds } from './vs.js';
+import { lifeFatal, lifeBehaviors } from './talentlife.js';
+import { newFortress, setUpFortress, fortressHooks, tickFortress } from './fortress.js';
+import { fieldContent } from './facilities.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('@aue/schema').Command} Command */
 
 /**
- * A new world at frame 0 (spec 费用-1: each player starts with the level's initial cost and life), its hooks and timers
- * set up by the content (钩子-4).
+ * A new world at frame 0 (spec 费用-1: each player starts with the level's initial cost — more by its deck's talents,
+ * 部署-10 — and life), its hooks and timers set up by the content (钩子-4); in 堡垒守御 its progress and facilities
+ * (守御-1, 守御-3).
  * @param {Content} c @param {{ seed: number, players: number }} o @returns {World}
  */
 export function createWorld(c, o) {
-  const { initialCost, maxLifePoint, costIncreaseTime } = c.level.options;
+  const { maxLifePoint, costIncreaseTime } = c.level.options;
   /** @type {World} */
   const w = {
     frame: 0, rng: seedState(o.seed), nextId: 1, sched: newSchedule(), predefined: visiblePredefines(c), result: -1, stage: newStageState(), bornThisFrame: 0, units: [], shots: [], blasts: [], bolts: [],
     events: [],
-    players: Array.from({ length: o.players }, () => ({ life: maxLifePoint, cost: initialCost, costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {}, revive: -1, downs: 0, ask: -1, askCd: 0 })),
+    players: Array.from({ length: o.players }, (_, seat) => ({ life: maxLifePoint, cost: startCost(c, seat), costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {}, revive: -1, downs: 0, ask: -1, askCd: 0 })),
+    ...(c.level.fortress ? { fortress: newFortress(c, o.players) } : {}),
   };
-  for (const alias of w.predefined) placeDevice(w, c, alias);
+  for (const alias of w.predefined) { placeDevice(w, c, alias); placePredefined(w, c, alias); }
+  setUpFortress(w, c);
   c.behaviors?.world?.(w, c);
   return w;
 }
 
-/** Each player gains 1 cost every costIncreaseTime, up to maxCost (spec 费用-1). @param {World} w @param {Content} c */
+/**
+ * Each player gains 1 cost every costIncreaseTime, up to maxCost (spec 费用-1): its timer runs down by its recovery's
+ * rate each frame — 1, × its operators' talents' (部署-10) —, what runs over kept.
+ * @param {World} w @param {Content} c
+ */
 function gainCost(w, c) {
   const { maxCost, costIncreaseTime } = c.level.options;
-  for (const p of w.players) {
-    if (--p.costTimer > 0) continue;
-    p.costTimer = secondsToFrames(costIncreaseTime);
+  w.players.forEach((p, seat) => {
+    p.costTimer -= costRate(w, c, seat);
+    if (p.costTimer > 0) return;
+    p.costTimer += secondsToFrames(costIncreaseTime);
     p.cost = Math.min(maxCost, p.cost + 1);
-  }
+  });
 }
 
 /**
- * Removes units with no HP left (伤害-9): enemies killed by attacks die — unless an ability keeps them (敌能-2) —, enemies
- * at the goal leave quietly; an operator that falls releases what it blocks (阻挡-3) and leaves the field without a
+ * Removes units with no HP left (伤害-9): enemies killed by attacks die — unless an ability keeps them (敌能-2) —, the
+ * talents that see one fall give their SP (职业-25), enemies at the goal leave quietly; an operator that falls releases what it blocks (阻挡-3) and leaves the field without a
  * refund (部署-3), its summons with it (召唤-5) — but a tactical summon in its summon form turns into its point (召唤-11).
  * @param {World} w @param {Content} c
  */
@@ -72,6 +92,7 @@ function removeDead(w, c) {
   for (const u of w.units) {
     if (stays(w, c, u, reachedGoal.has(u.id))) continue;
     announceDeath(w, u, reachedGoal.has(u.id));
+    if (!reachedGoal.has(u.id)) talentDeaths(w, c, u);
     u.anim = ANIM.DIE;
     if (!reachedGoal.has(u.id)) w.events.push({ type: 'death', id: u.id });
     if (!reachedGoal.has(u.id) && u.kind === KIND.ENEMY && u.base.neutral === true) neutralDown(w, c, u);
@@ -88,10 +109,12 @@ function removeDead(w, c) {
 
 /**
  * Whether a unit stays on the field at the frame's end (伤害-9): it has HP, or at 0 an ability keeps the enemy (敌能-2) —
- * not one at the goal —, the tactical summon turns into its point (召唤-11) or the 傀儡师 switches to its 替身 (职业-15).
+ * not one at the goal —, the tactical summon turns into its point (召唤-11), the 傀儡师 switches to its 替身 (职业-15), the
+ * operator takes its second life (职业-22) or a talent keeps it (职业-27) — not one devoured (敌能-30).
  * @param {World} w @param {Content} c @param {Unit} u @param {boolean} atGoal
  */
-const stays = (w, c, u, atGoal) => u.hp > 0 || (u.kind === KIND.ENEMY && !atGoal && foeFatal(w, c, u)) || tacticalFatal(w, c, u) || dollFatal(w, c, u);
+const stays = (w, c, u, atGoal) => u.hp > 0 || (u.kind === KIND.ENEMY && !atGoal && foeFatal(w, c, u))
+  || (u.ab['@devoured'] === undefined && (tacticalFatal(w, c, u) || dollFatal(w, c, u) || secondLifeFatal(w, c, u) || lifeFatal(w, c, u)));
 
 /**
  * The unit whose hit this frame brought `u` to 0 HP — the last hit on it this frame —, while it is on the field; null
@@ -118,8 +141,8 @@ function announceDeath(w, u, leak) {
   emit(w, 'death', { unit: u, reason: leak ? 'leak' : 'killed', killer });
 }
 
-/** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12, 职业-15, 召唤-11, 装置-6); content cannot replace them. @param {Content} c */
-const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c) });
+/** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12, 职业-15, 职业-27…职业-29, 召唤-11, 装置-6); content cannot replace them. @param {Content} c */
+const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...TALENT_BEHAVIORS, ...HEAL_BEHAVIORS, ...FIGHT_BEHAVIORS, ...lifeBehaviors(c), ...foeBehaviors(c, holds), ...elementBehaviors(), ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c) });
 
 /** Each content's buff behaviours, made once (they depend on the content alone), with the content's table they were made from. @type {WeakMap<Content, { from: unknown, table: Record<string, import('./buffs.js').Behavior> }>} */
 const buffTables = new WeakMap();
@@ -135,10 +158,15 @@ function buffBehaviors(c) {
 
 /**
  * Runs frame `w.frame` with the commands executed in it ([seat, command] in the order the server sealed them) and
- * advances to the next frame. Returns the frame's presentation events.
- * @param {World} w @param {Content} c @param {[number, Command][]} commands
+ * advances to the next frame — on the field as the facilities make it at the frame's start (守御-5). Returns the
+ * frame's presentation events.
+ * @param {World} w @param {Content} level @param {[number, Command][]} commands
  */
-export function step(w, c, commands = []) {
+export function step(w, level, commands = []) {
+  const c = fieldContent(w, level);
+  fortressHooks(w, level);
+  elementHooks(w, level);
+  healHooks(w, level);
   w.events = [];
   w.bornThisFrame = 0;
   for (const [seat, cmd] of commands) applyCommand(w, c, seat, cmd);
@@ -151,13 +179,17 @@ export function step(w, c, commands = []) {
   tickRequests(w);
   tickStage(w, c);
   tickWaves(w, c);
+  tickFortress(w, c);
   tickBuffs(w, buffBehaviors(c));
   regenAll(w);
+  epRegenAll(w);
   enemiesAct(w, c);
   fallIntoHoles(w, c);
+  tickAlchemy(w, c);
   auras(w, c);
   runeRangeSp(w, c);
   operatorsAttack(w, c);
+  timedBlasts(w, c);
   shotsFly(w, c);
   foeEffects(w, c);
   emit(w, 'tick', { frames: 1 });
@@ -194,10 +226,13 @@ function pushText(out, tag, s) {
 
 /**
  * The state hash (spec 同步-1): the frame, the random state, the id counter, the waves' progress, the predefined units in
- * effect, the result, the co-op stages, the players, the units, the projectiles, bolts and explosions, all of their data.
+ * effect, the result, the co-op stages, the players, the units, the projectiles, bolts and explosions, 堡垒守御's
+ * progress when there is one (守御-1), the enemies brought in to appear later once there have been some (敌能-22), the 炼金单元
+ * once there have been some (技能-13), all of their data.
  * @param {World} w @returns {number}
  */
 export function stateHash(w) {
-  return hashValue(HASH_START, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, stage: w.stage, players: w.players, units: w.units, shots: w.shots, blasts: w.blasts, bolts: w.bolts });
+  return hashValue(HASH_START, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, stage: w.stage, players: w.players, units: w.units, shots: w.shots, blasts: w.blasts, bolts: w.bolts,
+    fortress: w.fortress, broods: w.broods, alchemy: w.alchemy });
 }
 

@@ -13,6 +13,7 @@ import { launch } from './swing.js';
 import { gainSp } from './sp.js';
 import { draw } from './rng.js';
 import { heal } from './damage.js';
+import { vsHeal } from './vs.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Buff} Buff @typedef {import('./skills.js').AttackMods} AttackMods */
@@ -84,7 +85,7 @@ export function deployTalents(w, c, op) {
     if (t.sp && op.skill) gainSp(op.skill, t.sp[1] - t.sp[0] > 1 ? t.sp[0] + Math.floor(draw(w) * (t.sp[1] - t.sp[0])) : t.sp[0]);
     if (t.heal) {
       const amount = 'value' in t.heal ? t.heal.value : t.heal.scale * statsOf(op).atk;
-      for (const u of w.units) if (u.kind === KIND.OPERATOR && u.hp > 0) w.events.push({ type: 'heal', id: op.id, target: u.id, amount: heal(w, op, u, amount) });
+      for (const u of w.units) if (u.kind === KIND.OPERATOR && u.hp > 0) w.events.push({ type: 'heal', id: op.id, target: u.id, amount: heal(w, op, u, amount * vsHeal(w, c, op, u)) });
     }
     if (t.shield) addBuff(op, makeBuff({ key: 'deployShield', src: op.id, shieldHits: t.shield }));
   }
@@ -113,7 +114,7 @@ export function skillIdle(op, t) {
 export function holdFrames(w, c, op, target) {
   const t = traitOf(c, op), bullets = held(op, 'bullets'), energy = held(op, 'energy');
   if (t.bullets && bullets && bullets.value < t.bullets.max && (bullets.value === 0 || !target)) {
-    retune(op, bullets, bullets.value + 1, {});
+    retune(op, bullets, Math.min(t.bullets.max, bullets.value + 1 + (bullets.value === 0 ? t.bullets.extra ?? 0 : 0)), {});
     return Math.max(1, secondsToFrames(op.base.bat));
   }
   const own = target ? undefined : traitAsk(w, c, op, 'store');
@@ -147,10 +148,10 @@ export function modeMods(c, op, mods) {
  * damage at the first target; then none is left.
  * @param {World} w @param {Unit} a @param {Unit} t
  */
-export function releaseEnergy(w, a, t) {
+export function releaseEnergy(w, a, t, scale = 1) {
   const energy = held(a, 'energy');
   if (!energy || energy.value === 0) return;
-  const amount = statsOf(a).atk;
+  const amount = statsOf(a).atk * scale;
   for (let k = 0; k < energy.value; k++) launch(w, a, t, { type: 'arts', amount, times: 1, element: '', ep: 0 });
   retune(a, energy, 0, {});
 }

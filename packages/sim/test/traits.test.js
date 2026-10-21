@@ -380,6 +380,14 @@ test('[职业-10] [部署-1] a melee operator whose trait allows it may stand on
   assert.equal(deployProblem(w, c, 0, deploy('guard', 0, 0)), 'tile not buildable for this operator');
 });
 
+test('[职业-19] [部署-1] a ranged operator whose trait allows it may stand on a melee tile', () => {
+  const { w, c } = arena();
+  assert.equal(deployProblem(w, c, 0, deploy('sniper', 1, 1)), 'tile not buildable for this operator');
+  c.operators.sniper.trait = { meleeTiles: true };
+  assert.deepEqual([deployProblem(w, c, 0, deploy('sniper', 1, 1)), deployProblem(w, c, 0, deploy('sniper', 0, 2))], [null, null], 'a melee tile, and its own still');
+  assert.equal(deployProblem(w, c, 0, deploy('sniper', 0, 0)), 'tile not buildable for this operator');
+});
+
 test('[职业-10] [状态-7] 阻回 always, immune to it while blocking: SP recovers only then', () => {
   const { w, c, foe } = arena((cc) => {
     cc.operators.guard.trait = { flags: { noSp: true }, immuneBlocking: ['noSp'] };

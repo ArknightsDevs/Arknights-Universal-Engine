@@ -3,7 +3,7 @@
 import { asArray, asInt, asNumber, asObject, asString, field } from './validate.js';
 
 /**
- * @typedef {{ type: 'SPAWN' | 'ACTIVATE' | 'WITHDRAW' | 'NONE', key: string, route: number, count: number, preDelay: number, interval: number,
+ * @typedef {{ type: 'SPAWN' | 'ACTIVATE' | 'WITHDRAW' | 'STORY' | 'NONE', key: string, route: number, count: number, preDelay: number, interval: number,
  *   dontBlockWave?: boolean, hidden?: string, group?: string, pack?: string, weight?: number, unharmful?: boolean }} WaveAction
  */
 /**
@@ -13,7 +13,26 @@ import { asArray, asInt, asNumber, asObject, asString, field } from './validate.
 /** @typedef {{ preDelay: number, postDelay: number, maxWait: number, fragments: Fragment[] }} Wave */
 
 /** The data's action types the simulation acts on (波次-1); every other type is NONE. */
-const ACTION_TYPES = Object.freeze({ SPAWN: 'SPAWN', ACTIVATE_PREDEFINED: 'ACTIVATE', TRIGGER_PREDEFINED: 'ACTIVATE', WITHDRAW_PREDEFINED: 'WITHDRAW' });
+const ACTION_TYPES = Object.freeze({ SPAWN: 'SPAWN', ACTIVATE_PREDEFINED: 'ACTIVATE', TRIGGER_PREDEFINED: 'ACTIVATE', WITHDRAW_PREDEFINED: 'WITHDRAW', STORY: 'STORY' });
+
+/** An instance's promotion by its phase name (干员-1). */
+const ELITE = Object.freeze({ PHASE_0: 0, PHASE_1: 1, PHASE_2: 2 });
+/** The trust of the operators a level gives (its predefined ones and its cards), as PRTS gives it (INF-0201). */
+const LEVEL_TRUST = 100;
+
+/**
+ * The training of an operator a level gives (波次-7, 关卡-7): its instance's promotion, level and potential, its
+ * skill and skill level, trust 100. @param {Record<string, unknown>} o the predefine @param {string} p
+ */
+function levelBuild(o, p) {
+  const inst = asObject(field(o, 'inst', p), `${p}.inst`), phase = asString(field(inst, 'phase', `${p}.inst`), `${p}.inst.phase`);
+  if (!Object.hasOwn(ELITE, phase)) throw new RangeError(`${p}.inst.phase: unknown phase ${phase}`);
+  return {
+    elite: ELITE[/** @type {keyof typeof ELITE} */ (phase)], level: asInt(field(inst, 'level', `${p}.inst`), `${p}.inst.level`, 1, 90),
+    potential: asInt(inst.potentialRank ?? 0, `${p}.inst.potentialRank`, 0, 5) + 1, trust: LEVEL_TRUST,
+    skill: asInt(o.skillIndex ?? 0, `${p}.skillIndex`, -1, 2), skillLevel: asInt(o.mainSkillLvl ?? 1, `${p}.mainSkillLvl`, 1, 10),
+  };
+}
 
 /** A difficulty's bit in a numeric difficultyMask (波次-4). */
 const MASK_BITS = Object.freeze({ NORMAL: 1, FOUR_STAR: 2, EASY: 4, SIX_STAR: 8 });
@@ -75,6 +94,22 @@ export function extractWaves(wavesRaw, routeOf) {
 }
 
 /**
+ * A level's branches (守御-6): each named branch's phases as fragments — their preDelay and their valid actions; none
+ * without branches. @param {unknown} raw level.branches @param {(index: number) => number} routeOf @returns {Record<string, Fragment[]>}
+ */
+export function branchesOf(raw, routeOf) {
+  if (raw === null || raw === undefined) return {};
+  return Object.fromEntries(Object.entries(asObject(raw, 'level.branches')).map(([name, b]) => {
+    const p = `level.branches.${name}`;
+    return [name, asArray(field(asObject(b, p), 'phases', p), `${p}.phases`).map((f, i) => {
+      const fp = `${p}.phases[${i}]`, fo = asObject(f, fp);
+      const actions = asArray(field(fo, 'actions', fp), `${fp}.actions`).map((a, ai) => readAction(a, `${fp}.actions[${ai}]`, routeOf));
+      return { preDelay: asNumber(fo.preDelay ?? 0, `${fp}.preDelay`, 0, 1e6), actions: /** @type {WaveAction[]} */ (actions.filter(Boolean)) };
+    })];
+  }));
+}
+
+/**
  * Whether a rune's difficultyMask covers a difficulty (波次-4): the difficulty's name, ALL, or a number whose bit for the
  * difficulty is set.
  * @param {unknown} mask @param {'NORMAL' | 'FOUR_STAR'} difficulty
@@ -105,20 +140,48 @@ export function hiddenGroupsOf(runesRaw, difficulty) {
 
 /**
  * The predefined units (波次-6): the character and token instances that have an alias, with their key, whether they
- * start hidden, and their tile and facing when the data gives them.
- * @param {unknown} raw level.predefines @returns {{ alias: string, key: string, hidden: boolean, row?: number, col?: number, dir?: string }[]}
+ * start hidden, and their tile and facing when the data gives them; and the predefined operators (波次-7): the
+ * character instances without an alias that have a tile, by their key, with their training (`build`).
+ * @param {unknown} raw level.predefines
+ * @returns {{ alias: string, key: string, hidden: boolean, row?: number, col?: number, dir?: string, build?: ReturnType<typeof levelBuild> }[]}
  */
 export function predefinesOf(raw) {
   if (raw === null || raw === undefined) return [];
   const pd = asObject(raw, 'level.predefines');
   return ['characterInsts', 'tokenInsts'].flatMap((k) => (Array.isArray(pd[k]) ? pd[k] : []).flatMap((x, i) => {
     const p = `level.predefines.${k}[${i}]`, o = asObject(x, p);
-    if (!o.alias) return [];
     const pos = o.position && typeof o.position === 'object' ? asObject(o.position, `${p}.position`) : null;
-    return [{ alias: asString(o.alias, `${p}.alias`), key: asString(field(asObject(field(o, 'inst', p), `${p}.inst`), 'characterKey', `${p}.inst`), `${p}.inst.characterKey`), hidden: o.hidden === true,
+    const operator = !o.alias && k === 'characterInsts' && pos !== null;
+    if (!o.alias && !operator) return [];
+    const key = keyOf(o, p);
+    return [{ alias: operator ? key : asString(o.alias, `${p}.alias`), key, hidden: o.hidden === true,
       ...(pos ? { row: asInt(field(pos, 'row', `${p}.position`), `${p}.position.row`, 0, 99), col: asInt(field(pos, 'col', `${p}.position`), `${p}.position.col`, 0, 99) } : {}),
-      ...(typeof o.direction === 'string' ? { dir: o.direction } : {}) }];
+      ...(typeof o.direction === 'string' ? { dir: o.direction } : {}), ...(operator ? { build: levelBuild(o, p) } : {}) }];
   }));
+}
+
+/** A predefine's character key. @param {Record<string, unknown>} o @param {string} p */
+const keyOf = (o, p) => asString(field(asObject(field(o, 'inst', p), `${p}.inst`), 'characterKey', `${p}.inst`), `${p}.inst.characterKey`);
+
+/**
+ * The cards a level gives (关卡-7): its character cards with their training, and its token cards with how many and
+ * whether they start hidden (and the alias a wave action shows them by).
+ * @param {unknown} raw level.predefines
+ * @returns {{ operators: { key: string, build: ReturnType<typeof levelBuild> }[], tokens: { key: string, alias: string, count: number, hidden: boolean }[] }}
+ */
+export function levelCardsOf(raw) {
+  if (raw === null || raw === undefined) return { operators: [], tokens: [] };
+  const pd = asObject(raw, 'level.predefines');
+  return {
+    operators: (Array.isArray(pd.characterCards) ? pd.characterCards : []).map((x, i) => {
+      const p = `level.predefines.characterCards[${i}]`, o = asObject(x, p);
+      return { key: keyOf(o, p), build: levelBuild(o, p) };
+    }),
+    tokens: (Array.isArray(pd.tokenCards) ? pd.tokenCards : []).map((x, i) => {
+      const p = `level.predefines.tokenCards[${i}]`, o = asObject(x, p), key = keyOf(o, p);
+      return { key, alias: o.alias ? asString(o.alias, `${p}.alias`) : key, count: asInt(o.initialCnt ?? 1, `${p}.initialCnt`, 0, 99), hidden: o.hidden === true };
+    }),
+  };
 }
 
 /** The co-op stage controller (合作-6). */

@@ -89,7 +89,7 @@ function tileFor(w, c, seat, op, goals) {
 function firstDeploy(w, c, seat) {
   const p = w.players[seat], goals = goalsOf(c);
   for (const op of c.decks?.[seat] ?? []) {
-    if (p.deployed.includes(op) || p.cost < deck.deployCost(c, p, op)) continue;
+    if (p.deployed.includes(op) || p.cost < deck.deployCost(c, p, op, w)) continue;
     const cmd = tileFor(w, c, seat, op, goals);
     if (cmd) return cmd;
   }
@@ -120,7 +120,7 @@ export function scriptOf(w, c, seat) {
  * @param {Scenario} s @param {number} [frames] @param {Kits} [kits] @returns {Promise<Run>}
  */
 export async function runScenario(s, frames = FRAMES, kits = {}) {
-  const c = await matchContent(/** @type {any} */ (s.match), undefined, kits);
+  const c = await matchContent(/** @type {any} */ (s.match), { kits });
   const seats = s.match.decks.length, w = createWorld(c, { seed: s.match.seed, players: seats });
   /** @type {number[]} */
   const hashes = [];

@@ -37,17 +37,35 @@ function kitTraitOf(entry, level) {
 const KIT_OWNED = Object.freeze({ soulcaster: { summonBlockedScale: 1 } });
 
 /**
+ * What a module adds to the trait in battle (职业-17, 职业-18, 职业-20, 职业-21), none: a kit carries its operator's modules
+ * itself, their trait additions too (兼容-5). The deck's rules — the first deployment's cost, the 再部署时间, the refund,
+ * the places in the deploy limit — stay the engine's: Stronghold has no deploy cost (op-siege.js: SOL-Y's
+ * 「首次部署时部署费用-4」 has no effect there).
+ * @type {Readonly<Partial<import('@aue/sim').TraitDef>>}
+ */
+const NO_MODULE_ADDITIONS = Object.freeze({
+  vs: [], far: null, crowd: null, packed: null, whiles: [], extraArts: 0, counterArts: 0, epRider: null, burstHit: null, spOn: null, payStack: null, auras: [],
+  summonBoost: null, secondLife: null, pushBoost: null, pullBoost: null, pullTrauma: null,
+});
+
+/** Whether a trait has some of what modules add (NO_MODULE_ADDITIONS). @param {import('@aue/sim').TraitDef} t */
+const moduleAdded = (t) => Object.entries(NO_MODULE_ADDITIONS).some(([k, none]) => {
+  const v = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (t))[k];
+  return Array.isArray(none) ? Array.isArray(v) && v.length > 0 : !!v && v !== none;
+});
+
+/**
  * An operator's record under its kit's trait (兼容-5): where the kit's `trait` takes the place of a part of the
  * profession's profile that the engine keeps as trait data, that data follows it — its `afterHit` replaces the
- * 投掷手's aftershock (Stronghold's one profession afterHit), its `splashRadius` the splash's radius —, and the trait data
- * its branch leaves to kits is its kit's (KIT_OWNED). The kit is built for this (under the level's grid); one that
- * cannot be has no trait of its own.
+ * 投掷手's aftershock (Stronghold's one profession afterHit), its `splashRadius` the splash's radius —, the trait data
+ * its branch leaves to kits is its kit's (KIT_OWNED), and so are its module's trait additions (NO_MODULE_ADDITIONS). The
+ * kit is built for this (under the level's grid); one that cannot be has no trait of its own.
  * @param {import('@aue/sim').OperatorDef} op @param {KitEntry} entry @param {{ width: number, height: number }} level
  * @returns {import('@aue/sim').OperatorDef}
  */
 export function withKitTrait(op, entry, level) {
-  const kt = kitTraitOf(entry, level), t = traits.traitOfDef(op);
-  const over = /** @type {Partial<import('@aue/sim').TraitDef>} */ ({ ...(op.branch && Object.hasOwn(KIT_OWNED, op.branch) ? KIT_OWNED[op.branch] : {}) });
+  const kt = kitTraitOf(entry, level), t = traits.traitOfDef(op), added = moduleAdded(t);
+  const over = /** @type {Partial<import('@aue/sim').TraitDef>} */ ({ ...(op.branch && Object.hasOwn(KIT_OWNED, op.branch) ? KIT_OWNED[op.branch] : {}), ...(added ? NO_MODULE_ADDITIONS : {}) });
   if (typeof kt?.afterHit === 'function' && t.aftershock > 0) over.aftershock = 0;
   if (Number(kt?.splashRadius) > 0) over.splash = { scale: 1, ground: false, ...t.splash, radius: Number(kt.splashRadius) };
   return Object.keys(over).length ? { ...op, trait: { ...op.trait, ...over } } : op;

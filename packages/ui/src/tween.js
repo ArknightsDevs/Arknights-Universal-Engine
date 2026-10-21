@@ -1,12 +1,12 @@
-// Code tweens (docs/spec/ui.md 界面-33): a node's opacity or anchored position from one value to another over a time,
-// after a delay, eased, looping (restarting or back and forth); and the fades a switch makes (界面-25).
+// Code tweens (docs/spec/ui.md 界面-33): a node's opacity, anchored position, size or colour from one value to another
+// over a time, after a delay, eased, looping (restarting or back and forth); and the fades a switch makes (界面-25).
 
 /** @typedef {import('./node.js').UiNode} UiNode */
 /**
- * A tween of the pack: what it moves (opacity or anchored position), from, to, whether it starts from `from` (else
- * from the node's value), its time and delay in seconds, its easing, how many times it plays (−1 for ever) and how
- * it loops (1 back and forth, else again from the start), whether it starts when the screen opens.
- * @typedef {{ kind: 'fade' | 'move', from: number | number[], to: number | number[], startFrom?: number, time: number, delay?: number,
+ * A tween of the pack: what it moves (opacity, anchored position, size or graphic colour), from, to, whether it starts
+ * from `from` (else from the node's value), its time and delay in seconds, its easing, how many times it plays (−1 for
+ * ever) and how it loops (1 back and forth, else again from the start), whether it starts when the screen opens.
+ * @typedef {{ kind: 'fade' | 'move' | 'size' | 'color', from: number | number[], to: number | number[], startFrom?: number, time: number, delay?: number,
  *   ease?: number, loop?: number, loopType?: number, auto?: number }} Tween
  */
 
@@ -50,19 +50,31 @@ function setOpacity(s, v) {
   else { s.color[3] = v; s.paintKey = ''; }
 }
 
+/** A node's value a tween moves. @param {UiNode} s @param {Tween['kind']} kind */
+const valueOf = (s, kind) => (kind === 'fade' ? opacity(s) : kind === 'move' ? [...s.rt.pos] : kind === 'size' ? [...s.rt.size] : [...(s.color ?? [1, 1, 1, 1])]);
+
+/** Sets a node's value a tween moves. @param {UiNode} s @param {Tween['kind']} kind @param {number | number[]} v */
+function setValue(s, kind, v) {
+  if (kind === 'fade') { setOpacity(s, /** @type {number} */ (v)); return; }
+  const p = /** @type {number[]} */ (v);
+  if (kind === 'move') { s.rt.pos[0] = p[0]; s.rt.pos[1] = p[1]; }
+  else if (kind === 'size') { s.rt.size[0] = p[0]; s.rt.size[1] = p[1]; }
+  else if (s.color) { s.color = [...p]; s.paintKey = ''; }
+}
+
 /**
- * Starts a node's tween on the UI's clock (界面-33).
+ * Starts a node's tween on the UI's clock (界面-33); it stops when the node is removed.
  * @param {UiNode} s @param {Tween} tw
  */
 export function startTween(s, tw) {
-  const from = tw.startFrom === 0 ? (tw.kind === 'fade' ? opacity(s) : [...s.rt.pos]) : tw.from;
+  const from = tw.startFrom === 0 ? valueOf(s, tw.kind) : tw.from;
   let t = -(tw.delay ?? 0);
   s.scr.ctx.tickers?.add({ scr: s.scr, step: (dt) => {
+    if (s.gone) return false;
     t += dt;
     if (t < 0) return true;
-    const { u, done } = tweenAt(tw, t), v = lerp(from, tw.to, u);
-    if (tw.kind === 'fade') setOpacity(s, /** @type {number} */ (v));
-    else { const p = /** @type {number[]} */ (v); s.rt.pos[0] = p[0]; s.rt.pos[1] = p[1]; }
+    const { u, done } = tweenAt(tw, t);
+    setValue(s, tw.kind, lerp(from, tw.to, u));
     return !done;
   } });
 }

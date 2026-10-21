@@ -2,7 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fillCss, gradientCss, sliceOf, isSliced, drawable, blendOf, uvSpeed, rgba, ringAlpha, ringMask, wipeAlpha, drawNine, richHtml, isRich, faceOf, alignCss, shadowCss, bestFit, DEFAULT_FONTS,
-  shaded, noiseOffset, warpUv, fadeAlpha } from '../src/index.js';
+  shaded, noiseOffset, warpUv, fadeAlpha, createUi, setText, copyRect, DEF_RT } from '../src/index.js';
+import { fakeDocument, fakeHost } from './dom.js';
 
 test('[界面-4] filled images: horizontal, vertical, radial from each origin either way', () => {
   assert.deepEqual(fillCss(0.25, 0, 0, true), [['clipPath', 'inset(0 75% 0 0)']]);
@@ -141,4 +142,15 @@ test('[界面-9] materials: the ones not drawn, additive blending, scrolling UVs
   assert.equal(blendOf(undefined), '');
   assert.deepEqual(uvSpeed({ kind: 'uv', uv: [0.225, 0] }), [0.225, 0]);
   assert.equal(uvSpeed({ kind: 'add' }), null);
+});
+
+test('[界面-4] a rich text is one inline run in its text box, so its coloured parts wrap with the rest', () => {
+  const text = { text: '', size: 16, style: 0, align: 0, line: 1, best: 0, min: 1, max: 40, rich: 1, hwrap: 0, vwrap: 0, color: [1, 1, 1, 1] };
+  const pack = { version: 1, ref: [100, 100], sprites: {}, clips: {}, screens: { main: { name: 'main', active: true, comps: {}, rt: copyRect(DEF_RT),
+    children: [{ name: 'desc', active: true, comps: { text }, children: [], rt: copyRect(DEF_RT) }] } } };
+  const ui = createUi(/** @type {any} */ ({ pack, host: fakeHost(fakeDocument()) })), s = /** @type {any} */ (ui.open('main').one('desc'));
+  setText(s, '攻击力提高至<color=#0098DC>290%</color>');
+  assert.equal(s.t.innerHTML, '<span class="aue-r">攻击力提高至<span style="color:#0098DC">290%</span></span>');
+  setText(s, '没有标签');
+  assert.equal(s.t.textContent, '没有标签', 'a plain text as it is');
 });

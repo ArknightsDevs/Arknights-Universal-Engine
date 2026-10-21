@@ -12,6 +12,7 @@ import { createStates } from './states.js';
 import { createUnitBars } from './unitbars.js';
 import { createStart } from './start.js';
 import { createBanner } from './banner.js';
+import { createResting } from './resting.js';
 
 /** @typedef {import('../node.js').UiNode} UiNode */
 /** @typedef {import('../screen.js').Screen} Screen */
@@ -64,7 +65,8 @@ function hide(root, refs) { for (const r of refs) { const n = refNode(root, r); 
 /**
  * The HUD on a UI: opens the battle screen, fills the cards, readies the menus on the field (menus.js); `update` shows a
  * frame's state; `on` takes the taps: 'card' (id), 'speed', 'pause', 'cancel', 'withdraw', 'skill'; in a match of two
- * also 'ask' (the cost request), 'answer' and 'confirm' ('yes' or 'no': the mate's cost and pause requests). With a
+ * also 'ask' (the cost request), 'answer' and 'confirm' ('yes' or 'no': the mate's cost and pause requests), and in
+ * 堡垒守御 'rest' (「跳过休整」, 界面-39). With a
  * stage in a match of two the start panel shows until the first frame's update (界面-21); a page that opened the start
  * panel before (as its loading screen) gives it as `start`.
  * @param {ReturnType<typeof import('../ui.js').createUi>} ui
@@ -86,7 +88,7 @@ export function createBattleHud(ui, o) {
   }
   const yesNo = (/** @type {boolean} */ v) => (v ? 'yes' : 'no');
   const coop = o.coop && hud.coopTop ? createCoopTop(ui, hud.coopTop, { speed: () => emit('speed'), pause: () => emit('pause'), confirm: (v) => emit('confirm', yesNo(v)) }) : null;
-  const cost = coop && ui.ctx.pack.screens['coop.cost'] ? createCostAsk(ui, { ask: () => emit('ask'), answer: (v) => emit('answer', yesNo(v)) }) : null;
+  const { cost, resting } = coopPanels(ui, !!coop, emit);
   if (coop) hide(root, [t.speed, t.pauseButton, t.status?.panel]);
   else {
     tapRef(scr, root, t.speed, () => emit('speed'));
@@ -96,7 +98,7 @@ export function createBattleHud(ui, o) {
   const { states, bars, start, banner } = overlays(ui, scr, hud, !!coop, o);
   const flash = costFlasher(scr, hud.cost);
   return {
-    screen: scr, cards, coop, cost, states, bars, start, banner, direction: menus.direction, menu: menus.menu,
+    screen: scr, cards, coop, cost, resting, states, bars, start, banner, direction: menus.direction, menu: menus.menu,
     /** @param {string} name @param {(arg?: string) => void} fn */
     on(name, fn) { (handlers[name] ??= []).push(fn); },
     /** @param {HudState} s */
@@ -105,6 +107,7 @@ export function createBattleHud(ui, o) {
       showCost(scr, hud.cost, s);
       flash(s);
       if (coop && s.coop) coop.update(s.coop);
+      resting?.update(s.coop?.resting ?? null);
       if (cost && s.coop?.cost) cost.update(s.coop.cost);
       if (s.states) states.update(s.states);
       if (bars && s.units) bars.update(s.units, [ui.canvas.w, ui.canvas.h]);
@@ -112,6 +115,19 @@ export function createBattleHud(ui, o) {
       if (s.stageStart !== undefined) banner?.update(s.stageStart);
       showTop(scr, t, s);
     },
+  };
+}
+
+/**
+ * The panels of a match of two besides its top bar, when the pack has them: the cost request (界面-15) and 堡垒守御's
+ * rest panel (界面-39). @param {ReturnType<typeof import('../ui.js').createUi>} ui @param {boolean} coop
+ * @param {(name: string, arg?: string) => void} emit
+ */
+function coopPanels(ui, coop, emit) {
+  const has = (/** @type {string} */ name) => coop && !!ui.ctx.pack.screens[name];
+  return {
+    cost: has('coop.cost') ? createCostAsk(ui, { ask: () => emit('ask'), answer: (v) => emit('answer', v ? 'yes' : 'no') }) : null,
+    resting: has('coop.resting') ? createResting(ui, { skip: () => emit('rest') }) : null,
   };
 }
 

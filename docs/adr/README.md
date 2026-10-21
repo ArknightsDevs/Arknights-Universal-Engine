@@ -77,3 +77,4 @@
 | [0061](0061-voices-and-battle-music-source.md) | 战斗语音和缺的战斗曲来自 ArknightsAssets2，固定提交，进入 v0.1.0 | 已采纳 | 素材 |
 | [0062](0062-release-bundles-with-assets.md) | 发布包附带素材和 kit | 已采纳 | 素材 |
 | [0063](0063-coop-lobby-ui-restoration.md) | 促融共竞的战斗外界面也按原版还原 | 已采纳 | 素材 |
+| [0064](0064-data-mod-loader-and-sdk.md) | 数据 mod 加载器和 SDK 第一版 | 已采纳 | 定位与仓库 |

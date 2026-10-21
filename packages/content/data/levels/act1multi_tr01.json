@@ -1,0 +1,1704 @@
+{
+  "source": {
+    "repo": "Kengxxiao/ArknightsGameData",
+    "commit": "17759cc8cdf37388414145d16262a3a06f3ab25e",
+    "server": "zh_CN",
+    "view": "yuanyan3060/ArknightsGameResource@9bf239661e37766fba585806fb9fa67e79bb679e:map.json"
+  },
+  "level": {
+    "id": "act1multi_tr01",
+    "code": "IG-TR-1",
+    "name": "规则教学-常规项目",
+    "width": 10,
+    "height": 8,
+    "options": {
+      "maxLifePoint": 3,
+      "initialCost": 30,
+      "maxCost": 99,
+      "costIncreaseTime": 1,
+      "characterLimit": 6,
+      "moveMultiplier": 0.5
+    },
+    "tiles": [
+      [
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        }
+      ],
+      [
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        }
+      ],
+      [
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_wall",
+          "height": "HIGHLAND",
+          "buildable": "RANGED",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_wall",
+          "height": "HIGHLAND",
+          "buildable": "RANGED",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_end_cooperate",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL",
+          "goal": "A"
+        },
+        {
+          "key": "tile_end_cooperate",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL",
+          "goal": "B"
+        },
+        {
+          "key": "tile_wall",
+          "height": "HIGHLAND",
+          "buildable": "RANGED",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_wall",
+          "height": "HIGHLAND",
+          "buildable": "RANGED",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        }
+      ],
+      [
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_wall",
+          "height": "HIGHLAND",
+          "buildable": "RANGED",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_wall",
+          "height": "HIGHLAND",
+          "buildable": "RANGED",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_rcm_operator",
+          "height": "LOWLAND",
+          "buildable": "MELEE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_road",
+          "height": "LOWLAND",
+          "buildable": "MELEE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_wall",
+          "height": "HIGHLAND",
+          "buildable": "RANGED",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_wall",
+          "height": "HIGHLAND",
+          "buildable": "RANGED",
+          "passable": "FLY_ONLY",
+          "side": "SIDE_B"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        }
+      ],
+      [
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_wall",
+          "height": "HIGHLAND",
+          "buildable": "RANGED",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_road",
+          "height": "LOWLAND",
+          "buildable": "MELEE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_road",
+          "height": "LOWLAND",
+          "buildable": "MELEE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_road",
+          "height": "LOWLAND",
+          "buildable": "MELEE",
+          "passable": "ALL",
+          "side": "SIDE_B"
+        },
+        {
+          "key": "tile_road",
+          "height": "LOWLAND",
+          "buildable": "MELEE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_wall",
+          "height": "HIGHLAND",
+          "buildable": "RANGED",
+          "passable": "FLY_ONLY",
+          "side": "SIDE_B"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "SIDE_B"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        }
+      ],
+      [
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_floor",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_floor",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_floor",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_floor",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        }
+      ],
+      [
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_floor",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_floor",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_floor",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_floor",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        }
+      ],
+      [
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_start",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_start",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_start",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_start",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_forbidden",
+          "height": "HIGHLAND",
+          "buildable": "NONE",
+          "passable": "FLY_ONLY",
+          "side": "ALL"
+        }
+      ]
+    ],
+    "routes": [
+      {
+        "start": {
+          "row": 7,
+          "col": 6
+        },
+        "end": {
+          "row": 2,
+          "col": 5
+        },
+        "checkpoints": [
+          {
+            "type": "MOVE",
+            "row": 6,
+            "col": 6,
+            "time": 0,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "WAIT_FOR_SECONDS",
+            "row": 0,
+            "col": 0,
+            "time": 3,
+            "dx": 0,
+            "dy": 0
+          }
+        ],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 7,
+          "col": 3
+        },
+        "end": {
+          "row": 2,
+          "col": 4
+        },
+        "checkpoints": [
+          {
+            "type": "MOVE",
+            "row": 6,
+            "col": 3,
+            "time": 0,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "WAIT_FOR_SECONDS",
+            "row": 0,
+            "col": 0,
+            "time": 8,
+            "dx": 0,
+            "dy": 0
+          }
+        ],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 4,
+          "col": 4
+        },
+        "end": {
+          "row": 2,
+          "col": 4
+        },
+        "checkpoints": [
+          {
+            "type": "MOVE",
+            "row": 5,
+            "col": 4,
+            "time": 0,
+            "dx": 0.01,
+            "dy": -0.24
+          },
+          {
+            "type": "MOVE",
+            "row": 5,
+            "col": 5,
+            "time": 0,
+            "dx": -0.49,
+            "dy": -0.16
+          },
+          {
+            "type": "WAIT_FOR_SECONDS",
+            "row": 0,
+            "col": 0,
+            "time": 5,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "MOVE",
+            "row": 3,
+            "col": 4,
+            "time": 0,
+            "dx": 0.49,
+            "dy": 0.04
+          }
+        ],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 3,
+          "col": 5
+        },
+        "end": {
+          "row": 2,
+          "col": 5
+        },
+        "checkpoints": [],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 3,
+          "col": 5
+        },
+        "end": {
+          "row": 2,
+          "col": 5
+        },
+        "checkpoints": [],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 7,
+          "col": 4
+        },
+        "end": {
+          "row": 2,
+          "col": 4
+        },
+        "checkpoints": [
+          {
+            "type": "MOVE",
+            "row": 6,
+            "col": 4,
+            "time": 0,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "WAIT_FOR_SECONDS",
+            "row": 0,
+            "col": 0,
+            "time": 1,
+            "dx": 0,
+            "dy": 0
+          }
+        ],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 7,
+          "col": 5
+        },
+        "end": {
+          "row": 2,
+          "col": 5
+        },
+        "checkpoints": [
+          {
+            "type": "MOVE",
+            "row": 6,
+            "col": 5,
+            "time": 0,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "WAIT_FOR_SECONDS",
+            "row": 0,
+            "col": 0,
+            "time": 5,
+            "dx": 0,
+            "dy": 0
+          }
+        ],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 7,
+          "col": 5
+        },
+        "end": {
+          "row": 2,
+          "col": 5
+        },
+        "checkpoints": [
+          {
+            "type": "MOVE",
+            "row": 6,
+            "col": 4,
+            "time": 0,
+            "dx": 0.49,
+            "dy": 0.02
+          },
+          {
+            "type": "WAIT_FOR_SECONDS",
+            "row": 0,
+            "col": 0,
+            "time": 5,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "MOVE",
+            "row": 2,
+            "col": 5,
+            "time": 0,
+            "dx": -0.49,
+            "dy": 0
+          }
+        ],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 7,
+          "col": 4
+        },
+        "end": {
+          "row": 2,
+          "col": 4
+        },
+        "checkpoints": [
+          {
+            "type": "MOVE",
+            "row": 6,
+            "col": 4,
+            "time": 0,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "WAIT_FOR_SECONDS",
+            "row": 0,
+            "col": 0,
+            "time": 5,
+            "dx": 0,
+            "dy": 0
+          }
+        ],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 7,
+          "col": 5
+        },
+        "end": {
+          "row": 2,
+          "col": 5
+        },
+        "checkpoints": [],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 7,
+          "col": 4
+        },
+        "end": {
+          "row": 2,
+          "col": 4
+        },
+        "checkpoints": [],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 7,
+          "col": 3
+        },
+        "end": {
+          "row": 2,
+          "col": 4
+        },
+        "checkpoints": [],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 7,
+          "col": 4
+        },
+        "end": {
+          "row": 2,
+          "col": 4
+        },
+        "checkpoints": [],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 7,
+          "col": 5
+        },
+        "end": {
+          "row": 2,
+          "col": 5
+        },
+        "checkpoints": [],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 7,
+          "col": 6
+        },
+        "end": {
+          "row": 2,
+          "col": 5
+        },
+        "checkpoints": [],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 2,
+          "col": 1
+        },
+        "end": {
+          "row": 2,
+          "col": 8
+        },
+        "checkpoints": [
+          {
+            "type": "DISAPPEAR",
+            "row": -1,
+            "col": 1,
+            "time": 0,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "WAIT_FOR_SECONDS",
+            "row": -1,
+            "col": 1,
+            "time": 1,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "APPEAR_AT_POS",
+            "row": 7,
+            "col": 8,
+            "time": 0,
+            "dx": 0,
+            "dy": 0
+          }
+        ],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "start": {
+          "row": 2,
+          "col": 8
+        },
+        "end": {
+          "row": 2,
+          "col": 1
+        },
+        "checkpoints": [
+          {
+            "type": "DISAPPEAR",
+            "row": -1,
+            "col": 1,
+            "time": 0,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "WAIT_FOR_SECONDS",
+            "row": -1,
+            "col": 1,
+            "time": 1,
+            "dx": 0,
+            "dy": 0
+          },
+          {
+            "type": "APPEAR_AT_POS",
+            "row": 7,
+            "col": 1,
+            "time": 0,
+            "dx": 0,
+            "dy": 0
+          }
+        ],
+        "motion": "WALK",
+        "allowDiagonal": true,
+        "spawnOffset": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    ],
+    "waves": [
+      {
+        "preDelay": 0,
+        "postDelay": 0,
+        "maxWait": -1,
+        "fragments": [
+          {
+            "preDelay": 0,
+            "actions": [
+              {
+                "type": "ACTIVATE",
+                "key": "trap_179_muctrl#1",
+                "route": -1,
+                "count": 1,
+                "preDelay": 0,
+                "interval": 1
+              }
+            ]
+          },
+          {
+            "preDelay": 3,
+            "actions": [
+              {
+                "type": "STORY",
+                "key": "Activities/MultiV3/Training/training_multi_v3_01-01_a",
+                "route": -1,
+                "count": 1,
+                "preDelay": 3,
+                "interval": 1
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1000_gopro",
+                "route": 0,
+                "count": 1,
+                "preDelay": 3.1,
+                "interval": 1
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1000_gopro",
+                "route": 1,
+                "count": 1,
+                "preDelay": 3.1,
+                "interval": 1
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1034_laxe",
+                "route": 2,
+                "count": 1,
+                "preDelay": 3.1,
+                "interval": 1
+              },
+              {
+                "type": "STORY",
+                "key": "Activities/MultiV3/Training/training_multi_v3_01-01_b",
+                "route": -1,
+                "count": 1,
+                "preDelay": 3.5,
+                "interval": 1
+              },
+              {
+                "type": "ACTIVATE",
+                "key": "char_122_beagle",
+                "route": -1,
+                "count": 1,
+                "preDelay": 4,
+                "interval": 1
+              },
+              {
+                "type": "ACTIVATE",
+                "key": "char_150_snakek",
+                "route": -1,
+                "count": 1,
+                "preDelay": 4.5,
+                "interval": 1
+              }
+            ]
+          },
+          {
+            "preDelay": 11,
+            "actions": [
+              {
+                "type": "STORY",
+                "key": "Activities/MultiV3/Training/training_multi_v3_01-01_c",
+                "route": -1,
+                "count": 1,
+                "preDelay": 0.5,
+                "interval": 1
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1013_airdrp",
+                "route": 3,
+                "count": 1,
+                "preDelay": 2,
+                "interval": 1
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1013_airdrp",
+                "route": 4,
+                "count": 3,
+                "preDelay": 2.2,
+                "interval": 0.3
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1000_gopro",
+                "route": 5,
+                "count": 3,
+                "preDelay": 10,
+                "interval": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "preDelay": 0,
+        "postDelay": 0,
+        "maxWait": -1,
+        "fragments": [
+          {
+            "preDelay": 1,
+            "actions": [
+              {
+                "type": "ACTIVATE",
+                "key": "trap_179_muctrl#2",
+                "route": -1,
+                "count": 1,
+                "preDelay": 0,
+                "interval": 1
+              }
+            ]
+          },
+          {
+            "preDelay": 0,
+            "actions": [
+              {
+                "type": "STORY",
+                "key": "Activities/MultiV3/Training/training_multi_v3_01-01_e",
+                "route": -1,
+                "count": 1,
+                "preDelay": 3,
+                "interval": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "preDelay": 0,
+        "postDelay": 0,
+        "maxWait": -1,
+        "fragments": [
+          {
+            "preDelay": 0,
+            "actions": [
+              {
+                "type": "SPAWN",
+                "key": "enemy_1030_wteeth",
+                "route": 6,
+                "count": 1,
+                "preDelay": 0,
+                "interval": 1
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1030_wteeth",
+                "route": 7,
+                "count": 1,
+                "preDelay": 0,
+                "interval": 1
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1030_wteeth",
+                "route": 8,
+                "count": 1,
+                "preDelay": 0,
+                "interval": 1
+              },
+              {
+                "type": "STORY",
+                "key": "Activities/MultiV3/Training/training_multi_v3_01-01_f",
+                "route": -1,
+                "count": 1,
+                "preDelay": 0.1,
+                "interval": 1
+              },
+              {
+                "type": "ACTIVATE",
+                "key": "trap_201_muulco",
+                "route": -1,
+                "count": 1,
+                "preDelay": 7.9,
+                "interval": 1
+              },
+              {
+                "type": "STORY",
+                "key": "Activities/MultiV3/Training/training_multi_v3_01-01_d",
+                "route": -1,
+                "count": 1,
+                "preDelay": 8,
+                "interval": 1
+              },
+              {
+                "type": "STORY",
+                "key": "Activities/MultiV3/Training/training_multi_v3_01-01_g",
+                "route": -1,
+                "count": 1,
+                "preDelay": 8.1,
+                "interval": 1
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1000_gopro",
+                "route": 9,
+                "count": 2,
+                "preDelay": 7,
+                "interval": 7
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1000_gopro",
+                "route": 10,
+                "count": 2,
+                "preDelay": 7,
+                "interval": 7
+              },
+              {
+                "type": "ACTIVATE",
+                "key": "char_282_catap",
+                "route": -1,
+                "count": 1,
+                "preDelay": 0.5,
+                "interval": 1
+              },
+              {
+                "type": "ACTIVATE",
+                "key": "char_120_hibisc",
+                "route": -1,
+                "count": 1,
+                "preDelay": 0.5,
+                "interval": 1
+              },
+              {
+                "type": "ACTIVATE",
+                "key": "char_002_amiya",
+                "route": -1,
+                "count": 1,
+                "preDelay": 0.5,
+                "interval": 1
+              },
+              {
+                "type": "ACTIVATE",
+                "key": "char_122_beagle",
+                "route": -1,
+                "count": 1,
+                "preDelay": 0.5,
+                "interval": 1
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1030_wteeth",
+                "route": 11,
+                "count": 1,
+                "preDelay": 14,
+                "interval": 1
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1030_wteeth",
+                "route": 12,
+                "count": 1,
+                "preDelay": 14,
+                "interval": 1
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1030_wteeth",
+                "route": 13,
+                "count": 1,
+                "preDelay": 14,
+                "interval": 1
+              },
+              {
+                "type": "SPAWN",
+                "key": "enemy_1030_wteeth",
+                "route": 14,
+                "count": 1,
+                "preDelay": 14,
+                "interval": 1
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "branches": {
+      "e1": [
+        {
+          "preDelay": 0,
+          "actions": [
+            {
+              "type": "SPAWN",
+              "key": "enemy_1037_lunsbr",
+              "route": 15,
+              "count": 1,
+              "preDelay": 0,
+              "interval": 1
+            }
+          ]
+        }
+      ],
+      "e2": [
+        {
+          "preDelay": 0,
+          "actions": [
+            {
+              "type": "SPAWN",
+              "key": "enemy_1037_lunsbr",
+              "route": 16,
+              "count": 1,
+              "preDelay": 0,
+              "interval": 1
+            }
+          ]
+        }
+      ]
+    },
+    "predefines": [
+      {
+        "alias": "char_122_beagle",
+        "key": "char_122_beagle",
+        "hidden": true,
+        "row": 4,
+        "col": 5,
+        "dir": "UP",
+        "build": {
+          "elite": 1,
+          "level": 50,
+          "potential": 2,
+          "trust": 100,
+          "skill": 0,
+          "skillLevel": 7
+        }
+      },
+      {
+        "alias": "char_002_amiya",
+        "key": "char_002_amiya",
+        "hidden": true,
+        "row": 3,
+        "col": 6,
+        "dir": "UP",
+        "build": {
+          "elite": 1,
+          "level": 50,
+          "potential": 2,
+          "trust": 100,
+          "skill": 1,
+          "skillLevel": 7
+        }
+      },
+      {
+        "alias": "char_120_hibisc",
+        "key": "char_120_hibisc",
+        "hidden": true,
+        "row": 3,
+        "col": 7,
+        "dir": "LEFT",
+        "build": {
+          "elite": 1,
+          "level": 50,
+          "potential": 2,
+          "trust": 100,
+          "skill": 0,
+          "skillLevel": 7
+        }
+      },
+      {
+        "alias": "char_282_catap",
+        "key": "char_282_catap",
+        "hidden": true,
+        "row": 4,
+        "col": 7,
+        "dir": "LEFT",
+        "build": {
+          "elite": 1,
+          "level": 50,
+          "potential": 2,
+          "trust": 100,
+          "skill": 0,
+          "skillLevel": 7
+        }
+      },
+      {
+        "alias": "trap_179_muctrl#1",
+        "key": "trap_179_muctrl",
+        "hidden": true,
+        "row": 0,
+        "col": 0,
+        "dir": "UP"
+      },
+      {
+        "alias": "trap_179_muctrl#2",
+        "key": "trap_179_muctrl",
+        "hidden": true,
+        "row": 0,
+        "col": 0,
+        "dir": "UP"
+      }
+    ],
+    "stages": [
+      {
+        "alias": "trap_179_muctrl#1",
+        "objective": "survive",
+        "goal": 30,
+        "time": 30,
+        "rest": 0,
+        "task": {
+          "title": "生存",
+          "basic": "坚持存活30秒"
+        }
+      },
+      {
+        "alias": "trap_179_muctrl#2",
+        "objective": "target",
+        "goal": 3,
+        "advanced": 5,
+        "time": 120,
+        "rest": 10,
+        "enemy": "enemy_1030_wteeth",
+        "task": {
+          "title": "渗透",
+          "basic": "击倒3个拾荒者",
+          "advanced": "击倒5个拾荒者"
+        }
+      }
+    ],
+    "cards": {
+      "operators": [
+        {
+          "key": "char_124_kroos",
+          "build": {
+            "elite": 1,
+            "level": 50,
+            "potential": 1,
+            "trust": 100,
+            "skill": 0,
+            "skillLevel": 7
+          }
+        },
+        {
+          "key": "char_150_snakek",
+          "build": {
+            "elite": 1,
+            "level": 60,
+            "potential": 2,
+            "trust": 100,
+            "skill": 1,
+            "skillLevel": 7
+          }
+        },
+        {
+          "key": "char_117_myrrh",
+          "build": {
+            "elite": 1,
+            "level": 50,
+            "potential": 2,
+            "trust": 100,
+            "skill": 1,
+            "skillLevel": 7
+          }
+        },
+        {
+          "key": "char_126_shotst",
+          "build": {
+            "elite": 1,
+            "level": 50,
+            "potential": 2,
+            "trust": 100,
+            "skill": 1,
+            "skillLevel": 7
+          }
+        }
+      ],
+      "tokens": [
+        {
+          "key": "trap_201_muulco",
+          "alias": "trap_201_muulco",
+          "count": 1,
+          "hidden": true
+        }
+      ]
+    },
+    "view": [
+      0,
+      -5.08,
+      -8.02
+    ],
+    "bgm": "multinormal"
+  },
+  "difficulties": {
+    "NORMAL": {
+      "hiddenGroups": [],
+      "enemyMul": [],
+      "replace": {},
+      "unsupported": []
+    },
+    "FOUR_STAR": {
+      "hiddenGroups": [],
+      "enemyMul": [],
+      "replace": {},
+      "unsupported": [],
+      "lifePoint": 5
+    }
+  },
+  "enemies": {
+    "enemy_1000_gopro": {
+      "name": "猎狗",
+      "maxHp": 820,
+      "atk": 190,
+      "def": 0,
+      "res": 20,
+      "moveSpeed": 1.9,
+      "baseAttackTime": 1.4,
+      "rangeRadius": 0,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "NORMAL",
+      "lifePointReduce": 1,
+      "tags": [
+        "infection"
+      ]
+    },
+    "enemy_1013_airdrp": {
+      "name": "空降兵",
+      "maxHp": 1200,
+      "atk": 220,
+      "def": 100,
+      "res": 0,
+      "moveSpeed": 1,
+      "baseAttackTime": 1.9,
+      "rangeRadius": 0,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "NORMAL",
+      "lifePointReduce": 1
+    },
+    "enemy_1030_wteeth": {
+      "name": "拾荒者",
+      "maxHp": 2500,
+      "atk": 500,
+      "def": 50,
+      "res": 20,
+      "moveSpeed": 0.8,
+      "baseAttackTime": 3,
+      "rangeRadius": 0,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 2,
+      "levelType": "NORMAL",
+      "lifePointReduce": 1
+    },
+    "enemy_1034_laxe": {
+      "name": "屠夫",
+      "maxHp": 9000,
+      "atk": 850,
+      "def": 230,
+      "res": 30,
+      "moveSpeed": 0.7,
+      "baseAttackTime": 3.5,
+      "rangeRadius": 0,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 3,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "shared": true
+    },
+    "enemy_1037_lunsbr": {
+      "name": "特战士兵",
+      "maxHp": 3200,
+      "atk": 350,
+      "def": 50,
+      "res": 0,
+      "moveSpeed": 1.1,
+      "baseAttackTime": 2,
+      "rangeRadius": 0,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 1,
+      "levelType": "NORMAL",
+      "lifePointReduce": 1
+    }
+  },
+  "devices": {
+    "trap_201_muulco": {
+      "name": "赛场啦啦队",
+      "maxHp": 100,
+      "atk": 0,
+      "def": 0,
+      "res": 0,
+      "blockCnt": 0,
+      "baseAttackTime": 1,
+      "aspd": 100,
+      "tauntLevel": -1,
+      "massLevel": 0,
+      "talentBb": {},
+      "talents": [],
+      "cost": 5
+    }
+  }
+}

@@ -46,7 +46,7 @@ const energyOf = (ctx, u) => (capOf(ctx, u) > 0 ? ctx.buffValue(u, ENERGY) : nul
  * changed.
  * @param {FoeContext} ctx @param {Unit} u @param {number} n
  */
-function addEnergy(ctx, u, n) {
+export function addEnergy(ctx, u, n) {
   const v = energyOf(ctx, u);
   if (v === null || overloaded(ctx, u)) return 0;
   const next = Math.max(0, Math.min(capOf(ctx, u), v + n));

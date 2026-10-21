@@ -7,6 +7,7 @@ import { tinyContent } from '@aue/testkit';
 import { HIGHLIGHT, highlightFactor, RANGE, tileWorld, toThree } from '../src/index.js';
 import { createHighlight } from '../src/highlight.js';
 import { createRange } from '../src/range.js';
+import { createTileMarks, TILE_MARKS } from '../src/tilemarks.js';
 import { createTerrain } from '../src/terrain.js';
 
 const level = tinyContent().level;
@@ -68,4 +69,23 @@ test('[渲染-9] the range: a quad per tile at its height, orange or cyan, trans
   bare.show([7]);
   assert.equal(bare.count(), 0, 'no texture: nothing drawn');
   bare.dispose();
+});
+
+test("[渲染-19] the marks: a quad a marked tile at its height, this seat's blue, the mate's green; none without marks or texture", () => {
+  const field = { ...level, highland: 0.3 }, m = createTileMarks(field, new THREE.Texture());
+  m.show([{ key: 7, mate: false }, { key: 8, mate: true }, { key: 99, mate: true }]);
+  assert.equal(m.count(), 2, 'a tile outside the level is none');
+  const [mine, mate] = /** @type {THREE.Mesh[]} */ (m.object.children), color = (/** @type {THREE.Mesh} */ q) => /** @type {any} */ (q.material).uniforms.color.value;
+  assert.deepEqual(mine.position.toArray(), toThree(tileWorld(field, 1, 1, 0)));
+  assert.ok(color(mine).equals(new THREE.Color().setRGB(TILE_MARKS.mine[0], TILE_MARKS.mine[1], TILE_MARKS.mine[2], THREE.SRGBColorSpace)));
+  assert.ok(color(mate).equals(new THREE.Color().setRGB(TILE_MARKS.mate[0], TILE_MARKS.mate[1], TILE_MARKS.mate[2], THREE.SRGBColorSpace)));
+  assert.equal(/** @type {any} */ (mine.material).uniforms.opacity.value, TILE_MARKS.opacity);
+  m.tick(2);
+  assert.equal(/** @type {any} */ (mine.material).uniforms.shift.value, -RANGE.speed * 2, "its stripes scroll as the range's");
+  m.show(null);
+  assert.equal(m.count(), 0);
+  m.dispose();
+  const bare = createTileMarks(field, undefined);
+  bare.show([{ key: 7, mate: false }]);
+  assert.equal(bare.count(), 0, 'no texture: nothing drawn');
 });

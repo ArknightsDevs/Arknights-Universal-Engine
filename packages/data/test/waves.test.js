@@ -1,7 +1,7 @@
 // A level's waves, hidden groups and predefined units as the engine's (docs/spec/waves.md 波次-1, 波次-4, 波次-6).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractWaves, hiddenGroupsOf, predefinesOf, maskCovers, stagesOf } from '../src/index.js';
+import { extractWaves, hiddenGroupsOf, predefinesOf, maskCovers, stagesOf, levelCardsOf, readAction } from '../src/index.js';
 
 const act = (/** @type {string} */ actionType, /** @type {Record<string, unknown>} */ more = {}) => ({
   actionType, managedByScheduler: true, key: 'k', count: 1, preDelay: 0, interval: 0, routeIndex: 0, blockFragment: false,
@@ -46,6 +46,28 @@ test('[波次-6] predefined units: the instances with an alias, their key, wheth
     { alias: 'op#1', key: 'char_x', hidden: false, row: 2, col: 8, dir: 'UP' }, { alias: 'trap#1', key: 'trap_179_muctrl', hidden: true, row: 2, col: 8, dir: 'UP' },
   ]);
   assert.deepEqual(predefinesOf(null), []);
+});
+
+test('[波次-7] predefined operators: character instances with a tile and no alias, by their key, with their training at trust 100', () => {
+  const op = { alias: null, hidden: true, position: { row: 3, col: 6 }, direction: 'LEFT', skillIndex: 1, mainSkillLvl: 7, inst: { characterKey: 'char_002_amiya', level: 50, phase: 'PHASE_1', favorPoint: 50, potentialRank: 1 } };
+  assert.deepEqual(predefinesOf({ characterInsts: [op, { ...op, position: null }], tokenInsts: [] }), [
+    { alias: 'char_002_amiya', key: 'char_002_amiya', hidden: true, row: 3, col: 6, dir: 'LEFT', build: { elite: 1, level: 50, potential: 2, trust: 100, skill: 1, skillLevel: 7 } },
+  ], 'one without a tile is none');
+  assert.throws(() => predefinesOf({ characterInsts: [{ ...op, inst: { ...op.inst, phase: 'PHASE_9' } }] }), /unknown phase/);
+});
+
+test('[关卡-7] a level\'s own cards: its character cards with their training, its token cards with their count and whether hidden', () => {
+  const card = (/** @type {string} */ key, /** @type {Record<string, unknown>} */ v) => ({ hidden: true, alias: null, skillIndex: 0, mainSkillLvl: 7, inst: { characterKey: key, level: 50, phase: 'PHASE_1', potentialRank: 0 }, ...v });
+  assert.deepEqual(levelCardsOf({ characterCards: [card('char_124_kroos', {})], tokenCards: [card('trap_201_muulco', { alias: 'trap_201_muulco', initialCnt: 1 })] }), {
+    operators: [{ key: 'char_124_kroos', build: { elite: 1, level: 50, potential: 1, trust: 100, skill: 0, skillLevel: 7 } }],
+    tokens: [{ key: 'trap_201_muulco', alias: 'trap_201_muulco', count: 1, hidden: true }],
+  });
+  assert.deepEqual(levelCardsOf(null), { operators: [], tokens: [] });
+});
+
+test('[波次-8] a STORY action keeps its story\'s path', () => {
+  const a = readAction({ actionType: 'STORY', key: 'Activities/MultiV3/Training/training_multi_v3_01-01_a', preDelay: 3, routeIndex: 1 }, 'a', (i) => i);
+  assert.deepEqual(a && [a.type, a.key, a.route, a.preDelay], ['STORY', 'Activities/MultiV3/Training/training_multi_v3_01-01_a', -1, 3]);
 });
 
 test('[合作-6] [合作-7] stages from the stage controllers\' blackboards: objective, minimum and advanced targets, time limit, rest', () => {
