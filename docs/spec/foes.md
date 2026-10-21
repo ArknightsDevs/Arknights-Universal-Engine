@@ -262,3 +262,15 @@ IG-S-2 中关卡把 `invincible` 改为 20，把 `AtkUp` 的 `damage_resistance`
 - **待命与临战**（天赋 `revive`，萨卡兹积怨者、恶咒者、魔剑士、魔剑组长）：出场时待命——不普通攻击，`unmove_duration` 秒内不能移动（数据没有给出时 150 秒）；生命低于最大生命的 `hp_ratio`，或受到警报时转为临战（永久）：移动速度直接乘算 + `move_speed`。
 
 - 来源：[PRTS「萨卡兹哨兵」oldid=436432](https://prts.wiki/index.php?title=%E8%90%A8%E5%8D%A1%E5%85%B9%E5%93%A8%E5%85%B5&oldid=436432)「每0.2s检测一次生命值，低于99.9%时切换至【警戒模式】」「切换至【警戒模式】前持有不死效果」「使场上所有敌方单位攻击力+30%，防御力+30%」「令【待命】的萨卡兹雇佣兵立即进入【临战】状态」「该技能只能触发1次」；[PRTS「萨卡兹哨兵组长」oldid=436433](https://prts.wiki/index.php?title=%E8%90%A8%E5%8D%A1%E5%85%B9%E5%93%A8%E5%85%B5%E7%BB%84%E9%95%BF&oldid=436433)「【警报】技能执行完成前持有不死效果」；[PRTS「萨卡兹积怨者」oldid=436411](https://prts.wiki/index.php?title=%E8%90%A8%E5%8D%A1%E5%85%B9%E7%A7%AF%E6%80%A8%E8%80%85&oldid=436411)「初始处于【待命】状态：缴械，出场一段时间内（默认为150秒）持有自缚」「低于99.9%生命值进入【临战】状态」「【临战】状态：移动速度提升200%」；数据：enemy_database 的 warn、Awake（initCooldown 0.1、atk、def）、revive（hp_ratio、unmove_duration、move_speed）。几个警报取最强、加成永久且只给当时在场的敌人为推断 INF-0225
+
+### 敌能-35 支援光环与暴露
+
+同名天赋按 blackboard 的形状分开。光环用借出的 Buff（敌能-25）：一个效果一个键，几份不叠加；持有者被沉默就不再借出，最迟两帧后消失。半径按圆心距离，不超过该半径算在内。
+
+- **不进行普通攻击**（御4、寒霜，`defup` 带 `range_radius`）：出现时起不普通攻击（`noAttack`）。「可被沉默」写在光环那一句上，被沉默也不恢复攻击。静态刚体不在本条。
+- **防御力**（`defup` 同时有 `def` 和 `range_radius`，御4）：半径内的其他非中立敌人防御力直接加算 + `def`（300），键 `defup`。只有半径、没有 `def` 的（寒霜）不加防御。只有 `def`、没有半径的还没有行为（关卡-2）。「实体类型为默认类或装置类」为推断 INF-0307。
+- **法术抗性**（`magdef_add`，护障、护障·P）：自身攻击范围内的其他非中立敌人法术抗性直接加算 + `magic_resistance`（30），不含自己，键 `magdef`。攻击范围按记录的 `rangeRadius` 的圆心距离，不加干员碰撞的 0.25，为推断 INF-0308。
+- **攻击速度**（`atkSpeedDown` 带 `range_radius`，寒霜）：半径内它可以选中的我方单位（不含中立；隐匿的不算）攻击速度直接乘算 `attack_speed`（−0.5），键 `frostAspd`。数据把 2.5 写在 `defup` 上，内容按页面加到 `atkSpeedDown`。直接乘算为推断 INF-0309。没有 `range_radius` 的 `atkSpeedDown` 仍是畸变恶性瘤（敌能-23），键仍是 `atkSpeedDown`。
+- **暴露**（`Expose` 带 `range_radius`，远眺）：被击倒且没被沉默时，半径内它可以选中的我方单位（不含中立；隐匿的不算）获得 `weak[limit]` 秒脆弱，v = `damage_scale` − 1（状态-5；同名效果取最高，状态-2）。走到终点不算被击倒（敌能-2）。没有半径的 `Expose` 还没有行为（关卡-2）。v 与「20%脆弱」的对应为推断 INF-0310。暴露还可以无视封阻物或作战专用掩体触发直击；引擎还没有这些装置，这一半不起作用。
+
+- 来源：[PRTS「御4」oldid=380622](https://prts.wiki/index.php?title=%E5%BE%A14&oldid=380622)「不进行普通攻击」「使2.5半径范围内实体类型为默认类或装置类的其他敌方单位防御力+300（不可叠加，可被沉默）」；[PRTS「寒霜」oldid=371399](https://prts.wiki/index.php?title=%E5%AF%92%E9%9C%9C&oldid=371399)「不进行普通攻击」「使2.5半径范围内的所有我方单位攻击速度-50%（不可叠加；可被沉默）」；[PRTS「护障」oldid=287837](https://prts.wiki/index.php?title=%E6%8A%A4%E9%9A%9C&oldid=287837)、[PRTS「护障·P」oldid=353844](https://prts.wiki/index.php?title=%E6%8A%A4%E9%9A%9C%C2%B7P&oldid=353844)「自身攻击范围内全体敌人（不含自身）法术抗性+30」「※不可叠加，可被沉默」，攻击范围半径 2.5；[PRTS「远眺」oldid=353936](https://prts.wiki/index.php?title=%E8%BF%9C%E7%9C%BA&oldid=353936)「被击倒后使半径1.7范围内的我方单位暴露8s（可被沉默）」；[PRTS「特殊机制」oldid=374633](https://prts.wiki/index.php?title=%E7%89%B9%E6%AE%8A%E6%9C%BA%E5%88%B6&oldid=374633)「处于暴露状态的我方单位，获得20%脆弱，可无视封阻物或作战专用掩体触发敌人的直击」；[PRTS「作战机制」oldid=428460](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=428460)「隐匿状态下的单位一般无法被敌方的索敌机制和Buff选择器选中为目标」；数据：enemy_database 的 defup（def、range_radius）、magdef_add（magic_resistance）、atkSpeedDown（attack_speed）、Expose（weak[limit]、range_radius、damage_scale）
