@@ -243,6 +243,8 @@
  * @property {number} summonBlockedScale its attack's 倍率 against an enemy one of its own summons blocks is multiplied by
  *   this (职业-14)
  * @property {boolean} trapTiles its summons cannot be deployed on a tile a ground enemy stands on (职业-14)
+ * @property {boolean} rangeTiles its normal attack searches its range by the tile of each enemy's position, not by its
+ *   collider (体积-5: 谬因)
  * @property {Doll | null} doll brought to 0 HP in its own form it switches (`switch` seconds) to its 替身, which fights
  *   `duration` seconds with attack and maximum HP + `atk`, `maxHp` (直接乘算), then switches back (职业-15)
  * @property {VsScale[]} vs its hits' attack 倍率 or 伤害倍率, or its heals' 倍率, against a target as `when` says (职业-17)
@@ -670,6 +672,7 @@
  * @property {number} n a counter its behaviour keeps (麻痹's decay, 狂躁's damage)
  * @property {string} tag marks a buff a behaviour made, to find it again ("" for none)
  * @property {string} act the key its behaviour is found by, "" for its own key (状态-1)
+ * @property {number} [restore] frames until this source of 隐匿 returns after the enemy is released (索敌-2); absent is 90, and 0 is at once
  */
 
 /**
