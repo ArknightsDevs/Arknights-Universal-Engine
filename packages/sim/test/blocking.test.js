@@ -295,3 +295,56 @@ test('[阻挡-2] [敌人攻击-1] 起飞 (liftoff): flyers only, from high groun
   shooter.base.motion = 'FLY';
   assert.deepEqual(enemyTargets(w, shooter), [op], 'a flying one can');
 });
+
+test('[常量-3] [阻挡-1] +0.23 blocks a flyer just outside the plain radius; ground stays on 0.49999037', () => {
+  const c = field(3), w = worldWith(c, [['gA', 3, 5]]), op = w.units[0];
+  addBuff(op, makeBuff({ key: 'sky', flags: { blockFly: true } }));
+  const flyer = enemyAt(w, c, 'e1', 5.9, 3);
+  flyer.base.motion = 'FLY';
+  assert.equal(tryBlock(w, c, flyer), false, '0.9² = 0.81 is outside 0.79995137');
+  addBuff(op, makeBuff({ key: 'wide', mods: { blockRadiusScale: 0.23 } }));
+  assert.equal(tryBlock(w, c, flyer), true, '0.81 < 0.79995137 × 1.23²');
+  assert.equal(tryBlock(w, c, enemyAt(w, c, 'e1', 5.5, 3)), true, 'ground 0.5² stays inside');
+  assert.equal(tryBlock(w, c, enemyAt(w, c, 'e1', 5.75, 3)), false, 'ground 0.75² stays outside');
+});
+
+test('[常量-3] blockRadiusScale adds; a negative sum shrinks the flying radius, down to nothing', () => {
+  const c = field(2), w = worldWith(c, [['gA', 3, 5]]), op = w.units[0];
+  addBuff(op, makeBuff({ key: 'sky', flags: { blockFly: true }, mods: { blockRadiusScale: 0.1 } }));
+  const far = enemyAt(w, c, 'e1', 6, 3);
+  far.base.motion = 'FLY';
+  assert.equal(tryBlock(w, c, far), false, '1² is outside 0.79995137 × 1.1²');
+  addBuff(op, makeBuff({ key: 'wider', mods: { blockRadiusScale: 0.13 } }));
+  assert.equal(tryBlock(w, c, far), true, '0.1 + 0.13 blocks it');
+  const neg = worldWith(c, [['gA', 3, 5]]), nOp = neg.units[0];
+  addBuff(nOp, makeBuff({ key: 'sky', flags: { blockFly: true }, mods: { blockRadiusScale: -0.5 } }));
+  const inside = enemyAt(neg, c, 'e1', 5.4, 3), outside = enemyAt(neg, c, 'e1', 5.5, 3);
+  inside.base.motion = 'FLY';
+  outside.base.motion = 'FLY';
+  assert.equal(tryBlock(neg, c, inside), true, '0.4² is inside 0.79995137 × 0.5²');
+  assert.equal(tryBlock(neg, c, outside), false, '0.5² is outside it');
+  const none = worldWith(c, [['gA', 3, 5]]), zOp = none.units[0];
+  addBuff(zOp, makeBuff({ key: 'sky', flags: { blockFly: true }, mods: { blockRadiusScale: -1.5 } }));
+  const under = enemyAt(none, c, 'e1', 5, 3);
+  under.base.motion = 'FLY';
+  assert.equal(tryBlock(none, c, under), false, 'the scale stops at 0: no flying radius at all');
+});
+
+test('[阻挡-1] noNewBlock keeps the blocks it has and refuses a new one by contact', () => {
+  const c = field(2), w = worldWith(c, [['gA', 3, 5]]), op = w.units[0];
+  const held = enemyAt(w, c, 'e1', 5.2, 3);
+  assert.equal(tryBlock(w, c, held), true);
+  addBuff(op, makeBuff({ key: 'cage', flags: { noNewBlock: true } }));
+  const next = enemyAt(w, c, 'e1', 5.1, 3);
+  assert.equal(tryBlock(w, c, next), false);
+  assert.equal(held.blockedBy, op.id);
+  keepOrRelease(w, held);
+  assert.equal(held.blockedBy, op.id, 'the flag does not release');
+  const handed = enemyAt(w, c, 'e1', 15, 3);
+  assert.equal(blockBy(w, handed, op), true);
+  applyStatus(op, 'stun', { frames: 30 });
+  keepOrRelease(w, held);
+  keepOrRelease(w, handed);
+  assert.equal(held.blockedBy, -1, 'stun still releases');
+  assert.equal(handed.blockedBy, -1);
+});

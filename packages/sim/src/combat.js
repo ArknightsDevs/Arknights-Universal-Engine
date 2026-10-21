@@ -6,13 +6,13 @@ import { KIND, ANIM } from '@aue/schema';
 import { offsetTile, dirVec } from './dir.js';
 import { push, pull, PULL_POINT } from './displacement.js';
 import { statsOf, computeStats, intervalFrames } from './attrs.js';
-import { inKeys, selectable, sortEnemies, sortAllies, firstN, evadesGround, hostile, friendly } from './targeting.js';
+import { inKeys, selectable, sortEnemies, sortAllies, firstN, evadesGround, hostile, friendly, stealthed } from './targeting.js';
 import { dealDamage, heal } from './damage.js';
 import { emit, hasHook } from './bus.js';
 import { pathDistance } from './routes.js';
 import { enforceCapacity } from './blocking.js';
 import { blockingImmunity } from './upkeep.js';
-import { zoneScale, chainOf, woundedInRange } from './chain.js';
+import { zoneScale, chainOf } from './chain.js';
 import { vsDamage, vsHeal, vsEp, tagsOf } from './vs.js';
 import { traitWhiles } from './whiles.js';
 import { afterOwnHit, attacked, hitSp, caughtSp } from './riders.js';
@@ -66,7 +66,7 @@ export function targetsOf(w, c, op) {
   const any = { canHitFly: true, canHitSleep: sleep, canHitStealth: t.seeStealth }, sel = { canHitFly: t.antiAir || !!dollNow(c, op)?.antiAir, canHitSleep: sleep, canHitStealth: t.seeStealth };
   const bySummon = t.summonBlocked ? summonHeld(w, op) : () => false, skip = talentSkip(c, op, traitSkip(w, c, op));
   const cands = w.units.filter((u) => hostile(u)
-    && ((held(u) && selectable(u, any)) || ((bySummon(u) || (inKeys(u, keys, grid) && (!air || statsOf(u).flying))) && selectable(u, sel))) && !skip?.(u));
+    && ((held(u) && selectable(u, any)) || ((bySummon(u) || (inKeys(u, keys, grid, t.rangeTiles) && (!air || statsOf(u).flying))) && selectable(u, sel))) && !skip?.(u));
   const prefer = t.prefer.map((p) => preferOf(w, c, op, p));
   return fortressTargets(w, c, op, sortEnemies(op, cands, { blockedFirst: t.blockedFirst, pathDist: (e) => pathDistance(c, e), filter: t.filter, secondary: t.secondary, prefer }));
 }
@@ -231,22 +231,11 @@ function debuffOnHit(t, d, src) {
 }
 
 /**
- * What a hit that dealt damage sets off (职业-11, 敌能-2): an operator's heal for it, an enemy's abilities' hit.
+ * What an enemy's hit that dealt damage sets off (敌能-2). An operator's heal for damage it dealt is traitDealt (职业-11).
  * @param {World} w @param {Content} c @param {{ src: Unit | null, t: Unit, dealt: number, ranged: boolean }} h
  */
 function afterDamage(w, c, h) {
-  if (h.src && h.src.kind === KIND.OPERATOR) healForDamage(w, c, h.src, h.dealt);
-  else if (h.src && h.src.kind === KIND.ENEMY) foeHit(w, c, h.src, h.t, { dealt: h.dealt, ranged: h.ranged });
-}
-
-/**
- * An operator's heal for the damage a hit of its dealt (职业-11): its trait's share of it to the most wounded operator
- * in its range, when there is one.
- * @param {World} w @param {Content} c @param {Unit} op @param {number} dealt
- */
-function healForDamage(w, c, op, dealt) {
-  const share = traitOf(c, op).healOnHit, to = share > 0 ? woundedInRange(w, c, op) : null;
-  if (to) w.events.push({ type: 'heal', id: op.id, target: to.id, amount: heal(w, op, to, dealt * share * vsHeal(w, c, op, to)) });
+  if (h.src && h.src.kind === KIND.ENEMY) foeHit(w, c, h.src, h.t, { dealt: h.dealt, ranged: h.ranged });
 }
 
 /** The attack of an attacker, with an attack bonus for this attack only (敌能-11). @param {Unit} a @param {number} [pct] */
@@ -265,13 +254,15 @@ const loadOf = (a, mods) => ({
 
 /**
  * The units an enemy's tile splash reaches (敌能-7, 敌能-8): those it may attack on the target's tile and the four tiles
- * next to it (a cross), or the eight around it (a square).
+ * next to it (a cross), or the eight around it (a square). The locked target is included while 隐匿; the others are not
+ * when 隐匿 is in effect (索敌-2). 迷彩 does not leave one out.
  * @param {World} w @param {Unit} a @param {Unit} t @param {'cross' | 'square'} area @returns {Unit[]}
  */
 function areaOf(w, a, t, area) {
   const [r, col] = tileOf(t);
   return w.units.filter((u) => {
     if (u.hp <= 0 || u.hidden || !isFoeOf(u, a) || evadesGround(a, u)) return false;
+    if (u !== t && stealthed(u)) return false;
     const [ur, uc] = tileOf(u), dr = Math.abs(ur - r), dc = Math.abs(uc - col);
     return area === 'square' ? Math.max(dr, dc) <= 1 : dr + dc <= 1;
   });
@@ -306,11 +297,12 @@ export function traitScale(w, c, a, t) {
 
 /**
  * The enemies a splash around a target reaches (职业-8): every other enemy on the field within the radius of it —
- * hidden ones not, flying ones only when the splash is not ground-only.
+ * hidden ones not, 隐匿 ones not while it is in effect (索敌-2), 迷彩 ones still; flying ones only when the splash is
+ * not ground-only.
  * @param {World} w @param {Unit} t @param {import('./types.js').Splash} s @returns {Unit[]}
  */
 function splashOf(w, t, s) {
-  return w.units.filter((u) => u !== t && hostile(u) && u.hp > 0 && !u.hidden
+  return w.units.filter((u) => u !== t && hostile(u) && u.hp > 0 && !u.hidden && !stealthed(u)
     && !(s.ground && statsOf(u).flying) && (u.x - t.x) * (u.x - t.x) + (u.y - t.y) * (u.y - t.y) <= s.radius * s.radius);
 }
 
@@ -658,7 +650,8 @@ export function enemyTargets(w, e) {
  */
 export function enemyAttack(w, c, e) {
   const s = statsOf(e);
-  if (s.disabled || s.atk <= 0 || e.hidden || s.flags.noAttack) { e.swing = null; return false; }
+  // 恐惧 cancels a swing already under way, unlike 战栗 (状态-10, INF-0293). It is not one of the eight 阻止攻击 flags.
+  if (s.disabled || s.atk <= 0 || e.hidden || s.flags.noAttack || s.flags.fear) { e.swing = null; return false; }
   const swinging = e.swing !== null;
   if (e.swing) advanceSwing(w, c, e);
   if (e.atkCd > 0) { e.atkCd--; return swinging; }

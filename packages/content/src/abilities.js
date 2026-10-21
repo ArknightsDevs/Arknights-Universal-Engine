@@ -1,6 +1,8 @@
 // More enemy abilities of the official content (docs/spec/foes.md 敌能-12…敌能-16): cost theft on hits, the 能量 and
 // 过载 of the 匪帮, 隐匿 with a 强击 when blocked, a channelled 引导, and 载客. They act only through the context (ADR 0055).
 
+import { targeting } from '@aue/sim';
+
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').FoeContext} FoeContext @typedef {import('@aue/sim').Unit} Unit */
 
 /** Whether an enemy's attacks go by projectile (攻击-3). @param {Unit} e */
@@ -136,30 +138,26 @@ const AddEnergy = Object.freeze({
 });
 
 /**
- * 隐匿 with 强击 (敌能-14): 隐匿 while it is not blocked — at its appearance, and again 3 s after a block ends — each time
- * with a 强击 mark (one at most); blocked with the mark and able to act, it strikes the unit blocking it for
- * `atk_scale` × its attack as physical damage, spending the mark.
+ * 隐匿 with 强击 (敌能-14): the `hide` buff stays. Blocking lifts 隐匿 through 索敌-2, and the same rule times the
+ * return, so this ability keeps no second clock. The 强击 mark (one at most) is granted again on the frame 隐匿 takes
+ * effect. Blocked, marked and able to act, it strikes the unit blocking it for `atk_scale` × its attack as physical
+ * damage and spends the mark.
  * @type {FoeBehavior}
  */
 const InvisibleCombat = Object.freeze({
   spawn: (ctx) => { ctx.addBuff(ctx.self, { key: 'hide', flags: { stealth: true } }); ctx.state.set('mark', 1); },
   tick: (ctx) => {
-    const st = ctx.state, hidden = ctx.buffValue(ctx.self, 'hide') !== null;
+    const st = ctx.state;
     if (ctx.blocked) {
-      if (hidden) ctx.removeBuff(ctx.self, 'hide');
-      st.set('wait', ctx.frames(3));
       const t = ctx.blocker(), s = ctx.stats(ctx.self);
       if (st.get('mark') === 1 && t && !s.disabled && !s.flags.silence) {
         st.set('mark', 0);
         ctx.dealDamage(t, { type: 'phys', amount: ctx.bb.atk_scale * s.atk });
       }
-      return;
     }
-    if (hidden) return;
-    st.set('wait', st.get('wait') - 1);
-    if (st.get('wait') > 0) return;
-    ctx.addBuff(ctx.self, { key: 'hide', flags: { stealth: true } });
-    st.set('mark', 1);
+    const on = targeting.stealthed(ctx.self);
+    if (on && st.get('on') !== 1) st.set('mark', 1);
+    st.set('on', on ? 1 : 0);
   },
 });
 
@@ -191,6 +189,26 @@ const Guide = Object.freeze({
   },
 });
 
+/** How far a carrier looks for a passenger (敌能-16). Not a blackboard key. */
+const BOARD_RADIUS = 0.5;
+
+/** Half the side of talent `bus`'s unload square (0.4, centred on the carrier). Not a blackboard key. */
+const UNLOAD_HALF = 0.2;
+
+/**
+ * While the carrier can act, other ground enemies within 0.5 that are not a leader and not a machine board, up to
+ * `max_cnt` (敌能-16).
+ * @param {FoeContext} ctx
+ */
+function takePassengers(ctx) {
+  const self = ctx.self;
+  if (ctx.stats(self).disabled) return;
+  for (const u of ctx.allies(BOARD_RADIUS)) {
+    if (ctx.passengers() >= ctx.bb.max_cnt) break;
+    if (u !== self && u.base.levelType !== 'BOSS' && !ctx.tagsOf(u).includes('machine') && !ctx.stats(u).flying) ctx.board(u);
+  }
+}
+
 /**
  * 载客 (敌能-16): it takes `max_cnt` of a blocker's 阻挡数; while it can act and has room, each other enemy within 0.5
  * tiles that is on the ground, not a leader and not a machine goes aboard; the first time it stands on a 云梯
@@ -200,19 +218,45 @@ const Guide = Object.freeze({
 const Bus = Object.freeze({
   spawn: (ctx) => { ctx.addBuff(ctx.self, { key: 'bus', mods: { blockCnt: ctx.bb.max_cnt - 1 } }); },
   tick: (ctx) => {
-    const st = ctx.state, self = ctx.self;
+    const st = ctx.state;
     if (st.get('done') === 1) return;
     if (ctx.tileKey() === 'tile_stairs') { ctx.alight(); st.set('done', 1); return; }
-    if (ctx.stats(self).disabled) return;
-    for (const u of ctx.allies(0.5)) {
-      if (ctx.passengers() >= ctx.bb.max_cnt) break;
-      if (u !== self && u.base.levelType !== 'BOSS' && !ctx.tagsOf(u).includes('machine') && !ctx.stats(u).flying) ctx.board(u);
-    }
+    takePassengers(ctx);
+  },
+});
+
+/**
+ * `move_speed` of 移动速度 per passenger, 直接乘算 (敌能-16): the cuts add, and the attribute floor (属性-3) is the only
+ * floor. No passenger, no buff.
+ * @param {FoeContext} ctx
+ */
+function pace(ctx) {
+  const n = ctx.passengers();
+  if (ctx.state.get('n') === n) return;
+  ctx.state.set('n', n);
+  if (n === 0) ctx.removeBuff(ctx.self, 'busSpeed');
+  else ctx.setBuff(ctx.self, 'busSpeed', n, { movePct: n * ctx.bb.move_speed });
+}
+
+/**
+ * 载客 for talent `bus` (敌能-16, 伊利昂的木驮兽 and 铁驮兽): unblockable, slowed by each passenger; its passengers
+ * alight when it leaves the field, scattered in a square on its remaining route. `busUnload`'s value is the square's
+ * half-width, which the sim reads on that unload. `half_cnt` only swaps the model.
+ * @type {FoeBehavior}
+ */
+const bus = Object.freeze({
+  spawn: (ctx) => {
+    ctx.addBuff(ctx.self, { key: 'bus', flags: { unblockable: true } });
+    ctx.addBuff(ctx.self, { key: 'busUnload', value: UNLOAD_HALF });
+  },
+  tick: (ctx) => {
+    takePassengers(ctx);
+    pace(ctx);
   },
 });
 
 /** The behaviours of this file, by talent or skill name. @type {Readonly<Record<string, FoeBehavior>>} */
 export const moreFoeBehaviors = Object.freeze({
   CostMeleeAttack: costHit(false), CostRangedAttack: costHit(true), CostHealHit: costHit(null),
-  blacksteel_energy, over_energy, dec_energy, steal_energy, AddEnergy, InvisibleCombat, Guide, Bus,
+  blacksteel_energy, over_energy, dec_energy, steal_energy, AddEnergy, InvisibleCombat, Guide, Bus, bus,
 });
