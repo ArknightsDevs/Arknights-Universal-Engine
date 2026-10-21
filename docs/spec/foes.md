@@ -262,3 +262,11 @@ IG-S-2 中关卡把 `invincible` 改为 20，把 `AtkUp` 的 `damage_resistance`
 - **待命与临战**（天赋 `revive`，萨卡兹积怨者、恶咒者、魔剑士、魔剑组长）：出场时待命——不普通攻击，`unmove_duration` 秒内不能移动（数据没有给出时 150 秒）；生命低于最大生命的 `hp_ratio`，或受到警报时转为临战（永久）：移动速度直接乘算 + `move_speed`。
 
 - 来源：[PRTS「萨卡兹哨兵」oldid=436432](https://prts.wiki/index.php?title=%E8%90%A8%E5%8D%A1%E5%85%B9%E5%93%A8%E5%85%B5&oldid=436432)「每0.2s检测一次生命值，低于99.9%时切换至【警戒模式】」「切换至【警戒模式】前持有不死效果」「使场上所有敌方单位攻击力+30%，防御力+30%」「令【待命】的萨卡兹雇佣兵立即进入【临战】状态」「该技能只能触发1次」；[PRTS「萨卡兹哨兵组长」oldid=436433](https://prts.wiki/index.php?title=%E8%90%A8%E5%8D%A1%E5%85%B9%E5%93%A8%E5%85%B5%E7%BB%84%E9%95%BF&oldid=436433)「【警报】技能执行完成前持有不死效果」；[PRTS「萨卡兹积怨者」oldid=436411](https://prts.wiki/index.php?title=%E8%90%A8%E5%8D%A1%E5%85%B9%E7%A7%AF%E6%80%A8%E8%80%85&oldid=436411)「初始处于【待命】状态：缴械，出场一段时间内（默认为150秒）持有自缚」「低于99.9%生命值进入【临战】状态」「【临战】状态：移动速度提升200%」；数据：enemy_database 的 warn、Awake（initCooldown 0.1、atk、def）、revive（hp_ratio、unmove_duration、move_speed）。几个警报取最强、加成永久且只给当时在场的敌人为推断 INF-0225
+
+### 敌能-37 静态刚体
+
+御4（`enemy_1017_defdrn`）、寒霜（`enemy_1042_frostd`）、“萨科塔之翼”（`enemy_10083_hlbird`）、“萨科塔之眼”（`enemy_10084_hlegle`）、“萨科塔昂首”（`enemy_10085_hllevi_2`）和愧悔魂灵圣杯（`enemy_1430_lrrook`）是静态刚体（位移-5），各自的页面能力栏这样写。敌人数据没有这个字段。内容给它们加上数据里没有的天赋 `Static`（blackboard 为空）：出场时获得不过期的 Buff（键 `static`，标记 `staticBody`）。页面上同时写的其他能力（不进行普通攻击、光环、恐惧、分摊伤害）不在本条。
+
+单独用一个天赋：内容的附加项只能补进天赋或技能的 blackboard，不能给单位加字段；它们已有的天赋是光环，而且 `atkSpeedDown` 已是别的行为的名字（敌能-23）。这与数据里没有、由内容补上天赋的做法相同（敌能-21）。为推断 INF-0322。
+
+- 来源：[PRTS「御4」oldid=380622](https://prts.wiki/index.php?title=%E5%BE%A14&oldid=380622)、[PRTS「寒霜」oldid=371399](https://prts.wiki/index.php?title=%E5%AF%92%E9%9C%9C&oldid=371399)、[PRTS「“萨科塔之翼”」oldid=375648](https://prts.wiki/index.php?title=%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E4%B9%8B%E7%BF%BC%E2%80%9D&oldid=375648)、[PRTS「“萨科塔之眼”」oldid=388054](https://prts.wiki/index.php?title=%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E4%B9%8B%E7%9C%BC%E2%80%9D&oldid=388054)、[PRTS「“萨科塔昂首”」oldid=376212](https://prts.wiki/index.php?title=%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E6%98%82%E9%A6%96%E2%80%9D&oldid=376212)、[PRTS「愧悔魂灵圣杯」oldid=386513](https://prts.wiki/index.php?title=%E6%84%A7%E6%82%94%E9%AD%82%E7%81%B5%E5%9C%A3%E6%9D%AF&oldid=386513) 能力栏「静态刚体」；数据：`act1multi_rm05.json` 的 enemy_1017_defdrn、enemy_1042_frostd 没有静态刚体字段（御4 的天赋是 `defup`，寒霜的是 `atkSpeedDown` 与 `defup`）。用数据里没有的天赋 `Static` 挂标记，为推断 INF-0322

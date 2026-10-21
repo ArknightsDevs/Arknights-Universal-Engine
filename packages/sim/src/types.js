@@ -710,7 +710,8 @@
  * @property {{ vx: number, vy: number, hard: number, pull?: { x: number, y: number, bx: number, by: number, f: number, x0: number, left: number, stop: boolean,
  *   trauma?: { per: number, every: number, src: number, moved: number, frames: number } } }} [slide]
  *   its 失衡 slide: speed (tiles/s) and 硬直 frames left (位移-3); a pull on it — its point, its puller's centre, its force,
- *   the distance it began at, its frames left, whether it stopped (位移-4)
+ *   the distance it began at, its frames left, whether it stopped (位移-4). A 静态刚体 keeps vx and vy at 0 and drops the
+ *   slide when the force ends (位移-5)
  * @property {number} anim schema ANIM
  * @property {number} [summoner] the id of the unit that summoned it (召唤-4, 召唤-6); left out for others
  * @property {number} [expires] the frame a summon with a time leaves at (召唤-9); left out for others
