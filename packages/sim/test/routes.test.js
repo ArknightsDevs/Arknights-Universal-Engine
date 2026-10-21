@@ -196,7 +196,23 @@ test('[路线-5] content moves an enemy: it stands there at once and walks its l
   assert.deepEqual([e.x, e.y], [6, 2], 'no number: it stays');
 });
 
-test('[路线-2] [敌能-91] flying replans straight; ground again replans around the walls', () => {
+test('[路线-2] [敌能-34] a unit whose own motion becomes flying replans its current leg straight across the walls', () => {
+  const rows = ['........', '..##....', '..##....', '........'];
+  const c = content(rows, [{ start: at(2, 0), end: at(2, 6), motion: 'WALK', checkpoints: [] }]);
+  const [w, e] = withEnemy(c);
+  const leg = /** @type {any} */ (legsOf(c.level.routes[0])[0]);
+  const ground = pathDistance(c, e);
+  e.base.motion = 'FLY';
+  e.path = [];
+  assert.deepEqual(planLeg(c, c.level.routes[0], e, leg), [6, 2]);
+  assert.equal(pathDistance(c, e), 6);
+  assert.ok(ground > 6);
+  const { trail, end } = runRoute(w, c, e);
+  assert.ok(end > 0);
+  for (const [, , y] of trail) assert.equal(y, 2);
+  assert.ok(trail.some(([, x]) => x > 2 && x < 4));
+
+test('[路线-2] [敌能-48] flying replans straight; ground again replans around the walls', () => {
   const rows = ['........', '..##....', '..##....', '........'];
   const c = content(rows, [{ start: at(2, 0), end: at(2, 6), motion: 'WALK', checkpoints: [] }]);
   const [w, e] = withEnemy(c);

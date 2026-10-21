@@ -98,15 +98,15 @@ export function segmentClear(m, p, q, fly) {
   return true;
 }
 
-/** Whether this leg is flown straight (路线-2): an air route, or a unit whose own motion is flying (敌能-91).
+/** Whether this leg is flown straight (路线-2): an air route, or a unit that has itself become a flyer (敌能-34).
  * @param {Route} route @param {Unit} e */
 const air = (route, e) => route.motion === 'FLY' || e.base.motion === 'FLY';
 
 /**
- * The path of a move leg from where the enemy stands (路线-2): a flyer — an air route, or a unit whose own motion is
- * flying (敌能-91) — straight to the end; a ground enemy along the flow field from its tile — straight to the end when
- * the field does not reach it — first back to its tile centre when it stands off the centre and the straight line to
- * the first point would cross a tile it cannot walk. Flat [x, y, …].
+ * The path of a move leg from where the enemy stands (路线-2): a flyer — an air route, or a unit that has itself become
+ * one (敌能-34) — straight to the end; a ground enemy along the flow field from its tile — straight to the end when the
+ * field does not reach it — first back to its tile centre when it stands off the centre and the straight line to the
+ * first point would cross a tile it cannot walk. Flat [x, y, …].
  * @param {Content} c @param {Route} route @param {Unit} e @param {Extract<Leg, { t: 'move' }>} leg @returns {number[]}
  */
 export function planLeg(c, route, e, leg) {
@@ -161,7 +161,7 @@ function holds(w, e, leg, moved) {
 }
 
 /**
- * The enemy's own motion becomes flying (路线-2, 敌能-91): the leg it is on is planned again from here, as a content
+ * The enemy's own motion becomes flying (敌能-34, 路线-2): the leg it is on is planned again from here, as a content
  * move drops a plan (路线-5).
  * @param {Unit} e
  */
@@ -172,7 +172,7 @@ export function becomeFlyer(e) {
 }
 
 /**
- * A flying enemy's own motion becomes ground again (路线-2, 敌能-91): `WALK`, and the leg it is on is planned again.
+ * A flying enemy's own motion becomes ground again (路线-2, 敌能-48): `WALK`, and the leg it is on is planned again.
  * A unit that is not flying keeps the plan it has.
  * @param {Unit} e
  */
@@ -316,7 +316,7 @@ export function followRoute(w, c, e, speed) {
  * The 终点距离 from tile k through the move legs from leg i on (索敌-6): the flow-field distances — tile steps — from
  * each point to the next; after an appear the next distance starts where the enemy appears; a leg no field reaches
  * counts its straight length. Patrol runs are counted once. `fly` is this enemy's leg (路线-2): an air route, or a unit
- * whose own motion is flying (敌能-91).
+ * that has itself become a flyer (敌能-34).
  * @param {Level} m @param {Leg[]} legs @param {number} i @param {number} k @param {boolean} fly
  */
 function stepsFrom(m, legs, i, k, fly) {

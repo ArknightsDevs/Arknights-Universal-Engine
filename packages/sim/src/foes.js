@@ -96,9 +96,9 @@ export const BOLT_RADIUS = 0.3;
  * @property {(t: Unit, area: 'cross' | 'square') => Unit[]} around the units it may attack on a unit's tile and the four
  *   tiles next to it (a cross) or the eight around it (a square), in creation order (敌能-29)
  * @property {() => Unit[]} enemies every enemy on the field that is not neutral, selectable or not (敌能-25)
- * @property {() => void} fly its own motion becomes flying and the move it is on drops its plan (路线-2, 敌能-91)
+ * @property {() => void} fly its own motion becomes flying and the move it is on is planned again (路线-2, 敌能-34)
  * @property {() => void} ground a flying unit's own motion becomes ground (`WALK`) and the move it is on drops its plan
- *   (路线-2, 敌能-91); a unit that is not flying is left as it is
+ *   (路线-2, 敌能-48); a unit that is not flying is left as it is
  */
 
 /**
