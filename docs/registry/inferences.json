@@ -1972,5 +1972,19 @@
     "statement": "打多不等于都转：特性真群攻、技能把普通攻击变成多目标、不进行普通攻击、技能加长攻击距离的干员不转身；攻击「所有阻挡」的技能或天赋会转身。判定按这一刀来源的 mods（单体 / 特性群攻 / 技能多目标 / 攻击所有阻挡）。",
     "basis": "实机观察（录像：寒克（[录像](https://github.com/user-attachments/assets/809cafc7-0b68-4d5b-a445-d50038d92f05)）、琴柳（[录像](https://github.com/user-attachments/assets/7f74c8e5-d055-4a63-9894-58e4e707728f)）、新能（[录像](https://github.com/user-attachments/assets/a80c8bf5-3f83-42b9-a41d-5b38d0f1a63b)）、寒克与梓兰（[录像](https://github.com/user-attachments/assets/18b81d8f-dc28-4931-b9d6-4f4c91ec3ed6)））。哪些技能属于「打多」、哪些是「攻击所有阻挡」，取自公开数据（特性与技能的 mods）与技能描述，没有逐干员表。",
     "status": "待查证"
+  },
+  {
+    "id": "INF-0313",
+    "clause": "干员-12",
+    "statement": "普罗旺斯模组备注的「范围内」是天赋正文的正前方 N 格，再加上干员所在格，不是整个攻击范围。一格仍是面前那一格、不包括所在格。判定看的是主目标的中心格，在抽取几率时，不在命中时。",
+    "basis": "PRTS「普罗旺斯」oldid=355556 写明一格检查目标中心点、不包括所在格，携带模组后改为「范围内（包括所在格）」，没有逐格列出，也没有写判定的时刻。",
+    "status": "待查证"
+  },
+  {
+    "id": "INF-0314",
+    "clause": "干员-14",
+    "statement": "护盾破裂后攻击力和防御力的层数上限是 blackboard 的 max_stack_cnt，尽管描述没有写「最多」；没有这个键就不封顶。到上限后属性不再增加，每破一层仍获得技力。",
+    "basis": "年的模组在 character_table / battle_equip_table 里有 max_stack_cnt，描述只写每层的攻击力、防御力和技力。持续时间无限另有出处，不属于本条。",
+    "status": "待查证"
   }
 ]
