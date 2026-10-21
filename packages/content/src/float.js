@@ -1,10 +1,10 @@
-// 掠海漂移体's 近地悬浮 and 喷气人's 升空 (docs/spec/foes.md 敌能-91). The drifter reuses the hover mark and keeps a ground
+// 掠海漂移体's 近地悬浮 and 喷气人's 升空 (docs/spec/foes.md 敌能-48). The drifter reuses the hover mark and keeps a ground
 // route; the balloon really flies, then comes back to ground. Other TakeOff blackboards are not this ability. They act
 // only through the context (ADR 0055).
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').FoeContext} FoeContext */
 
-/** How long 近地悬浮's ending stun lasts, in seconds (敌能-91). */
+/** How long 近地悬浮's ending stun lasts, in seconds (敌能-48). */
 const DROP_STUN = 0.5;
 /** How often a held 升空检测器 looks at the block, in seconds. The grant frame does not count. */
 const POLL = 0.33;
@@ -19,7 +19,7 @@ const SPEED_KEY = 'balloon_s[fly].move_speed';
 const BALLOON_KEYS = new Set(['duration', SPEED_KEY]);
 
 /**
- * 喷气人's blackboard (敌能-91): both values finite numbers, and no other key.
+ * 喷气人's blackboard (敌能-48): both values finite numbers, and no other key.
  * @param {Record<string, unknown>} bb
  */
 function balloonShape(bb) {
@@ -31,7 +31,7 @@ function balloonShape(bb) {
 }
 
 /**
- * Whether a talent or skill of this name, with this blackboard, is the ability this file implements (敌能-91). Any
+ * Whether a talent or skill of this name, with this blackboard, is the ability this file implements (敌能-48). Any
  * other name is not this family's concern: the caller still asks FOE_NEEDS.
  * @param {string} name @param {Record<string, unknown>} bb
  */
@@ -40,7 +40,7 @@ export function takeOffOwns(name, bb) {
   return balloonShape(bb);
 }
 
-/** 近地悬浮 ends (敌能-91): the block ends, the mark goes, and 0.5 s of stun is applied on top of whatever is there. @param {FoeContext} ctx */
+/** 近地悬浮 ends (敌能-48): the block ends, the mark goes, and 0.5 s of stun is applied on top of whatever is there. @param {FoeContext} ctx */
 function drop(ctx) {
   ctx.state.set('up', 0);
   ctx.removeBuff(ctx.self, 'hover');
@@ -49,7 +49,7 @@ function drop(ctx) {
 }
 
 /**
- * 近地悬浮 (敌能-91): hovering from the moment it appears — in the air for blocking and being targeted, still on the
+ * 近地悬浮 (敌能-48): hovering from the moment it appears — in the air for blocking and being targeted, still on the
  * ground route, still attacking, 失衡免疫 only while the mark holds. 晕眩, 沉睡 or 冻结 (无法行动 is the stun flag) ends
  * it for good, and afterwards only the blocker is a target.
  * @type {FoeBehavior}
@@ -71,37 +71,37 @@ const Float = Object.freeze({
   },
 });
 
-/** The flight's seconds ran out (敌能-91): back to the ground, the opening cut removed, then the landing. @param {FoeContext} ctx */
+/** The flight's seconds ran out (敌能-48): back to the ground, the opening cut removed, then the landing. @param {FoeContext} ctx */
 function flying(ctx) {
-  if (ctx.self.buffs.some((b) => b.key === 'liftoff')) return;
+  if (ctx.self.buffs.some((b) => b.key === 'takeOff')) return;
   ctx.state.set('phase', 3);
   ctx.ground();
   ctx.release();
-  ctx.removeBuff(ctx.self, 'liftoff:brake');
-  ctx.addBuff(ctx.self, { key: 'liftoff:land', flags: { unblockable: true }, mods: { moveMul: FINAL_CUT }, left: ctx.frames(LAND) });
+  ctx.removeBuff(ctx.self, 'takeOff:brake');
+  ctx.addBuff(ctx.self, { key: 'takeOff:land', flags: { unblockable: true }, mods: { moveMul: FINAL_CUT }, left: ctx.frames(LAND) });
   ctx.use();
 }
 
 /** True while the landing cut is still on. Once it is gone the phase is idle, so the same turn may take a detector. @param {FoeContext} ctx */
 function stillLanding(ctx) {
-  if (ctx.self.buffs.some((b) => b.key === 'liftoff:land')) return true;
+  if (ctx.self.buffs.some((b) => b.key === 'takeOff:land')) return true;
   ctx.state.set('phase', 0);
   return false;
 }
 
-/** Switches to flying (敌能-91): the detector goes, the block ends, and both speed changes start together. @param {FoeContext} ctx */
+/** Switches to flying (敌能-48): the detector goes, the block ends, and both speed changes start together. @param {FoeContext} ctx */
 function lift(ctx) {
   ctx.state.set('phase', 2);
   ctx.fly();
   ctx.addBuff(ctx.self, {
-    key: 'liftoff', flags: { noAttack: true, unblockable: true, noDisplace: true },
+    key: 'takeOff', flags: { noAttack: true, unblockable: true, noDisplace: true },
     mods: { movePct: ctx.bb[SPEED_KEY] }, left: ctx.frames(ctx.bb.duration),
   });
-  ctx.addBuff(ctx.self, { key: 'liftoff:brake', mods: { moveMul: FINAL_CUT }, left: ctx.frames(BRAKE) });
+  ctx.addBuff(ctx.self, { key: 'takeOff:brake', mods: { moveMul: FINAL_CUT }, left: ctx.frames(BRAKE) });
   ctx.release();
 }
 
-/** One look at the block (敌能-91). The interval is reset either way; only a block that is there now lifts. @param {FoeContext} ctx */
+/** One look at the block (敌能-48). The interval is reset either way; only a block that is there now lifts. @param {FoeContext} ctx */
 function poll(ctx) {
   const wait = ctx.state.get('wait') - 1;
   if (wait > 0) { ctx.state.set('wait', wait); return; }
@@ -109,20 +109,20 @@ function poll(ctx) {
   if (ctx.blocked) lift(ctx);
 }
 
-/** The detector, with its first look one interval away (敌能-91). @param {FoeContext} ctx */
+/** The detector, with its first look one interval away (敌能-48). @param {FoeContext} ctx */
 function hold(ctx) {
   ctx.state.set('phase', 1);
   ctx.state.set('wait', ctx.frames(POLL));
 }
 
-/** Ready, blocked now, able to act and not silenced (敌能-91): the only moment those gates apply. @param {FoeContext} ctx */
+/** Ready, blocked now, able to act and not silenced (敌能-48): the only moment those gates apply. @param {FoeContext} ctx */
 function mayHold(ctx) {
   const s = ctx.stats(ctx.self);
   return ctx.ready && ctx.blocked && !s.disabled && !s.flags.silence;
 }
 
 /**
- * 升空 (敌能-91). Phase 0 idle, 1 holding the detector, 2 flying, 3 landing. A blackboard that is not 喷气人's does
+ * 升空 (敌能-48). Phase 0 idle, 1 holding the detector, 2 flying, 3 landing. A blackboard that is not 喷气人's does
  * nothing, including when the skill was left on the enemy by hand.
  * @param {FoeContext} ctx
  */

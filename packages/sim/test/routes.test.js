@@ -211,6 +211,7 @@ test('[路线-2] [敌能-34] a unit whose own motion becomes flying replans its 
   assert.ok(end > 0);
   for (const [, , y] of trail) assert.equal(y, 2);
   assert.ok(trail.some(([, x]) => x > 2 && x < 4));
+});
 
 test('[路线-2] [敌能-48] flying replans straight; ground again replans around the walls', () => {
   const rows = ['........', '..##....', '..##....', '........'];

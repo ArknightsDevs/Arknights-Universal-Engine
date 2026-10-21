@@ -1,4 +1,4 @@
-// 近地悬浮 and 升空 (docs/spec/foes.md 敌能-91, paths.md 路线-2). Frame counts come from 时间-2, not from literals.
+// 近地悬浮 and 升空 (docs/spec/foes.md 敌能-48, paths.md 路线-2). Frame counts come from 时间-2, not from literals.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, step, attrs, status, buffs, displacement, routes } from '@aue/sim';
@@ -88,7 +88,7 @@ function ended(kind) {
   return box;
 }
 
-test('[敌能-91] 近地悬浮 is blocked only with blockFly, keeps 失衡免疫, and stays a ground move', () => {
+test('[敌能-48] 近地悬浮 is blocked only with blockFly, keeps 失衡免疫, and stays a ground move', () => {
   const box = world(drifter());
   const e = box.e, guard = box.guard;
   if (!guard) throw new Error('no guard');
@@ -108,7 +108,7 @@ test('[敌能-91] 近地悬浮 is blocked only with blockFly, keeps 失衡免疫
   assert.ok(e.buffs.some((b) => b.key === 'hover'));
 });
 
-test('[敌能-91] 晕眩, 沉睡, 无法行动 and 冻结 end 近地悬浮 for good and add 0.5 s of stun', () => {
+test('[敌能-48] 晕眩, 沉睡, 无法行动 and 冻结 end 近地悬浮 for good and add 0.5 s of stun', () => {
   const stunFrames = secondsToFrames(0.5);
   for (const kind of ['stun', 'sleep', 'freeze', 'enemyFreeze']) {
     const { e } = ended(kind);
@@ -133,14 +133,14 @@ function stays(kind, raw) {
   assert.equal(box.e.buffs.some((b) => b.key === 'stun' && b.left === secondsToFrames(0.5)), false, kind);
 }
 
-test('[敌能-91] 浮空, 麻痹震颤, 束缚 and 沉默 do not end 近地悬浮', () => {
+test('[敌能-48] 浮空, 麻痹震颤, 束缚 and 沉默 do not end 近地悬浮', () => {
   stays('palsyShake', false);
   stays('root', false);
   stays('silence', false);
   stays('levitate', true);
 });
 
-test('[敌能-91] hovering still attacks, noFly still drops flyers, and afterwards only the blocker is hit', () => {
+test('[敌能-48] hovering still attacks, noFly still drops flyers, and afterwards only the blocker is hit', () => {
   const box = world(drifter(), {
     deploy: [['guard', 2, 0], ['sniper', 0, 2], ['kite', 0, 3]],
     tweak: (c) => { c.operators.kite = { ...c.operators.sniper, name: 'kite', tauntLevel: 2 }; },
@@ -159,7 +159,7 @@ test('[敌能-91] hovering still attacks, noFly still drops flyers, and afterwar
   assert.deepEqual(hitsOf(done.ev, box.e.id).map((x) => x.target), [guard.id]);
 });
 
-test('[敌能-91] a highland blocker does not hold it once 近地悬浮 has ended, so it has no target', () => {
+test('[敌能-48] a highland blocker does not hold it once 近地悬浮 has ended, so it has no target', () => {
   const box = world(drifter(), {
     deploy: [['sniper', 2, 2]],
     tweak: (c) => { c.level.routes[0].start = { row: 2, col: 2 }; },
@@ -182,7 +182,7 @@ test('[敌能-91] a highland blocker does not hold it once 近地悬浮 has ende
 /** @param {Record<string, unknown>} bb */
 const gapsOf = (bb) => uncoveredAbilities([/** @type {any} */ (balloon({ skills: [skill(/** @type {any} */ (bb))] }))]);
 
-test('[敌能-91] TakeOff outside the 喷气人 blackboard stays uncovered', () => {
+test('[敌能-48] TakeOff outside the 喷气人 blackboard stays uncovered', () => {
   assert.deepEqual(gapsOf({}), ['TakeOff']);
   assert.deepEqual(gapsOf({ move_speed: 0.1 }), ['TakeOff']);
   assert.deepEqual(gapsOf({ duration: 7, 'balloon_s[fly].move_speed': 0.5, extra: 1 }), ['TakeOff']);
@@ -197,7 +197,7 @@ function idle(bb) {
   return box.e;
 }
 
-test('[敌能-91] a TakeOff that is not the 喷气人 shape does nothing at runtime', () => {
+test('[敌能-48] a TakeOff that is not the 喷气人 shape does nothing at runtime', () => {
   const shapes = [{}, { move_speed: 0.1 }, { duration: 7, 'balloon_s[fly].move_speed': 0.5, extra: 1 }];
   for (const bb of shapes) {
     const e = idle(bb);
@@ -206,7 +206,7 @@ test('[敌能-91] a TakeOff that is not the 喷气人 shape does nothing at runt
   }
 });
 
-test('[敌能-91] the detector waits out the first cooldown, checks every 0.33 s, and stays if that check is open', () => {
+test('[敌能-48] the detector waits out the first cooldown, checks every 0.33 s, and stays if that check is open', () => {
   const box = world(balloon({ moveSpeed: 0 }));
   const guard = box.guard;
   if (!guard) throw new Error('no guard');
@@ -228,7 +228,7 @@ test('[敌能-91] the detector waits out the first cooldown, checks every 0.33 s
   assert.equal(box.w.frame, looked + secondsToFrames(0.33));
 });
 
-test('[敌能-91] silence and stun only stop the detector being given', () => {
+test('[敌能-48] silence and stun only stop the detector being given', () => {
   const silenced = world(balloon({ immune: [], moveSpeed: 0 }));
   status.applyStatus(silenced.e, 'silence', { seconds: 3 });
   while (silenced.w.frame < secondsToFrames(1) + 1) step(silenced.w, silenced.c);
@@ -274,10 +274,10 @@ function flightOf(enemy, o = {}) {
   /** @type {any[]} */
   const during = [];
   for (let i = 0; i < secondsToFrames(1.5) - 1; i++) during.push(...step(box.w, box.c));
-  const brakeHeld = box.e.buffs.some((b) => b.key === 'liftoff:brake');
+  const brakeHeld = box.e.buffs.some((b) => b.key === 'takeOff:brake');
   during.push(...step(box.w, box.c));
   const opened = attrs.statsOf(box.e).moveSpeed;
-  const brakeGone = !box.e.buffs.some((b) => b.key === 'liftoff:brake');
+  const brakeGone = !box.e.buffs.some((b) => b.key === 'takeOff:brake');
   /** @type {any[]} */
   let landEv = [];
   while (box.e.base.motion === 'FLY') {
@@ -288,7 +288,7 @@ function flightOf(enemy, o = {}) {
   return { box, granted, t0, landed: box.w.frame, braked, opened, flag, blocked, brakeHeld, brakeGone, during, landEv };
 }
 
-test('[敌能-91] flight lasts 7 s at +50% with 1.5 s of final −90%, then lands 1.333 s, and the cooldown starts as it lands', () => {
+test('[敌能-48] flight lasts 7 s at +50% with 1.5 s of final −90%, then lands 1.333 s, and the cooldown starts as it lands', () => {
   const f = flightOf(balloon({ applyWay: 'ALL', rangeRadius: 5, baseAttackTime: 0 }), { deploy: [['guard', 2, 0], ['sniper', 0, 2]] });
   const { box, e } = { box: f.box, e: f.box.e };
   assert.equal(f.t0 - f.granted, secondsToFrames(0.33));
@@ -306,7 +306,7 @@ test('[敌能-91] flight lasts 7 s at +50% with 1.5 s of final −90%, then land
   assert.equal(e.base.motion, 'WALK');
   assert.equal(e.ab['TakeOff.cd'], secondsToFrames(25) - 1);
   near(attrs.statsOf(e).moveSpeed, 0.1);
-  assert.ok(e.buffs.some((b) => b.key === 'liftoff:land'));
+  assert.ok(e.buffs.some((b) => b.key === 'takeOff:land'));
   for (let i = 0; i < secondsToFrames(1.333) - 1; i++) step(box.w, box.c);
   assert.equal(attrs.statsOf(e).flags.unblockable, true);
   step(box.w, box.c);
@@ -317,17 +317,17 @@ test('[敌能-91] flight lasts 7 s at +50% with 1.5 s of final −90%, then land
   assert.equal(e.ab['TakeOff.phase'], 1);
 });
 
-test('[敌能-91] a flight shorter than 1.5 s drops the opening cut when it lands', () => {
+test('[敌能-48] a flight shorter than 1.5 s drops the opening cut when it lands', () => {
   const bb = { duration: 1, 'balloon_s[fly].move_speed': 0.5 };
   const box = world(balloon({ moveSpeed: 2, skills: [skill(bb)] }));
   while (box.e.base.motion !== 'FLY') step(box.w, box.c);
   near(attrs.statsOf(box.e).moveSpeed, 2 * 1.5 * 0.1);
   while (box.e.base.motion === 'FLY') step(box.w, box.c);
-  assert.equal(box.e.buffs.some((b) => b.key === 'liftoff:brake'), false);
+  assert.equal(box.e.buffs.some((b) => b.key === 'takeOff:brake'), false);
   near(attrs.statsOf(box.e).moveSpeed, 0.2);
 });
 
-test('[敌能-91] [路线-2] taking off and landing each plan the current leg again', () => {
+test('[敌能-48] [路线-2] taking off and landing each plan the current leg again', () => {
   const rows = ['........', '..##....', '..##....', '........'];
   const road = { key: 'tile_road', height: 'LOWLAND', buildable: 'MELEE', passable: 'ALL', side: 'ALL' };
   const wall = { key: 'tile_wall', height: 'HIGHLAND', buildable: 'RANGED', passable: 'FLY_ONLY', side: 'ALL' };
