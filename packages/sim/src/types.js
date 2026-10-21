@@ -243,6 +243,8 @@
  * @property {number} summonBlockedScale its attack's 倍率 against an enemy one of its own summons blocks is multiplied by
  *   this (职业-14)
  * @property {boolean} trapTiles its summons cannot be deployed on a tile a ground enemy stands on (职业-14)
+ * @property {boolean} rangeTiles its normal attack searches its range by the tile of each enemy's position, not by its
+ *   collider (体积-5: 谬因)
  * @property {Doll | null} doll brought to 0 HP in its own form it switches (`switch` seconds) to its 替身, which fights
  *   `duration` seconds with attack and maximum HP + `atk`, `maxHp` (直接乘算), then switches back (职业-15)
  * @property {VsScale[]} vs its hits' attack 倍率 or 伤害倍率, or its heals' 倍率, against a target as `when` says (职业-17)
@@ -668,6 +670,7 @@
  * @property {number} n a counter its behaviour keeps (麻痹's decay, 狂躁's damage)
  * @property {string} tag marks a buff a behaviour made, to find it again ("" for none)
  * @property {string} act the key its behaviour is found by, "" for its own key (状态-1)
+ * @property {number} [restore] frames until this source of 隐匿 returns after the enemy is released (索敌-2); absent is 90, and 0 is at once
  */
 
 /**
@@ -712,6 +715,7 @@
  *   its 失衡 slide: speed (tiles/s) and 硬直 frames left (位移-3); a pull on it — its point, its puller's centre, its force,
  *   the distance it began at, its frames left, whether it stopped (位移-4)
  * @property {number} anim schema ANIM
+ * @property {Drift} [drift] 恐惧 / 诱导 movement, present once either has been applied (状态-10, 状态-11)
  * @property {number} [summoner] the id of the unit that summoned it (召唤-4, 召唤-6); left out for others
  * @property {number} [expires] the frame a summon with a time leaves at (召唤-9); left out for others
  * @property {{ level: number, top: number, pts: number }} [fac] a facility's level, highest level reached and progress (守御-3)
@@ -722,6 +726,34 @@
  * An attack under way (攻击-2): frames until it lands, frames since it began, the ids of its locked targets, its mods;
  * a channel's hits still to come (敌能-6).
  * @typedef {{ wind: number, since: number, targets: number[], mods: import('./skills.js').AttackMods, left?: number, now?: boolean, free?: boolean }} Swing
+ */
+/**
+ * 恐惧 / 诱导 movement kept on the enemy (状态-10, 状态-11), so a snapshot restores the same frames. `way` is the
+ * temporary path as flat [x, y, …]; `head` is the point it walks toward. `marks` are attract targets in application
+ * order, `n` matching the buff's counter. `placed` is 1 after a frame of this movement has recorded `seenX`/`seenY`.
+ * @typedef {object} Drift
+ * @property {number} fearSeq how many fears have been applied
+ * @property {number} seenSeq the application the tile list was built for
+ * @property {number} fearN fear buffs seen at the end of the last fear frame
+ * @property {number} self 1 when the fear has no source or the source is the enemy
+ * @property {number} hx hit position when the latest fear was applied
+ * @property {number} hy
+ * @property {number} srcX effect-source position then
+ * @property {number} srcY
+ * @property {number[]} tiles reachable tile keys, with too-far picks already removed
+ * @property {number} aim checkpoint tile key, −1 when there is none
+ * @property {number} ax checkpoint x
+ * @property {number} ay checkpoint y
+ * @property {number[]} way
+ * @property {number} head
+ * @property {number} placed
+ * @property {number} seenX position at the end of the last induced frame
+ * @property {number} seenY
+ * @property {string} stamp grid stamp that path was planned against
+ * @property {string} mode 'fear', 'attract', or ''
+ * @property {number} nextMark next attract mark id
+ * @property {number} attractN mark id the path currently aims at
+ * @property {{ n: number, src: number, x: number, y: number, fixed: number }[]} marks
  */
 /**
  * A delayed explosion (敌能-3): where, how far it reaches, frames left, whether it reaches flying units, its source's id
