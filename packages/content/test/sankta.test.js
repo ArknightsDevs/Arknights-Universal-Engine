@@ -250,7 +250,7 @@ test('[敌能-49] 夺弹 with a running ammo skill cancels the hit, and 0 shots 
   assert.equal(g.skill?.sp, sp);
 });
 
-test('[敌能-49] 夺弹 is decided when the attack connects; without ammo the hit lands', () => {
+test('[敌能-49] 夺弹 is decided at the hit; without ammo the hit lands', () => {
   const flown = beside();
   const hp = flown.g.hp;
   step(flown.w, flown.c);

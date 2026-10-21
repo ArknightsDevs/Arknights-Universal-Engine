@@ -87,7 +87,7 @@ export const FOE_EXTRAS = Object.freeze({
   enemy_1042_frostd: { talents: { Static: {} }, source: `${PRTS}%E5%AF%92%E9%9C%9C&oldid=371399` },
   // 自惧's half and 「最终」 are not in the data (敌能-49). Static stays the 敌能-37 row.
   enemy_10083_hlbird: { talents: { Static: {}, SelfFear: { hp_ratio: 0.5, speed_final: 1 } }, source: `${PRTS}%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E4%B9%8B%E7%BF%BC%E2%80%9D&oldid=375648` },
-  // 夺弹's page mark is `steal` (the hit hook is `connect`; the data's own key is `attack@minus_bullet`).
+  // 夺弹's page mark is `steal` (the hit hook is `cancelHit`; the data's own key is `attack@minus_bullet`).
   enemy_10084_hlegle: { talents: { Static: {}, SelfFear: { hp_ratio: 0.5, speed_final: 1 }, DamageOrBullet: { steal: 1 } }, source: `${PRTS}%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E4%B9%8B%E7%9C%BC%E2%80%9D&oldid=388054` },
   // 昂首's 自惧 has no 「最终」 (`speed_final` 0). 祈祷邀约's 不可对空 / 无视迷彩 are `air` 0 and `camou` 1.
   enemy_10085_hllevi_2: { talents: { Static: {}, SelfFear: { hp_ratio: 0.5, speed_final: 0 } }, skills: { Roar: { air: 0, camou: 1 } }, source: `${PRTS}%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E6%98%82%E9%A6%96%E2%80%9D&oldid=376212` },

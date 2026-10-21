@@ -62,7 +62,7 @@ function stealAmmo(ctx, target) {
  */
 const DamageOrBullet = Object.freeze({
   targets: (ctx, cands) => (typeof ctx.bb.steal === 'number' ? cands.filter((u) => !ctx.stats(u).flying) : cands),
-  connect: (ctx, target) => stealAmmo(ctx, target),
+  cancelHit: (ctx, target) => stealAmmo(ctx, target),
 });
 
 /** The page's roar, not another skill that shares the name (敌能-49). @param {FoeContext} ctx */

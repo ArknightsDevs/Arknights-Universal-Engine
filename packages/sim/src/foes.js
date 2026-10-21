@@ -109,7 +109,7 @@ export const BOLT_RADIUS = 0.3;
  * @property {(ctx: FoeContext) => void} [tick]
  * @property {(ctx: FoeContext, cands: Unit[]) => Unit[]} [targets]
  * @property {(ctx: FoeContext, mods: AttackMods) => AttackMods} [attack]
- * @property {(ctx: FoeContext, target: Unit) => boolean} [connect] before the main hit of its normal attack is settled
+ * @property {(ctx: FoeContext, target: Unit) => boolean} [cancelHit] before the main hit of its normal attack is settled
  *   (a splash, a chain and an aftershock are not this): true cancels that hit (敌能-49)
  * @property {(ctx: FoeContext) => void} [death]
  * @property {(ctx: FoeContext, target: Unit, dealt: number, ranged: boolean) => void} [hit] a hit of its normal attack
@@ -369,9 +369,9 @@ export function foeAttack(w, c, e, mods) {
  * 元素损伤, no on-hit status, displacement, `attackHit` or SP. A splash, a chain and an aftershock do not ask.
  * @param {World} w @param {Content} c @param {Unit} e @param {Unit} t
  */
-export function foeConnect(w, c, e, t) {
+export function foeCancelHit(w, c, e, t) {
   let stop = false;
-  each(w, c, e, 'connect', (b, ctx) => { if (!stop && b.connect?.(ctx, t)) stop = true; });
+  each(w, c, e, 'cancelHit', (b, ctx) => { if (!stop && b.cancelHit?.(ctx, t)) stop = true; });
   return stop;
 }
 
