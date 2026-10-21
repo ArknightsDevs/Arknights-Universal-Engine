@@ -11,6 +11,8 @@ import { partisanBehaviors } from './partisans.js';
 import { sarkazBehaviors } from './sarkaz.js';
 import { devourerBehaviors } from './devourers.js';
 import { blightBehaviors } from './blight.js';
+import { refractBehaviors } from './refract.js';
+import { statueBehaviors } from './statue.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -87,6 +89,12 @@ export const FOE_EXTRAS = Object.freeze({
   enemy_1272_nhtank: { talents: { Empty: { low: 1 } }, skills: { PollutedRangedAtk: { air: 1, wide: 1 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%9E%AF%E6%9C%BD%E6%88%98%E8%BD%A6&oldid=367663` },
   // 尖端萨卡兹枯朽战车: 低地过滤，区域可对空且无视无法选择、迷彩；有低地非飞行单位才触发，丢失目标返还技力
   enemy_1272_nhtank_2: { talents: { Empty: { low: 1 } }, skills: { PollutedRangedAtk: { air: 1, open: 1, gate: 1, refund: 1 } }, source: `${PRTS}%E5%B0%96%E7%AB%AF%E8%90%A8%E5%8D%A1%E5%85%B9%E6%9E%AF%E6%9C%BD%E6%88%98%E8%BD%A6&oldid=380616` },
+  // 深池方阵战士/深池方阵指挥官: 自身1.5半径内除自身外其它深池方阵战士/深池方阵指挥官防御力增加200（可无限叠加，不可被沉默）
+  enemy_1169_duphlx: { talents: { auraDefup: { radius: 1.5 } }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%88%98%E5%A3%AB&oldid=353488` },
+  enemy_1169_duphlx_2: { talents: { auraDefup: { radius: 1.5 } }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%8C%87%E6%8C%A5%E5%AE%98&oldid=353489` },
+  // 深池暗影术师/深池暗影术师队长: 不会攻击飞行单位 — its own talent, not part of 折射
+  enemy_1168_dumage: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88&oldid=367785` },
+  enemy_1168_dumage_2: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88%E9%98%9F%E9%95%BF&oldid=367786` },
 });
 
 /**
@@ -253,7 +261,7 @@ const PowerHit = Object.freeze({
 /** Behaviours by talent or skill name. @type {Readonly<Record<string, FoeBehavior>>} */
 export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
-  ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...devourerBehaviors, ...blightBehaviors,
+  ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...devourerBehaviors, ...blightBehaviors, ...refractBehaviors, ...statueBehaviors,
 });
 
 /**

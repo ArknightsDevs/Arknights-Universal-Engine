@@ -11,7 +11,8 @@ import { dealEp } from './elements.js';
 import { selectable, sortAllies, friendly, evadesGround, stealthed } from './targeting.js';
 import { tileOf } from './body.js';
 import { tileAt } from './level.js';
-import { board, alight, detour, wayKeys } from './routes.js';
+import { board, alight, detour, wayKeys, becomeFlyer } from './routes.js';
+import { draw } from './rng.js';
 import { release } from './blocking.js';
 import { spawnDevice } from './devices.js';
 import { keyAt } from './paths.js';
@@ -94,6 +95,7 @@ export const BOLT_RADIUS = 0.3;
  * @property {(t: Unit, area: 'cross' | 'square') => Unit[]} around the units it may attack on a unit's tile and the four
  *   tiles next to it (a cross) or the eight around it (a square), in creation order (敌能-29)
  * @property {() => Unit[]} enemies every enemy on the field that is not neutral, selectable or not (敌能-25)
+ * @property {() => void} fly its own motion becomes flying and the move it is on is planned again (路线-2, 敌能-34)
  * @property {(o: { x: number, y: number, radius: number, life: number, low: number, high: number, air?: boolean, open?: boolean, wide?: boolean }) => void} zone
  *   places a 污染秽蚀 zone (敌能-46)
  * @property {(t: Unit, damage: number, seconds: number) => void} bleed gives or refreshes 逐腐 bleed (敌能-46)
@@ -206,6 +208,7 @@ function contextOf(w, c, e, of) {
     lend: (t, key, init) => { lend(e, t, key, init); },
     around: (t, area) => around(w, e, t, area),
     enemies: () => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0),
+    fly: () => { becomeFlyer(e); },
     ...blightContext(w, c, e),
   };
 }
@@ -326,14 +329,18 @@ export function foeAttack(w, c, e, mods) {
 export const carried = (u) => Object.hasOwn(u.ab, '@carrier');
 
 /**
- * A carrier's passengers alight at the centre of its tile (敌能-16): when it says so, or when it leaves the field.
+ * A carrier's passengers alight (敌能-16), when it says so and when it leaves the field: at the centre of its tile,
+ * or, when a `busUnload` buff names a half-width, at a seeded point in that square, on the carrier's remaining route.
  * @param {World} w @param {Content} c @param {Unit} e
  */
 export function releasePassengers(w, c, e) {
+  const half = e.buffs.find((b) => b.key === 'busUnload')?.value ?? 0;
   for (const u of w.units) {
     if (u.ab['@carrier'] !== e.id) continue;
     delete u.ab['@carrier'];
-    alight(c, u, e);
+    if (!(half > 0)) { alight(c, u, e); continue; }
+    const at = { x: e.x + (draw(w) * 2 - 1) * half, y: e.y + (draw(w) * 2 - 1) * half };
+    alight(c, u, at, { exact: true, route: e.route, leg: e.leg });
   }
 }
 
