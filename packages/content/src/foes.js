@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-66): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
@@ -20,6 +20,7 @@ import { timeBehaviors } from './times.js';
 import { runnerBehaviors } from './runners.js';
 import { takeDmg } from './chalice.js';
 import { unbalanceBehaviors } from './unbalance.js';
+import { mudShieldBehaviors, shieldOwns } from './mudshield.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -160,6 +161,10 @@ export const FOE_EXTRAS = Object.freeze({
   // 清明 / 堂皇: a fall does not spawn, and only the skill (not the talent of the same name) runs 范围隐匿.
   enemy_1209_sfden: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E6%B8%85%E6%98%8E&oldid=376397` },
   enemy_1209_sfden_2: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E5%A0%82%E7%9A%87&oldid=389600` },
+  // 泥岩小队践行者 / 组长: 出场后获得可吸收法术伤害的屏障；该屏障存在时最大生命值+50%、攻击速度+50.
+  // `page` marks the two pages that were read (敌能-66). The same blackboard without it stays uncovered (关卡-2).
+  enemy_1091_mdhmmr: { talents: { shield: { page: 1 } }, source: `${PRTS}%E6%B3%A5%E5%B2%A9%E5%B0%8F%E9%98%9F%E8%B7%B5%E8%A1%8C%E8%80%85&oldid=361721` },
+  enemy_1091_mdhmmr_2: { talents: { shield: { page: 1 } }, source: `${PRTS}%E6%B3%A5%E5%B2%A9%E5%B0%8F%E9%98%9F%E8%B7%B5%E8%A1%8C%E8%80%85%E7%BB%84%E9%95%BF&oldid=361722` },
 });
 
 /**
@@ -327,6 +332,7 @@ const PowerHit = Object.freeze({
 export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
   ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...elementHitBehaviors, ...devourerBehaviors, ...refractBehaviors, ...statueBehaviors, ...auraBehaviors, ...chargedBehaviors, ...staticBehaviors, ...timeBehaviors, ...runnerBehaviors, takeDmg, ...unbalanceBehaviors,
+  ...mudShieldBehaviors,
 });
 
 /**
@@ -350,6 +356,8 @@ export const FOE_NEEDS = Object.freeze({
   epdamage: Object.freeze(['el']), empty: Object.freeze(['el']), EpDamage: Object.freeze(['el']),
   combat: Object.freeze(['el']), attack: Object.freeze(['el']),
   AttackSpeedUp: Object.freeze(['attack_speed', 'duration', 'stack_cnt']),
+  // 泥岩小队践行者的法术屏障只覆盖读过页面的两名（敌能-66）。同形的覆面大锤客、泥岩没有这个标记。
+  shield: Object.freeze(['page']),
 });
 
 /**
@@ -360,10 +368,10 @@ const abilitiesOf = (e) => [...Object.entries(e.talents ?? {}), ...(e.skills ?? 
 
 /**
  * Whether an ability has what its behaviour needs (关卡-2). A shared talent name only counts when its blackboard is the
- * shape that behaviour understands (敌能-38); anything else stays incomplete.
+ * shape that behaviour understands (敌能-38, 敌能-66); anything else stays incomplete.
  * @param {string} k @param {Record<string, unknown>} bb
  */
-const complete = (k, bb) => elementHitOwns(k, bb) && (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
+const complete = (k, bb) => elementHitOwns(k, bb) && shieldOwns(k, bb) && (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
 
 /**
  * The abilities (talents and skills) of the given enemies — their extras merged — that have no behaviour and are not
