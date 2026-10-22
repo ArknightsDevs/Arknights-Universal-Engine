@@ -6,6 +6,7 @@ import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { addBuff, removeBuff, makeBuff, retune, setLeft } from './buffs.js';
 import { inflict } from './status.js';
+import { launch } from './swing.js';
 import { dealDamage, heal, setHp, knockDown } from './damage.js';
 import { dealEp } from './elements.js';
 import { selectable, sortAllies, friendly, evadesGround, stealthed } from './targeting.js';
@@ -101,6 +102,9 @@ export const BOLT_RADIUS = 0.3;
  * @property {() => Unit[]} enemies every enemy on the field that is not neutral, selectable or not (敌能-25)
  * @property {() => void} fly its own motion becomes flying and the move it is on is planned again (路线-2, 敌能-34)
  * @property {() => void} attackAgain its next attack may start at once: the attack cooldown is cleared (敌能-44, 攻击-2)
+ * @property {(t: Unit, p: Payload) => void} hurl throws a homing skill projectile (敌能-83). Its speed is an enemy
+ *   projectile's (攻击-3). `amount` is frozen as given. Arrival deals that as a skill hit, not an attack, then `status`
+ *   when the target is still up
  */
 
 /**
@@ -210,7 +214,20 @@ function contextOf(w, c, e, of) {
     enemies: () => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0),
     fly: () => { becomeFlyer(e); },
     attackAgain: () => { ab['@again'] = 1; },
+    hurl: (t, p) => { hurlAt(w, e, t, p); },
   };
+}
+
+/**
+ * A homing skill projectile (敌能-83). `skillHit` is omitted on every other shot, so their hashes stay as they are.
+ * The status field is omitted the same way when this throw carries none (敌能-43).
+ * @param {World} w @param {Unit} e @param {Unit} t @param {Payload} p
+ */
+function hurlAt(w, e, t, p) {
+  launch(w, e, t, {
+    type: p.type, amount: p.amount, times: 1, element: '', ep: 0, skill: true, skillHit: 1,
+    ...(p.status ? { hitStatus: { key: /** @type {import('./status.js').StatusKey} */ (p.status.key), seconds: p.status.seconds } } : {}),
+  });
 }
 
 /**

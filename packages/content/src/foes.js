@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-56): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-56, 敌能-83): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
@@ -21,6 +21,7 @@ import { timeBehaviors } from './times.js';
 import { runnerBehaviors } from './runners.js';
 import { takeDmg } from './chalice.js';
 import { unbalanceBehaviors } from './unbalance.js';
+import { rockmanBehaviors, stunAttackOwns } from './rockman.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -164,6 +165,8 @@ export const FOE_EXTRAS = Object.freeze({
   // 清明 / 堂皇: a fall does not spawn, and only the skill (not the talent of the same name) runs 范围隐匿.
   enemy_1209_sfden: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E6%B8%85%E6%98%8E&oldid=376397` },
   enemy_1209_sfden_2: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E5%A0%82%E7%9A%87&oldid=389600` },
+  // 迷路的巨像: 眩晕击 throws a stone (敌能-83). `page` marks this page; 配重投石机 has the same data and no page.
+  enemy_2003_rockman: { skills: { StunAttack: { page: 1 } }, source: `${PRTS}%E8%BF%B7%E8%B7%AF%E7%9A%84%E5%B7%A8%E5%83%8F&oldid=354366` },
 });
 
 /**
@@ -332,6 +335,7 @@ export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
   ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...elementHitBehaviors, ...devourerBehaviors, ...refractBehaviors, ...statueBehaviors, ...auraBehaviors, ...chargedBehaviors, ...staticBehaviors, ...timeBehaviors, ...runnerBehaviors, takeDmg, ...unbalanceBehaviors,
   ...bombdBehaviors,
+  ...rockmanBehaviors,
 });
 
 /**
@@ -356,6 +360,8 @@ export const FOE_NEEDS = Object.freeze({
   combat: Object.freeze(['el']), attack: Object.freeze(['el']),
   AttackSpeedUp: Object.freeze(['attack_speed', 'duration', 'stack_cnt']),
   boomb: Object.freeze(['move_speed']),
+  // 眩晕击 (敌能-83). The data already has atk_scale and stun; `page` marks this page. 配重投石机 has no page, so no marker.
+  StunAttack: Object.freeze(['page']),
 });
 
 /**
@@ -369,7 +375,7 @@ const abilitiesOf = (e) => [...Object.entries(e.talents ?? {}), ...(e.skills ?? 
  * shape that behaviour understands (敌能-38); anything else stays incomplete.
  * @param {string} k @param {Record<string, unknown>} bb
  */
-const complete = (k, bb) => elementHitOwns(k, bb) && (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
+const complete = (k, bb) => elementHitOwns(k, bb) && stunAttackOwns(k, bb) && (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
 
 /**
  * The abilities (talents and skills) of the given enemies — their extras merged — that have no behaviour and are not
