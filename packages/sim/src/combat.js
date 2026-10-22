@@ -3,7 +3,7 @@
 // attacker's attack — a healer's heals, a ranged attacker's projectiles — and the attacker waits out its interval.
 import { FPS, secondsToFrames, hypot } from '@aue/math';
 import { KIND, ANIM } from '@aue/schema';
-import { offsetTile, dirVec } from './dir.js';
+import { offsetTile, dirVec, frontOf } from './dir.js';
 import { push, pull, PULL_POINT } from './displacement.js';
 import { statsOf, computeStats, intervalFrames } from './attrs.js';
 import { inKeys, selectable, sortEnemies, sortAllies, firstN, evadesGround, hostile, friendly, stealthed } from './targeting.js';
@@ -22,6 +22,7 @@ import { foeTargets, foeAttack, foeHit, isFoeOf } from './foes.js';
 import { makeBuff, addBuff, removeBuff } from './buffs.js';
 import { tileOf } from './body.js';
 import { tickSkill, beforeAttack, attackMods, afterAttack } from './skills.js';
+import { skillCounter } from './skilltext.js';
 import { palsyInterrupts, inflict } from './status.js';
 import { draw } from './rng.js';
 import { dealEp, rampageAttack, restoreEp } from './elements.js';
@@ -185,6 +186,7 @@ function ridesOn(w, c, h, dmg, dealt) {
     if (!load.hit) hitSp(c, src, t);
   } else if (src && t.kind === KIND.OPERATOR) {
     attacked(w, c, t, src, dmg);
+    skillCounter(w, c, t, src, dmg);
     attackerHit(c, t, src);
     if (dealt > 0 && t.hp > 0) talentSp(w, c, t, 'attacked');
   }
@@ -250,6 +252,7 @@ const loadOf = (a, mods) => ({
   ep: (mods.ep ?? 0) + (mods.epScale ? statsOf(a).atk * mods.epScale : 0),
   ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.hitDebuff ? { hitDebuff: mods.hitDebuff } : {}), ...(mods.displace ? { displace: mods.displace } : {}), ...(mods.skill ? { skill: true } : {}), ...(mods.mark ? { mark: mods.mark } : {}),
   ...(mods.frozen ? { frozen: mods.frozen } : {}), ...(mods.ignoreDef ? { ignoreDef: mods.ignoreDef } : {}),
+  ...(mods.splash ? { splash: mods.splash } : {}),
 });
 
 /**
@@ -296,13 +299,19 @@ export function traitScale(w, c, a, t) {
 }
 
 /**
- * The enemies a splash around a target reaches (职业-8): every other enemy on the field within the radius of it —
+ * Which side a splash hits (职业-8, 敌能-43): enemies, unless it names friendlies — operators, neutral units and our
+ * devices (an enemy's). @param {Unit} u @param {import('./types.js').Splash} s
+ */
+const splashSide = (u, s) => (s.side === 'friendly' ? friendly(u) : hostile(u));
+
+/**
+ * The units a splash around a target reaches (职业-8, 敌能-43): every other unit of its side within the radius of it —
  * hidden ones not, 隐匿 ones not while it is in effect (索敌-2), 迷彩 ones still; flying ones only when the splash is
  * not ground-only.
  * @param {World} w @param {Unit} t @param {import('./types.js').Splash} s @returns {Unit[]}
  */
 function splashOf(w, t, s) {
-  return w.units.filter((u) => u !== t && hostile(u) && u.hp > 0 && !u.hidden && !stealthed(u)
+  return w.units.filter((u) => u !== t && splashSide(u, s) && u.hp > 0 && !u.hidden && !stealthed(u)
     && !(s.ground && statsOf(u).flying) && (u.x - t.x) * (u.x - t.x) + (u.y - t.y) * (u.y - t.y) <= s.radius * s.radius);
 }
 
@@ -550,12 +559,41 @@ function picked(w, out, pick) {
     ...(k.ignoreDef ? { ignoreDef: Math.max(out.ignoreDef ?? 0, k.ignoreDef) } : {}) };
 }
 
-/** A chance talent's chance now (攻击-4): its `skillProb` while the skill runs, when it has one. @param {Unit} op @param {import('./types.js').CritTalent} k */
-const chanceOf = (op, k) => (k.skillProb !== undefined && inSkill(op) ? k.skillProb : k.prob) + ammoChance(op, k);
+/**
+ * Whether the target's centre is on the tiles a front chance names (干员-12, 攻击-4). One tile is the tile ahead, not
+ * the operator's own. More than one also counts the operator's tile: the module remark says the check is then 范围内
+ * and includes it, read as the text's N tiles plus this one (推断 INF-0313).
+ * @param {Unit} op @param {Unit} t @param {number} n
+ */
+function ahead(op, t, n) {
+  const [r, c] = tileOf(op), [tr, tc] = tileOf(t);
+  if (n > 1 && r === tr && c === tc) return true;
+  for (let k = 1; k <= n; k++) {
+    const [fr, fc] = frontOf(r, c, op.dir, k);
+    if (fr === tr && fc === tc) return true;
+  }
+  return false;
+}
+
+/**
+ * A chance talent's chance now (攻击-4): `skillProb` while the skill runs; `front.prob` when the primary target's
+ * centre is on the tiles ahead, looked up as the chance is drawn and not when the hit lands (干员-12). No primary
+ * target keeps the original chance. The ammo bonus is added either way (职业-35).
+ * @param {World} w @param {Content} c @param {Unit} op @param {import('./types.js').CritTalent} k
+ */
+function chanceOf(w, c, op, k) {
+  let p = k.skillProb !== undefined && inSkill(op) ? k.skillProb : k.prob;
+  const f = k.front;
+  if (f) {
+    const primary = targetsOf(w, c, op)[0];
+    if (primary && ahead(op, primary, f.tiles)) p = f.prob;
+  }
+  return p + ammoChance(op, k);
+}
 
 /**
  * The chance talents of an operator's attack (攻击-4): for each, in order, one draw (随机-1); under its chance — its
- * `skillProb` while its skill runs, when it has one — the
+ * `skillProb` while its skill runs, or `front.prob` when the primary target stands on the tiles ahead — the
  * attack's 倍率 × its scale, its stun on each hit, its more targets, its attack bonus for this attack (added to the
  * attack's), the share of the targets' 防御 it ignores (the most), its hits × its `times`. A healing attack draws none.
  * @param {World} w @param {Content} c @param {Unit} op @param {AttackMods} mods @returns {AttackMods}
@@ -564,7 +602,7 @@ function critMods(w, c, op, mods) {
   let out = mods;
   if (mods.heal || healerNow(c, op)) return healMore(w, c, op, out);
   for (const k of c.operators[op.key].critTalents ?? []) {
-    if (draw(w) >= chanceOf(op, k)) continue;
+    if (draw(w) >= chanceOf(w, c, op, k)) continue;
     out = k.pick ? picked(w, out, k.pick) : crit(op, out, k);
   }
   return out;
@@ -635,8 +673,10 @@ export function enemyTargets(w, e) {
   const blocker = e.blockedBy >= 0 ? w.units.find((u) => u.id === e.blockedBy) ?? null : null;
   if (e.base.applyWay === 'MELEE' || !(e.base.rangeRadius > 0)) return blocker ? [blocker] : [];
   const reach = e.base.rangeRadius + ALLY_COLLIDER_RADIUS, r2 = reach * reach;
+  // 烹泉 / 沏虹 (敌能-43) select through 迷彩. Other enemies keep the default, so the argument stays absent.
+  const see = statsOf(e).flags.seeCamou ? { ignoreCamou: true } : undefined;
   const out = w.units.filter((u) => u !== e && friendly(u) && u.hp > 0 && (u.x - e.x) * (u.x - e.x) + (u.y - e.y) * (u.y - e.y) <= r2
-    && (u === blocker || selectable(u)) && !evadesGround(e, u));
+    && (u === blocker || selectable(u, see)) && !evadesGround(e, u));
   if (blocker && !out.includes(blocker)) out.push(blocker);
   return out;
 }

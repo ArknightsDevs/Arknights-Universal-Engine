@@ -4,6 +4,7 @@
 import { FPS, secondsToFrames } from '@aue/math';
 import { skills } from '@aue/sim';
 import rangeTable from '../data/ranges.json' with { type: 'json' };
+import { textExtra } from './skilltext.js';
 
 /** @typedef {import('@aue/sim').SkillDef} SkillDef @typedef {import('@aue/sim').SkillBehavior} SkillBehavior */
 
@@ -39,7 +40,30 @@ export function skillDefOf(id, level) {
     duration: level.duration, ammo: level.durationType === 'AMMO', bb,
     stoppable: level.stoppable ?? CLOSABLE.test(level.description ?? ''), ...rangeOf(level), ...extraOf(level, ownMods(level, bb, allies.keys)),
     ...foreverOf(level), ...spendOf(level, bb), ...(allies.def ? { allies: allies.def } : {}), ...alchemyOf(level, bb),
+    ...dollSwitchOf(level),
   };
+}
+
+/** A description that keeps the `<替身>` token and drops every other tag (职业-15). The data may write line breaks as \n. @param {SkillLevel} level */
+const dollText = (level) => (level.description ?? '').replace(/<(?!\/?替身>)[^>]*>/g, '').replace(/\\n/g, '\n');
+
+/** A sentence that switches to the 替身 as the skill starts (职业-15). 「切换为<替身>作战时」 is an effect of a switch, not this. */
+const DOLL_START = /(?:立即|并)切换为<替身>/u;
+/** A sentence that switches as the skill ends (职业-15): knocked out as it ends, or the text already says it switches then. */
+const DOLL_END = /技能结束后视为被击倒|技能结束后(?:立刻|立即)切换为<替身>/u;
+
+/**
+ * When a skill switches a 傀儡师 to its 替身 (职业-15): at its start for 「立即切换为<替身>」 or 「并切换为<替身>」, at its
+ * end for 「技能结束后视为被击倒」 or 「技能结束后立刻切换为<替身>」. A sentence about what happens once the switch has
+ * started (「切换为<替身>作战时」), or about summoning a 替身, is not this.
+ * @param {SkillLevel} level @returns {{ doll?: 'start' | 'end' }}
+ */
+function dollSwitchOf(level) {
+  const parts = dollText(level).split(/[，。；\n]/u);
+  // End first: 「技能结束后立即切换为<替身>」 also contains 「立即切换为<替身>」, and 结束后 is the moment.
+  if (parts.some((s) => DOLL_END.test(s))) return { doll: 'end' };
+  if (parts.some((s) => DOLL_START.test(s))) return { doll: 'start' };
+  return {};
 }
 
 /**
@@ -189,10 +213,13 @@ function ownMods(level, bb, others) {
 /** Chinese numerals of extra targets and hits (技能-9). */
 const COUNT = Object.freeze(/** @type {Record<string, number>} */ ({ 一: 1, 两: 2, 二: 2, 三: 3, 1: 1, 2: 2, 3: 3 }));
 
+/** 不死 while the skill runs (技能-9): 「技能持续期间内干员的生命值（始终）不会低于1」. */
+const UNDYING = /^技能持续期间内干员的生命值(?:始终)?不会低于1$/u;
+
 /**
  * One sentence of a description as what it adds (技能-9), or null for a sentence it does not read.
  * @param {string} s the sentence, its placeholders as {key} @param {Record<string, number>} bb
- * @returns {{ mods?: Record<string, number>, attack?: NonNullable<SkillDef['extra']>['attack'] } | null}
+ * @returns {{ mods?: Record<string, number>, flags?: Record<string, boolean>, attack?: NonNullable<SkillDef['extra']>['attack'] } | null}
  */
 function phraseOf(s, bb) {
   let m;
@@ -206,6 +233,7 @@ function phraseOf(s, bb) {
   if ((m = /^(?:并)?获得\{prob\}的?物理(和法术)?闪避$/.exec(s)) && Number.isFinite(bb.prob)) return { mods: { dodgePhys: bb.prob, ...(m[1] ? { dodgeArts: bb.prob } : {}) } };
   if (s === '阻挡数变为0') return { mods: { blockCntMul: 0 } };
   if (s === '防御力降至0') return { mods: { defMul: 0 } };
+  if (UNDYING.test(s)) return { flags: { undying: true } };
   return hitPhraseOf(s, bb);
 }
 
@@ -297,9 +325,12 @@ function extraOf(level, own) {
   const said = plainOf(level).split(/[。；\n]/).filter((seg) => !/关闭技能时/.test(seg)).join('。');
   const parts = said.split(/[，。；\n]/).map((s) => phraseOf(s.trim(), bb)).filter((p) => p !== null);
   const mods = Object.assign({ ...own, ...selfZeros(hit.keys) }, ...parts.map((p) => p.mods ?? {}));
+  const flags = Object.assign({}, ...parts.map((p) => p.flags ?? {}));
   const attack = Object.assign({}, ...parts.map((p) => p.attack ?? {}), hit.debuff ? { hitDebuff: hit.debuff } : {});
   const has = (/** @type {object} */ o) => Object.keys(o).length > 0;
-  return has(mods) || has(attack) ? { extra: { ...(has(mods) ? { mods } : {}), ...(has(attack) ? { attack } : {}) } } : {};
+  // 技能-14 reads the sentences 技能-9 leaves, on the same text (closing-skill segments already gone).
+  const extra = { ...(has(mods) ? { mods } : {}), ...(has(flags) ? { flags } : {}), ...(has(attack) ? { attack } : {}), ...textExtra(level, bb, said) };
+  return has(extra) ? { extra } : {};
 }
 
 /** The operator's own modifier of each attribute key a hit can lower (技能-5). @type {Record<string, string>} */
