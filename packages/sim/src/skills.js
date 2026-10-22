@@ -68,9 +68,13 @@ export const STAT_KEYS = Object.freeze({
 /** Blackboard keys of the attacks a skill makes (技能-5). */
 const ATTACK_KEYS = Object.freeze(['atk_scale', 'attack@atk_scale', 'times', 'attack@times', 'max_target', 'attack@max_target']);
 
+/** Why a skill may have ended on its own, so one that switches at its end may ask for the switch (职业-15). A switch or a move does not. */
+const OWN_END = new Set(['duration', 'instant', 'ammo', 'stopped']);
+
 /**
  * A skill's kind (技能-1): passive; ammo; one that throws a 炼金单元 is instant (技能-13); with a duration, or running until it
- * is closed (技能-4); a next-attack skill (no duration, attack keys, or 技能-14 heals an ally on the attack); instant.
+ * is closed (技能-4); one that switches to the 替身 as it starts, with no duration, is instant — its attack keys belong to the
+ * 替身, not a next attack (职业-15); a next-attack skill (no duration, attack keys, or 技能-14 heals an ally on the attack); instant.
  * @param {SkillDef} def @returns {SkillKind}
  */
 export function kindOf(def) {
@@ -78,6 +82,7 @@ export function kindOf(def) {
   if (def.ammo) return 'ammo';
   if (def.alchemy) return 'instant';
   if (def.duration > 0 || def.forever) return 'duration';
+  if (def.doll === 'start') return 'instant';
   if (def.extra?.allyHeal?.on === 'attack') return 'next';
   return ATTACK_KEYS.some((k) => k in def.bb) ? 'next' : 'instant';
 }
@@ -151,6 +156,7 @@ export function endSkill(w, c, op, reason = 'duration') {
   closeSkillText(w, c, op, reason);
   behaviorOf(c, st.id).end?.(contextOf(w, c, op), reason);
   removeBuff(op, 'spendAtk');
+  removeBuff(op, 'skillFlags');
   st.active = false; st.armed = false; st.dur = -1; st.ammo = 0;
   restartCharge(op);
   w.events.push({ type: 'skill', id: op.id, active: 0 });
@@ -158,6 +164,9 @@ export function endSkill(w, c, op, reason = 'duration') {
   endSummons(w, c, op);
   grantSummons(w, c, op, 'end');
   emit(w, 'skillEnd', { unit: op, reason });
+  // Asked here, started by the frame's flush (doll.js): skills.js must not import doll.js. Not for a switch that ended
+  // this skill, nor a move that discards the operator — either would start the switch a second time (职业-15).
+  if (defOf(c, op).doll === 'end' && OWN_END.has(reason)) st.dollPending = true;
 }
 
 /**
@@ -201,11 +210,24 @@ export function activate(w, c, op, reason = 'auto', free = false) {
   w.events.push({ type: 'skill', id: op.id, active: 1 });
   talentSkillStart(w, c, op);
   behaviorOf(c, st.id).start?.(contextOf(w, c, op));
+  holdFlags(op, def, kind);
   openSkillText(w, c, op);
   if (def.alchemy) throwAlchemy(w, c, op, def.alchemy);
   grantSummons(w, c, op, 'start');
   emit(w, 'skillStart', { unit: op, reason });
   if (kind === 'instant') endSkill(w, c, op, 'instant');
+  // After an instant skill's own end, so that end is not the switch and this request is still there for the flush (职业-15).
+  if (def.doll === 'start') st.dollPending = true;
+}
+
+/**
+ * The flags a skill's description gives while it runs (技能-9, e.g. 不死): a buff `skillFlags` from its start until it
+ * ends, whatever its behaviour; none for a skill that does not run (instant, next attack).
+ * @param {Unit} op @param {SkillDef} def @param {SkillKind} kind
+ */
+function holdFlags(op, def, kind) {
+  const flags = def.extra?.flags;
+  if (flags && kind !== 'instant' && kind !== 'next') addBuff(op, makeBuff({ key: 'skillFlags', src: op.id, flags }));
 }
 
 /**
