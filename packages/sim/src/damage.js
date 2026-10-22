@@ -4,7 +4,7 @@
 import { powi, FPS } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf, activeBuffs } from './attrs.js';
-import { removeBuff, stamp, count } from './buffs.js';
+import { removeBuff, stamp, count, makeBuff, addBuff } from './buffs.js';
 import { draw } from './rng.js';
 import { MIN_DAMAGE_RATIO } from './constants.js';
 import { hurtSp, gainSp } from './sp.js';
@@ -257,6 +257,22 @@ function dodged(w, u, src, dmg) {
 }
 
 /**
+ * One layer of a deployment shield broke (部署-8, 干员-14). The talent's break stacks its ATK and DEF — additive, and
+ * with no end, the description's 持续时间无限 — and grants SP. gainSp grants none while the skill runs (技能-2). A
+ * shield that is not tagged is not one of these layers. Without `max`, the cap grows so the stacks are not stuck at 1.
+ * @param {Unit} u @param {number} n @param {import('./types.js').Content | undefined} c
+ */
+function brokeShield(u, n, c) {
+  const br = c && u.kind === KIND.OPERATOR ? c.operators[u.key]?.deployTalents?.[n]?.break : undefined;
+  if (!br) return;
+  if (br.sp && u.skill) gainSp(u.skill, br.sp);
+  if (!br.mods) return;
+  const cur = u.buffs.find((b) => b.key === 'shieldBreak');
+  const cap = br.max ?? (cur ? cur.stacks + 1 : 1);
+  addBuff(u, makeBuff({ key: 'shieldBreak', src: u.id, rule: 'stack', mods: br.mods, maxStacks: cap }));
+}
+
+/**
  * The target's 伤判 effects in turn (伤害-8): what the hit sets off as they begin (judged), a miss by the source's hit
  * rate, then its active buffs by event priority, highest first, then acquisition order. One that cancels the hit or
  * brings it to 0 ends the step; a dodge or a miss is the `dodge` event (钩子-3). `from`: the source, the tags of an enemy
@@ -271,7 +287,10 @@ export function takeDamage(w, u, amount, dmg, from = {}) {
   const order = activeBuffs(u.buffs).map((b, i) => ({ b, i })).sort((x, y) => y.b.prio - x.b.prio || x.i - y.i);
   let left = amount;
   for (const { b } of order) {
+    const hits = b.shieldHits;
     left = judge(w, u, b, left, { dmg, src, tags });
+    // The layer is already spent, and the buff may already be gone: the object still shows the drop (部署-8).
+    if (b.tag === 'shieldBreak' && b.shieldHits < hits) brokeShield(u, b.n, from.c);
     if (left < 0) dodged(w, u, src, dmg);
     if (!(left > 0)) return 0;
   }
@@ -398,9 +417,19 @@ const tagsOf = (c, src) => (c && src && src.kind === KIND.ENEMY ? /** @type {{ t
 const floored = (c, seen, target, dmg, amount) => (c && seen ? nonLethalCap(c, seen, target, dmg.isAttack ? Math.max(amount, damageFloor(c, seen, target)) : amount) : amount);
 
 /**
+ * An accepted hit counts for an enemy's on-hit talent (敌能-38), at the same gate as 受击回复 — only once an ability of
+ * its has asked for the count, so other enemies carry nothing. Operators are not counted.
+ * @param {Unit} target
+ */
+function tallyTaken(target) {
+  if (target.kind === KIND.ENEMY && target.ab && Object.hasOwn(target.ab, '@taken')) target.ab['@taken'] += 1;
+}
+
+/**
  * Deals a hit (伤害-7): nothing to a unit already at 0 HP; 生命流失 goes straight to the HP; nothing to an invincible
  * unit (无敌, 沉睡, disappeared: 路线-4); nothing from a ground enemy or a hostile device onto a unit that took off
- * (起飞, 阻挡-2) — judged once, before `hit`, so a handler that lifts the target does not cancel this hit; otherwise the `hit` event, then the hit counts for 受击回复 (技能-2) and for
+ * (起飞, 阻挡-2) — judged once, before `hit`, so a handler that lifts the target does not cancel this hit; otherwise the
+ * `hit` event, then the hit counts for 受击回复 (技能-2) — and, for an enemy, its on-hit tally (敌能-38) — and for
  * its source's rune SP (符文-4; given the content), then the target's defences, `mul`, an attack's floor by its source's
  * talents (职业-31; given the content), the source's multiplier, the 工事 multiplier (地图-3; given the content), the target's 伤判
  * effects, the `hpDamage` event, then the HP. A `sourceless` hit takes neither its source's penetration nor its
@@ -414,6 +443,7 @@ export function dealDamage(w, src, target, dmg, c) {
   if (dmg.hpLoss) return loseHp(w, src, target, dmg.amount, dmg);
   if (hitStops(w, src, target, dmg)) return 0;
   hurtSp(target);
+  tallyTaken(target);
   if (c && src && !dmg.sourceless) runeSp(w, c, src);
   const seen = seenOf(src, dmg), ss = seen ? statsOf(seen) : null;
   let amount = mitigate(dmg.amount, dmg.type, statsOf(target), penetration(ss, dmg)) * /** @type {number} */ (dmg.mul);

@@ -24,6 +24,8 @@
 | `death` | 敌人被击倒时（走到终点离场不算） |
 | `fatal` | 敌人生命归 0、帧末离场之前（伤害-9）：返回真且已把它的生命设为大于 0 时，它留在场上，不算被击倒 |
 
+敌人能力的上下文另有：`state`（这个敌人自己的能力状态，按名字存数）、`blocked`（是否被阻挡）、`hurt`（上一帧以来是否受过伤害）、`unblocked`（是否刚解除阻挡）、`foes(radius)`（半径内可以攻击的我方单位和中立单位）、`inLine()`（与它同行或同列、可以被直击选中的我方单位和中立单位，由近到远）、`blast(...)`（延时爆炸，敌能-3）、`bolt(...)`（直击弹道，敌能-4）、`setHp(t, hp)`（直接设定生命，伤害-9）、`resetSkills()`（技能冷却回到初始冷却）、`onWay(u)`（单位所在格是否在它走到当前移动段终点的路上，包括它自己所在格，寻路-2）、`detour(row, col)`（绕行，路线-6）、`fell`（是否掉进了地穴，地图-4）、`summon(key, ...)`（召唤敌人，敌能-22）、`remove(u)`（把一个敌人的生命直接设为 0）、`devour(t)`（吞噬，敌能-30）、`lend(t, key, ...)`（借出的 Buff，敌能-25）、`around(t, area)`（目标所在格和周围格内它可以攻击的单位，敌能-29）、`enemies()`（场上所有非中立的敌人，可选与否）、`fly()`（把自己的行动方式改成飞行，并清掉当前路段已经计划的点，路线-2）。
+敌人能力的上下文另有：`state`（这个敌人自己的能力状态，按名字存数）、`blocked`（是否被阻挡）、`hurt`（上一帧以来是否受过伤害）、`taken`（累计受到的、会计入受击回复的伤害次数，从它的能力第一次读取时开始计；没有能力读取的敌人不计，敌能-38）、`unblocked`（是否刚解除阻挡）、`foes(radius)`（半径内可以攻击的我方单位和中立单位）、`inLine()`（与它同行或同列、可以被直击选中的我方单位和中立单位，由近到远）、`blast(...)`（延时爆炸，敌能-3）、`bolt(...)`（直击弹道，敌能-4）、`setHp(t, hp)`（直接设定生命，伤害-9）、`resetSkills()`（技能冷却回到初始冷却）、`onWay(u)`（单位所在格是否在它走到当前移动段终点的路上，包括它自己所在格，寻路-2）、`detour(row, col)`（绕行，路线-6）、`fell`（是否掉进了地穴，地图-4）、`summon(key, ...)`（召唤敌人，敌能-22）、`remove(u)`（把一个敌人的生命直接设为 0）、`devour(t)`（吞噬，敌能-30）、`lend(t, key, ...)`（借出的 Buff，敌能-25）、`around(t, area)`（目标所在格和周围格内它可以攻击的单位，敌能-29）、`enemies()`（场上所有非中立的敌人，可选与否）。
 敌人能力的上下文另有：`state`（这个敌人自己的能力状态，按名字存数）、`blocked`（是否被阻挡）、`hurt`（上一帧以来是否受过伤害）、`unblocked`（是否刚解除阻挡）、`foes(radius)`（半径内可以攻击的我方单位和中立单位）、`inLine()`（与它同行或同列、可以被直击选中的我方单位和中立单位，由近到远）、`blast(...)`（延时爆炸，敌能-3）、`bolt(...)`（直击弹道，敌能-4）、`setHp(t, hp)`（直接设定生命，伤害-9）、`resetSkills()`（技能冷却回到初始冷却）、`onWay(u)`（单位所在格是否在它走到当前移动段终点的路上，包括它自己所在格，寻路-2）、`detour(row, col)`（绕行，路线-6）、`fell`（是否掉进了地穴，地图-4）、`summon(key, ...)`（召唤敌人，敌能-22）、`draw()`（一次 [0, 1) 的均匀随机，随机-1）、`remove(u)`（把一个敌人的生命直接设为 0）、`devour(t)`（吞噬，敌能-30）、`lend(t, key, ...)`（借出的 Buff，敌能-25）、`around(t, area)`（目标所在格和周围格内它可以攻击的单位，敌能-29）、`enemies()`（场上所有非中立的敌人，可选与否）。
 
 冷却为负的技能只用一次：用过之后不再就绪。
@@ -241,7 +243,7 @@ IG-S-2 中关卡把 `invincible` 改为 20，把 `AtkUp` 的 `damage_resistance`
 
 ### 敌能-29 凋亡与死亡之眼
 
-- **凋亡攻击**（天赋 `epdamage`、`empty`）：普通攻击每次命中附加攻击力 × `attack@ep_damage_ratio` 的凋亡损伤（元素-2）。
+- **凋亡攻击**（天赋 `epdamage`、`empty`）：王庭军战士、精锐战士倍率 0.37，王庭军术师、精锐术师倍率 0.25，元素是凋亡（`el` 为 4，敌能-38）。
 - **死亡之眼**（技能 `DeathEye`）：技能就绪、能行动、没被沉默，且攻击范围内有可以攻击的单位时，对其中第一个（索敌-5）持续施法 `hit_duration` 秒：期间不移动、不普通攻击、持有沉默反制（身上的沉默清除，新的沉默不起作用）；每秒对目标造成攻击力 × `atk_scale` 的法术伤害；施法完成时，目标及其上下左右四格内它可以攻击的单位（`around`）各受到攻击力 × `ep_damage_ratio` 的凋亡损伤。目标离场、不能被选中，或它自己不能行动时，施法中止，没有最后的凋亡损伤。
 
 - 来源：[PRTS「萨卡兹王庭军战士」oldid=436441](https://prts.wiki/index.php?title=%E8%90%A8%E5%8D%A1%E5%85%B9%E7%8E%8B%E5%BA%AD%E5%86%9B%E6%88%98%E5%A3%AB&oldid=436441)「每次攻击附加相当于攻击力37%的凋亡损伤」；[PRTS「萨卡兹王庭军术师」oldid=436440](https://prts.wiki/index.php?title=%E8%90%A8%E5%8D%A1%E5%85%B9%E7%8E%8B%E5%BA%AD%E5%86%9B%E6%9C%AF%E5%B8%88&oldid=436440)「对攻击范围内一名我方单位持续施法，每秒造成攻击力40%的法术持续伤害，持续8s。持续施法完成时，对目标及其周围4格的我方单位造成攻击力220%的凋亡损伤。※技能期间，持有沉默反制」「普通攻击附加自身攻击力25%的凋亡损伤」；[PRTS「异常效果」oldid=440606](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=440606)「获得包含异常反制效果的 Buff 时，包含了对应异常效果的 Buff 会被立刻清除……异常反制生效期间，包含对应异常效果的 Buff 无法被添加」；数据：enemy_database 的 epdamage、empty、DeathEye（cooldown 24、initCooldown 10、hit_duration、atk_scale、ep_damage_ratio）。施法期间不移动不攻击、中止的条件、每秒一跳的时刻为推断 INF-0222
@@ -275,6 +277,63 @@ IG-S-2 中关卡把 `invincible` 改为 20，把 `AtkUp` 的 `damage_resistance`
 - **不攻击飞行单位**（深池暗影术师、深池暗影术师队长，内容补上的天赋 `noFly`）：攻击的候选里去掉行动方式为飞行的单位。起飞的干员不是飞行单位，不受这一条影响。
 
 - 来源：[PRTS「深池侦察犬」oldid=353479](https://prts.wiki/index.php?title=%E6%B7%B1%E6%B1%A0%E4%BE%A6%E5%AF%9F%E7%8A%AC&oldid=353479)「折射：法术抗性增加70（可被沉默）」，[PRTS「深池侦察犬pro」oldid=353480](https://prts.wiki/index.php?title=%E6%B7%B1%E6%B1%A0%E4%BE%A6%E5%AF%9F%E7%8A%ACpro&oldid=353480)、[PRTS「深池侦察兵」oldid=353481](https://prts.wiki/index.php?title=%E6%B7%B1%E6%B1%A0%E4%BE%A6%E5%AF%9F%E5%85%B5&oldid=353481)、[PRTS「深池侦察队长」oldid=353482](https://prts.wiki/index.php?title=%E6%B7%B1%E6%B1%A0%E4%BE%A6%E5%AF%9F%E9%98%9F%E9%95%BF&oldid=353482)、[PRTS「深池重甲卫士」oldid=353490](https://prts.wiki/index.php?title=%E6%B7%B1%E6%B1%A0%E9%87%8D%E7%94%B2%E5%8D%AB%E5%A3%AB&oldid=353490)、[PRTS「深池重甲卫士队长」oldid=353491](https://prts.wiki/index.php?title=%E6%B7%B1%E6%B1%A0%E9%87%8D%E7%94%B2%E5%8D%AB%E5%A3%AB%E9%98%9F%E9%95%BF&oldid=353491) 同一句；[PRTS「术语释义」oldid=401060](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=401060)「折射生效时，法术抗性+70」「触发沉默1帧后失效」；[PRTS「深池方阵战士」oldid=353488](https://prts.wiki/index.php?title=%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%88%98%E5%A3%AB&oldid=353488)、[PRTS「深池方阵指挥官」oldid=353489](https://prts.wiki/index.php?title=%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%8C%87%E6%8C%A5%E5%AE%98&oldid=353489)「折射：法术抗性增加70（可被沉默）」「自身1.5半径内除自身外其它深池方阵战士/深池方阵指挥官防御力增加200（可无限叠加，不可被沉默）」；[PRTS「深池暗影术师」oldid=367785](https://prts.wiki/index.php?title=%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88&oldid=367785)、[PRTS「深池暗影术师队长」oldid=367786](https://prts.wiki/index.php?title=%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88%E9%98%9F%E9%95%BF&oldid=367786)「不会攻击飞行单位」「折射：法术抗性增加70（可被沉默）」；数据：enemy_database 的 refracting（magic_resistance 70）、auraDefup（def 200）。沉默按敌人自己的回合检查为推断 INF-0300；方阵按附近的人数给自己加防御、半径取页面的 1.5、每回合重算为推断 INF-0301；不攻击飞行单位只排除行动方式为飞行的单位、只加在两种术师上为推断 INF-0302
+
+### 敌能-34 守墓石像
+
+天赋 `stone`（守墓石像、愤怒的守墓石像）：
+
+- **地面**：只攻击阻挡自己的单位，伤害类型按普通攻击（敌能-1）。
+- **首次被击败**：重生瞬间完成。清空身上全部 Buff，生命回到最大生命，解除阻挡，技能冷却回到初始冷却，进入转换模式。持有破碎时直接退场，以及破碎支柱，还没有实现。
+- **转换模式**（`duration` 秒）：无法被阻挡，不能移动（自缚只是不能移动的标记，不加束缚状态），失衡免疫，免疫浮空，不攻击；防御力直接加算 + `def`，法术抗性直接加算 + `magic_resistance`。期间受的伤害留着。
+- **飞行模式**：转换模式结束时，把自己的行动方式改成飞行（`fly()`，路线-2），解除阻挡，失衡免疫。攻击改为法术，不攻击飞行单位。再被击败就离场。两种石像都这样。
+
+- 来源：[PRTS「守墓石像」oldid=367090](https://prts.wiki/index.php?title=%E5%AE%88%E5%A2%93%E7%9F%B3%E5%83%8F&oldid=367090)「仅在被阻挡时进行近战攻击」「首次被击败时：①如持有破碎效果，则直接退场②否则进行重生。重生瞬间完成，恢复100%生命值，重生结束后切换至转换模式」「持续10s」「无法被阻挡，自缚，失衡免疫，免疫浮空。防御力增加800，法术抗性增加30」「持续时间结束后切换至飞行模式」「变为飞行单位，失衡免疫。可进行远程攻击，造成法术伤害，不会攻击飞行单位」，自缚「效果与束缚相同，但不会被识别为束缚」；[PRTS「愤怒的守墓石像」oldid=353495](https://prts.wiki/index.php?title=%E6%84%A4%E6%80%92%E7%9A%84%E5%AE%88%E5%A2%93%E7%9F%B3%E5%83%8F&oldid=353495)「无法被阻挡，无法移动，失衡免疫，免疫浮空。防御力增加800，法术抗性增加30」「变为飞行单位，失衡免疫。可进行远程攻击，造成法术伤害」；[PRTS「特殊机制」oldid=374633](https://prts.wiki/index.php?title=%E7%89%B9%E6%AE%8A%E6%9C%BA%E5%88%B6&oldid=374633) 重生「清空自身身上除白名单外所有buff」「重生结束时，重置自身当前技能冷却为初始冷却。」；数据：enemy_database 的 stone（def 800、magic_resistance 30、duration 10）。转换模式会受伤且不攻击、白名单为空、自缚不是束缚、愤怒的守墓石像飞行后也不攻击飞行单位为推断 INF-0305
+### 敌能-35 支援光环与暴露
+
+同名天赋按 blackboard 的形状分开。光环用借出的 Buff（敌能-25）：一个效果一个键，几份不叠加；持有者被沉默就不再借出，最迟两帧后消失。半径按圆心距离，不超过该半径算在内。
+
+- **不进行普通攻击**（御4、寒霜，`defup` 带 `range_radius`）：出现时起不普通攻击（`noAttack`）。「可被沉默」写在光环那一句上，被沉默也不恢复攻击。静态刚体不在本条。
+- **防御力**（`defup` 同时有 `def` 和 `range_radius`，御4）：半径内的其他非中立敌人防御力直接加算 + `def`（300），键 `defup`。只有半径、没有 `def` 的（寒霜）不加防御。只有 `def`、没有半径的还没有行为（关卡-2）。「实体类型为默认类或装置类」为推断 INF-0307。
+- **法术抗性**（`magdef_add`，护障、护障·P）：自身攻击范围内的其他非中立敌人法术抗性直接加算 + `magic_resistance`（30），不含自己，键 `magdef`。攻击范围按记录的 `rangeRadius` 的圆心距离，不加干员碰撞的 0.25，为推断 INF-0308。
+- **攻击速度**（`atkSpeedDown` 带 `range_radius`，寒霜）：半径内它可以选中的我方单位（不含中立；隐匿的不算）攻击速度直接乘算 `attack_speed`（−0.5），键 `frostAspd`。数据把 2.5 写在 `defup` 上，内容按页面加到 `atkSpeedDown`。直接乘算为推断 INF-0309。没有 `range_radius` 的 `atkSpeedDown` 仍是畸变恶性瘤（敌能-23），键仍是 `atkSpeedDown`。
+- **暴露**（`Expose` 带 `range_radius`，远眺）：被击倒且没被沉默时，半径内它可以选中的我方单位（不含中立；隐匿的不算）获得 `weak[limit]` 秒脆弱，v = `damage_scale` − 1（状态-5；同名效果取最高，状态-2）。走到终点不算被击倒（敌能-2）。没有半径的 `Expose` 还没有行为（关卡-2）。v 与「20%脆弱」的对应为推断 INF-0310。暴露还可以无视封阻物或作战专用掩体触发直击；引擎还没有这些装置，这一半不起作用。
+
+- 来源：[PRTS「御4」oldid=380622](https://prts.wiki/index.php?title=%E5%BE%A14&oldid=380622)「不进行普通攻击」「使2.5半径范围内实体类型为默认类或装置类的其他敌方单位防御力+300（不可叠加，可被沉默）」；[PRTS「寒霜」oldid=371399](https://prts.wiki/index.php?title=%E5%AF%92%E9%9C%9C&oldid=371399)「不进行普通攻击」「使2.5半径范围内的所有我方单位攻击速度-50%（不可叠加；可被沉默）」；[PRTS「护障」oldid=287837](https://prts.wiki/index.php?title=%E6%8A%A4%E9%9A%9C&oldid=287837)、[PRTS「护障·P」oldid=353844](https://prts.wiki/index.php?title=%E6%8A%A4%E9%9A%9C%C2%B7P&oldid=353844)「自身攻击范围内全体敌人（不含自身）法术抗性+30」「※不可叠加，可被沉默」，攻击范围半径 2.5；[PRTS「远眺」oldid=353936](https://prts.wiki/index.php?title=%E8%BF%9C%E7%9C%BA&oldid=353936)「被击倒后使半径1.7范围内的我方单位暴露8s（可被沉默）」；[PRTS「特殊机制」oldid=374633](https://prts.wiki/index.php?title=%E7%89%B9%E6%AE%8A%E6%9C%BA%E5%88%B6&oldid=374633)「处于暴露状态的我方单位，获得20%脆弱，可无视封阻物或作战专用掩体触发敌人的直击」；[PRTS「作战机制」oldid=428460](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=428460)「隐匿状态下的单位一般无法被敌方的索敌机制和Buff选择器选中为目标」；数据：enemy_database 的 defup（def、range_radius）、magdef_add（magic_resistance）、atkSpeedDown（attack_speed）、Expose（weak[limit]、range_radius、damage_scale）
+### 敌能-36 攻击回复的下一次攻击
+
+技能 `stuncombat` 与 `PowerAttack` 按攻击回复技力，每次开始一次攻击记 1 点。技力还不到消耗 `sp` 时，这次仍是普通攻击，技力加 1，不超过消耗。技力已经满、冷却就绪、且没被沉默时，这次改为技能攻击：技力清零，冷却按该技能的 `cooldown` 重计（敌能-2 的 `use`）。冷却还没就绪，或正在被沉默时，不释放，技力停在消耗上；被沉默时普通攻击仍加技力。
+
+- **眩晕打击**（`stuncombat`，粉碎攻坚手、粉碎攻坚组长、码头水手、码头水手长）：技能攻击命中时施加 `stun` 秒晕眩。攻坚手和组长的消耗是 2、晕眩 7 秒；水手和水手长的消耗是 3、晕眩 7 秒。能力以 ※ 开头，可被沉默。天赋 `Drown` 没有行为，关卡仍因它拒绝。
+- **强力击**（`PowerAttack`，无胄盟清扫小队，以及数据里带同一技能的敌人）：技能攻击的攻击力倍率再乘 `atk_scale`。`ep_damage_ratio` 不用。天赋 `EpDamage` 没有行为，仍未覆盖。图鉴这一条以 · 开头，和站内「技能默认可被沉默」冲突时以站内描述为准，所以可被沉默。
+- **寒晖与二连击**（澪的 `PowerAttack`）：`times` 数据里没有，内容按 PRTS 加上 2。每次攻击的命中次数都乘这一个 2；寒晖再乘 `atk_scale`，不把技能表里的「2次」再乘一次。弹开「某种天命」不做。页面写她有沉默抗性（数据：`silenceImmune` 为真），沉默不会上身；行为只看身上有没有沉默。
+
+- 来源：[PRTS「粉碎攻坚手」oldid=355297](https://prts.wiki/index.php?title=%E7%B2%89%E7%A2%8E%E6%94%BB%E5%9D%9A%E6%89%8B&oldid=355297)「※攻击2次后，下一次攻击会晕眩目标」「0/2，攻击回复」「眩晕打击」初始冷却 1、周期冷却 1、技力消耗 2、「造成的攻击使目标晕眩7秒」。技能表说明浮层（不是能力句）写「如无特殊说明，技能默认可被沉默（但要注意沉默抗性会使沉默不生效）」；[PRTS「粉碎攻坚组长」oldid=355296](https://prts.wiki/index.php?title=%E7%B2%89%E7%A2%8E%E6%94%BB%E5%9D%9A%E7%BB%84%E9%95%BF&oldid=355296) 同一句能力、技力槽和「眩晕打击」，技能表说明浮层另写「若与图鉴的能力一栏中官方给出的可沉默/不可沉默“※/·”标注冲突，以站内描述为准」；[PRTS「澪」oldid=358826](https://prts.wiki/index.php?title=%E6%BE%AA&oldid=358826)「·攻击变为二连击」「·【寒晖】数次攻击后下次攻击造成更高伤害的二连击」「0/3，攻击回复」「寒晖」初始冷却 /、周期冷却 /、技力消耗 3、「对目标造成2次攻击力150%的物理伤害」「普通攻击为2连击」「异常抗性」沉默；[PRTS「无胄盟清扫小队」oldid=367257](https://prts.wiki/index.php?title=%E6%97%A0%E8%83%84%E7%9B%9F%E6%B8%85%E6%89%AB%E5%B0%8F%E9%98%9F&oldid=367257)「·数次攻击后，下一次攻击造成的伤害提升」「0/3，攻击回复」「强力击」初始冷却 1、周期冷却 1、技力消耗 3、「造成攻击力150%的物理伤害和攻击力35%的侵蚀损伤」。技能表说明浮层写「技能默认可被沉默」「若与图鉴的能力一栏中官方给出的可沉默/不可沉默“※/·”标注冲突，以站内描述为准」；数据：enemy_database 的 stuncombat（攻坚手、组长 initCooldown 1、cooldown 1、spCost 2、stun 7；码头水手、水手长 initCooldown 1、cooldown 1、spCost 3、stun 7，天赋 Drown）、PowerAttack（澪 initCooldown 0、cooldown 0、spCost 3、atk_scale 1.5，talents 空；清扫小队 initCooldown 1、cooldown 1、spCost 3、atk_scale 1.5、ep_damage_ratio 0.35，天赋 EpDamage）。澪的二连击挂在技能黑板上为推断 INF-0311；强力击按站内默认可沉默为推断 INF-0312
+### 敌能-37 静态刚体
+
+御4（`enemy_1017_defdrn`）、寒霜（`enemy_1042_frostd`）、“萨科塔之翼”（`enemy_10083_hlbird`）、“萨科塔之眼”（`enemy_10084_hlegle`）、“萨科塔昂首”（`enemy_10085_hllevi_2`）和愧悔魂灵圣杯（`enemy_1430_lrrook`）是静态刚体（位移-5），各自的页面能力栏这样写。敌人数据没有这个字段。内容给它们加上数据里没有的天赋 `Static`（blackboard 为空）：出场时获得不过期的 Buff（键 `static`，标记 `staticBody`）。页面上同时写的其他能力（不进行普通攻击、光环、恐惧、分摊伤害）不在本条。
+
+单独用一个天赋：内容的附加项只能补进天赋或技能的 blackboard，不能给单位加字段；它们已有的天赋是光环，而且 `atkSpeedDown` 已是别的行为的名字（敌能-23）。这与数据里没有、由内容补上天赋的做法相同（敌能-21）。为推断 INF-0322。
+
+- 来源：[PRTS「御4」oldid=380622](https://prts.wiki/index.php?title=%E5%BE%A14&oldid=380622)、[PRTS「寒霜」oldid=371399](https://prts.wiki/index.php?title=%E5%AF%92%E9%9C%9C&oldid=371399)、[PRTS「“萨科塔之翼”」oldid=375648](https://prts.wiki/index.php?title=%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E4%B9%8B%E7%BF%BC%E2%80%9D&oldid=375648)、[PRTS「“萨科塔之眼”」oldid=388054](https://prts.wiki/index.php?title=%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E4%B9%8B%E7%9C%BC%E2%80%9D&oldid=388054)、[PRTS「“萨科塔昂首”」oldid=376212](https://prts.wiki/index.php?title=%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E6%98%82%E9%A6%96%E2%80%9D&oldid=376212)、[PRTS「愧悔魂灵圣杯」oldid=386513](https://prts.wiki/index.php?title=%E6%84%A7%E6%82%94%E9%AD%82%E7%81%B5%E5%9C%A3%E6%9D%AF&oldid=386513) 能力栏「静态刚体」；数据：`act1multi_rm05.json` 的 enemy_1017_defdrn、enemy_1042_frostd 没有静态刚体字段（御4 的天赋是 `defup`，寒霜的是 `atkSpeedDown` 与 `defup`）。用数据里没有的天赋 `Static` 挂标记，为推断 INF-0322
+### 敌能-38 普通攻击附带的元素损伤
+
+天赋 `epdamage`、`empty`、`EpDamage`、`combat`、`attack`，blackboard 里只有 `attack@ep_damage_ratio`，以及内容补上的 `el` 和 `cross` 时，普通攻击每次命中附加攻击力 × 该倍率的元素损伤（元素-2）。多出来的键不是这项能力，关卡仍因它不完整而拒绝（关卡-2）。
+
+- **元素**：种类不在敌人数据里。内容按敌人把 `el` 补进这项天赋，编号与元素-1、爆发事件的 `el` 相同：1 神经、2 侵蚀、3 灼燃、4 凋亡、5 狂躁。没有 `el`，或 `el` 不是 1 到 5 的整数，这项能力不完整，攻击也不附加元素损伤。
+- **周围四格**：`cross` 为 1 时，这一下是十字溅射（敌能-26），周围格与目标受到相同的伤害，元素损伤也不打折。没有 `cross` 时只打命中的目标。
+- **王庭军**（`epdamage` 倍率 0.37，`empty` 倍率 0.25）：战士、精锐战士、术师、精锐术师的 `el` 为 4。死亡之眼仍按敌能-29，固定凋亡。
+- **底海滑动者、富营养的滑动者**（`epdamage` 0.15）：`el` 为 1。
+- **骇笑看客**（`combat` 0.2）：`el` 为 1。
+- **绯红歌伶**（`attack` 0.2）：`el` 为 1。天赋 `AttackSpeedUp` 要同时有数字 `attack_speed`、`duration`、`stack_cnt` 才是这项能力；`warning_stack_cnt` 可以有，只对应身上的烟雾，不起作用。每受到 `stack_cnt` 次会计入受击回复的伤害（技能-2，在同一处计数，上下文的 `taken`），使当时在场的全体非中立敌人攻击速度直接加算 + `attack_speed`，持续 `duration` 秒。一次回合只结算一批，多出来的次数留到以后的回合。已经有这份效果时，这一批照样扣掉，但不加第二份，也不刷新剩余时间；同一帧两名歌伶也只加一份。当时不在场的敌人得不到。结算在歌伶的下一次回合，不在第 20 次受击的那一帧。
+- **灼热源石虫、炽焰源石虫**（`EpDamage` 1）：`el` 为 3。法术伤害来自图鉴的伤害类型（敌能-1）。
+- **控潮术师、领潮员、术师快艇**（`EpDamage` 0.8）：`el` 为 2，`cross` 为 1。
+- **骨海漂流体**（0.2）、**掠海漂移体**（0.5）、**无胄盟清扫小队**（0.35）：`el` 为 2，没有 `cross`。
+- **掠海漂移体**另有内容补上的空天赋 `Float`（近地悬浮）和 `noFly`（不会攻击飞行单位）。两者都不在本条（敌能-20 是另一名敌人）；没有行为的天赋让关卡仍拒绝它，`noFly` 与「不会攻击飞行单位」的行为由别处给出时生效。
+- **术师快艇**的免疫水蚀、死亡后召唤不在本条。没有水蚀；元素免疫免的是全部元素（状态-9），对不上。数据里的 `DeathRattle` 与敌能-23 的 `deathrattle` 不是同一个名字，形状也不只这一种，这里不实现。快艇因此仍不完整。
+- **无胄盟清扫小队**的技能 `PowerAttack` 不在本条；「普通攻击与技能不会攻击飞行单位」记为内容补上的空天赋 `noFly`，同样不在本条。没有这些行为时小队仍不完整。
+- 本条没有点名的同形敌人不补 `el`，仍不完整。领潮员快艇、清扫小队组长、青金，罗伊都不补。
+
+- 来源：[PRTS「底海滑动者」oldid=353445](https://prts.wiki/index.php?title=%E5%BA%95%E6%B5%B7%E6%BB%91%E5%8A%A8%E8%80%85&oldid=353445)「普通攻击额外造成攻击力15%的神经损伤」；[PRTS「富营养的滑动者」oldid=353446](https://prts.wiki/index.php?title=%E5%AF%8C%E8%90%A5%E5%85%BB%E7%9A%84%E6%BB%91%E5%8A%A8%E8%80%85&oldid=353446)「普通攻击额外造成攻击力15%的神经损伤」；[PRTS「骇笑看客」oldid=354182](https://prts.wiki/index.php?title=%E9%AA%87%E7%AC%91%E7%9C%8B%E5%AE%A2&oldid=354182)「普通攻击附带自身攻击力20%的神经损伤」；[PRTS「绯红歌伶」oldid=354183](https://prts.wiki/index.php?title=%E7%BB%AF%E7%BA%A2%E6%AD%8C%E4%BC%B6&oldid=354183)「普通攻击附带自身攻击力20%的神经损伤」「每受到20次可触发受击回复的伤害后，使当前场上全体敌方单位攻击速度增加100，持续10s（不可叠加）」「天赋累积的层数不低于10层时，绯红歌伶身上会出现明显的红色烟雾特效提示」；[PRTS「灼热源石虫」oldid=367189](https://prts.wiki/index.php?title=%E7%81%BC%E7%83%AD%E6%BA%90%E7%9F%B3%E8%99%AB&oldid=367189)「攻击造成法术伤害，并附加自身攻击力100%的灼燃损伤」；[PRTS「炽焰源石虫」oldid=367187](https://prts.wiki/index.php?title=%E7%82%BD%E7%84%B0%E6%BA%90%E7%9F%B3%E8%99%AB&oldid=367187)「攻击造成法术伤害，并附加自身攻击力100%的灼燃损伤」；[PRTS「控潮术师」oldid=365951](https://prts.wiki/index.php?title=%E6%8E%A7%E6%BD%AE%E6%9C%AF%E5%B8%88&oldid=365951)「攻击时对目标及其周围四格内的所有我方单位造成法术普通伤害，并附加攻击力80%的侵蚀损伤」；[PRTS「领潮员」oldid=353468](https://prts.wiki/index.php?title=%E9%A2%86%E6%BD%AE%E5%91%98&oldid=353468)「攻击时对目标及其周围四格内的所有我方单位造成法术普通伤害，并附加攻击力80%的侵蚀损伤」；[PRTS「术师快艇」oldid=353469](https://prts.wiki/index.php?title=%E6%9C%AF%E5%B8%88%E5%BF%AB%E8%89%87&oldid=353469)「免疫水蚀」「攻击时对目标及其周围四格内的所有我方单位造成法术普通伤害，并附加攻击力80%的侵蚀损伤」「死亡0.8s后在0.2边长正方形范围内随机位置以自身路径召唤1个控潮术师」；[PRTS「骨海漂流体」oldid=354187](https://prts.wiki/index.php?title=%E9%AA%A8%E6%B5%B7%E6%BC%82%E6%B5%81%E4%BD%93&oldid=354187)「攻击附加相当于攻击力20%的侵蚀损伤」；[PRTS「掠海漂移体」oldid=379242](https://prts.wiki/index.php?title=%E6%8E%A0%E6%B5%B7%E6%BC%82%E7%A7%BB%E4%BD%93&oldid=379242)「普通攻击附加攻击力50%的侵蚀损伤，不会攻击飞行单位」及近地悬浮；[PRTS「无胄盟清扫小队」oldid=367257](https://prts.wiki/index.php?title=%E6%97%A0%E8%83%84%E7%9B%9F%E6%B8%85%E6%89%AB%E5%B0%8F%E9%98%9F&oldid=367257)「普通攻击与技能不会攻击飞行单位」「普通攻击时额外造成攻击力35%的侵蚀损伤」；[PRTS「萨卡兹王庭军战士」oldid=436441](https://prts.wiki/index.php?title=%E8%90%A8%E5%8D%A1%E5%85%B9%E7%8E%8B%E5%BA%AD%E5%86%9B%E6%88%98%E5%A3%AB&oldid=436441)「每次攻击附加相当于攻击力37%的凋亡损伤」；[PRTS「萨卡兹王庭军术师」oldid=436440](https://prts.wiki/index.php?title=%E8%90%A8%E5%8D%A1%E5%85%B9%E7%8E%8B%E5%BA%AD%E5%86%9B%E6%9C%AF%E5%B8%88&oldid=436440)「普通攻击附加自身攻击力25%的凋亡损伤」；数据：ArknightsGameData 17759cc8 的 enemy_database（`attack@ep_damage_ratio`，绯红歌伶另有 `attack_speed`、`duration`、`stack_cnt`、`warning_stack_cnt`）。元素种类记在键 `el` 上为推断 INF-0323；这些天赋名只认上述 blackboard 形状为推断 INF-0324；歌伶的结算时刻、不可叠加与一批一次为推断 INF-0325；空天赋 `Float` 为推断 INF-0326
 ### 敌能-39 岁兽残响
 
 残响（木制瑞印、红木瑞印、小说卷轴、诗画卷轴、青铜镜、黄铜镜、木制镇纸、红木镇纸）具有特殊生命值。数据里没有这项天赋，内容按图鉴给它们加上 `hitCount`。生命值就是击倒所需的次数（数据的 `maxHp`：2、3、3、4、30、35、3、4），不另换算。关卡符文 `enemy_attribute_mul` 的 `max_hp` 仍按关卡-2 乘在这个次数上，每次成功伤害仍只减 1。

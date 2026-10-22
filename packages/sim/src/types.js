@@ -91,15 +91,25 @@
  */
 
 /**
- * What a skill's description adds (技能-9): modifiers while it runs; and for its attacks, every enemy the operator blocks
+ * What a skill's description adds (技能-9, 技能-14): modifiers and flags while it runs; and for its attacks, every enemy the operator blocks
  * as targets, `more` targets than it would have, `times` hits, the damage type, a status each hit gives (at a chance
  * `prob`), modifiers each hit gives its target for some seconds (`hitDebuff`), the operator's own HP back for each attack
  * (`selfHeal`, a share of its maximum), the 元素损伤 each hit carries (`element`, `epScale` × its attack), a push or
  * pull of 力度 `force` on each target (`displace`; along the operator's facing for `along`).
- * @typedef {{ mods?: Record<string, number>, attack?: { blocked?: boolean, more?: number, times?: number, type?: DamageType,
+ * 技能-14, read from other sentences: `counter` while the skill runs, a `barrier` gained as it starts, `bursts` at the
+ * start or the end, `selfStun` when it ends, `allyHeal` for a friendly unit. `hitScale` `'attack'` means a plain
+ * `atk_scale` belongs to the counter or the burst, so the attack's scale is `attack@atk_scale`.
+ * @typedef {{ mods?: Record<string, number>, flags?: Record<string, boolean>, attack?: { blocked?: boolean, more?: number, times?: number, type?: DamageType,
  *   hitStatus?: { key: import('./status.js').StatusKey, seconds: number, prob?: number }, hitDebuff?: { seconds: number, mods: Record<string, number> },
  *   selfHeal?: number, element?: import('./elements.js').Element, epScale?: number,
- *   displace?: { pull: boolean, force: number, along?: boolean } } }} SkillExtra
+ *   displace?: { pull: boolean, force: number, along?: boolean } },
+ *   counter?: { scale: number, stat: 'atk' | 'def', type: DamageType, around?: boolean, ground?: boolean, cooldown?: number,
+ *     element?: import('./elements.js').Element, epScale?: number, silence?: number },
+ *   barrier?: { ratio: number, seconds: number, decay?: boolean, type?: 'phys', cap?: number, tied?: boolean },
+ *   bursts?: { at: 'start' | 'end', scale: number, type: DamageType, where: 'attack' | 'cells', range?: Cell[] }[],
+ *   selfStun?: { seconds: number },
+ *   allyHeal?: { scale: number, all?: boolean, others?: boolean, on: 'attack' | 'start', below?: number, range?: Cell[] },
+ *   hitScale?: 'attack' }} SkillExtra
  */
 /**
  * An enemy's skill (敌能-1): its name (prefabKey), first and later cooldowns in seconds, SP cost (spCost; 0 for none),
@@ -134,6 +144,7 @@
  *   much (技能-10)
  * @property {SkillAllies} [allies] what it gives the friendly units in its attack range while it runs (技能-11)
  * @property {AlchemyDef} [alchemy] the 炼金单元 it throws as it starts; it is then an instant skill (技能-13)
+ * @property {'start' | 'end'} [doll] the skill switches a 傀儡师 to its 替身 as it starts, or after it ends on its own (职业-15)
  */
 /**
  * What a skill's 炼金单元 does (技能-13). `at`: thrown at the enemies (the operator's target, else the farthest tile ahead in
@@ -564,8 +575,9 @@
  */
 /**
  * A deployment talent (部署-8): SP between `sp[0]` and below `sp[1]`, a heal of every operator (`value` HP or `scale` × the
- * attack), shield layers.
- * @typedef {{ sp?: [number, number], heal?: { value: number } | { scale: number }, shield?: number }} DeployTalent
+ * attack), shield layers. `break` is what each broken layer does (干员-14): stacked `mods`, at most `max`, and `sp`.
+ * @typedef {{ sp?: [number, number], heal?: { value: number } | { scale: number }, shield?: number,
+ *   break?: { mods?: { atkPct?: number, defPct?: number }, max?: number, sp?: number } }} DeployTalent
  */
 /**
  * What a carried unit's deployment does (装置-6): for every operator on the field then, modifiers (`allyMods`) or a
@@ -582,8 +594,9 @@
 /**
  * A chance talent (攻击-4): on each attack, with chance `prob`, the attack's 倍率 × `scale`, and maybe a stun of `stun`
  * seconds on each hit and `more` targets, `atk` more attack (直接乘算) for that attack, `ignoreDef` of the targets' 防御
- * ignored, × `times` hits.
+ * ignored, × `times` hits. `front`: while the primary target's centre lies on those tiles, the chance is `front.prob` (干员-12).
  * @typedef {{ prob: number, scale: number, stun?: number, more?: number, atk?: number, ignoreDef?: number, times?: number, skillProb?: number,
+ *   front?: { tiles: number, prob: number },
  *   pick?: { times?: number, stun?: number, ignoreDef?: number }[], grow?: { power: string, step: number, max: number }, ammoProb?: number, sp?: number }} CritTalent
  */
 /**
@@ -702,7 +715,8 @@
  * @property {number} frag the frame its spawn's fragment began
  * @property {number} wave the wave that must wait for it to be handled (波次-3), −1 for none
  * @property {boolean} [unharmful] it costs no life at the goal (目标-1)
- * @property {Record<string, number>} ab an enemy's ability state (敌能-2): cooldowns, marks, what it saw last turn
+ * @property {Record<string, number>} ab an enemy's ability state (敌能-2): cooldowns, marks, what it saw last turn;
+ *   `@taken` counts accepted hits once an ability of its asks (敌能-38); absent otherwise, and never on an operator
  * @property {SkillState | null} skill its skill, null when it has none (技能-1)
  * @property {Record<string, number>} ep element values below their maximum, by element (元素-1); none recorded is at its maximum
  * @property {number} paid the cost its deployment took, 0 for enemies (撤退-1)
@@ -713,7 +727,8 @@
  * @property {{ vx: number, vy: number, hard: number, pull?: { x: number, y: number, bx: number, by: number, f: number, x0: number, left: number, stop: boolean,
  *   trauma?: { per: number, every: number, src: number, moved: number, frames: number } } }} [slide]
  *   its 失衡 slide: speed (tiles/s) and 硬直 frames left (位移-3); a pull on it — its point, its puller's centre, its force,
- *   the distance it began at, its frames left, whether it stopped (位移-4)
+ *   the distance it began at, its frames left, whether it stopped (位移-4). A 静态刚体 keeps vx and vy at 0 and drops the
+ *   slide when the force ends (位移-5)
  * @property {number} anim schema ANIM
  * @property {Drift} [drift] 恐惧 / 诱导 movement, present once either has been applied (状态-10, 状态-11)
  * @property {number} [summoner] the id of the unit that summoned it (召唤-4, 召唤-6); left out for others
@@ -797,6 +812,7 @@
  * @property {number} ammo shots left of an ammo skill
  * @property {number} at the frame it started
  * @property {number} [spend] the deployment cost it takes to start (技能-10)
+ * @property {boolean} [dollPending] set until this frame's flush when the skill has asked to switch to the 替身 (职业-15); absent otherwise, so a snapshot of a skill that never asked stays the same
  */
 
 /**
