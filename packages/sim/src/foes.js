@@ -17,6 +17,7 @@ import { release } from './blocking.js';
 import { spawnDevice } from './devices.js';
 import { keyAt } from './paths.js';
 import { bringIn, hatch } from './broods.js';
+import { takeBranch } from './spawn.js';
 import { devour } from './deck.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
@@ -100,6 +101,8 @@ export const BOLT_RADIUS = 0.3;
  * @property {() => Unit[]} enemies every enemy on the field that is not neutral, selectable or not (敌能-25)
  * @property {() => void} fly its own motion becomes flying and the move it is on is planned again (路线-2, 敌能-34)
  * @property {() => void} attackAgain its next attack may start at once: the attack cooldown is cleared (敌能-44, 攻击-2)
+ * @property {(branchId: string) => Unit | null} summonNext the next plain SPAWN individual of a level branch, at that
+ *   entry's own route start (敌能-79); null when the branch has none left. A missing enemy key is skipped
  */
 
 /**
@@ -209,6 +212,7 @@ function contextOf(w, c, e, of) {
     enemies: () => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0),
     fly: () => { becomeFlyer(e); },
     attackAgain: () => { ab['@again'] = 1; },
+    summonNext: (branchId) => takeBranch(w, c, branchId),
   };
 }
 

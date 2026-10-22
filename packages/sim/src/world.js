@@ -235,11 +235,11 @@ function pushText(out, tag, s) {
  * The state hash (spec 同步-1): the frame, the random state, the id counter, the waves' progress, the predefined units in
  * effect, the result, the co-op stages, the players, the units, the projectiles, bolts and explosions, 堡垒守御's
  * progress when there is one (守御-1), the enemies brought in to appear later once there have been some (敌能-22), the 炼金单元
- * once there have been some (技能-13), all of their data.
+ * once there have been some (技能-13), how many branch individuals 召唤弩炮 has taken once it has taken one (敌能-79), all of their data.
  * @param {World} w @returns {number}
  */
 export function stateHash(w) {
   return hashValue(HASH_START, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, stage: w.stage, players: w.players, units: w.units, shots: w.shots, blasts: w.blasts, bolts: w.bolts,
-    fortress: w.fortress, broods: w.broods, alchemy: w.alchemy });
+    fortress: w.fortress, broods: w.broods, alchemy: w.alchemy, branchAt: w.branchAt });
 }
 
