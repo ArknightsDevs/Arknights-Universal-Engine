@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-34): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-34、敌能-59): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read. They act only through the context (ADR 0055).
 
@@ -12,6 +12,7 @@ import { sarkazBehaviors } from './sarkaz.js';
 import { devourerBehaviors } from './devourers.js';
 import { refractBehaviors } from './refract.js';
 import { statueBehaviors } from './statue.js';
+import { bombardBehaviors } from './bombard.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -87,6 +88,9 @@ export const FOE_EXTRAS = Object.freeze({
   // 深池暗影术师/深池暗影术师队长: 不会攻击飞行单位 — its own talent, not part of 折射
   enemy_1168_dumage: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88&oldid=367785` },
   enemy_1168_dumage_2: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88%E9%98%9F%E9%95%BF&oldid=367786` },
+  // 伦蒂尼姆城防自行炮/高准度伦蒂尼姆城防自行炮: 轰炸持续 6 秒、每 0.5 秒、最多 10 次（页面；数据只有 atk_scale）
+  enemy_1273_stmgun: { skills: { Cannon: { duration: 6, interval: 0.5, times: 10 } }, source: `${PRTS}%E4%BC%A6%E8%92%82%E5%B0%BC%E5%A7%86%E5%9F%8E%E9%98%B2%E8%87%AA%E8%A1%8C%E7%82%AE&oldid=353692` },
+  enemy_1273_stmgun_2: { skills: { Cannon: { duration: 6, interval: 0.5, times: 10 } }, source: `${PRTS}%E9%AB%98%E5%87%86%E5%BA%A6%E4%BC%A6%E8%92%82%E5%B0%BC%E5%A7%86%E5%9F%8E%E9%98%B2%E8%87%AA%E8%A1%8C%E7%82%AE&oldid=353693` },
 });
 
 /**
@@ -254,6 +258,7 @@ const PowerHit = Object.freeze({
 export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
   ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...devourerBehaviors, ...refractBehaviors, ...statueBehaviors,
+  ...bombardBehaviors,
 });
 
 /**
@@ -270,6 +275,7 @@ export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp', 'Stronger', 
 export const FOE_NEEDS = Object.freeze({
   boom: Object.freeze(['radius', 'delay']), Boom: Object.freeze(['radius', 'delay']), ranged: Object.freeze(['scale']),
   CrossAttack: Object.freeze(['bolts', 'hold', 'charge']), Targets: Object.freeze(['n']), 1: Object.freeze(['ammo']),
+  Cannon: Object.freeze(['duration', 'interval', 'times']),
 });
 
 /**
