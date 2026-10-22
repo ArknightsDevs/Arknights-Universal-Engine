@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-64): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-64, 敌能-80): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
@@ -21,6 +21,7 @@ import { runnerBehaviors } from './runners.js';
 import { takeDmg } from './chalice.js';
 import { unbalanceBehaviors } from './unbalance.js';
 import { seedBehaviors, bornBugsOwns } from './seeds.js';
+import { lootBehaviors } from './loot.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -169,6 +170,8 @@ export const FOE_EXTRAS = Object.freeze({
   // 枯朽之种 / 腐败之种: 静态刚体 is 敌能-37's Static. SelfDown is the knock-down after the hit. The data has neither.
   enemy_1269_nhfly: { talents: { Static: {}, SelfDown: {} }, source: `${PRTS}%E6%9E%AF%E6%9C%BD%E4%B9%8B%E7%A7%8D&oldid=373372` },
   enemy_1269_nhfly_2: { talents: { Static: {}, SelfDown: {} }, source: `${PRTS}%E8%85%90%E8%B4%A5%E4%B9%8B%E7%A7%8D&oldid=373373` },
+  // 赞助无人机: 静态刚体，不进行普通攻击. Static is 敌能-37; NoAttack is 敌能-64's marker for 不进行普通攻击.
+  enemy_1105_tyokai: { talents: { Static: {}, NoAttack: {} }, source: `${PRTS}%E8%B5%9E%E5%8A%A9%E6%97%A0%E4%BA%BA%E6%9C%BA&oldid=379221` },
 });
 
 /**
@@ -337,6 +340,7 @@ export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
   ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...elementHitBehaviors, ...devourerBehaviors, ...refractBehaviors, ...statueBehaviors, ...auraBehaviors, ...chargedBehaviors, ...staticBehaviors, ...timeBehaviors, ...runnerBehaviors, takeDmg, ...unbalanceBehaviors,
   ...seedBehaviors,
+  ...lootBehaviors,
 });
 
 /**

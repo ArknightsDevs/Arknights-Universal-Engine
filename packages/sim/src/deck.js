@@ -13,6 +13,7 @@ import { facilitySum, respawnFactor } from './facilities.js';
 import { foeLeave } from './talentfoe.js';
 import { shareLeave } from './talentaround.js';
 import { firstBlockLeave } from './talentfight.js';
+import { dropRumble } from './loot.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Player} Player @typedef {import('./types.js').Card} Card */
@@ -181,6 +182,11 @@ export function leaveField(w, c, u, retreated) {
   firstBlockLeave(w, c, u);
   if (c.operators[u.key].summon) {
     summonLeft(w, c, u);
+    return;
+  }
+  // 轰隆隆先生 (装置-7): the redeploy time already started at deploy. Leaving refunds nothing and does not start another.
+  if (c.operators[u.key].rumble) {
+    dropRumble(w, u);
     return;
   }
   const p = w.players[u.owner], d = c.operators[u.key], card = cardOf(p, u.key), t = traitOfDef(d);

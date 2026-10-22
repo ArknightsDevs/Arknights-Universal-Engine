@@ -463,3 +463,15 @@ IG-S-2 中关卡把 `invincible` 改为 20，把 `AtkUp` 的 `damage_resistance`
 **静态刚体**。两名之种用敌能-37 的天赋 `Static`：出场起持有标记 `staticBody`。数据里没有，内容补上。敌能-37 的名单不因此改。
 
 - 来源：[PRTS「枯朽萃聚使徒」oldid=353783](https://prts.wiki/index.php?title=%E6%9E%AF%E6%9C%BD%E8%90%83%E8%81%9A%E4%BD%BF%E5%BE%92&oldid=353783)「枯朽召唤」「0.7s延迟后，在自身位置，自身位置左1.0，自身位置右1.0，以自身路径各召唤1个枯朽之种」「不进行普通攻击」；[PRTS「腐败萃聚使徒」oldid=353784](https://prts.wiki/index.php?title=%E8%85%90%E8%B4%A5%E8%90%83%E8%81%9A%E4%BD%BF%E5%BE%92&oldid=353784)「枯朽召唤」「0.7s延迟后，在自身位置，自身位置左1.0，自身位置右1.0，以自身路径各召唤1个腐败之种」「不进行普通攻击」；[PRTS「枯朽之种」oldid=373372](https://prts.wiki/index.php?title=%E6%9E%AF%E6%9C%BD%E4%B9%8B%E7%A7%8D&oldid=373372)「接近干员时，自毁并对其造成物理伤害」「静态刚体」「普通攻击结束时，若自身未持有晕眩/冻结/浮空/沉睡，强制击杀自身」「攻击弹道飞行速度10」；[PRTS「腐败之种」oldid=373373](https://prts.wiki/index.php?title=%E8%85%90%E8%B4%A5%E4%B9%8B%E7%A7%8D&oldid=373373)「接近干员时，自毁并对其造成物理伤害」「静态刚体」「普通攻击结束时，若自身未持有晕眩/冻结/浮空/沉睡，强制击杀自身」「攻击弹道飞行速度10」；数据：enemy_database（17759cc8）的 BornBugs（initCooldown 10、cooldown 10、spCost 0、blackboard 空）、applyWay、motion、rangeRadius，使徒的 stunImmune、silenceImmune、sleepImmune、frozenImmune、levitateImmune，之种的 silenceImmune。第一次在第 300 帧、沉默时不发动为推断 INF-0474；左右沿地图 x 为推断 INF-0475；位置在施放时记下、出现在施放帧之后第 20 帧为推断 INF-0476；击杀在伤害大于 0 的命中帧为推断 INF-0477；弹道速度 10 不另作覆盖为推断 INF-0478；强制击倒及四种状态跳过为推断 INF-0479；算一次被击倒为推断 INF-0480；不攻击是不可沉默的标记为推断 INF-0481
+
+### 敌能-80 死亡爆炸予我方装置
+
+天赋 `loot`。被击倒时发动（敌能-2 的 `death`；走到终点离场不算）。blackboard 里 `token_key` 是非空字符串、且 `cnt` 是正数时，每位玩家的待部署区加上向下取整后的 `cnt` 张这种装置卡；不足 1 张不给。没有 `token_key`，或 `cnt` 不是正数，什么都不给。
+
+赞助无人机（`enemy_1105_tyokai`）的关卡记录给 `token_key` `trap_018_bomb`、`cnt` 1；enemy_database 的 talentBlackboard 是空的。开局张数是关卡 token 卡的 `count`（IG-DF-1 是 0）。给谁：每一位玩家各得这些张，不是打下它的那一方，也不是双方共用的一沓，为推断 INF-0571。
+
+静态刚体沿用敌能-37 的内容天赋 `Static`。不进行普通攻击是 `noAttack`（敌人攻击-1、敌能-40）：攻击方式 NONE、攻击力 0 仍会打到阻挡者。数据没有这项天赋，内容给敌能-64 的 `NoAttack`，出场时加上标记，为推断 INF-0575。页面没有写可被沉默，这只敌人也免疫沉默，被沉默仍发放、仍不攻击。
+
+发放走上下文的 `grantLoot(key, n)`。座上没有这张卡时什么都不做。装置怎么部署、怎么晕眩是装置-7。
+
+- 来源：[PRTS「赞助无人机」oldid=379221](https://prts.wiki/index.php?title=%E8%B5%9E%E5%8A%A9%E6%97%A0%E4%BA%BA%E6%9C%BA&oldid=379221)「静态刚体，不进行普通攻击」「死亡爆炸（予我方可部署装置）」「※装置的类型和数量取决于关卡配置（无默认配置）」「不攻击」「飞行」「·飞行单位·不计入歼灭数·死亡时获得可部署单位」；数据：act1multi_fortress_rm01 的 enemy_1105_tyokai 天赋 loot（token_key trap_018_bomb、cnt 1），cards.tokens 的 trap_018_bomb count 0。给每位玩家、不攻击由内容天赋给出为推断 INF-0571、推断 INF-0575
