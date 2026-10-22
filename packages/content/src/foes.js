@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-42): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-42, 敌能-57): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read. They act only through the context (ADR 0055).
 
@@ -12,6 +12,7 @@ import { sarkazBehaviors } from './sarkaz.js';
 import { devourerBehaviors } from './devourers.js';
 import { unbalanceBehaviors } from './unbalance.js';
 import { refractBehaviors } from './refract.js';
+import { pengBehaviors } from './peng.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -87,6 +88,9 @@ export const FOE_EXTRAS = Object.freeze({
   // 深池暗影术师/深池暗影术师队长: 不会攻击飞行单位 — its own talent, not part of 折射
   enemy_1168_dumage: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88&oldid=367785` },
   enemy_1168_dumage_2: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88%E9%98%9F%E9%95%BF&oldid=367786` },
+  // 抱蛋羽兽/拥霜羽兽: 不会攻击飞行单位；失衡移动结束后每 0.1 秒尝试强制触发【失去蛋】。`egg` marks the pages read.
+  enemy_10141_xdpeng: { talents: { speed: { every: 0.1 }, noFly: {} }, skills: { switch: { egg: 1 } }, source: `${PRTS}%E6%8A%B1%E8%9B%8B%E7%BE%BD%E5%85%BD&oldid=374461` },
+  enemy_10141_xdpeng_2: { talents: { speed: { every: 0.1 }, noFly: {} }, skills: { switch: { egg: 1 } }, source: `${PRTS}%E6%8B%A5%E9%9C%9C%E7%BE%BD%E5%85%BD&oldid=374462` },
 });
 
 /**
@@ -254,6 +258,7 @@ const PowerHit = Object.freeze({
 export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
   ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...devourerBehaviors, ...unbalanceBehaviors, ...refractBehaviors,
+  ...pengBehaviors,
 });
 
 /**
@@ -270,6 +275,8 @@ export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp', 'Stronger', 
 export const FOE_NEEDS = Object.freeze({
   boom: Object.freeze(['radius', 'delay']), Boom: Object.freeze(['radius', 'delay']), ranged: Object.freeze(['scale']),
   CrossAttack: Object.freeze(['bolts', 'hold', 'charge']), Targets: Object.freeze(['n']), 1: Object.freeze(['ammo']),
+  // `egg` is the page marker for the two read 羽兽; `move_speed` is the shape 斐迪庇第斯 does not have (敌能-57, 关卡-2).
+  switch: Object.freeze(['egg']), speed: Object.freeze(['move_speed']),
 });
 
 /**
