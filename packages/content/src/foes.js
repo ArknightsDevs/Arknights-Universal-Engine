@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-81): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-81, 敌能-82): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
@@ -21,6 +21,7 @@ import { runnerBehaviors } from './runners.js';
 import { takeDmg } from './chalice.js';
 import { unbalanceBehaviors } from './unbalance.js';
 import { shotbuffBehaviors, shotbuffOwns } from './pathshot.js';
+import { candycarBehaviors, cartShape, bornCarOwns, cartTick, cartAttack } from './candycar.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -166,8 +167,9 @@ export const FOE_EXTRAS = Object.freeze({
   enemy_1216_cansld_2: { talents: { shotbuff: { page: 1, ammo: 2, see: 1 } }, source: `${PRTS}%E5%AF%BB%E8%B7%AF%E8%80%85%E9%98%B5%E5%9C%B0%E6%92%95%E8%A3%82%E8%80%85&oldid=381108` },
   enemy_1219_mtrbty: { talents: { shotbuff: { page: 1, ammo: 1 } }, source: `${PRTS}%E5%AF%BB%E8%B7%AF%E8%80%85%E4%BF%A1%E4%BD%BF&oldid=355327` },
   enemy_1219_mtrbty_2: { talents: { shotbuff: { page: 1, ammo: 1 } }, source: `${PRTS}%E4%B8%87%E5%9B%BD%E4%BF%A1%E4%BD%BF%EF%BC%8C%E5%A5%A5%E4%BC%A6&oldid=287583` },
-  enemy_1217_rescar: { talents: { shotbuff: { page: 1 } }, source: `${PRTS}%E5%AF%BB%E8%B7%AF%E8%80%85%E7%94%9C%E5%93%81%E5%95%86&oldid=366372` },
-  enemy_1217_rescar_2: { talents: { shotbuff: { page: 1, melee: 1 } }, source: `${PRTS}%E5%AF%BB%E8%B7%AF%E8%80%85%E7%9F%A5%E5%90%8D%E7%94%9C%E5%93%81%E5%95%86&oldid=381093` },
+  // 寻路者甜品商 / 知名甜品商 also call a candy cart: BornCar's ammunition cap 3 (技力槽 3/3) and 甜品商's 0.1s (敌能-82).
+  enemy_1217_rescar: { talents: { shotbuff: { page: 1 } }, skills: { BornCar: { max: 3, delay: 0.1 } }, source: `${PRTS}%E5%AF%BB%E8%B7%AF%E8%80%85%E7%94%9C%E5%93%81%E5%95%86&oldid=366372` },
+  enemy_1217_rescar_2: { talents: { shotbuff: { page: 1, melee: 1 } }, skills: { BornCar: { max: 3 } }, source: `${PRTS}%E5%AF%BB%E8%B7%AF%E8%80%85%E7%9F%A5%E5%90%8D%E7%94%9C%E5%93%81%E5%95%86&oldid=381093` },
 });
 
 /**
@@ -198,8 +200,16 @@ const deathBlast = (ctx) => {
   if (typeof bb.add_count === 'number') for (const u of ctx.allies(Infinity)) if (u !== ctx.self) addEnergy(ctx, u, bb.add_count);
 };
 
-/** 冰爆源石虫 (敌能-5). @type {FoeBehavior} */
-const boom = Object.freeze({ death: deathBlast });
+/**
+ * 冰爆源石虫's death blast (敌能-5), and the candy cart's blocked explosion (敌能-82). The cart's three
+ * `attack@s2mode_*` numbers never take the death blast; a death blast's tick and attack do nothing.
+ * @type {FoeBehavior}
+ */
+const boom = Object.freeze({
+  death: (ctx) => { if (!cartShape(ctx.bb)) deathBlast(ctx); },
+  tick: (ctx) => { if (cartShape(ctx.bb)) cartTick(ctx); },
+  attack: (ctx, mods) => (cartShape(ctx.bb) ? cartAttack(ctx, mods) : mods),
+});
 
 /**
  * "喷射罐", 辐能源石虫 (敌能-5, 敌能-6): the explosion; with `attack@times` (喷射罐's), its attack a channel of hits over
@@ -336,6 +346,7 @@ export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
   ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...elementHitBehaviors, ...devourerBehaviors, ...refractBehaviors, ...statueBehaviors, ...auraBehaviors, ...chargedBehaviors, ...staticBehaviors, ...timeBehaviors, ...runnerBehaviors, takeDmg, ...unbalanceBehaviors,
   ...shotbuffBehaviors,
+  ...candycarBehaviors,
 });
 
 /**
@@ -371,10 +382,12 @@ const abilitiesOf = (e) => [...Object.entries(e.talents ?? {}), ...(e.skills ?? 
 
 /**
  * Whether an ability has what its behaviour needs (关卡-2). A shared talent name only counts when its blackboard is the
- * shape that behaviour understands (敌能-38, 敌能-81); anything else stays incomplete.
+ * shape that behaviour understands (敌能-38, 敌能-81, 敌能-82); anything else stays incomplete. The cart's `boom` is
+ * complete without the death blast's radius and delay.
  * @param {string} k @param {Record<string, unknown>} bb
  */
-const complete = (k, bb) => elementHitOwns(k, bb) && shotbuffOwns(k, bb) && (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
+const complete = (k, bb) => elementHitOwns(k, bb) && shotbuffOwns(k, bb) && bornCarOwns(k, bb)
+  && ((k === 'boom' && cartShape(bb)) || (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number'));
 
 /**
  * The abilities (talents and skills) of the given enemies — their extras merged — that have no behaviour and are not
