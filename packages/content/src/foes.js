@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-46): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-60): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read. They act only through the context (ADR 0055).
 
@@ -12,6 +12,7 @@ import { sarkazBehaviors } from './sarkaz.js';
 import { devourerBehaviors } from './devourers.js';
 import { blightBehaviors } from './blight.js';
 import { cannonBehaviors } from './cannon.js';
+import { timeBehaviors } from './times.js';
 import { refractBehaviors } from './refract.js';
 import { statueBehaviors } from './statue.js';
 
@@ -90,6 +91,25 @@ export const FOE_EXTRAS = Object.freeze({
   enemy_1272_nhtank: { talents: { Empty: { low: 1 } }, skills: { PollutedRangedAtk: { air: 1, wide: 1 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%9E%AF%E6%9C%BD%E6%88%98%E8%BD%A6&oldid=367663` },
   // 尖端萨卡兹枯朽战车: 低地过滤，区域可对空且无视无法选择、迷彩；有低地非飞行单位才触发，丢失目标返还技力
   enemy_1272_nhtank_2: { talents: { Empty: { low: 1 } }, skills: { PollutedRangedAtk: { air: 1, open: 1, gate: 1, refund: 1 } }, source: `${PRTS}%E5%B0%96%E7%AB%AF%E8%90%A8%E5%8D%A1%E5%85%B9%E6%9E%AF%E6%9C%BD%E6%88%98%E8%BD%A6&oldid=380616` },
+  // 岁兽残响 bodies: 无法被阻挡，不进行普通攻击，具有特殊生命值机制 (the data has no talent for it)
+  enemy_1196_msfyin: { talents: { hitCount: {} }, source: `${PRTS}%E6%9C%A8%E5%88%B6%E7%91%9E%E5%8D%B0&oldid=365791` },
+  enemy_1196_msfyin_2: { talents: { hitCount: {} }, source: `${PRTS}%E7%BA%A2%E6%9C%A8%E7%91%9E%E5%8D%B0&oldid=365790` },
+  enemy_1198_msfshu: { talents: { hitCount: {} }, source: `${PRTS}%E5%B0%8F%E8%AF%B4%E5%8D%B7%E8%BD%B4&oldid=353547` },
+  enemy_1198_msfshu_2: { talents: { hitCount: {} }, source: `${PRTS}%E8%AF%97%E7%94%BB%E5%8D%B7%E8%BD%B4&oldid=365788` },
+  enemy_1200_msfjin: { talents: { hitCount: {} }, source: `${PRTS}%E9%9D%92%E9%93%9C%E9%95%9C&oldid=365787` },
+  enemy_1200_msfjin_2: { talents: { hitCount: {} }, source: `${PRTS}%E9%BB%84%E9%93%9C%E9%95%9C&oldid=365786` },
+  enemy_1202_msfzhi: { talents: { hitCount: {} }, source: `${PRTS}%E6%9C%A8%E5%88%B6%E9%95%87%E7%BA%B8&oldid=365785` },
+  enemy_1202_msfzhi_2: { talents: { hitCount: {} }, source: `${PRTS}%E7%BA%A2%E6%9C%A8%E9%95%87%E7%BA%B8&oldid=353556` },
+  // 磨砻 / 雅气: 因坠落以外的原因死亡后才召唤 (the data's DeadSpawn has no fall)
+  enemy_1195_sfyin: { talents: { DeadSpawn: { fall: 0 } }, source: `${PRTS}%E7%A3%A8%E7%A0%BB&oldid=381889` },
+  enemy_1197_sfshu_2: { talents: { DeadSpawn: { fall: 0 } }, source: `${PRTS}%E9%9B%85%E6%B0%94&oldid=381892` },
+  // 烹泉: 半径 1.0 的法术溅射；因坠落以外的原因才召唤；死亡爆炸半径 1.25、延迟 0、不可对空、攻击力 100%
+  enemy_1203_sfhu: { talents: { Splash: { radius: 1 }, DeadSpawn: { fall: 0 }, DeadBoom: { radius: 1.25, delay: 0, air: 0, atk_scale: 1 } }, source: `${PRTS}%E7%83%B9%E6%B3%89&oldid=381901` },
+  // 沏虹: 半径 1；页面没有「因坠落以外」，坠落也召唤；死亡爆炸同烹泉（不可对空为推断 INF-0343）
+  enemy_1203_sfhu_2: { talents: { Splash: { radius: 1 }, DeadBoom: { radius: 1.25, delay: 0, air: 0, atk_scale: 1 } }, source: `${PRTS}%E6%B3%8C%E8%99%B9&oldid=353558` },
+  // 青瓷茶器 / 彩瓷茶器: 只接受法术和真实伤害（数据里没有这项天赋）
+  enemy_1204_msfhu: { talents: { hitCount: { arts: 1, true: 1 } }, source: `${PRTS}%E9%9D%92%E7%93%B7%E8%8C%B6%E5%99%A8&oldid=397896` },
+  enemy_1204_msfhu_2: { talents: { hitCount: { arts: 1, true: 1 } }, source: `${PRTS}%E5%BD%A9%E7%93%B7%E8%8C%B6%E5%99%A8&oldid=365782` },
   // 深池方阵战士/深池方阵指挥官: 自身1.5半径内除自身外其它深池方阵战士/深池方阵指挥官防御力增加200（可无限叠加，不可被沉默）
   enemy_1169_duphlx: { talents: { auraDefup: { radius: 1.5 } }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%88%98%E5%A3%AB&oldid=353488` },
   enemy_1169_duphlx_2: { talents: { auraDefup: { radius: 1.5 } }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%8C%87%E6%8C%A5%E5%AE%98&oldid=353489` },
@@ -265,7 +285,7 @@ const PowerHit = Object.freeze({
 /** Behaviours by talent or skill name. @type {Readonly<Record<string, FoeBehavior>>} */
 export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
-  ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...devourerBehaviors, ...blightBehaviors, ...cannonBehaviors, ...refractBehaviors, ...statueBehaviors,
+  ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...devourerBehaviors, ...blightBehaviors, ...cannonBehaviors, ...timeBehaviors, ...refractBehaviors, ...statueBehaviors,
 });
 
 /**
@@ -281,6 +301,7 @@ export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp', 'Stronger', 
  */
 export const FOE_NEEDS = Object.freeze({
   boom: Object.freeze(['radius', 'delay']), Boom: Object.freeze(['radius', 'delay']), ranged: Object.freeze(['scale']),
+  DeadBoom: Object.freeze(['radius', 'delay']), Splash: Object.freeze(['radius']),
   CrossAttack: Object.freeze(['bolts', 'hold', 'charge']), Targets: Object.freeze(['n']), 1: Object.freeze(['ammo']),
   // air/open are the page's 可对空 and 无视无法选择: a warrior without them is not this ability yet. The 战车 skill's
   // page rules are extras too, but an unread enemy with the same keys (改装排污车) is complete from the data alone.

@@ -1,6 +1,6 @@
-// Enemy abilities (docs/spec/foes.md 敌能-1…敌能-4, 敌能-22, 敌能-30): the hooks through which the content's behaviours
+// Enemy abilities (docs/spec/foes.md 敌能-1…敌能-4, 敌能-22, 敌能-30, 敌能-39): the hooks through which the content's behaviours
 // act on an enemy's talents and skills, the skills' cooldowns, delayed explosions, 直击 bolts, the enemies an enemy
-// brings in and 吞噬.
+// brings in, 吞噬, and one draw from the match.
 import { secondsToFrames, FPS } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
@@ -75,7 +75,7 @@ export const BOLT_RADIUS = 0.3;
  * @property {() => number} passengers how many passengers it carries
  * @property {() => void} alight its passengers alight (敌能-16)
  * @property {() => Unit[]} inLine the units in its row or column a 直击 may select, nearest first
- * @property {(b: { x: number, y: number, radius: number, delay: number, air: boolean, sourced: boolean } & Payload) => void} blast
+ * @property {(b: { x: number, y: number, radius: number, delay: number, air: boolean, sourced: boolean, buff?: import('./buffs.js').BuffInit } & Payload) => void} blast
  * @property {(b: { dx: number, dy: number, blast?: number } & Payload) => void} bolt
  * @property {(t: Unit, hp: number) => void} setHp sets a unit's HP outright (伤害-9)
  * @property {() => void} resetSkills its skills' cooldowns back to their first ones (敌能-18)
@@ -87,6 +87,7 @@ export const BOLT_RADIUS = 0.3;
  *   it stands there
  * @property {(key: string, o: import('./broods.js').BringIn) => Unit[]} summon brings in enemies of a key on its route
  *   (敌能-22): those that appeared now
+ * @property {() => number} draw one uniform draw in [0, 1) from the match (随机-1)
  * @property {(u: Unit) => void} remove an enemy's HP to 0 outright: it is knocked down at the frame's end (敌能-24)
  * @property {(t: Unit) => boolean} devour 吞噬 (敌能-30): whether the unit was devoured
  * @property {(t: Unit, key: string, init: { mods?: Record<string, number>, flags?: Record<string, boolean>, value?: number }) => void} lend
@@ -148,6 +149,15 @@ function abilities(c, e) {
 }
 
 /**
+ * The context's `bolt` (敌能-4): a direct bolt from the enemy, and its event. Kept out of contextOf for its line budget.
+ * @param {World} w @param {Unit} e @param {Parameters<FoeContext['bolt']>[0]} b
+ */
+function fireBolt(w, e, b) {
+  w.bolts.push({ src: e.id, x: e.x, y: e.y, dx: b.dx, dy: b.dy, type: b.type, amount: b.amount, status: b.status ?? null, blast: b.blast ?? 0 });
+  w.events.push({ type: 'bolt', id: e.id });
+}
+
+/**
  * An ability's context (敌能-2): `of` is the ability — its name, blackboard and skill (null for a talent).
  * @param {World} w @param {Content} c @param {Unit} e
  * @param {{ name: string, bb: Record<string, number>, skill: import('./types.js').FoeSkill | null }} of @returns {FoeContext}
@@ -191,11 +201,9 @@ function contextOf(w, c, e, of) {
     alight: () => { releasePassengers(w, c, e); },
     drainCost: (t, n) => { const p = t.kind === KIND.OPERATOR ? w.players[t.owner] : undefined; if (p) p.cost = Math.max(0, p.cost - n); },
     inLine: () => inLine(w, e),
-    blast: (b) => { w.blasts.push({ x: b.x, y: b.y, radius: b.radius, left: secondsToFrames(b.delay), air: b.air, src: b.sourced ? e.id : -1, type: b.type, amount: b.amount, status: b.status ?? null }); },
-    bolt: (b) => {
-      w.bolts.push({ src: e.id, x: e.x, y: e.y, dx: b.dx, dy: b.dy, type: b.type, amount: b.amount, status: b.status ?? null, blast: b.blast ?? 0 });
-      w.events.push({ type: 'bolt', id: e.id });
-    },
+    // `buff` is omitted when absent: a null field would change the hash of every blast (敌能-43).
+    blast: (b) => { w.blasts.push({ x: b.x, y: b.y, radius: b.radius, left: secondsToFrames(b.delay), air: b.air, src: b.sourced ? e.id : -1, type: b.type, amount: b.amount, status: b.status ?? null, ...(b.buff ? { buff: b.buff } : {}) }); },
+    bolt: (b) => { fireBolt(w, e, b); },
     setHp: (t, hp) => { setHp(t, hp); },
     resetSkills: () => { for (const s of defOf(c, e).skills ?? []) ab[`${s.key}.cd`] = secondsToFrames(s.initCooldown); },
     onWay: (u) => wayKeys(c, e).includes(keyAt(c.level, u.x, u.y)),
@@ -203,6 +211,7 @@ function contextOf(w, c, e, of) {
     release: () => { release(e); },
     placeDevice: (key) => { const [r, col] = tileOf(e); return spawnDevice(w, c, key, r, col); },
     summon: (key, o) => bringIn(w, c, e, key, o),
+    draw: () => draw(w),
     remove: (u) => { if (u.kind === KIND.ENEMY) knockDown(u); },
     devour: (t) => devour(e, t),
     lend: (t, key, init) => { lend(e, t, key, init); },
@@ -368,11 +377,14 @@ export function foeLanded(w, c, e, t, how) {
 
 /**
  * A unit takes a bolt's or an explosion's payload (敌能-3, 敌能-4).
- * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {{ type: DamageType, amount: number, status: { key: string, seconds: number } | null }} p
+ * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t
+ * @param {{ type: DamageType, amount: number, status: { key: string, seconds: number } | null, buff?: import('./buffs.js').BuffInit }} p
  */
 function take(w, c, src, t, p) {
   dealDamage(w, src, t, { type: p.type, amount: p.amount }, c);
-  if (p.status && t.hp > 0) inflict(w, t, /** @type {any} */ (p.status.key), { seconds: p.status.seconds, src });
+  if (t.hp <= 0) return;
+  if (p.status) inflict(w, t, /** @type {any} */ (p.status.key), { seconds: p.status.seconds, src });
+  if (p.buff) addBuff(t, makeBuff({ src: src ? src.id : -1, ...p.buff }));
 }
 
 /**

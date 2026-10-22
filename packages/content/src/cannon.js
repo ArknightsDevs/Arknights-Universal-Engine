@@ -17,7 +17,7 @@ const ProjectileBoomRange = Object.freeze({
   attack: (ctx, mods) => {
     const radius = ctx.bb['attack@projectile_range'];
     if (typeof radius !== 'number') return mods;
-    return { ...mods, splash: { radius, scale: 1, ground: true }, splashFoes: true };
+    return { ...mods, splash: { radius, scale: 1, ground: true, side: 'friendly' } };
   },
   landed: (ctx, target) => {
     const life = ctx.bb['attack@projectile_life_time'], arts = ctx.bb['attack@value'], radius = ctx.bb.zone;

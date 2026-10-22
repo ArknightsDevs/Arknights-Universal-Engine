@@ -110,7 +110,7 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
  *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number, value?: number, prob?: number } | null,
  *   hitDebuff?: { seconds: number, mods: Record<string, number> }, displace?: { pull: boolean, force: number, along?: boolean },
- *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number }, aftershocks?: number, ignoreDef?: number, splashFoes?: boolean }} Load
+ *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number }, aftershocks?: number, ignoreDef?: number }} Load
  */
 
 /**
@@ -261,7 +261,7 @@ const loadOf = (a, mods) => ({
   ep: (mods.ep ?? 0) + (mods.epScale ? statsOf(a).atk * mods.epScale : 0),
   ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.hitDebuff ? { hitDebuff: mods.hitDebuff } : {}), ...(mods.displace ? { displace: mods.displace } : {}), ...(mods.skill ? { skill: true } : {}), ...(mods.mark ? { mark: mods.mark } : {}),
   ...(mods.frozen ? { frozen: mods.frozen } : {}), ...(mods.ignoreDef ? { ignoreDef: mods.ignoreDef } : {}),
-  ...(mods.splash ? { splash: mods.splash, ...(mods.splashFoes ? { splashFoes: true } : {}) } : {}),
+  ...(mods.splash ? { splash: mods.splash } : {}),
 });
 
 /**
@@ -307,18 +307,20 @@ export function traitScale(w, c, a, t) {
   return (t.blockedBy !== a.id ? tr.unblockedScale : 1) * (bySummon ? tr.summonBlockedScale : 1) * zoneScale(c, a, t, tr);
 }
 
-/** Operators and our devices (敌能-60). A neutral enemy is not one of ours. @param {Unit} u */
-const ourSide = (u) => u.kind === KIND.OPERATOR || (u.kind === KIND.DEVICE && u.base.hostile !== true);
+/**
+ * Which side a splash hits (职业-8, 敌能-43): enemies, unless it names friendlies — operators, neutral units and our
+ * devices (an enemy's). @param {Unit} u @param {import('./types.js').Splash} s
+ */
+const splashSide = (u, s) => (s.side === 'friendly' ? friendly(u) : hostile(u));
 
 /**
- * The units a splash around a target reaches (职业-8, 敌能-60): every other unit within the radius — hidden ones not,
- * 隐匿 ones not while it is in effect (索敌-2), 迷彩 ones still; flying ones only when the splash is not ground-only.
- * An operator's splash hits enemies. An enemy's (`foes`) hits our units.
- * @param {World} w @param {Unit} t @param {import('./types.js').Splash} s @param {boolean} foes @returns {Unit[]}
+ * The units a splash around a target reaches (职业-8, 敌能-43): every other unit of its side within the radius of it —
+ * hidden ones not, 隐匿 ones not while it is in effect (索敌-2), 迷彩 ones still; flying ones only when the splash is
+ * not ground-only.
+ * @param {World} w @param {Unit} t @param {import('./types.js').Splash} s @returns {Unit[]}
  */
-function splashOf(w, t, s, foes) {
-  const side = foes ? ourSide : hostile;
-  return w.units.filter((u) => u !== t && side(u) && u.hp > 0 && !u.hidden && !stealthed(u)
+function splashOf(w, t, s) {
+  return w.units.filter((u) => u !== t && splashSide(u, s) && u.hp > 0 && !u.hidden && !stealthed(u)
     && !(s.ground && statsOf(u).flying) && (u.x - t.x) * (u.x - t.x) + (u.y - t.y) * (u.y - t.y) <= s.radius * s.radius);
 }
 
@@ -329,7 +331,7 @@ function splashOf(w, t, s, foes) {
  * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {Load} load
  */
 export function impact(w, c, src, t, load) {
-  const s = load.splash, around = s ? splashOf(w, t, s, load.splashFoes === true) : [];
+  const s = load.splash, around = s ? splashOf(w, t, s) : [];
   const amount = load.packed && around.length + 1 >= load.packed.cnt ? load.amount * load.packed.atk : load.amount;
   for (const k of load.aftershock ? [1, ...Array.from({ length: load.aftershocks ?? 1 }, () => /** @type {number} */ (load.aftershock))] : [1]) {
     const shock = k === 1 ? {} : { hit: /** @type {const} */ ('aftershock') };
@@ -651,8 +653,10 @@ export function enemyTargets(w, e) {
   const blocker = e.blockedBy >= 0 ? w.units.find((u) => u.id === e.blockedBy) ?? null : null;
   if (e.base.applyWay === 'MELEE' || !(e.base.rangeRadius > 0)) return blocker ? [blocker] : [];
   const reach = e.base.rangeRadius + ALLY_COLLIDER_RADIUS, r2 = reach * reach;
+  // 烹泉 / 沏虹 (敌能-43) select through 迷彩. Other enemies keep the default, so the argument stays absent.
+  const see = statsOf(e).flags.seeCamou ? { ignoreCamou: true } : undefined;
   const out = w.units.filter((u) => u !== e && friendly(u) && u.hp > 0 && (u.x - e.x) * (u.x - e.x) + (u.y - e.y) * (u.y - e.y) <= r2
-    && (u === blocker || selectable(u)) && !evadesGround(e, u));
+    && (u === blocker || selectable(u, see)) && !evadesGround(e, u));
   if (blocker && !out.includes(blocker)) out.push(blocker);
   return out;
 }

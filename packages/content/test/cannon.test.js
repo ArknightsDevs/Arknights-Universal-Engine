@@ -168,7 +168,8 @@ test('[敌能-60] 轻型 splash is 100% phys inside radius 1, once, and misses w
   assert.deepEqual(dmg(ev, by.dark.id), [350], '无法选择 is still in the splash');
   assert.deepEqual(dmg(ev, box.id), [350], 'our device');
   assert.deepEqual(dmg(ev, pup.id), [350], 'a summon is an operator');
-  for (const u of [by.out, by.edge, by.far, by.stealth, by.fly, by.lift, man, foe]) assert.deepEqual(dmg(ev, u.id), [], u.key);
+  assert.deepEqual(dmg(ev, man.id), [350], 'a neutral unit is in an enemy splash too (合作-9)');
+  for (const u of [by.out, by.edge, by.far, by.stealth, by.fly, by.lift, foe]) assert.deepEqual(dmg(ev, u.id), [], u.key);
   assert.ok(took(ev, by.guard.id).every((x) => x.id === e.id));
   assert.equal(w.zones?.length, 1, 'splash targets do not each leave a zone');
   assert.equal(w.zones?.[0]?.x, by.guard.x);
