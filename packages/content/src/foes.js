@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-81): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
@@ -20,6 +20,7 @@ import { timeBehaviors } from './times.js';
 import { runnerBehaviors } from './runners.js';
 import { takeDmg } from './chalice.js';
 import { unbalanceBehaviors } from './unbalance.js';
+import { shotbuffBehaviors, shotbuffOwns } from './pathshot.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -160,6 +161,13 @@ export const FOE_EXTRAS = Object.freeze({
   // 清明 / 堂皇: a fall does not spawn, and only the skill (not the talent of the same name) runs 范围隐匿.
   enemy_1209_sfden: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E6%B8%85%E6%98%8E&oldid=376397` },
   enemy_1209_sfden_2: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E5%A0%82%E7%9A%87&oldid=389600` },
+  // 寻路者弹药射击 (敌能-81). The level records carry no ammunition; `page` marks the pages that were read.
+  enemy_1216_cansld: { talents: { shotbuff: { page: 1, ammo: 2 } }, source: `${PRTS}%E5%AF%BB%E8%B7%AF%E8%80%85%E9%98%B5%E5%9C%B0%E7%A0%B4%E5%9D%8F%E8%80%85&oldid=365946` },
+  enemy_1216_cansld_2: { talents: { shotbuff: { page: 1, ammo: 2, see: 1 } }, source: `${PRTS}%E5%AF%BB%E8%B7%AF%E8%80%85%E9%98%B5%E5%9C%B0%E6%92%95%E8%A3%82%E8%80%85&oldid=381108` },
+  enemy_1219_mtrbty: { talents: { shotbuff: { page: 1, ammo: 1 } }, source: `${PRTS}%E5%AF%BB%E8%B7%AF%E8%80%85%E4%BF%A1%E4%BD%BF&oldid=355327` },
+  enemy_1219_mtrbty_2: { talents: { shotbuff: { page: 1, ammo: 1 } }, source: `${PRTS}%E4%B8%87%E5%9B%BD%E4%BF%A1%E4%BD%BF%EF%BC%8C%E5%A5%A5%E4%BC%A6&oldid=287583` },
+  enemy_1217_rescar: { talents: { shotbuff: { page: 1 } }, source: `${PRTS}%E5%AF%BB%E8%B7%AF%E8%80%85%E7%94%9C%E5%93%81%E5%95%86&oldid=366372` },
+  enemy_1217_rescar_2: { talents: { shotbuff: { page: 1, melee: 1 } }, source: `${PRTS}%E5%AF%BB%E8%B7%AF%E8%80%85%E7%9F%A5%E5%90%8D%E7%94%9C%E5%93%81%E5%95%86&oldid=381093` },
 });
 
 /**
@@ -327,6 +335,7 @@ const PowerHit = Object.freeze({
 export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
   ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...elementHitBehaviors, ...devourerBehaviors, ...refractBehaviors, ...statueBehaviors, ...auraBehaviors, ...chargedBehaviors, ...staticBehaviors, ...timeBehaviors, ...runnerBehaviors, takeDmg, ...unbalanceBehaviors,
+  ...shotbuffBehaviors,
 });
 
 /**
@@ -350,6 +359,8 @@ export const FOE_NEEDS = Object.freeze({
   epdamage: Object.freeze(['el']), empty: Object.freeze(['el']), EpDamage: Object.freeze(['el']),
   combat: Object.freeze(['el']), attack: Object.freeze(['el']),
   AttackSpeedUp: Object.freeze(['attack_speed', 'duration', 'stack_cnt']),
+  // The read shotbuff pages (敌能-81). Ammunition is not required: 甜品商 has the marker and no rounds.
+  shotbuff: Object.freeze(['page']),
 });
 
 /**
@@ -360,10 +371,10 @@ const abilitiesOf = (e) => [...Object.entries(e.talents ?? {}), ...(e.skills ?? 
 
 /**
  * Whether an ability has what its behaviour needs (关卡-2). A shared talent name only counts when its blackboard is the
- * shape that behaviour understands (敌能-38); anything else stays incomplete.
+ * shape that behaviour understands (敌能-38, 敌能-81); anything else stays incomplete.
  * @param {string} k @param {Record<string, unknown>} bb
  */
-const complete = (k, bb) => elementHitOwns(k, bb) && (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
+const complete = (k, bb) => elementHitOwns(k, bb) && shotbuffOwns(k, bb) && (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
 
 /**
  * The abilities (talents and skills) of the given enemies — their extras merged — that have no behaviour and are not
