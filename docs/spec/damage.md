@@ -79,8 +79,9 @@
 - 护盾、屏障没有指定类型时，吸收所有类型。类型用 `+` 连成几种时，只吸收这几种。
 - 一个 Buff 取消伤害，或者把伤害降到 0 时，后面的 Buff 不再处理。
 - 只有护盾和屏障、没有其他修饰器和标记的 Buff，用完就移除。
+- 一个 Buff 可以用行为键 `act`（没有则用它的 key）在内容的 `behaviors.buffs` 里挂上 `take`。轮到这个 Buff，且它自己的闪避、抵挡、倍率、护盾、屏障处理完、伤害仍大于 0 时，`take` 用返回值替换还剩的伤害。返回值不是有限数则不改。降到 0 之后的 Buff 不再处理。
 
-- 来源：[PRTS「伤判效果」oldid=439572](https://prts.wiki/index.php?title=%E4%BC%A4%E5%88%A4%E6%95%88%E6%9E%9C&oldid=439572)：处理顺序「事件优先级＞获取顺序」，取消或降为 0 后跳过后续伤判；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 护盾「每层护盾可以抵挡一次伤害」、屏障「可以吸收一定数值的伤害」「若无特殊说明，屏障可吸收全种类伤害」；[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「闪避」：多个闪避相乘合并；一个 Buff 内的顺序、用完移除为推断 INF-0022
+- 来源：[PRTS「伤判效果」oldid=439572](https://prts.wiki/index.php?title=%E4%BC%A4%E5%88%A4%E6%95%88%E6%9E%9C&oldid=439572)：处理顺序「事件优先级＞获取顺序」，取消或降为 0 后跳过后续伤判；[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223) 护盾「每层护盾可以抵挡一次伤害」、屏障「可以吸收一定数值的伤害」「若无特殊说明，屏障可吸收全种类伤害」；[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「闪避」：多个闪避相乘合并；一个 Buff 内的顺序、用完移除为推断 INF-0022；伤判中调用 Buff 行为表是设计决定，行为在表里而不在 Buff 上（[ADR 0054](../adr/0054-attributes-and-buffs-as-data.md)）
 
 ### 伤害-12 抵挡与按来源的伤害
 
@@ -98,11 +99,13 @@
 
 生命减去伤害；减到 0 或以下时生命为 0，单位在这一帧末离场（帧-1）。每次扣除生命产生一个命中事件，伤害数值不取整。
 
+特殊生命值（敌能-39）的这次扣除，在不是生命流失时生命只减 1。类型不符合的（敌能-43）这次不减。命中事件的伤害数值和造成伤害的返回值仍是算出的伤害，不改成 1，类型不符合时也不改成 0。
+
 带不死（`undying`，状态-5）的单位，生命不会减到 1 以下（最大生命值低于 1 时为最大生命值）。
 
 内容也可以直接设定单位的生命（`setHp`）：限制在 0（不死的单位为 1）与最大生命值之间，不是伤害也不是治疗，不产生事件；设为 0 的单位同样在这一帧末离场。战术家的援军生命归 0 时不离场而变为战术点，见 召唤-11。
 
-- 来源：[PRTS「生命值」oldid=425018](https://prts.wiki/index.php?title=%E7%94%9F%E5%91%BD%E5%80%BC&oldid=425018)：「当一个单位生命值归零时，若非特殊情况，这个单位将会离场」；[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)：红字「在显示时会就近取整」，「不会影响实际的伤害数值」；[PRTS「异常效果」oldid=440606](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=440606) 不死「重设常规生命值时不会使其低于1」；直接设定生命为设计决定（兼容层的 kit 会直接写生命，兼容-4）
+- 来源：[PRTS「生命值」oldid=425018](https://prts.wiki/index.php?title=%E7%94%9F%E5%91%BD%E5%80%BC&oldid=425018)：「当一个单位生命值归零时，若非特殊情况，这个单位将会离场」；[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)：红字「在显示时会就近取整」，「不会影响实际的伤害数值」；[PRTS「异常效果」oldid=440606](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=440606) 不死「重设常规生命值时不会使其低于1」；[PRTS「游戏数据基础」oldid=405837](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=405837)「应用生命值变化时令生命值只降低 1 点（不论伤害多少）」「此机制不会影响伤害本身」；[PRTS「特殊机制」oldid=374633](https://prts.wiki/index.php?title=%E7%89%B9%E6%AE%8A%E6%9C%BA%E5%88%B6&oldid=374633)「应用生命值变化时将本次伤害数值重设为1」；直接设定生命为设计决定（兼容层的 kit 会直接写生命，兼容-4）
 
 ### 伤害-10 生命流失
 
