@@ -2441,5 +2441,12 @@
     "statement": "失效那一帧施放者处于消失、因而永久生效之后，即使不再消失，范围隐匿也不再按时间结束、技能也不再进入冷却；给谁仍每个回合按施放者没有消失、半径 2.0 判断。",
     "basis": "页面写「【范围隐匿】失效时若自身处于消失状态，失效将失败，【范围隐匿】将永久生效」，没有写消失结束之后。",
     "status": "待查证"
+  },
+  {
+    "id": "INF-0352",
+    "clause": "兼容-4",
+    "statement": "AUE 关卡没有手牌行和临时整备区。Stronghold 的 onFieldBoard 在这里是：格子在地图内，并且近战或远程干员可以站在上面。不算格上是否已有干员。",
+    "basis": "packages/content/data/levels 的关卡 JSON 没有 hand、bench、整备、reserved、BOARD 字段。兼容层把整张地图当作战斗范围（兼容-4）。Stronghold v0.3.1 的 onFieldBoard 是本场玩家棋盘区 GEO.FIELD（行 9–12、列 2–10）映射后的格子，不含 boss 场的手牌行。AUE 关卡里没有这些行，所以可站立的地图内格子都算板上。",
+    "status": "待查证"
   }
 ]
