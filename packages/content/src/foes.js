@@ -11,6 +11,7 @@ import { partisanBehaviors } from './partisans.js';
 import { sarkazBehaviors } from './sarkaz.js';
 import { devourerBehaviors } from './devourers.js';
 import { blightBehaviors } from './blight.js';
+import { cannonBehaviors } from './cannon.js';
 import { refractBehaviors } from './refract.js';
 import { statueBehaviors } from './statue.js';
 
@@ -95,6 +96,9 @@ export const FOE_EXTRAS = Object.freeze({
   // 深池暗影术师/深池暗影术师队长: 不会攻击飞行单位 — its own talent, not part of 折射
   enemy_1168_dumage: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88&oldid=367785` },
   enemy_1168_dumage_2: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88%E9%98%9F%E9%95%BF&oldid=367786` },
+  // 集团军轻型/重型火炮: 燃烧区域半径 1.5 只在页面上。数据的 projectile_range 1 是溅射半径 (敌能-60)
+  enemy_10122_uacann: { talents: { ProjectileBoomRange: { zone: 1.5 } }, source: `${PRTS}%E9%9B%86%E5%9B%A2%E5%86%9B%E8%BD%BB%E5%9E%8B%E7%81%AB%E7%82%AE&oldid=369386` },
+  enemy_10122_uacann_2: { talents: { ProjectileBoomRange: { zone: 1.5 } }, source: `${PRTS}%E9%9B%86%E5%9B%A2%E5%86%9B%E9%87%8D%E5%9E%8B%E7%81%AB%E7%82%AE&oldid=377750` },
 });
 
 /**
@@ -261,7 +265,7 @@ const PowerHit = Object.freeze({
 /** Behaviours by talent or skill name. @type {Readonly<Record<string, FoeBehavior>>} */
 export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
-  ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...devourerBehaviors, ...blightBehaviors, ...refractBehaviors, ...statueBehaviors,
+  ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...devourerBehaviors, ...blightBehaviors, ...cannonBehaviors, ...refractBehaviors, ...statueBehaviors,
 });
 
 /**
@@ -283,6 +287,9 @@ export const FOE_NEEDS = Object.freeze({
   PollutedDie: Object.freeze(['polluted_damage_low', 'polluted_damage_high', 'projectile_life_time', 'projectile_range', 'air', 'open']),
   PollutedRangedAtk: Object.freeze(['polluted_damage_low', 'polluted_damage_high', 'range_radius', 'projectile_life_time']),
   Bleeding: Object.freeze(['attack@bleeding_damage', 'attack@duration']),
+  // `zone` is the page's burn radius. The data's projectile_range is the splash, so a same-shape enemy without the
+  // page stays uncovered (关卡-2).
+  ProjectileBoomRange: Object.freeze(['attack@projectile_range', 'attack@projectile_life_time', 'attack@value', 'zone']),
 });
 
 /**

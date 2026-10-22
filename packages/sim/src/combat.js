@@ -110,7 +110,7 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
  *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number, value?: number, prob?: number } | null,
  *   hitDebuff?: { seconds: number, mods: Record<string, number> }, displace?: { pull: boolean, force: number, along?: boolean },
- *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number }, aftershocks?: number, ignoreDef?: number }} Load
+ *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number }, aftershocks?: number, ignoreDef?: number, splashFoes?: boolean }} Load
  */
 
 /**
@@ -261,6 +261,7 @@ const loadOf = (a, mods) => ({
   ep: (mods.ep ?? 0) + (mods.epScale ? statsOf(a).atk * mods.epScale : 0),
   ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.hitDebuff ? { hitDebuff: mods.hitDebuff } : {}), ...(mods.displace ? { displace: mods.displace } : {}), ...(mods.skill ? { skill: true } : {}), ...(mods.mark ? { mark: mods.mark } : {}),
   ...(mods.frozen ? { frozen: mods.frozen } : {}), ...(mods.ignoreDef ? { ignoreDef: mods.ignoreDef } : {}),
+  ...(mods.splash ? { splash: mods.splash, ...(mods.splashFoes ? { splashFoes: true } : {}) } : {}),
 });
 
 /**
@@ -306,14 +307,18 @@ export function traitScale(w, c, a, t) {
   return (t.blockedBy !== a.id ? tr.unblockedScale : 1) * (bySummon ? tr.summonBlockedScale : 1) * zoneScale(c, a, t, tr);
 }
 
+/** Operators and our devices (敌能-60). A neutral enemy is not one of ours. @param {Unit} u */
+const ourSide = (u) => u.kind === KIND.OPERATOR || (u.kind === KIND.DEVICE && u.base.hostile !== true);
+
 /**
- * The enemies a splash around a target reaches (职业-8): every other enemy on the field within the radius of it —
- * hidden ones not, 隐匿 ones not while it is in effect (索敌-2), 迷彩 ones still; flying ones only when the splash is
- * not ground-only.
- * @param {World} w @param {Unit} t @param {import('./types.js').Splash} s @returns {Unit[]}
+ * The units a splash around a target reaches (职业-8, 敌能-60): every other unit within the radius — hidden ones not,
+ * 隐匿 ones not while it is in effect (索敌-2), 迷彩 ones still; flying ones only when the splash is not ground-only.
+ * An operator's splash hits enemies. An enemy's (`foes`) hits our units.
+ * @param {World} w @param {Unit} t @param {import('./types.js').Splash} s @param {boolean} foes @returns {Unit[]}
  */
-function splashOf(w, t, s) {
-  return w.units.filter((u) => u !== t && hostile(u) && u.hp > 0 && !u.hidden && !stealthed(u)
+function splashOf(w, t, s, foes) {
+  const side = foes ? ourSide : hostile;
+  return w.units.filter((u) => u !== t && side(u) && u.hp > 0 && !u.hidden && !stealthed(u)
     && !(s.ground && statsOf(u).flying) && (u.x - t.x) * (u.x - t.x) + (u.y - t.y) * (u.y - t.y) <= s.radius * s.radius);
 }
 
@@ -324,7 +329,7 @@ function splashOf(w, t, s) {
  * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {Load} load
  */
 export function impact(w, c, src, t, load) {
-  const s = load.splash, around = s ? splashOf(w, t, s) : [];
+  const s = load.splash, around = s ? splashOf(w, t, s, load.splashFoes === true) : [];
   const amount = load.packed && around.length + 1 >= load.packed.cnt ? load.amount * load.packed.atk : load.amount;
   for (const k of load.aftershock ? [1, ...Array.from({ length: load.aftershocks ?? 1 }, () => /** @type {number} */ (load.aftershock))] : [1]) {
     const shock = k === 1 ? {} : { hit: /** @type {const} */ ('aftershock') };

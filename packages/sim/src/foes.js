@@ -96,8 +96,8 @@ export const BOLT_RADIUS = 0.3;
  *   tiles next to it (a cross) or the eight around it (a square), in creation order (敌能-29)
  * @property {() => Unit[]} enemies every enemy on the field that is not neutral, selectable or not (敌能-25)
  * @property {() => void} fly its own motion becomes flying and the move it is on is planned again (路线-2, 敌能-34)
- * @property {(o: { x: number, y: number, radius: number, life: number, low: number, high: number, air?: boolean, open?: boolean, wide?: boolean }) => void} zone
- *   places a 污染秽蚀 zone (敌能-46)
+ * @property {(o: { x: number, y: number, radius: number, life: number, low: number, high: number, air?: boolean, open?: boolean, wide?: boolean, arts?: number, pad?: number }) => void} zone
+ *   places a zone (污染秽蚀 敌能-46; a 燃烧区域 when `arts` is set, 敌能-60)
  * @property {(t: Unit, damage: number, seconds: number) => void} bleed gives or refreshes 逐腐 bleed (敌能-46)
  * @property {(u: Unit) => boolean} onLow whether a unit's tile is 低地 (敌能-46)
  */
