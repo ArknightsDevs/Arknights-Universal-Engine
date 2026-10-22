@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-67): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-67, 敌能-72): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
@@ -21,6 +21,7 @@ import { runnerBehaviors } from './runners.js';
 import { takeDmg } from './chalice.js';
 import { unbalanceBehaviors } from './unbalance.js';
 import { punchBehaviors, punchOwns } from './punch.js';
+import { lassoBehaviors } from './lasso.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -164,6 +165,10 @@ export const FOE_EXTRAS = Object.freeze({
   // R-31 / R-31a: 半径 0.8 is on the page, not in the blackboard (敌能-67). 神拳机甲 shares the shape and gets no marker.
   enemy_1255_lybgpa: { skills: { Punch: { radius: 0.8 } }, source: `${PRTS}R-31%E9%87%8D%E5%9E%8B%E5%8A%A8%E5%8A%9B%E8%A3%85%E7%94%B2&oldid=380911` },
   enemy_1255_lybgpa_2: { skills: { Punch: { radius: 0.8 } }, source: `${PRTS}R-31a%E9%87%8D%E5%9E%8B%E5%8A%A8%E5%8A%9B%E8%A3%85%E7%94%B2&oldid=391946` },
+  // 萨卡兹术师 / 萨卡兹术师组长: 不会攻击飞行单位 (the data has no talent). `page` marks 枷锁 as read (敌能-72); the same
+  // blackboard on 萨卡兹业余术师 has no snapshot, so it stays uncovered (关卡-2).
+  enemy_1022_dmage: { talents: { noFly: {} }, skills: { lasso: { page: 1 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%9C%AF%E5%B8%88&oldid=380593` },
+  enemy_1022_dmage_2: { talents: { noFly: {} }, skills: { lasso: { page: 1 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%9C%AF%E5%B8%88%E7%BB%84%E9%95%BF&oldid=413933` },
 });
 
 /**
@@ -332,6 +337,7 @@ export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
   ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...elementHitBehaviors, ...devourerBehaviors, ...refractBehaviors, ...statueBehaviors, ...auraBehaviors, ...chargedBehaviors, ...staticBehaviors, ...timeBehaviors, ...runnerBehaviors, takeDmg, ...unbalanceBehaviors,
   ...punchBehaviors,
+  ...lassoBehaviors,
 });
 
 /**
@@ -357,6 +363,8 @@ export const FOE_NEEDS = Object.freeze({
   AttackSpeedUp: Object.freeze(['attack_speed', 'duration', 'stack_cnt']),
   // The 0.8 is on the two read pages only. 神拳机甲's Punch has the same data keys and stays incomplete (敌能-67).
   Punch: Object.freeze(['radius']),
+  // 枷锁 is read only where the page was read. The same three numbers on 萨卡兹业余术师 have no `page` (敌能-72, 关卡-2).
+  lasso: Object.freeze(['page']),
 });
 
 /**
