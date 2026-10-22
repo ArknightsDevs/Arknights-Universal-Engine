@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-37): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-37、敌能-56): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
@@ -11,6 +11,7 @@ import { partisanBehaviors } from './partisans.js';
 import { sarkazBehaviors } from './sarkaz.js';
 import { devourerBehaviors } from './devourers.js';
 import { staticBehaviors } from './static.js';
+import { bombdBehaviors } from './bombd.js';
 import { refractBehaviors } from './refract.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
@@ -88,6 +89,9 @@ export const FOE_EXTRAS = Object.freeze({
   enemy_10084_hlegle: { talents: { Static: {} }, source: `${PRTS}%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E4%B9%8B%E7%9C%BC%E2%80%9D&oldid=388054` },
   enemy_10085_hllevi_2: { talents: { Static: {} }, source: `${PRTS}%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E6%98%82%E9%A6%96%E2%80%9D&oldid=376212` },
   enemy_1430_lrrook: { talents: { Static: {} }, source: `${PRTS}%E6%84%A7%E6%82%94%E9%AD%82%E7%81%B5%E5%9C%A3%E6%9D%AF&oldid=386513` },
+  // 暴鸰/暴鸰·G: 静态刚体 (the data has no talent for it; 敌能-37). 不进行普通攻击 is boomb, not this talent (敌能-56).
+  enemy_1040_bombd: { talents: { Static: {} }, source: `${PRTS}%E6%9A%B4%E9%B8%9E&oldid=381146` },
+  enemy_1040_bombd_2: { talents: { Static: {} }, source: `${PRTS}%E6%9A%B4%E9%B8%9E%C2%B7G&oldid=381145` },
   // 深池方阵战士/深池方阵指挥官: 自身1.5半径内除自身外其它深池方阵战士/深池方阵指挥官防御力增加200（可无限叠加，不可被沉默）
   enemy_1169_duphlx: { talents: { auraDefup: { radius: 1.5 } }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%88%98%E5%A3%AB&oldid=353488` },
   enemy_1169_duphlx_2: { talents: { auraDefup: { radius: 1.5 } }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%8C%87%E6%8C%A5%E5%AE%98&oldid=353489` },
@@ -260,7 +264,7 @@ const PowerHit = Object.freeze({
 /** Behaviours by talent or skill name. @type {Readonly<Record<string, FoeBehavior>>} */
 export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
-  ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...devourerBehaviors, ...staticBehaviors, ...refractBehaviors,
+  ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...devourerBehaviors, ...staticBehaviors, ...bombdBehaviors, ...refractBehaviors,
 });
 
 /**
@@ -277,6 +281,7 @@ export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp', 'Stronger', 
 export const FOE_NEEDS = Object.freeze({
   boom: Object.freeze(['radius', 'delay']), Boom: Object.freeze(['radius', 'delay']), ranged: Object.freeze(['scale']),
   CrossAttack: Object.freeze(['bolts', 'hold', 'charge']), Targets: Object.freeze(['n']), 1: Object.freeze(['ammo']),
+  boomb: Object.freeze(['move_speed']),
 });
 
 /**
