@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-56): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-56, 敌能-86): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
@@ -11,7 +11,7 @@ import { partisanBehaviors } from './partisans.js';
 import { sarkazBehaviors } from './sarkaz.js';
 import { elementHitBehaviors, elementHitOwns } from './elementhit.js';
 import { devourerBehaviors } from './devourers.js';
-import { bombdBehaviors } from './bombd.js';
+import { bombdBehaviors, bombdOwns } from './bombd.js';
 import { refractBehaviors } from './refract.js';
 import { statueBehaviors } from './statue.js';
 import { auraBehaviors } from './auras.js';
@@ -164,6 +164,10 @@ export const FOE_EXTRAS = Object.freeze({
   // 清明 / 堂皇: a fall does not spawn, and only the skill (not the talent of the same name) runs 范围隐匿.
   enemy_1209_sfden: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E6%B8%85%E6%98%8E&oldid=376397` },
   enemy_1209_sfden_2: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E5%A0%82%E7%9A%87&oldid=389600` },
+  // 赛场补给车 / “天车散花”赛场补给车: 爆炸汽水布设 (敌能-86). `soda` marks the two pages that describe the bottle.
+  // The same three keys on the other 补给员 are not this skill, and stay uncovered (关卡-2).
+  enemy_4004_muvltr: { skills: { boomb: { soda: 1 } }, source: `${PRTS}%E8%B5%9B%E5%9C%BA%E8%A1%A5%E7%BB%99%E8%BD%A6&oldid=361382` },
+  enemy_4004_muvltr_2: { skills: { boomb: { soda: 1 } }, source: `${PRTS}%E2%80%9C%E5%A4%A9%E8%BD%A6%E6%95%A3%E8%8A%B1%E2%80%9D%E8%B5%9B%E5%9C%BA%E8%A1%A5%E7%BB%99%E8%BD%A6&oldid=361313` },
 });
 
 /**
@@ -355,7 +359,6 @@ export const FOE_NEEDS = Object.freeze({
   epdamage: Object.freeze(['el']), empty: Object.freeze(['el']), EpDamage: Object.freeze(['el']),
   combat: Object.freeze(['el']), attack: Object.freeze(['el']),
   AttackSpeedUp: Object.freeze(['attack_speed', 'duration', 'stack_cnt']),
-  boomb: Object.freeze(['move_speed']),
 });
 
 /**
@@ -365,11 +368,11 @@ export const FOE_NEEDS = Object.freeze({
 const abilitiesOf = (e) => [...Object.entries(e.talents ?? {}), ...(e.skills ?? []).map((s) => /** @type {[string, Record<string, number | string>]} */ ([s.key, s.bb ?? {}]))];
 
 /**
- * Whether an ability has what its behaviour needs (关卡-2). A shared talent name only counts when its blackboard is the
- * shape that behaviour understands (敌能-38); anything else stays incomplete.
+ * Whether an ability has what its behaviour needs (关卡-2). A shared name only counts when its blackboard is the shape
+ * that behaviour understands (敌能-38, 敌能-56, 敌能-86); anything else stays incomplete.
  * @param {string} k @param {Record<string, unknown>} bb
  */
-const complete = (k, bb) => elementHitOwns(k, bb) && (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
+const complete = (k, bb) => elementHitOwns(k, bb) && bombdOwns(k, bb) && (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
 
 /**
  * The abilities (talents and skills) of the given enemies — their extras merged — that have no behaviour and are not
