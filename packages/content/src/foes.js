@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-67, 敌能-73): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-67, 敌能-73, 敌能-84): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
@@ -168,6 +168,8 @@ export const FOE_EXTRAS = Object.freeze({
   // “灰礼帽” / “见习灰礼帽”: 失衡免疫 (the data has no talent for it; 敌能-73). The skill's numbers are already in the data.
   enemy_1322_wdgyht: { talents: { ShiftImmune: {} }, source: `${PRTS}%E2%80%9C%E7%81%B0%E7%A4%BC%E5%B8%BD%E2%80%9D&oldid=355349` },
   enemy_1322_wdgyht_2: { talents: { ShiftImmune: {} }, source: `${PRTS}%E2%80%9C%E8%A7%81%E4%B9%A0%E7%81%B0%E7%A4%BC%E5%B8%BD%E2%80%9D&oldid=355350` },
+  // 弑君者: the 0.5s is on the page, not in the blackboard (敌能-84). 卢西恩 shares { dist } and gets no marker.
+  enemy_1502_crowns: { skills: { blink: { glide: 0.5 } }, source: `${PRTS}%E5%BC%91%E5%90%9B%E8%80%85(%E6%95%8C%E6%96%B9)&oldid=361341` },
 });
 
 /**
