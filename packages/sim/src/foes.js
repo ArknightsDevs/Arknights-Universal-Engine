@@ -47,13 +47,16 @@ export const BOLT_RADIUS = 0.3;
  * @property {(t: Unit, init: import('./buffs.js').BuffInit) => void} addBuff
  * @property {(t: Unit, key: string) => void} removeBuff
  * @property {(t: Unit, key: string, o?: object) => void} applyStatus
- * @property {(t: Unit, dmg: { type: DamageType, amount: number }) => number} dealDamage
+ * @property {(t: Unit, dmg: import('./damage.js').Damage) => number} dealDamage
  * @property {(t: Unit, el: string, amount: number) => number} dealEp
  * @property {(t: Unit, amount: number) => number} heal
  * @property {(n: number) => void} gainCost no effect for an enemy
  * @property {{ get: (k: string) => number, set: (k: string, v: number) => void }} state its own ability state
  * @property {boolean} blocked
+ * @property {boolean} unbalanced it is in 失衡 as this turn starts (位移-3); read-only
  * @property {boolean} hurt it took damage since its last turn
+ * @property {number} taken how many accepted hits it has taken, at the 受击回复 gate, since an ability of its first read this
+ *   (敌能-38); an enemy no ability asks about keeps no count
  * @property {boolean} unblocked its block ended since its last turn
  * @property {boolean} fell it fell into a 地穴 (地图-4)
  * @property {boolean} ready a skill's cooldown is over
@@ -90,13 +93,14 @@ export const BOLT_RADIUS = 0.3;
  * @property {() => number} draw one uniform draw in [0, 1) from the match (随机-1)
  * @property {(u: Unit) => void} remove an enemy's HP to 0 outright: it is knocked down at the frame's end (敌能-24)
  * @property {(t: Unit) => boolean} devour 吞噬 (敌能-30): whether the unit was devoured
- * @property {(t: Unit, key: string, init: { mods?: Record<string, number>, flags?: Record<string, boolean>, value?: number }) => void} lend
+ * @property {(t: Unit, key: string, init: { mods?: Record<string, number>, flags?: Record<string, boolean>, value?: number, prio?: number, act?: string, restore?: number }) => void} lend
  *   gives a unit a buff of a key that lasts while it is given again each turn (敌能-25): it ends within two frames of the
- *   last
+ *   last. `prio` and `act` are kept from the first time it is given
  * @property {(t: Unit, area: 'cross' | 'square') => Unit[]} around the units it may attack on a unit's tile and the four
  *   tiles next to it (a cross) or the eight around it (a square), in creation order (敌能-29)
  * @property {() => Unit[]} enemies every enemy on the field that is not neutral, selectable or not (敌能-25)
  * @property {() => void} fly its own motion becomes flying and the move it is on is planned again (路线-2, 敌能-34)
+ * @property {() => void} attackAgain its next attack may start at once: the attack cooldown is cleared (敌能-44, 攻击-2)
  * @property {(o: { x: number, y: number, radius: number, life: number, low: number, high: number, air?: boolean, open?: boolean, wide?: boolean, arts?: number, pad?: number }) => void} zone
  *   places a zone (污染秽蚀 敌能-46; a 燃烧区域 when `arts` is set, 敌能-60)
  * @property {(t: Unit, damage: number, seconds: number) => void} bleed gives or refreshes 逐腐 bleed (敌能-46)
@@ -117,6 +121,7 @@ export const BOLT_RADIUS = 0.3;
  *   a normal attack's hit connected (`dealt` may be 0; `skill`: the skill's attack). Splash does not (敌能-46)
  * @property {(ctx: FoeContext) => boolean} [fatal] its HP ran out: true when the ability keeps it on the field, its HP
  *   above 0
+ * @property {(ctx: FoeContext) => void} [unbalanceEnd] 失衡 ended this turn, after the slide settled (敌能-2)
  */
 
 /** The squared distance between two points. @param {{ x: number, y: number }} a @param {{ x: number, y: number }} b */
@@ -176,7 +181,9 @@ function contextOf(w, c, e, of) {
     gainCost: () => {},
     state: { get: (k) => ab[`${name}.${k}`] ?? 0, set: (k, v) => { ab[`${name}.${k}`] = v; } },
     blocked: e.blockedBy >= 0,
+    unbalanced: e.slide !== undefined,
     hurt: (ab['@hurt'] ?? 0) === 1,
+    get taken() { if (!Object.hasOwn(ab, '@taken')) ab['@taken'] = 0; return ab['@taken']; },
     unblocked: (ab['@unblocked'] ?? 0) === 1,
     fell: (ab['@fell'] ?? 0) === 1,
     ready: skill !== null && (ab[`${name}.cd`] ?? 0) <= 0,
@@ -188,11 +195,7 @@ function contextOf(w, c, e, of) {
     allies: (radius) => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0 && !u.hidden && dist2(u, e) <= radius * radius),
     talentOf: (u, t) => (u.kind === KIND.ENEMY ? defOf(c, u).talents?.[t] ?? null : null),
     buffValue: (u, key) => u.buffs.find((b) => b.key === key)?.value ?? null,
-    setBuff: (u, key, value, mods) => {
-      const b = u.buffs.find((x) => x.key === key);
-      if (b) retune(u, b, value, mods);
-      else addBuff(u, makeBuff({ key, src: e.id, value, mods }));
-    },
+    setBuff: (u, key, value, mods) => { setBuffOf(e, u, key, value, mods); },
     blocker: () => (e.blockedBy >= 0 ? w.units.find((u) => u.id === e.blockedBy) ?? null : null),
     tagsOf: (u) => (u.kind === KIND.ENEMY ? defOf(c, u).tags ?? [] : []),
     tileKey: () => { const [r, col] = tileOf(e); return tileAt(c.level, r, col)?.key ?? ''; },
@@ -218,8 +221,19 @@ function contextOf(w, c, e, of) {
     around: (t, area) => around(w, e, t, area),
     enemies: () => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0),
     fly: () => { becomeFlyer(e); },
+    attackAgain: () => { ab['@again'] = 1; },
     ...blightContext(w, c, e),
   };
+}
+
+/**
+ * The context's `setBuff` (敌能-2): retunes the buff of this key the unit holds, or gives it one from the enemy.
+ * @param {Unit} e @param {Unit} u @param {string} key @param {number} value @param {Record<string, number>} mods
+ */
+function setBuffOf(e, u, key, value, mods) {
+  const b = u.buffs.find((x) => x.key === key);
+  if (b) retune(u, b, value, mods);
+  else addBuff(u, makeBuff({ key, src: e.id, value, mods }));
 }
 
 /** Frames a lent buff lasts without being given again (敌能-25): it outlasts the next frame's buff tick. */
@@ -231,7 +245,7 @@ const sameMods = (a, b) => Object.keys(a).length === Object.keys(b).length && Ob
 /**
  * A buff enemy `e` lends unit `t` (敌能-25): made the first time, its frames left back to LENT each time after — retuned
  * when its value or mods changed.
- * @param {Unit} e @param {Unit} t @param {string} key @param {{ mods?: Record<string, number>, flags?: Record<string, boolean>, value?: number }} init
+ * @param {Unit} e @param {Unit} t @param {string} key @param {{ mods?: Record<string, number>, flags?: Record<string, boolean>, value?: number, prio?: number, act?: string, restore?: number }} init
  */
 function lend(e, t, key, init) {
   const b = t.buffs.find((x) => x.key === key);
@@ -308,6 +322,14 @@ export function foeTick(w, c, e) {
   for (const s of defOf(c, e).skills ?? []) if ((ab[`${s.key}.cd`] ?? 0) > 0) ab[`${s.key}.cd`]--;
   ab['@hp'] = e.hp;
   ab['@blocked'] = e.blockedBy >= 0 ? 1 : 0;
+}
+
+/**
+ * The frame 失衡 ends (敌能-2): after this turn's slide settled. `unbalanced` is already false.
+ * @param {World} w @param {Content} c @param {Unit} e
+ */
+export function foeUnbalanceEnd(w, c, e) {
+  each(w, c, e, 'unbalanceEnd', (b, ctx) => b.unbalanceEnd?.(ctx));
 }
 
 /**
