@@ -13,6 +13,7 @@ import { emit } from './bus.js';
 import { grantSummons, endSummons } from './summons.js';
 import { restartCharge } from './modes.js';
 import { talentSkillEnd, talentSkillStart } from './talentfx.js';
+import { openSkillText, closeSkillText, healSkillAllies } from './skilltext.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').SkillDef} SkillDef @typedef {import('./types.js').SkillState} SkillState */
@@ -32,7 +33,7 @@ import { talentSkillEnd, talentSkillStart } from './talentfx.js';
  *   type?: import('./types.js').DamageType, cross?: boolean, atkPct?: number, channel?: { hits: number, duration: number, after: number }, heal?: boolean, square?: boolean, blocked?: boolean, more?: number,
  *   hitStatus?: { key: import('./status.js').StatusKey, seconds: number, prob?: number }, mark?: number, splashScale?: number, direct?: boolean, frozen?: number,
  *   hitDebuff?: { seconds: number, mods: Record<string, number> }, selfHeal?: number, epScale?: number,
- *   displace?: { pull: boolean, force: number, along?: boolean }, ignoreDef?: number }} AttackMods
+ *   displace?: { pull: boolean, force: number, along?: boolean }, ignoreDef?: number, splash?: import('./types.js').Splash }} AttackMods
  */
 
 /**
@@ -73,7 +74,7 @@ const OWN_END = new Set(['duration', 'instant', 'ammo', 'stopped']);
 /**
  * A skill's kind (技能-1): passive; ammo; one that throws a 炼金单元 is instant (技能-13); with a duration, or running until it
  * is closed (技能-4); one that switches to the 替身 as it starts, with no duration, is instant — its attack keys belong to the
- * 替身, not a next attack (职业-15); a next-attack skill (no duration, attack keys); instant.
+ * 替身, not a next attack (职业-15); a next-attack skill (no duration, attack keys, or 技能-14 heals an ally on the attack); instant.
  * @param {SkillDef} def @returns {SkillKind}
  */
 export function kindOf(def) {
@@ -82,6 +83,7 @@ export function kindOf(def) {
   if (def.alchemy) return 'instant';
   if (def.duration > 0 || def.forever) return 'duration';
   if (def.doll === 'start') return 'instant';
+  if (def.extra?.allyHeal?.on === 'attack') return 'next';
   return ATTACK_KEYS.some((k) => k in def.bb) ? 'next' : 'instant';
 }
 
@@ -150,8 +152,11 @@ const contextOf = (w, c, op) => timingOf(w, c, op).ctx;
  */
 export function endSkill(w, c, op, reason = 'duration') {
   const st = /** @type {SkillState} */ (op.skill);
+  // 技能-14: the end burst still sees the skill's range, and a tied barrier is this skill's, so both go before the buff does.
+  closeSkillText(w, c, op, reason);
   behaviorOf(c, st.id).end?.(contextOf(w, c, op), reason);
   removeBuff(op, 'spendAtk');
+  removeBuff(op, 'skillFlags');
   st.active = false; st.armed = false; st.dur = -1; st.ammo = 0;
   restartCharge(op);
   w.events.push({ type: 'skill', id: op.id, active: 0 });
@@ -205,12 +210,24 @@ export function activate(w, c, op, reason = 'auto', free = false) {
   w.events.push({ type: 'skill', id: op.id, active: 1 });
   talentSkillStart(w, c, op);
   behaviorOf(c, st.id).start?.(contextOf(w, c, op));
+  holdFlags(op, def, kind);
+  openSkillText(w, c, op);
   if (def.alchemy) throwAlchemy(w, c, op, def.alchemy);
   grantSummons(w, c, op, 'start');
   emit(w, 'skillStart', { unit: op, reason });
   if (kind === 'instant') endSkill(w, c, op, 'instant');
   // After an instant skill's own end, so that end is not the switch and this request is still there for the flush (职业-15).
   if (def.doll === 'start') st.dollPending = true;
+}
+
+/**
+ * The flags a skill's description gives while it runs (技能-9, e.g. 不死): a buff `skillFlags` from its start until it
+ * ends, whatever its behaviour; none for a skill that does not run (instant, next attack).
+ * @param {Unit} op @param {SkillDef} def @param {SkillKind} kind
+ */
+function holdFlags(op, def, kind) {
+  const flags = def.extra?.flags;
+  if (flags && kind !== 'instant' && kind !== 'next') addBuff(op, makeBuff({ key: 'skillFlags', src: op.id, flags }));
 }
 
 /**
@@ -305,7 +322,7 @@ export function attackMods(w, c, op) {
   const kind = timingOf(w, c, op).kind;
   if (st.active && kind === 'passive' && behaviorOf(c, st.id) === GENERIC) return pushed(w, c, op, hitExtra(plain, defOf(c, op)));
   if (!st.active || kind === 'instant' || kind === 'passive') return plain;
-  const mods = withExtra(skillMods(defOf(c, op).bb), defOf(c, op)), beh = behaviorOf(c, st.id);
+  const mods = withExtra(skillMods(defOf(c, op).bb, defOf(c, op).extra?.hitScale), defOf(c, op)), beh = behaviorOf(c, st.id);
   return pushed(w, c, op, beh.attack ? beh.attack(contextOf(w, c, op), mods) : mods);
 }
 
@@ -344,12 +361,22 @@ function hitExtra(mods, def) {
     ...(a.element && a.epScale ? { element: a.element, epScale: a.epScale } : {}), ...(a.displace ? { displace: a.displace } : {}) };
 }
 
-/** The attack keys of a blackboard as mods (技能-5). @param {Readonly<Record<string, number>>} bb @returns {AttackMods} */
-export function skillMods(bb) {
+/**
+ * The attack keys of a blackboard as mods (技能-5). A plain `atk_scale` that 技能-14 claims (`hitScale` `'attack'`) is the
+ * counter's or a burst's, not this attack's; `attack@atk_scale` still is. One argument keeps the old reading.
+ * @param {Readonly<Record<string, number>>} bb @param {'attack'} [hitScale] @returns {AttackMods}
+ */
+export function skillMods(bb, hitScale) {
+  const plain = hitScale === 'attack' ? undefined : bb.atk_scale;
   return {
-    scale: bb.atk_scale ?? bb['attack@atk_scale'] ?? 1, times: Math.max(1, bb.times ?? bb['attack@times'] ?? 1),
+    scale: plain ?? bb['attack@atk_scale'] ?? 1, times: Math.max(1, bb.times ?? bb['attack@times'] ?? 1),
     targets: Math.max(1, bb.max_target ?? bb['attack@max_target'] ?? 1), skill: true,
   };
+}
+
+/** A heal the description hangs on this attack (技能-14), before a next-attack skill ends. A passive one, every attack. @param {World} w @param {Content} c @param {Unit} op @param {AttackMods} mods */
+function healAfterHit(w, c, op, mods) {
+  if (op.hp > 0 && (mods.skill || defOf(c, op).type === 'PASSIVE')) healSkillAllies(w, c, op);
 }
 
 /**
@@ -362,6 +389,7 @@ export function afterAttack(w, c, op, mods, noAmmo = false) {
   const st = op.skill;
   if (!st) return;
   if (mods.selfHeal && op.hp > 0) heal(w, op, op, statsOf(op).maxHp * mods.selfHeal);
+  healAfterHit(w, c, op, mods);
   if (mods.skill && st.armed) endSkill(w, c, op, 'instant');
   else if (mods.skill && st.ammo > 0 && !noAmmo) st.ammo--;
   else if (!mods.skill && st.spType === 'attack' && !statsOf(op).flags.noSp) gainSp(st, 1);
