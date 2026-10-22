@@ -44,6 +44,7 @@
   - 依据：PRTS「作战机制」§3.2.2 敌人朝向与相对方位记载「进行攻击时：如背对攻击目标，则会先面向攻击目标再进行攻击」「具有面向判定的敌人只有左右两种朝向」；该条写的是敌人，干员侧没有公开说明，按实机录像逐帧观察。
   - 实测（帧号按录像数帧）：
     - 重新索敌时按 45° 判一次：寒克第 918 帧、梓兰第 662 帧（转向测试）。
+    - 朝上部署后重新索敌：梓兰背向部署，目标（源石虫）在下方时改用正面模型（朝上部署测试第 4 秒）。
     - 同一个目标：换列才按左右翻转、同一列保持原来的左右、同一格不判方向：梓兰第 142 帧（转向测试）。
     - 转身 4 帧（4/30 游戏秒），先压扁再张开、第 2 帧最扁处换骨架：新能第 20 帧。
     - 击杀后经索敌帧（约 2 帧）转身，旋转不打断攻击片段：寒克第 380 帧。
@@ -53,7 +54,7 @@
   - 转身有过渡：4 帧内压扁成侧影再展开，骨架与镜像在最窄的第 2 帧换，高度不变，且不打断攻击片段；计时与帧号见 ADR 0066。
 - **敌人**：只用正面模型；向左移动后朝左（镜像），向右移动后朝右，其他时候保持原来的朝向。
 
-- 来源：PRTS「作战机制」§3.2.2（[oldid=441625](https://prts.wiki/index.php?title=作战机制&oldid=441625)）、[特殊机制](https://prts.wiki/index.php?title=特殊机制&oldid=442170)（「部分敌人的动画具有迷惑性……真实的左右面向」）；实机录像：[寒克](https://github.com/user-attachments/assets/809cafc7-0b68-4d5b-a445-d50038d92f05)、[琴柳](https://github.com/user-attachments/assets/7f74c8e5-d055-4a63-9894-58e4e707728f)、[新能](https://github.com/user-attachments/assets/a80c8bf5-3f83-42b9-a41d-5b38d0f1a63b)、[转向测试（寒克与梓兰）](https://github.com/user-attachments/assets/18b81d8f-dc28-4931-b9d6-4f4c91ec3ed6)、[野鬃](https://github.com/user-attachments/assets/f60cab20-cfc5-4b5a-84ba-61a1b9903209)；推断 INF-0083（敌人的朝向、背面模型的死亡）、INF-0283（朝向规则）、INF-0284（打多分类）
+- 来源：PRTS「作战机制」§3.2.2（[oldid=441625](https://prts.wiki/index.php?title=作战机制&oldid=441625)）、[特殊机制](https://prts.wiki/index.php?title=特殊机制&oldid=442170)（「部分敌人的动画具有迷惑性……真实的左右面向」）；实机录像：[寒克](https://github.com/user-attachments/assets/809cafc7-0b68-4d5b-a445-d50038d92f05)、[琴柳](https://github.com/user-attachments/assets/7f74c8e5-d055-4a63-9894-58e4e707728f)、[新能](https://github.com/user-attachments/assets/a80c8bf5-3f83-42b9-a41d-5b38d0f1a63b)、[转向测试（寒克与梓兰）](https://github.com/user-attachments/assets/18b81d8f-dc28-4931-b9d6-4f4c91ec3ed6)、[野鬃](https://github.com/user-attachments/assets/f60cab20-cfc5-4b5a-84ba-61a1b9903209)、[朝上部署测试](https://github.com/user-attachments/assets/b5711768-debb-45e0-b6ba-790e5fdec690)；推断 INF-0083（敌人的朝向、背面模型的死亡）、INF-0283（朝向规则）、INF-0284（打多分类）
 
 ### 渲染-5 血条与技力条
 
