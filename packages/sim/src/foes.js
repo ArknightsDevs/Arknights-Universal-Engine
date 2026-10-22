@@ -1,6 +1,6 @@
-// Enemy abilities (docs/spec/foes.md 敌能-1…敌能-4, 敌能-22, 敌能-30): the hooks through which the content's behaviours
+// Enemy abilities (docs/spec/foes.md 敌能-1…敌能-4, 敌能-22, 敌能-30, 敌能-39): the hooks through which the content's behaviours
 // act on an enemy's talents and skills, the skills' cooldowns, delayed explosions, 直击 bolts, the enemies an enemy
-// brings in and 吞噬.
+// brings in, 吞噬, and one draw from the match.
 import { secondsToFrames, FPS } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
@@ -88,6 +88,7 @@ export const BOLT_RADIUS = 0.3;
  *   it stands there
  * @property {(key: string, o: import('./broods.js').BringIn) => Unit[]} summon brings in enemies of a key on its route
  *   (敌能-22): those that appeared now
+ * @property {() => number} draw one uniform draw in [0, 1) from the match (随机-1)
  * @property {(u: Unit) => void} remove an enemy's HP to 0 outright: it is knocked down at the frame's end (敌能-24)
  * @property {(t: Unit) => boolean} devour 吞噬 (敌能-30): whether the unit was devoured
  * @property {(t: Unit, key: string, init: { mods?: Record<string, number>, flags?: Record<string, boolean>, value?: number }) => void} lend
@@ -195,6 +196,7 @@ function contextOf(w, c, e, of) {
     release: () => { release(e); },
     placeDevice: (key) => { const [r, col] = tileOf(e); return spawnDevice(w, c, key, r, col); },
     summon: (key, o) => bringIn(w, c, e, key, o),
+    draw: () => draw(w),
     remove: (u) => { if (u.kind === KIND.ENEMY) knockDown(u); },
     devour: (t) => devour(e, t),
     lend: (t, key, init) => { lend(e, t, key, init); },
