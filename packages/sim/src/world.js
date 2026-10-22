@@ -14,6 +14,7 @@ import { releaseAll } from './blocking.js';
 import { operatorsAttack, shotsFly } from './combat.js';
 import { tickAlchemy } from './alchemy.js';
 import { foeEffects, foeDeath, foeFatal, releasePassengers } from './foes.js';
+import { noteExit } from './exits.js';
 import { applyCommand } from './commands.js';
 import { leaveField, startCost, costRate } from './deck.js';
 import { coolSummons, dismissSummons, expireSummons } from './summons.js';
@@ -92,6 +93,7 @@ function removeDead(w, c) {
   const reachedGoal = new Set(w.events.filter((e) => e.type === 'goal').map((e) => e.id));
   for (const u of w.units) {
     if (stays(w, c, u, reachedGoal.has(u.id))) continue;
+    noteExit(w, u);
     announceDeath(w, u, reachedGoal.has(u.id));
     if (!reachedGoal.has(u.id)) talentDeaths(w, c, u);
     u.anim = ANIM.DIE;
@@ -235,11 +237,11 @@ function pushText(out, tag, s) {
  * The state hash (spec 同步-1): the frame, the random state, the id counter, the waves' progress, the predefined units in
  * effect, the result, the co-op stages, the players, the units, the projectiles, bolts and explosions, 堡垒守御's
  * progress when there is one (守御-1), the enemies brought in to appear later once there have been some (敌能-22), the 炼金单元
- * once there have been some (技能-13), all of their data.
+ * once there have been some (技能-13), the leaves an ability has asked about once one has (敌能-63), all of their data.
  * @param {World} w @returns {number}
  */
 export function stateHash(w) {
   return hashValue(HASH_START, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, stage: w.stage, players: w.players, units: w.units, shots: w.shots, blasts: w.blasts, bolts: w.bolts,
-    fortress: w.fortress, broods: w.broods, alchemy: w.alchemy });
+    fortress: w.fortress, broods: w.broods, alchemy: w.alchemy, exits: w.exits });
 }
 
