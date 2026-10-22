@@ -1,6 +1,6 @@
-// Enemy abilities (docs/spec/foes.md 敌能-1…敌能-4, 敌能-22, 敌能-30): the hooks through which the content's behaviours
+// Enemy abilities (docs/spec/foes.md 敌能-1…敌能-4, 敌能-22, 敌能-30, 敌能-39): the hooks through which the content's behaviours
 // act on an enemy's talents and skills, the skills' cooldowns, delayed explosions, 直击 bolts, the enemies an enemy
-// brings in and 吞噬.
+// brings in, 吞噬, and one draw from the match.
 import { secondsToFrames, FPS } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
@@ -46,13 +46,16 @@ export const BOLT_RADIUS = 0.3;
  * @property {(t: Unit, init: import('./buffs.js').BuffInit) => void} addBuff
  * @property {(t: Unit, key: string) => void} removeBuff
  * @property {(t: Unit, key: string, o?: object) => void} applyStatus
- * @property {(t: Unit, dmg: { type: DamageType, amount: number }) => number} dealDamage
+ * @property {(t: Unit, dmg: import('./damage.js').Damage) => number} dealDamage
  * @property {(t: Unit, el: string, amount: number) => number} dealEp
  * @property {(t: Unit, amount: number) => number} heal
  * @property {(n: number) => void} gainCost no effect for an enemy
  * @property {{ get: (k: string) => number, set: (k: string, v: number) => void }} state its own ability state
  * @property {boolean} blocked
+ * @property {boolean} unbalanced it is in 失衡 as this turn starts (位移-3); read-only
  * @property {boolean} hurt it took damage since its last turn
+ * @property {number} taken how many accepted hits it has taken, at the 受击回复 gate, since an ability of its first read this
+ *   (敌能-38); an enemy no ability asks about keeps no count
  * @property {boolean} unblocked its block ended since its last turn
  * @property {boolean} fell it fell into a 地穴 (地图-4)
  * @property {boolean} ready a skill's cooldown is over
@@ -74,7 +77,7 @@ export const BOLT_RADIUS = 0.3;
  * @property {() => number} passengers how many passengers it carries
  * @property {() => void} alight its passengers alight (敌能-16)
  * @property {() => Unit[]} inLine the units in its row or column a 直击 may select, nearest first
- * @property {(b: { x: number, y: number, radius: number, delay: number, air: boolean, sourced: boolean } & Payload) => void} blast
+ * @property {(b: { x: number, y: number, radius: number, delay: number, air: boolean, sourced: boolean, buff?: import('./buffs.js').BuffInit } & Payload) => void} blast
  * @property {(b: { dx: number, dy: number, blast?: number } & Payload) => void} bolt
  * @property {(t: Unit, hp: number) => void} setHp sets a unit's HP outright (伤害-9)
  * @property {() => void} resetSkills its skills' cooldowns back to their first ones (敌能-18)
@@ -86,15 +89,17 @@ export const BOLT_RADIUS = 0.3;
  *   it stands there
  * @property {(key: string, o: import('./broods.js').BringIn) => Unit[]} summon brings in enemies of a key on its route
  *   (敌能-22): those that appeared now
+ * @property {() => number} draw one uniform draw in [0, 1) from the match (随机-1)
  * @property {(u: Unit) => void} remove an enemy's HP to 0 outright: it is knocked down at the frame's end (敌能-24)
  * @property {(t: Unit) => boolean} devour 吞噬 (敌能-30): whether the unit was devoured
- * @property {(t: Unit, key: string, init: { mods?: Record<string, number>, flags?: Record<string, boolean>, value?: number }) => void} lend
+ * @property {(t: Unit, key: string, init: { mods?: Record<string, number>, flags?: Record<string, boolean>, value?: number, prio?: number, act?: string, restore?: number }) => void} lend
  *   gives a unit a buff of a key that lasts while it is given again each turn (敌能-25): it ends within two frames of the
- *   last
+ *   last. `prio` and `act` are kept from the first time it is given
  * @property {(t: Unit, area: 'cross' | 'square') => Unit[]} around the units it may attack on a unit's tile and the four
  *   tiles next to it (a cross) or the eight around it (a square), in creation order (敌能-29)
  * @property {() => Unit[]} enemies every enemy on the field that is not neutral, selectable or not (敌能-25)
  * @property {() => void} fly its own motion becomes flying and the move it is on is planned again (路线-2, 敌能-34)
+ * @property {() => void} attackAgain its next attack may start at once: the attack cooldown is cleared (敌能-44, 攻击-2)
  */
 
 /**
@@ -109,6 +114,7 @@ export const BOLT_RADIUS = 0.3;
  *   dealt damage (`ranged`: it came by a projectile)
  * @property {(ctx: FoeContext) => boolean} [fatal] its HP ran out: true when the ability keeps it on the field, its HP
  *   above 0
+ * @property {(ctx: FoeContext) => void} [unbalanceEnd] 失衡 ended this turn, after the slide settled (敌能-2)
  */
 
 /** The squared distance between two points. @param {{ x: number, y: number }} a @param {{ x: number, y: number }} b */
@@ -159,7 +165,9 @@ function contextOf(w, c, e, of) {
     gainCost: () => {},
     state: { get: (k) => ab[`${name}.${k}`] ?? 0, set: (k, v) => { ab[`${name}.${k}`] = v; } },
     blocked: e.blockedBy >= 0,
+    unbalanced: e.slide !== undefined,
     hurt: (ab['@hurt'] ?? 0) === 1,
+    get taken() { if (!Object.hasOwn(ab, '@taken')) ab['@taken'] = 0; return ab['@taken']; },
     unblocked: (ab['@unblocked'] ?? 0) === 1,
     fell: (ab['@fell'] ?? 0) === 1,
     ready: skill !== null && (ab[`${name}.cd`] ?? 0) <= 0,
@@ -171,11 +179,7 @@ function contextOf(w, c, e, of) {
     allies: (radius) => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0 && !u.hidden && dist2(u, e) <= radius * radius),
     talentOf: (u, t) => (u.kind === KIND.ENEMY ? defOf(c, u).talents?.[t] ?? null : null),
     buffValue: (u, key) => u.buffs.find((b) => b.key === key)?.value ?? null,
-    setBuff: (u, key, value, mods) => {
-      const b = u.buffs.find((x) => x.key === key);
-      if (b) retune(u, b, value, mods);
-      else addBuff(u, makeBuff({ key, src: e.id, value, mods }));
-    },
+    setBuff: (u, key, value, mods) => { setBuffOf(e, u, key, value, mods); },
     blocker: () => (e.blockedBy >= 0 ? w.units.find((u) => u.id === e.blockedBy) ?? null : null),
     tagsOf: (u) => (u.kind === KIND.ENEMY ? defOf(c, u).tags ?? [] : []),
     tileKey: () => { const [r, col] = tileOf(e); return tileAt(c.level, r, col)?.key ?? ''; },
@@ -184,7 +188,8 @@ function contextOf(w, c, e, of) {
     alight: () => { releasePassengers(w, c, e); },
     drainCost: (t, n) => { const p = t.kind === KIND.OPERATOR ? w.players[t.owner] : undefined; if (p) p.cost = Math.max(0, p.cost - n); },
     inLine: () => inLine(w, e),
-    blast: (b) => { w.blasts.push({ x: b.x, y: b.y, radius: b.radius, left: secondsToFrames(b.delay), air: b.air, src: b.sourced ? e.id : -1, type: b.type, amount: b.amount, status: b.status ?? null }); },
+    // `buff` is omitted when absent: a null field would change the hash of every blast (敌能-43).
+    blast: (b) => { w.blasts.push({ x: b.x, y: b.y, radius: b.radius, left: secondsToFrames(b.delay), air: b.air, src: b.sourced ? e.id : -1, type: b.type, amount: b.amount, status: b.status ?? null, ...(b.buff ? { buff: b.buff } : {}) }); },
     bolt: (b) => {
       w.bolts.push({ src: e.id, x: e.x, y: e.y, dx: b.dx, dy: b.dy, type: b.type, amount: b.amount, status: b.status ?? null, blast: b.blast ?? 0 });
       w.events.push({ type: 'bolt', id: e.id });
@@ -196,13 +201,25 @@ function contextOf(w, c, e, of) {
     release: () => { release(e); },
     placeDevice: (key) => { const [r, col] = tileOf(e); return spawnDevice(w, c, key, r, col); },
     summon: (key, o) => bringIn(w, c, e, key, o),
+    draw: () => draw(w),
     remove: (u) => { if (u.kind === KIND.ENEMY) knockDown(u); },
     devour: (t) => devour(e, t),
     lend: (t, key, init) => { lend(e, t, key, init); },
     around: (t, area) => around(w, e, t, area),
     enemies: () => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0),
     fly: () => { becomeFlyer(e); },
+    attackAgain: () => { ab['@again'] = 1; },
   };
+}
+
+/**
+ * The context's `setBuff` (敌能-2): retunes the buff of this key the unit holds, or gives it one from the enemy.
+ * @param {Unit} e @param {Unit} u @param {string} key @param {number} value @param {Record<string, number>} mods
+ */
+function setBuffOf(e, u, key, value, mods) {
+  const b = u.buffs.find((x) => x.key === key);
+  if (b) retune(u, b, value, mods);
+  else addBuff(u, makeBuff({ key, src: e.id, value, mods }));
 }
 
 /** Frames a lent buff lasts without being given again (敌能-25): it outlasts the next frame's buff tick. */
@@ -214,7 +231,7 @@ const sameMods = (a, b) => Object.keys(a).length === Object.keys(b).length && Ob
 /**
  * A buff enemy `e` lends unit `t` (敌能-25): made the first time, its frames left back to LENT each time after — retuned
  * when its value or mods changed.
- * @param {Unit} e @param {Unit} t @param {string} key @param {{ mods?: Record<string, number>, flags?: Record<string, boolean>, value?: number }} init
+ * @param {Unit} e @param {Unit} t @param {string} key @param {{ mods?: Record<string, number>, flags?: Record<string, boolean>, value?: number, prio?: number, act?: string, restore?: number }} init
  */
 function lend(e, t, key, init) {
   const b = t.buffs.find((x) => x.key === key);
@@ -294,6 +311,14 @@ export function foeTick(w, c, e) {
 }
 
 /**
+ * The frame 失衡 ends (敌能-2): after this turn's slide settled. `unbalanced` is already false.
+ * @param {World} w @param {Content} c @param {Unit} e
+ */
+export function foeUnbalanceEnd(w, c, e) {
+  each(w, c, e, 'unbalanceEnd', (b, ctx) => b.unbalanceEnd?.(ctx));
+}
+
+/**
  * An enemy whose HP ran out, before it leaves (敌能-2): whether one of its abilities keeps it on the field.
  * @param {World} w @param {Content} c @param {Unit} e
  */
@@ -351,11 +376,14 @@ export function foeHit(w, c, e, t, how) {
 
 /**
  * A unit takes a bolt's or an explosion's payload (敌能-3, 敌能-4).
- * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {{ type: DamageType, amount: number, status: { key: string, seconds: number } | null }} p
+ * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t
+ * @param {{ type: DamageType, amount: number, status: { key: string, seconds: number } | null, buff?: import('./buffs.js').BuffInit }} p
  */
 function take(w, c, src, t, p) {
   dealDamage(w, src, t, { type: p.type, amount: p.amount }, c);
-  if (p.status && t.hp > 0) inflict(w, t, /** @type {any} */ (p.status.key), { seconds: p.status.seconds, src });
+  if (t.hp <= 0) return;
+  if (p.status) inflict(w, t, /** @type {any} */ (p.status.key), { seconds: p.status.seconds, src });
+  if (p.buff) addBuff(t, makeBuff({ src: src ? src.id : -1, ...p.buff }));
 }
 
 /**
