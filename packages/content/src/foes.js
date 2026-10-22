@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-56): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-56, 敌能-78): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
@@ -21,6 +21,7 @@ import { timeBehaviors } from './times.js';
 import { runnerBehaviors } from './runners.js';
 import { takeDmg } from './chalice.js';
 import { unbalanceBehaviors } from './unbalance.js';
+import { helmKnightBehaviors, rebornOwns } from './helmknights.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -164,6 +165,11 @@ export const FOE_EXTRAS = Object.freeze({
   // 清明 / 堂皇: a fall does not spawn, and only the skill (not the talent of the same name) runs 范围隐匿.
   enemy_1209_sfden: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E6%B8%85%E6%98%8E&oldid=376397` },
   enemy_1209_sfden_2: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E5%A0%82%E7%9A%87&oldid=389600` },
+  // 锋盔骑士团: 不会攻击飞行单位, and the duration-only 重生 the three read pages share. `page` keeps every other
+  // `reborn` of that shape uncovered (敌能-78, 关卡-2). The skill's numbers are already in the data.
+  enemy_1104_lfkght: { talents: { reborn: { page: 1 }, noFly: {} }, source: `${PRTS}%E9%94%8B%E7%9B%94%E9%AA%91%E5%A3%AB%E5%9B%A2%E5%AD%A6%E5%BE%92&oldid=378942` },
+  enemy_1104_lfkght_2: { talents: { reborn: { page: 1 }, noFly: {} }, source: `${PRTS}%E9%94%8B%E7%9B%94%E9%AA%91%E5%A3%AB%E5%9B%A2%E7%B2%BE%E9%94%90&oldid=367229` },
+  enemy_1104_lfkght_3: { talents: { reborn: { page: 1 }, noFly: {} }, source: `${PRTS}%E2%80%9C%E5%B7%A6%E6%89%8B%E2%80%9D%E6%B3%B0%E7%89%B9%E6%96%AF%C2%B7%E7%99%BD%E6%9D%A8&oldid=378941` },
 });
 
 /**
@@ -331,6 +337,7 @@ const PowerHit = Object.freeze({
 export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
   ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...elementHitBehaviors, ...devourerBehaviors, ...refractBehaviors, ...statueBehaviors, ...auraBehaviors, ...chargedBehaviors, ...staticBehaviors, ...timeBehaviors, ...runnerBehaviors, takeDmg, ...unbalanceBehaviors,
+  ...helmKnightBehaviors,
   ...bombdBehaviors,
 });
 
@@ -356,6 +363,8 @@ export const FOE_NEEDS = Object.freeze({
   combat: Object.freeze(['el']), attack: Object.freeze(['el']),
   AttackSpeedUp: Object.freeze(['attack_speed', 'duration', 'stack_cnt']),
   boomb: Object.freeze(['move_speed']),
+  // The page marker of the three read 锋盔 pages (敌能-78). The rest of the shape is rebornOwns.
+  reborn: Object.freeze(['page']),
 });
 
 /**
@@ -369,7 +378,7 @@ const abilitiesOf = (e) => [...Object.entries(e.talents ?? {}), ...(e.skills ?? 
  * shape that behaviour understands (敌能-38); anything else stays incomplete.
  * @param {string} k @param {Record<string, unknown>} bb
  */
-const complete = (k, bb) => elementHitOwns(k, bb) && (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
+const complete = (k, bb) => elementHitOwns(k, bb) && rebornOwns(k, bb) && (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
 
 /**
  * The abilities (talents and skills) of the given enemies — their extras merged — that have no behaviour and are not
