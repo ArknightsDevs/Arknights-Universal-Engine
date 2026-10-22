@@ -1,6 +1,6 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-48): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-48): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
-// to the blackboards the behaviours read. They act only through the context (ADR 0055).
+// to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
 import { moreFoeBehaviors, addEnergy } from './abilities.js';
 import { prisonerBehaviors } from './prisoners.js';
@@ -13,6 +13,13 @@ import { elementHitBehaviors, elementHitOwns } from './elementhit.js';
 import { devourerBehaviors } from './devourers.js';
 import { refractBehaviors } from './refract.js';
 import { statueBehaviors } from './statue.js';
+import { auraBehaviors } from './auras.js';
+import { chargedBehaviors } from './charged.js';
+import { staticBehaviors } from './static.js';
+import { timeBehaviors } from './times.js';
+import { runnerBehaviors } from './runners.js';
+import { takeDmg } from './chalice.js';
+import { unbalanceBehaviors } from './unbalance.js';
 import { floatBehaviors, takeOffOwns } from './float.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
@@ -83,6 +90,22 @@ export const FOE_EXTRAS = Object.freeze({
   // 萨卡兹悖谬谍报官/谍报长: 初始技力=3, 技力上限=3 (rounds of ammunition)
   enemy_1317_wdexg: { talents: { 1: { ammo: 3 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%82%96%E8%B0%AC%E8%B0%8D%E6%8A%A5%E5%AE%98&oldid=436389` },
   enemy_1317_wdexg_2: { talents: { 1: { ammo: 3 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%82%96%E8%B0%AC%E8%B0%8D%E6%8A%A5%E9%95%BF&oldid=436390` },
+  // 深池方阵战士/深池方阵指挥官: 自身1.5半径内除自身外其它深池方阵战士/深池方阵指挥官防御力增加200（可无限叠加，不可被沉默）
+  enemy_1169_duphlx: { talents: { auraDefup: { radius: 1.5 } }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%88%98%E5%A3%AB&oldid=353488` },
+  enemy_1169_duphlx_2: { talents: { auraDefup: { radius: 1.5 } }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%8C%87%E6%8C%A5%E5%AE%98&oldid=353489` },
+  // 深池暗影术师/深池暗影术师队长: 不会攻击飞行单位 — its own talent, not part of 折射
+  enemy_1168_dumage: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88&oldid=367785` },
+  enemy_1168_dumage_2: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88%E9%98%9F%E9%95%BF&oldid=367786` },
+  // 寒霜: 使2.5半径范围内的所有我方单位攻击速度-50%. The data keeps 2.5 on defup; the aura reads atkSpeedDown (敌能-35).
+  enemy_1042_frostd: { talents: { atkSpeedDown: { range_radius: 2.5 }, Static: {} }, source: `${PRTS}%E5%AF%92%E9%9C%9C&oldid=371399` },
+  // 澪: 普通攻击为2连击, and 寒晖 is those same two hits at 150% (talents [], PowerAttack has only atk_scale)
+  enemy_10118_ymgprc: { skills: { PowerAttack: { times: 2 } }, source: `${PRTS}%E6%BE%AA&oldid=358826` },
+  // 静态刚体, as each page's ability cell says (the data has no talent for it; 敌能-37). Not their other talents — those are other behaviours.
+  enemy_1017_defdrn: { talents: { Static: {} }, source: `${PRTS}%E5%BE%A14&oldid=380622` },
+  enemy_10083_hlbird: { talents: { Static: {} }, source: `${PRTS}%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E4%B9%8B%E7%BF%BC%E2%80%9D&oldid=375648` },
+  enemy_10084_hlegle: { talents: { Static: {} }, source: `${PRTS}%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E4%B9%8B%E7%9C%BC%E2%80%9D&oldid=388054` },
+  enemy_10085_hllevi_2: { talents: { Static: {} }, source: `${PRTS}%E2%80%9C%E8%90%A8%E7%A7%91%E5%A1%94%E6%98%82%E9%A6%96%E2%80%9D&oldid=376212` },
+  enemy_1430_lrrook: { talents: { Static: {} }, source: `${PRTS}%E6%84%A7%E6%82%94%E9%AD%82%E7%81%B5%E5%9C%A3%E6%9D%AF&oldid=386513` },
   // 元素损伤 on the normal attack (敌能-38). `el` is the 元素-1 id (1 神经, 2 侵蚀, 3 灼燃, 4 凋亡); the data has only the ratio.
   // 底海滑动者/富营养的滑动者: 普通攻击额外造成攻击力15%的神经损伤
   enemy_1148_dssbr: { talents: { epdamage: { el: 1 } }, source: `${PRTS}%E5%BA%95%E6%B5%B7%E6%BB%91%E5%8A%A8%E8%80%85&oldid=353445` },
@@ -109,12 +132,35 @@ export const FOE_EXTRAS = Object.freeze({
   enemy_1229_darmy_2: { talents: { epdamage: { el: 4 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E7%8E%8B%E5%BA%AD%E5%86%9B%E6%88%98%E5%A3%AB&oldid=436441` },
   enemy_1275_dwlock: { talents: { empty: { el: 4 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E7%8E%8B%E5%BA%AD%E5%86%9B%E6%9C%AF%E5%B8%88&oldid=436440` },
   enemy_1275_dwlock_2: { talents: { empty: { el: 4 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E7%8E%8B%E5%BA%AD%E5%86%9B%E6%9C%AF%E5%B8%88&oldid=436440` },
-  // 深池方阵战士/深池方阵指挥官: 自身1.5半径内除自身外其它深池方阵战士/深池方阵指挥官防御力增加200（可无限叠加，不可被沉默）
-  enemy_1169_duphlx: { talents: { auraDefup: { radius: 1.5 } }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%88%98%E5%A3%AB&oldid=353488` },
-  enemy_1169_duphlx_2: { talents: { auraDefup: { radius: 1.5 } }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%8C%87%E6%8C%A5%E5%AE%98&oldid=353489` },
-  // 深池暗影术师/深池暗影术师队长: 不会攻击飞行单位 — its own talent, not part of 折射
-  enemy_1168_dumage: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88&oldid=367785` },
-  enemy_1168_dumage_2: { talents: { noFly: {} }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%9A%97%E5%BD%B1%E6%9C%AF%E5%B8%88%E9%98%9F%E9%95%BF&oldid=367786` },
+  // 岁兽残响 bodies: 无法被阻挡，不进行普通攻击，具有特殊生命值机制 (the data has no talent for it)
+  enemy_1196_msfyin: { talents: { hitCount: {} }, source: `${PRTS}%E6%9C%A8%E5%88%B6%E7%91%9E%E5%8D%B0&oldid=365791` },
+  enemy_1196_msfyin_2: { talents: { hitCount: {} }, source: `${PRTS}%E7%BA%A2%E6%9C%A8%E7%91%9E%E5%8D%B0&oldid=365790` },
+  enemy_1198_msfshu: { talents: { hitCount: {} }, source: `${PRTS}%E5%B0%8F%E8%AF%B4%E5%8D%B7%E8%BD%B4&oldid=353547` },
+  enemy_1198_msfshu_2: { talents: { hitCount: {} }, source: `${PRTS}%E8%AF%97%E7%94%BB%E5%8D%B7%E8%BD%B4&oldid=365788` },
+  enemy_1200_msfjin: { talents: { hitCount: {} }, source: `${PRTS}%E9%9D%92%E9%93%9C%E9%95%9C&oldid=365787` },
+  enemy_1200_msfjin_2: { talents: { hitCount: {} }, source: `${PRTS}%E9%BB%84%E9%93%9C%E9%95%9C&oldid=365786` },
+  enemy_1202_msfzhi: { talents: { hitCount: {} }, source: `${PRTS}%E6%9C%A8%E5%88%B6%E9%95%87%E7%BA%B8&oldid=365785` },
+  enemy_1202_msfzhi_2: { talents: { hitCount: {} }, source: `${PRTS}%E7%BA%A2%E6%9C%A8%E9%95%87%E7%BA%B8&oldid=353556` },
+  // 磨砻 / 雅气: 因坠落以外的原因死亡后才召唤 (the data's DeadSpawn has no fall)
+  enemy_1195_sfyin: { talents: { DeadSpawn: { fall: 0 } }, source: `${PRTS}%E7%A3%A8%E7%A0%BB&oldid=381889` },
+  enemy_1197_sfshu_2: { talents: { DeadSpawn: { fall: 0 } }, source: `${PRTS}%E9%9B%85%E6%B0%94&oldid=381892` },
+  // 烹泉: 半径 1.0 的法术溅射；因坠落以外的原因才召唤；死亡爆炸半径 1.25、延迟 0、不可对空、攻击力 100%
+  enemy_1203_sfhu: { talents: { Splash: { radius: 1 }, DeadSpawn: { fall: 0 }, DeadBoom: { radius: 1.25, delay: 0, air: 0, atk_scale: 1 } }, source: `${PRTS}%E7%83%B9%E6%B3%89&oldid=381901` },
+  // 沏虹: 半径 1；页面没有「因坠落以外」，坠落也召唤；死亡爆炸同烹泉（不可对空为推断 INF-0343）
+  enemy_1203_sfhu_2: { talents: { Splash: { radius: 1 }, DeadBoom: { radius: 1.25, delay: 0, air: 0, atk_scale: 1 } }, source: `${PRTS}%E6%B3%8C%E8%99%B9&oldid=353558` },
+  // 青瓷茶器 / 彩瓷茶器: 只接受法术和真实伤害（数据里没有这项天赋）
+  enemy_1204_msfhu: { talents: { hitCount: { arts: 1, true: 1 } }, source: `${PRTS}%E9%9D%92%E7%93%B7%E8%8C%B6%E5%99%A8&oldid=397896` },
+  enemy_1204_msfhu_2: { talents: { hitCount: { arts: 1, true: 1 } }, source: `${PRTS}%E5%BD%A9%E7%93%B7%E8%8C%B6%E5%99%A8&oldid=365782` },
+  // 新硎: 因坠落以外的原因. 沉沙's page says 死亡后, so a fall still spawns (敌能-44).
+  enemy_1207_sfji_2: { talents: { DeadSpawn: { fall: 0 } }, source: `${PRTS}%E6%96%B0%E7%A1%8E&oldid=381907` },
+  // 矛头 / 灯盘: 无法被阻挡，不进行普通攻击，具有特殊生命值机制 (the data has no talent for it)
+  enemy_1208_msfji: { talents: { hitCount: {} }, source: `${PRTS}%E9%93%9C%E7%9F%9B%E5%A4%B4&oldid=365776` },
+  enemy_1208_msfji_2: { talents: { hitCount: {} }, source: `${PRTS}%E9%93%81%E7%9F%9B%E5%A4%B4&oldid=365775` },
+  enemy_1210_msfden: { talents: { hitCount: {} }, source: `${PRTS}%E9%93%9C%E7%81%AF%E7%9B%98&oldid=414298` },
+  enemy_1210_msfden_2: { talents: { hitCount: {} }, source: `${PRTS}%E9%93%81%E7%81%AF%E7%9B%98&oldid=365778` },
+  // 清明 / 堂皇: a fall does not spawn, and only the skill (not the talent of the same name) runs 范围隐匿.
+  enemy_1209_sfden: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E6%B8%85%E6%98%8E&oldid=376397` },
+  enemy_1209_sfden_2: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E5%A0%82%E7%9A%87&oldid=389600` },
 });
 
 /**
@@ -281,7 +327,7 @@ const PowerHit = Object.freeze({
 /** Behaviours by talent or skill name. @type {Readonly<Record<string, FoeBehavior>>} */
 export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
-  ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...elementHitBehaviors, ...devourerBehaviors, ...refractBehaviors, ...statueBehaviors,
+  ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...elementHitBehaviors, ...devourerBehaviors, ...refractBehaviors, ...statueBehaviors, ...auraBehaviors, ...chargedBehaviors, ...staticBehaviors, ...timeBehaviors, ...runnerBehaviors, takeDmg, ...unbalanceBehaviors,
   ...floatBehaviors,
 });
 
@@ -298,7 +344,10 @@ export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp', 'Stronger', 
  */
 export const FOE_NEEDS = Object.freeze({
   boom: Object.freeze(['radius', 'delay']), Boom: Object.freeze(['radius', 'delay']), ranged: Object.freeze(['scale']),
+  DeadBoom: Object.freeze(['radius', 'delay']), Splash: Object.freeze(['radius']),
   CrossAttack: Object.freeze(['bolts', 'hold', 'charge']), Targets: Object.freeze(['n']), 1: Object.freeze(['ammo']),
+  // 远眺's death aura needs a radius; the scouts' on-hit Expose has none. 御4 and 寒霜's defup has one; a def-only defup does not (敌能-35).
+  Expose: Object.freeze(['range_radius']), defup: Object.freeze(['range_radius']),
   // The element is not in the enemy data (敌能-38). A ratio without `el` stays incomplete instead of guessing 凋亡.
   epdamage: Object.freeze(['el']), empty: Object.freeze(['el']), EpDamage: Object.freeze(['el']),
   combat: Object.freeze(['el']), attack: Object.freeze(['el']),
