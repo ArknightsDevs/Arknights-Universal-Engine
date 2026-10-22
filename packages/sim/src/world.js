@@ -30,10 +30,11 @@ import { regenAll } from './damage.js';
 import { emit, hasHook, runTimers } from './bus.js';
 import { fallIntoHoles } from './holes.js';
 import { tacticalFatal, tacticalBehaviors } from './tactical.js';
-import { dollFatal, dollBehaviors } from './doll.js';
+import { dollFatal, dollBehaviors, flushSkillDolls } from './doll.js';
 import { secondLifeFatal } from './riders.js';
 import { talentDeaths, TALENT_BEHAVIORS } from './talentfx.js';
 import { healHooks, HEAL_BEHAVIORS } from './talentheal.js';
+import { SKILL_TEXT_BEHAVIORS } from './skilltext.js';
 import { FIGHT_BEHAVIORS, timedBlasts } from './talentfight.js';
 import { foeBehaviors } from './talentfoe.js';
 import { elementHooks, elementBehaviors } from './talentelem.js';
@@ -142,7 +143,7 @@ function announceDeath(w, u, leak) {
 }
 
 /** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12, 职业-15, 职业-27…职业-29, 召唤-11, 装置-6); content cannot replace them. @param {Content} c */
-const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...TALENT_BEHAVIORS, ...HEAL_BEHAVIORS, ...FIGHT_BEHAVIORS, ...lifeBehaviors(c), ...foeBehaviors(c, holds), ...elementBehaviors(), ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c) });
+const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...TALENT_BEHAVIORS, ...HEAL_BEHAVIORS, ...SKILL_TEXT_BEHAVIORS, ...FIGHT_BEHAVIORS, ...lifeBehaviors(c), ...foeBehaviors(c, holds), ...elementBehaviors(), ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c) });
 
 /** Each content's buff behaviours, made once (they depend on the content alone), with the content's table they were made from. @type {WeakMap<Content, { from: unknown, table: Record<string, import('./buffs.js').Behavior> }>} */
 const buffTables = new WeakMap();
@@ -181,6 +182,9 @@ export function step(w, level, commands = []) {
   tickWaves(w, c);
   tickFortress(w, c);
   tickBuffs(w, buffBehaviors(c));
+  // A skill that switches to the 替身 as it starts: after buffs tick, before the rest of the frame, so the switch's flags
+  // are on before enemies act and the phase buff is not counted down on the frame it appears (职业-15), as a fatal switch is.
+  flushSkillDolls(w, c);
   regenAll(w);
   epRegenAll(w);
   enemiesAct(w, c);
@@ -189,6 +193,9 @@ export function step(w, level, commands = []) {
   auras(w, c);
   runeRangeSp(w, c);
   operatorsAttack(w, c);
+  // A skill that switches as it ends does so in the operator's turn (tickSkill). Still this frame, before shots land and
+  // before a unit at 0 HP is removed, so the two do not both start a switch (职业-15).
+  flushSkillDolls(w, c);
   timedBlasts(w, c);
   shotsFly(w, c);
   foeEffects(w, c);
