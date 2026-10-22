@@ -18,6 +18,7 @@ import { spawnDevice } from './devices.js';
 import { keyAt } from './paths.js';
 import { bringIn, hatch } from './broods.js';
 import { devour } from './deck.js';
+import { placeTasting, tickTastings } from './tasting.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').EnemyDef} EnemyDef @typedef {import('./types.js').Blast} Blast @typedef {import('./types.js').Bolt} Bolt */
@@ -100,6 +101,9 @@ export const BOLT_RADIUS = 0.3;
  * @property {() => Unit[]} enemies every enemy on the field that is not neutral, selectable or not (敌能-25)
  * @property {() => void} fly its own motion becomes flying and the move it is on is planned again (路线-2, 敌能-34)
  * @property {() => void} attackAgain its next attack may start at once: the attack cooldown is cleared (敌能-44, 攻击-2)
+ * @property {() => void} holdAttack this frame's attack, if one can start, waits out the current interval first (敌能-62)
+ * @property {(t: Unit, o: { radius: number, seconds: number, aspd: number, dodge: number }) => void} pour places a 【免费品尝】
+ *   area at the centre of the target's tile (敌能-62)
  */
 
 /**
@@ -209,6 +213,22 @@ function contextOf(w, c, e, of) {
     enemies: () => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0),
     fly: () => { becomeFlyer(e); },
     attackAgain: () => { ab['@again'] = 1; },
+    ...barrelContext(w, ab),
+  };
+}
+
+/**
+ * The context members of 敌能-62, kept out of `contextOf` for its line limit: the attack interval a skill takes, and the
+ * 【免费品尝】 area. @param {World} w @param {Record<string, number>} ab
+ * @returns {Pick<FoeContext, 'holdAttack' | 'pour'>}
+ */
+function barrelContext(w, ab) {
+  return {
+    holdAttack: () => { ab['@holdAtk'] = 1; },
+    pour: (t, o) => {
+      const [row, col] = tileOf(t);
+      placeTasting(w, { x: col, y: row, radius: o.radius, remain: secondsToFrames(o.seconds), aspd: o.aspd, dodge: o.dodge });
+    },
   };
 }
 
@@ -445,9 +465,10 @@ function blow(w, c) {
   w.blasts = keep;
 }
 
-/** The bolts, the explosions due this frame, then the enemies brought in due now (帧-1 step 8, 敌能-3, 敌能-4, 敌能-22). @param {World} w @param {Content} c */
+/** The bolts, the explosions due this frame, the enemies brought in due now, then 【免费品尝】 (帧-1 step 8). @param {World} w @param {Content} c */
 export function foeEffects(w, c) {
   flyBolts(w, c);
   blow(w, c);
   hatch(w, c);
+  tickTastings(w);
 }

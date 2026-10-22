@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-62): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
@@ -20,6 +20,7 @@ import { timeBehaviors } from './times.js';
 import { runnerBehaviors } from './runners.js';
 import { takeDmg } from './chalice.js';
 import { unbalanceBehaviors } from './unbalance.js';
+import { wineBehaviors, wineOwns } from './wine.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -160,6 +161,9 @@ export const FOE_EXTRAS = Object.freeze({
   // 清明 / 堂皇: a fall does not spawn, and only the skill (not the talent of the same name) runs 范围隐匿.
   enemy_1209_sfden: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E6%B8%85%E6%98%8E&oldid=376397` },
   enemy_1209_sfden_2: { talents: { DeadSpawn: { fall: 0 } }, skills: { InvisibleShield: { cast: 1 } }, source: `${PRTS}%E5%A0%82%E7%9A%87&oldid=389600` },
+  // 咸鳞汁推荐者 / 朗姆酒推荐者: carry is the page's 酒桶; radius 2 is only on the page (敌能-62). 假酒海盗 is not here.
+  enemy_10044_wintun: { talents: { 1: { carry: 1 } }, skills: { BlockedBoom: { radius: 2 } }, source: `${PRTS}%E5%92%B8%E9%B3%9E%E6%B1%81%E6%8E%A8%E8%8D%90%E8%80%85&oldid=362308` },
+  enemy_10044_wintun_2: { talents: { 1: { carry: 1 } }, skills: { BlockedBoom: { radius: 2 } }, source: `${PRTS}%E6%9C%97%E5%A7%86%E9%85%92%E6%8E%A8%E8%8D%90%E8%80%85&oldid=362309` },
 });
 
 /**
@@ -327,6 +331,7 @@ const PowerHit = Object.freeze({
 export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
   ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...elementHitBehaviors, ...devourerBehaviors, ...refractBehaviors, ...statueBehaviors, ...auraBehaviors, ...chargedBehaviors, ...staticBehaviors, ...timeBehaviors, ...runnerBehaviors, takeDmg, ...unbalanceBehaviors,
+  ...wineBehaviors,
 });
 
 /**
@@ -343,7 +348,9 @@ export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp', 'Stronger', 
 export const FOE_NEEDS = Object.freeze({
   boom: Object.freeze(['radius', 'delay']), Boom: Object.freeze(['radius', 'delay']), ranged: Object.freeze(['scale']),
   DeadBoom: Object.freeze(['radius', 'delay']), Splash: Object.freeze(['radius']),
-  CrossAttack: Object.freeze(['bolts', 'hold', 'charge']), Targets: Object.freeze(['n']), 1: Object.freeze(['ammo']),
+  CrossAttack: Object.freeze(['bolts', 'hold', 'charge']), Targets: Object.freeze(['n']),
+  // 尝尝这个！'s radius is only on the page (敌能-62). Talent `1`'s shape is wineOwns, not a key list: ammo and carry differ.
+  BlockedBoom: Object.freeze(['radius']),
   // 远眺's death aura needs a radius; the scouts' on-hit Expose has none. 御4 and 寒霜's defup has one; a def-only defup does not (敌能-35).
   Expose: Object.freeze(['range_radius']), defup: Object.freeze(['range_radius']),
   // The element is not in the enemy data (敌能-38). A ratio without `el` stays incomplete instead of guessing 凋亡.
@@ -363,7 +370,7 @@ const abilitiesOf = (e) => [...Object.entries(e.talents ?? {}), ...(e.skills ?? 
  * shape that behaviour understands (敌能-38); anything else stays incomplete.
  * @param {string} k @param {Record<string, unknown>} bb
  */
-const complete = (k, bb) => elementHitOwns(k, bb) && (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
+const complete = (k, bb) => elementHitOwns(k, bb) && wineOwns(k, bb) && (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number');
 
 /**
  * The abilities (talents and skills) of the given enemies — their extras merged — that have no behaviour and are not
