@@ -13,7 +13,8 @@ import { newStageState, tickStage, stageCount } from './stage.js';
 import { releaseAll } from './blocking.js';
 import { operatorsAttack, shotsFly } from './combat.js';
 import { tickAlchemy } from './alchemy.js';
-import { foeEffects, foeDeath, foeFatal, releasePassengers } from './foes.js';
+import { foeEffects, foeDeath, foeFatal, releasePassengers, foeHooks, foeDown } from './foes.js';
+import { noteExit } from './exits.js';
 import { applyCommand } from './commands.js';
 import { leaveField, startCost, costRate } from './deck.js';
 import { coolSummons, dismissSummons, expireSummons } from './summons.js';
@@ -42,6 +43,8 @@ import { holds } from './vs.js';
 import { lifeFatal, lifeBehaviors } from './talentlife.js';
 import { newFortress, setUpFortress, fortressHooks, tickFortress } from './fortress.js';
 import { fieldContent } from './facilities.js';
+import { bleedTick } from './blight.js';
+import { returnLoot, boomLoot, lootForSeat } from './loot.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -58,7 +61,10 @@ export function createWorld(c, o) {
   const w = {
     frame: 0, rng: seedState(o.seed), nextId: 1, sched: newSchedule(), predefined: visiblePredefines(c), result: -1, stage: newStageState(), bornThisFrame: 0, units: [], shots: [], blasts: [], bolts: [],
     events: [],
-    players: Array.from({ length: o.players }, (_, seat) => ({ life: maxLifePoint, cost: startCost(c, seat), costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {}, revive: -1, downs: 0, ask: -1, askCd: 0 })),
+    players: Array.from({ length: o.players }, (_, seat) => {
+      const loot = lootForSeat(c, seat);
+      return { life: maxLifePoint, cost: startCost(c, seat), costTimer: secondsToFrames(costIncreaseTime), deployed: [], cards: {}, revive: -1, downs: 0, ask: -1, askCd: 0, ...(loot ? { loot } : {}) };
+    }),
     ...(c.level.fortress ? { fortress: newFortress(c, o.players) } : {}),
   };
   for (const alias of w.predefined) { placeDevice(w, c, alias); placePredefined(w, c, alias); }
@@ -83,7 +89,7 @@ function gainCost(w, c) {
 }
 
 /**
- * Removes units with no HP left (伤害-9): enemies killed by attacks die — unless an ability keeps them (敌能-2) —, the
+ * Removes units with no HP left (伤害-9): enemies killed by attacks die — unless an ability keeps them (敌能-2) —, the other enemies' `down` hears it, the
  * talents that see one fall give their SP (职业-25), enemies at the goal leave quietly; an operator that falls releases what it blocks (阻挡-3) and leaves the field without a
  * refund (部署-3), its summons with it (召唤-5) — but a tactical summon in its summon form turns into its point (召唤-11).
  * @param {World} w @param {Content} c
@@ -92,12 +98,16 @@ function removeDead(w, c) {
   const reachedGoal = new Set(w.events.filter((e) => e.type === 'goal').map((e) => e.id));
   for (const u of w.units) {
     if (stays(w, c, u, reachedGoal.has(u.id))) continue;
+    noteExit(w, u);
     announceDeath(w, u, reachedGoal.has(u.id));
     if (!reachedGoal.has(u.id)) talentDeaths(w, c, u);
     u.anim = ANIM.DIE;
     if (!reachedGoal.has(u.id)) w.events.push({ type: 'death', id: u.id });
     if (!reachedGoal.has(u.id) && u.kind === KIND.ENEMY && u.base.neutral === true) neutralDown(w, c, u);
-    if (!reachedGoal.has(u.id) && u.kind === KIND.ENEMY) foeDeath(w, c, u);
+    if (!reachedGoal.has(u.id) && u.kind === KIND.ENEMY) {
+      foeDeath(w, c, u);
+      foeDown(w, c, u);
+    }
     if (u.kind === KIND.ENEMY) releasePassengers(w, c, u);
     stageCount(w, c, u, reachedGoal.has(u.id));
     releaseAll(w, u.id);
@@ -143,7 +153,7 @@ function announceDeath(w, u, leak) {
 }
 
 /** The engine's own buff behaviours (状态-8, 元素-4, 职业-10, 职业-12, 职业-15, 职业-27…职业-29, 召唤-11, 装置-6); content cannot replace them. @param {Content} c */
-const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...TALENT_BEHAVIORS, ...HEAL_BEHAVIORS, ...SKILL_TEXT_BEHAVIORS, ...FIGHT_BEHAVIORS, ...lifeBehaviors(c), ...foeBehaviors(c, holds), ...elementBehaviors(), ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c) });
+const builtin = (c) => ({ ...STATUS_BEHAVIORS, ...BURST_BEHAVIORS, ...TALENT_BEHAVIORS, ...HEAL_BEHAVIORS, ...SKILL_TEXT_BEHAVIORS, ...FIGHT_BEHAVIORS, ...lifeBehaviors(c), ...foeBehaviors(c, holds), ...elementBehaviors(), ...upkeepBehaviors(c), ...timedBehaviors(c), charge: chargeBehavior(c), ...tacticalBehaviors(c), ...dollBehaviors(c), ...carriedBehaviors(c), bleed: { tick: bleedTick } });
 
 /** Each content's buff behaviours, made once (they depend on the content alone), with the content's table they were made from. @type {WeakMap<Content, { from: unknown, table: Record<string, import('./buffs.js').Behavior> }>} */
 const buffTables = new WeakMap();
@@ -165,9 +175,11 @@ function buffBehaviors(c) {
  */
 export function step(w, level, commands = []) {
   const c = fieldContent(w, level);
+  returnLoot(w);
   fortressHooks(w, level);
   elementHooks(w, level);
   healHooks(w, level);
+  foeHooks(w, c);
   w.events = [];
   w.bornThisFrame = 0;
   for (const [seat, cmd] of commands) applyCommand(w, c, seat, cmd);
@@ -182,6 +194,8 @@ export function step(w, level, commands = []) {
   tickWaves(w, c);
   tickFortress(w, c);
   tickBuffs(w, buffBehaviors(c));
+  // 轰隆隆先生 triggers after buffs, so the stun's first frame is this one (装置-7).
+  boomLoot(w, c);
   // A skill that switches to the 替身 as it starts: after buffs tick, before the rest of the frame, so the switch's flags
   // are on before enemies act and the phase buff is not counted down on the frame it appears (职业-15), as a fatal switch is.
   flushSkillDolls(w, c);
@@ -235,11 +249,11 @@ function pushText(out, tag, s) {
  * The state hash (spec 同步-1): the frame, the random state, the id counter, the waves' progress, the predefined units in
  * effect, the result, the co-op stages, the players, the units, the projectiles, bolts and explosions, 堡垒守御's
  * progress when there is one (守御-1), the enemies brought in to appear later once there have been some (敌能-22), the 炼金单元
- * once there have been some (技能-13), all of their data.
+ * once there have been some (技能-13), 污染秽蚀 once there has been one (敌能-46), the 【免费品尝】 areas once one has been placed (敌能-62), the leaves an ability has asked about once one has (敌能-63), how many branch individuals 召唤弩炮 has taken once it has taken one (敌能-79), all of their data.
  * @param {World} w @returns {number}
  */
 export function stateHash(w) {
   return hashValue(HASH_START, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, stage: w.stage, players: w.players, units: w.units, shots: w.shots, blasts: w.blasts, bolts: w.bolts,
-    fortress: w.fortress, broods: w.broods, alchemy: w.alchemy });
+    fortress: w.fortress, broods: w.broods, alchemy: w.alchemy, zones: w.zones, tastings: w.tastings, exits: w.exits, branchAt: w.branchAt });
 }
 
