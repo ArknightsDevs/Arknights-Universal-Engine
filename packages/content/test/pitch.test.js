@@ -98,3 +98,17 @@ test('[足球-14] a card not deployed in 5 s puts the ball back where it was cau
   assert.deepEqual([b.hidden, b.x, b.y], [false, 1, 4]);
   assert.equal(w.players[0].balls, undefined);
 });
+
+test('[渲染-1] [足球-14] a caught ball is not in the render state; back on the field it is again', async () => {
+  const { toView } = await import('@aue/sim');
+  const { readView } = await import('@aue/schema');
+  const { w, c } = field([[SPOT, 1, 4], [BALL, 4, 4]]);
+  run(w, c, 1, [deploy('b#0', 4, 1)]);
+  run(w, c, 1, [deploy('a#0', 4, 6)]);
+  const b = by(w, BALL), ids = () => readView(toView(w)).units.map((u) => u.id);
+  damage.dealDamage(w, by(w, 'a#0'), b, { type: 'phys', amount: 1e5 }, c);
+  for (let i = 0; i < 90 && !b.hidden; i++) step(w, c);
+  assert.equal(ids().includes(b.id), false);
+  run(w, c, 1, [deploy(CARD, 2, 3)]);
+  assert.equal(ids().includes(b.id), true);
+});
