@@ -61,7 +61,7 @@ function faced(f, u, key) {
   if (f.role !== 'attack') { f.aim = null; f.aimId = 0; return idle; }
   if (!f.aim) return idle;
   if (!faceTurns(key, u.skill === SKILL_STATE.RUNNING)) return { side: /** @type {'front' | 'back'} */ (f.side), flip: f.flipped };
-  const next = facingStep({ side: /** @type {'front' | 'back'} */ (f.side), flip: f.flipped }, f.aim.x - u.x, f.aim.y - u.y, f.aim.id !== f.aimId);
+  const next = facingStep({ side: /** @type {'front' | 'back'} */ (f.side), flip: f.flipped }, f.aim.x - u.x, f.aim.y - u.y, f.aim.id !== f.aimId, sideOf(u.dir) === 'back');
   f.aimId = f.aim.id;
   return next;
 }
