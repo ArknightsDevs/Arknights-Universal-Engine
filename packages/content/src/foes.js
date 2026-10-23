@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-44, 敌能-47): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-47): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
@@ -8,10 +8,12 @@ import { avengerBehaviors } from './avenger.js';
 import { hoverBehaviors } from './hover.js';
 import { summonerBehaviors } from './summoners.js';
 import { partisanBehaviors } from './partisans.js';
-import { sarkazBehaviors } from './sarkaz.js';
 import { elementHitBehaviors, elementHitOwns } from './elementhit.js';
 import { nestBehaviors, nestPulseOwns } from './nest.js';
 import { devourerBehaviors } from './devourers.js';
+import { sarkazBehaviors, stackCapped } from './sarkaz.js';
+import { emberBehaviors } from './embers.js';
+import { blightBehaviors } from './blight.js';
 import { refractBehaviors } from './refract.js';
 import { statueBehaviors } from './statue.js';
 import { auraBehaviors } from './auras.js';
@@ -90,6 +92,13 @@ export const FOE_EXTRAS = Object.freeze({
   // 萨卡兹悖谬谍报官/谍报长: 初始技力=3, 技力上限=3 (rounds of ammunition)
   enemy_1317_wdexg: { talents: { 1: { ammo: 3 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%82%96%E8%B0%AC%E8%B0%8D%E6%8A%A5%E5%AE%98&oldid=436389` },
   enemy_1317_wdexg_2: { talents: { 1: { ammo: 3 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%82%96%E8%B0%AC%E8%B0%8D%E6%8A%A5%E9%95%BF&oldid=436390` },
+  // 萨卡兹枯朽战士/组长: 污染秽蚀可对空，无视无法选择、迷彩 (敌能-46)
+  enemy_1267_nhpbr: { talents: { PollutedDie: { air: 1, open: 1 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%9E%AF%E6%9C%BD%E6%88%98%E5%A3%AB&oldid=375553` },
+  enemy_1267_nhpbr_2: { talents: { PollutedDie: { air: 1, open: 1 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%9E%AF%E6%9C%BD%E6%88%98%E5%A3%AB%E7%BB%84%E9%95%BF&oldid=375554` },
+  // 萨卡兹枯朽战车: 只打低地、不打飞行；区域可对空，范围内是我方单位（含装置），不无视无法选择
+  enemy_1272_nhtank: { talents: { Empty: { low: 1 } }, skills: { PollutedRangedAtk: { air: 1, wide: 1 } }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E6%9E%AF%E6%9C%BD%E6%88%98%E8%BD%A6&oldid=367663` },
+  // 尖端萨卡兹枯朽战车: 低地过滤，区域可对空且无视无法选择、迷彩；有低地非飞行单位才触发，丢失目标返还技力
+  enemy_1272_nhtank_2: { talents: { Empty: { low: 1 } }, skills: { PollutedRangedAtk: { air: 1, open: 1, gate: 1, refund: 1 } }, source: `${PRTS}%E5%B0%96%E7%AB%AF%E8%90%A8%E5%8D%A1%E5%85%B9%E6%9E%AF%E6%9C%BD%E6%88%98%E8%BD%A6&oldid=380616` },
   // 深池方阵战士/深池方阵指挥官: 自身1.5半径内除自身外其它深池方阵战士/深池方阵指挥官防御力增加200（可无限叠加，不可被沉默）
   enemy_1169_duphlx: { talents: { auraDefup: { radius: 1.5 } }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%88%98%E5%A3%AB&oldid=353488` },
   enemy_1169_duphlx_2: { talents: { auraDefup: { radius: 1.5 } }, source: `${PRTS}%E6%B7%B1%E6%B1%A0%E6%96%B9%E9%98%B5%E6%8C%87%E6%8C%A5%E5%AE%98&oldid=353489` },
@@ -332,6 +341,8 @@ const PowerHit = Object.freeze({
 export const foeBehaviors = Object.freeze({
   boom, Boom, FirstAttack, atkup, ranged, CrossAttack, Bomb, PowerHit, ...moreFoeBehaviors, ...prisonerBehaviors, ...avengerBehaviors, ...hoverBehaviors,
   ...summonerBehaviors, ...partisanBehaviors, ...sarkazBehaviors, ...elementHitBehaviors, ...devourerBehaviors, ...refractBehaviors, ...statueBehaviors, ...auraBehaviors, ...chargedBehaviors, ...staticBehaviors, ...timeBehaviors, ...runnerBehaviors, takeDmg, ...unbalanceBehaviors,
+  ...emberBehaviors,
+  ...blightBehaviors,
   ...nestBehaviors,
 });
 
@@ -356,6 +367,11 @@ export const FOE_NEEDS = Object.freeze({
   epdamage: Object.freeze(['el']), empty: Object.freeze(['el']), EpDamage: Object.freeze(['el']),
   combat: Object.freeze(['el']), attack: Object.freeze(['el']),
   AttackSpeedUp: Object.freeze(['attack_speed', 'duration', 'stack_cnt']),
+  // air/open are the page's 可对空 and 无视无法选择: a warrior without them is not this ability yet. The 战车 skill's
+  // page rules are extras too, but an unread enemy with the same keys (改装排污车) is complete from the data alone.
+  PollutedDie: Object.freeze(['polluted_damage_low', 'polluted_damage_high', 'projectile_life_time', 'projectile_range', 'air', 'open']),
+  PollutedRangedAtk: Object.freeze(['polluted_damage_low', 'polluted_damage_high', 'range_radius', 'projectile_life_time']),
+  Bleeding: Object.freeze(['attack@bleeding_damage', 'attack@duration']),
 });
 
 /**
@@ -365,11 +381,20 @@ export const FOE_NEEDS = Object.freeze({
 const abilitiesOf = (e) => [...Object.entries(e.talents ?? {}), ...(e.skills ?? []).map((s) => /** @type {[string, Record<string, number | string>]} */ ([s.key, s.bb ?? {}]))];
 
 /**
+ * The shape checks of the shared names (关卡-2): each says whether a blackboard of its names is the shape its behaviour
+ * understands, and passes every other name. In a list, so that each family adds one entry, not one more `&&`.
+ */
+const SHAPE_OWNERS = Object.freeze([elementHitOwns]);
+
+/**
  * Whether an ability has what its behaviour needs (关卡-2). A shared talent name only counts when its blackboard is the
- * shape that behaviour understands (敌能-38, 敌能-47). The nest pulse does not need `el`: the page names 神经损伤.
+ * shape that behaviour understands (敌能-38, 敌能-47) — an `aura` only with 敌能-28's stack cap (敌能-45); anything else
+ * stays incomplete. The nest pulse does not need `el`: the page names 神经损伤.
  * @param {string} k @param {Record<string, unknown>} bb
  */
-const complete = (k, bb) => elementHitOwns(k, bb) && (nestPulseOwns(k, bb) || (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number'));
+const complete = (k, bb) => SHAPE_OWNERS.every((own) => own(k, bb))
+  && (k !== 'aura' || stackCapped(bb))
+  && (nestPulseOwns(k, bb) || (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number'));
 
 /**
  * The abilities (talents and skills) of the given enemies — their extras merged — that have no behaviour and are not
