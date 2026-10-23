@@ -1,4 +1,4 @@
-// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-67): behaviours by talent and skill name. The
+// Enemy abilities of the official content (docs/spec/foes.md 敌能-5…敌能-68): behaviours by talent and skill name. The
 // game data holds only the multipliers; FOE_EXTRAS adds, per enemy, the parameters PRTS gives (radii, delays, bolts …)
 // to the blackboards the behaviours read, or a talent the data does not have. They act only through the context (ADR 0055).
 
@@ -41,6 +41,7 @@ import { whipBehaviors, whipOwns } from './whip.js';
 import { seedBehaviors, bornBugsOwns } from './seeds.js';
 import { mudShieldBehaviors, shieldOwns } from './mudshield.js';
 import { punchBehaviors, punchOwns } from './punch.js';
+import { passiveBehaviors, passiveOwns } from './passive.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').EnemyDef} EnemyDef */
 
@@ -250,6 +251,9 @@ export const FOE_EXTRAS = Object.freeze({
   // R-31 / R-31a: 半径 0.8 is on the page, not in the blackboard (敌能-67). 神拳机甲 shares the shape and gets no marker.
   enemy_1255_lybgpa: { skills: { Punch: { radius: 0.8 } }, source: `${PRTS}R-31%E9%87%8D%E5%9E%8B%E5%8A%A8%E5%8A%9B%E8%A3%85%E7%94%B2&oldid=380911` },
   enemy_1255_lybgpa_2: { skills: { Punch: { radius: 0.8 } }, source: `${PRTS}R-31a%E9%87%8D%E5%9E%8B%E5%8A%A8%E5%8A%9B%E8%A3%85%E7%94%B2&oldid=391946` },
+  // R-11 / R-11a: 未被阻挡时远程攻击最多同时攻击4个目标. The 4 is not in the data (敌能-68). R-11a also 不会攻击飞行单位.
+  enemy_1256_lyacpa: { talents: { Passive: { targets: 4 } }, source: `${PRTS}R-11%E7%AA%81%E5%87%BB%E5%8A%A8%E5%8A%9B%E8%A3%85%E7%94%B2&oldid=325101` },
+  enemy_1256_lyacpa_2: { talents: { Passive: { targets: 4 }, noFly: {} }, source: `${PRTS}R-11a%E7%AA%81%E5%87%BB%E5%8A%A8%E5%8A%9B%E8%A3%85%E7%94%B2&oldid=365927` },
 });
 
 /**
@@ -450,6 +454,7 @@ export const foeBehaviors = Object.freeze({
   ...radioBehaviors,
   ...mudShieldBehaviors,
   ...punchBehaviors,
+  ...passiveBehaviors,
 });
 
 /**
@@ -521,11 +526,11 @@ const healBoom = (k, bb) => k === 'Boom' && typeof bb.heal_scale === 'number';
  * The shape checks of the shared names (关卡-2): each says whether a blackboard of its names is the shape its behaviour
  * understands, and passes every other name. In a list, so that each family adds one entry, not one more `&&`.
  */
-const SHAPE_OWNERS = Object.freeze([elementHitOwns, takeOffOwns, wineOwns, whipOwns, bornBugsOwns, radioOwns, shieldOwns, punchOwns]);
+const SHAPE_OWNERS = Object.freeze([elementHitOwns, takeOffOwns, wineOwns, whipOwns, bornBugsOwns, radioOwns, shieldOwns, punchOwns, passiveOwns]);
 
 /**
  * Whether an ability has what its behaviour needs (关卡-2). A shared talent name only counts when its blackboard is the
- * shape that behaviour understands (敌能-38, 敌能-47, 敌能-63, 敌能-65, 敌能-66, 敌能-67) — an `aura` only with 敌能-28's stack cap (敌能-45); anything else
+ * shape that behaviour understands (敌能-38, 敌能-47, 敌能-63, 敌能-65, 敌能-66, 敌能-67, 敌能-68) — an `aura` only with 敌能-28's stack cap (敌能-45); anything else
  * stays incomplete. The nest pulse does not need `el`: the page names 神经损伤. A `Boom` with `heal_scale` needs its page
  * marker (敌能-58).
  * @param {string} k @param {Record<string, unknown>} bb
