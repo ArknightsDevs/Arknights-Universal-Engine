@@ -76,6 +76,7 @@ export function extractLevelFromCheckout(root, id, map) {
     stage: stageOf(/** @type {{ stages: Record<string, unknown> }} */ (readJson(join(data, 'excel', 'stage_table.json'))).stages, id),
     missions: missionsOf(data, id),
     charTable: readJson(join(data, 'excel', 'character_table.json')),
+    coop: readJson(join(data, 'battle', 'cooperate_battle_table.json')),
   });
 }
 

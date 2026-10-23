@@ -1,6 +1,6 @@
 # 阵地足球
 
-促融共竞的阵地足球：场上的足球被干员打动、在场地里滚动和反弹，滚进球门得分。实现见 `packages/sim/src/ball.js`（球的计算）、`packages/sim/src/football.js`（伤害钩子）与 `packages/sim/src/displacement.js`（踢动与滚动写入失衡状态）；球的天赋由内容给出（`packages/content/src/ball.js`）。比赛流程（开球布局、计时、比分、进球后撤退、球卡）、球员、球门屏障与守门位见后续条款。
+促融共竞的阵地足球：场上的足球被干员打动、在场地里滚动和反弹，滚进球门得分。实现见 `packages/sim/src/ball.js`（球的计算）、`packages/sim/src/football.js`（伤害钩子）与 `packages/sim/src/displacement.js`（踢动与滚动写入失衡状态）；球的天赋由内容给出（`packages/content/src/ball.js`）。比赛流程见足球-6～足球-8（`packages/sim/src/football.js`）；球员、球门屏障、守门位与球卡见后续条款。
 
 ### 足球-1 球场与球门
 
@@ -49,3 +49,29 @@
 滚动中的球的球心进入球门地块时进球：进入我方球门是对方进球，进入敌方球门是我方进球。产生表现事件 `score`（事件第 14 版，`id` 为球，`goal` 0 为我方球门、1 为敌方球门）。球随即离场：不算击倒，不扣生命。
 
 - 来源：[PRTS「促融共竞」oldid=377839](https://prts.wiki/index.php?title=%E4%BF%83%E8%9E%8D%E5%85%B1%E7%AB%9E&oldid=377839) 阵地足球「将足球送入敌方的球门吧！」「注意防守敌方球员的进攻，在规定的时间内尽可能射门吧！」；以球心进门为准、离场方式为推断 INF-0623
+
+### 足球-6 赛制与开球
+
+阵地足球关的设置来自合作战斗表与关卡（内容整理成关卡的 `football`）：比赛时长（关卡选项 `maxPlayTime`，IG-FT-1 为 300 秒）、开球后球员的等待（`footballPlayersWaitTimeOnWaveStart`，3 秒）、领先球数到开球等级的对照（`footballAheadGoalCntFactor`）、每个开球等级下各波次标签的权重（`footballLevelOfWaveFactor`）、球队与球员（`footballTeamWeights`、`footballTeamPlayers`、`footballPlayersName`）。
+
+- **球队**：战斗开始时按权重抽一支球队（随机-2），整场不变。可抽的是阵地队（标准）、战术队、爱球会、球德联四支。
+- **球员**：波次里的标准队球员（名字中带 `mumssi` 的击球手、`mubufn` 的守门员、`mugnfu` 的击人手）出场时换成本场球队同一角色的球员。
+- **开球**：每个波次是一种开球布局，带标签 `advancedWaveTag`（0～9）。开新一波时，取我方领先球数（落后按 0 算）所达到的表中最后一项的开球等级；按这一等级的权重抽一个标签（随机-2）；再在带这个标签的波次中等概率抽一个（随机-1），开始这一波。波次照常出怪和激活预部署单位（波次-1、波次-6），波次里的随机组照常抽取（波次-5）。阵地足球的波次没有最后一波。
+- **等待**：一次开球出场的球员，在开球（这一波开始的那一帧）后的等待时间内不移动、不攻击、不使用能力（Buff `kickoff`）；从开球帧 + 等待时间那一帧起行动。球和其他敌人不等待。
+- **状态**：阵地足球的进度（本场球队、双方进球、当前开球的帧、比赛结束的帧）是状态的一部分，进入快照和状态哈希。
+
+- 来源：数据：cooperate_battle_table 的 `footballAheadGoalCntFactor`、`footballLevelOfWaveFactor`、`footballTeamWeights`、`footballTeamPlayers`、`footballPlayersName`、`footballPlayersWaitTimeOnWaveStart`；关卡 `level_act1multi_football` 的 `options.maxPlayTime`、波次的 `advancedWaveTag`；[PRTS「促融共竞」oldid=377839](https://prts.wiki/index.php?title=%E4%BF%83%E8%9E%8D%E5%85%B1%E7%AB%9E&oldid=377839)「参赛的敌方球员组成了不同的球队，每次比赛都会随机登场其中一支队伍作为本次的对手」与参赛对手一览；[PRTS「阵地足球锦标」oldid=434049](https://prts.wiki/index.php?title=%E9%98%B5%E5%9C%B0%E8%B6%B3%E7%90%83%E9%94%A6%E6%A0%87&oldid=434049) 参赛球队一览（直球队、门神会、魔球帮标为新增）；四支球队、开球等级的取法与等概率抽波次为推断 INF-0625，等待的对象与起止为推断 INF-0626
+
+### 足球-7 进球与结束
+
+- **得分**：进球（足球-5）时，进入敌方球门是我方得分，进入我方球门是对方得分。每球 1 分；至纯源石球 3 分（内容在它的 `physic` 上加 `score` 3）。
+- **清场**：有进球的那一帧末尾，球离场；场上所有敌人安静离场（不算击倒，不扣生命）；生效中的预部署单位全部离场；我方所有干员撤退（撤退-1），进入再部署。下一帧这一波没有敌人了，下一次开球开始（足球-6）。
+- **结束**：比赛时长到时，战斗以胜利结束（结束-1），产生事件 `end`。嘉奖印章按净胜球（我方进球减对方进球）达到任务「争取 N 个净胜球」的个数计，IG-FT-1 为 1、2、4。
+
+- 来源：[PRTS「促融共竞」oldid=377839](https://prts.wiki/index.php?title=%E4%BF%83%E8%9E%8D%E5%85%B1%E7%AB%9E&oldid=377839)「每次射门后所有干员都会撤退并进入再部署时间」「比赛时间结束后将计算净胜球数量」「每次射门后开球时，我方和敌方球门前方都会随机部署一些阻止足球进入的“阵地屏障”」；[PRTS「至纯源石球」oldid=437059](https://prts.wiki/index.php?title=%E8%87%B3%E7%BA%AF%E6%BA%90%E7%9F%B3%E7%90%83&oldid=437059)「进球时获得3倍得分」；数据：activity_table 的 MULTIPLAY_V3 任务「争取1个净胜球」「争取2个净胜球」「争取4个净胜球」；清场的范围、撤退按普通撤退、结束算胜利为推断 INF-0627
+
+### 足球-8 场地加成
+
+阵地足球中干员撤退或倒下后，再部署惩罚（部署-3）不增加。
+
+- 来源：[PRTS「促融共竞」oldid=377839](https://prts.wiki/index.php?title=%E4%BF%83%E8%9E%8D%E5%85%B1%E7%AB%9E&oldid=377839)「所有球员再部署时不再增加部署费用消耗」

@@ -168,6 +168,9 @@ export function giveCuts(w, c, u) {
   }
 }
 
+/** A card's 再部署惩罚 after its operator leaves (部署-3): one more, at most MAX_PENALTY; in 阵地足球 the same (足球-8). @param {World} w @param {{ penalty: number }} card */
+const nextPenalty = (w, card) => (w.football ? card.penalty : Math.min(MAX_PENALTY, card.penalty + 1));
+
 /**
  * An operator leaves the field (部署-3, 撤退-1): a retreat returns ⌊min(paid × 返还倍率, initial cost)⌋ cost (without the
  * cap when its trait says so, 职业-21); either way its card gains a penalty layer (at most 2) and it may be deployed again
@@ -194,7 +197,7 @@ export function leaveField(w, c, u, retreated) {
   if (retreated) retreatGains(w, c, u, t);
   const first = retreated && !card.retreated ? t.firstRetreatRespawn : 1;
   const wait = retreated && w.fortress?.phase === 'rest' ? 0 : secondsToFrames((d.respawnTime ?? DEFAULT_RESPAWN) * respawnFactor(w, c) * first);
-  const penalty = Math.min(MAX_PENALTY, card.penalty + 1), lock = u.ab['@devoured'], once = (retreated || card.retreated) && t.firstRetreatRespawn !== 1 ? { retreated: true } : {};
+  const penalty = nextPenalty(w, card), lock = u.ab['@devoured'], once = (retreated || card.retreated) && t.firstRetreatRespawn !== 1 ? { retreated: true } : {};
   p.cards[u.key] = lock !== undefined && !retreated ? { penalty, ready: w.frame, lock, ...once } : { penalty, ready: w.frame + wait, ...once };
   p.deployed = p.deployed.filter((k) => k !== u.key);
 }

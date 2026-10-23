@@ -31708,6 +31708,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 0,
         "fragments": [
           {
             "preDelay": 0,
@@ -31893,6 +31894,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 2,
         "fragments": [
           {
             "preDelay": 0,
@@ -32078,6 +32080,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 1,
         "fragments": [
           {
             "preDelay": 0,
@@ -32263,6 +32266,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 2,
         "fragments": [
           {
             "preDelay": 0,
@@ -32448,6 +32452,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 1,
         "fragments": [
           {
             "preDelay": 0,
@@ -32633,6 +32638,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 2,
         "fragments": [
           {
             "preDelay": 0,
@@ -32818,6 +32824,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 1,
         "fragments": [
           {
             "preDelay": 0,
@@ -33003,6 +33010,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 2,
         "fragments": [
           {
             "preDelay": 0,
@@ -33188,6 +33196,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 1,
         "fragments": [
           {
             "preDelay": 0,
@@ -33373,6 +33382,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 2,
         "fragments": [
           {
             "preDelay": 0,
@@ -33558,6 +33568,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 1,
         "fragments": [
           {
             "preDelay": 0,
@@ -33743,6 +33754,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 2,
         "fragments": [
           {
             "preDelay": 0,
@@ -33928,6 +33940,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 1,
         "fragments": [
           {
             "preDelay": 0,
@@ -34113,6 +34126,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 2,
         "fragments": [
           {
             "preDelay": 0,
@@ -34298,6 +34312,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 1,
         "fragments": [
           {
             "preDelay": 0,
@@ -34483,6 +34498,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 2,
         "fragments": [
           {
             "preDelay": 0,
@@ -34668,6 +34684,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 1,
         "fragments": [
           {
             "preDelay": 0,
@@ -34853,6 +34870,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 2,
         "fragments": [
           {
             "preDelay": 0,
@@ -35038,6 +35056,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 1,
         "fragments": [
           {
             "preDelay": 0,
@@ -35223,6 +35242,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 2,
         "fragments": [
           {
             "preDelay": 0,
@@ -35408,6 +35428,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 3,
         "fragments": [
           {
             "preDelay": 0,
@@ -35601,6 +35622,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 3,
         "fragments": [
           {
             "preDelay": 0,
@@ -35794,6 +35816,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 3,
         "fragments": [
           {
             "preDelay": 0,
@@ -35987,6 +36010,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 3,
         "fragments": [
           {
             "preDelay": 0,
@@ -36180,6 +36204,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 3,
         "fragments": [
           {
             "preDelay": 0,
@@ -36373,6 +36398,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 3,
         "fragments": [
           {
             "preDelay": 0,
@@ -36566,6 +36592,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 4,
         "fragments": [
           {
             "preDelay": 0,
@@ -36759,6 +36786,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 4,
         "fragments": [
           {
             "preDelay": 0,
@@ -36936,6 +36964,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 4,
         "fragments": [
           {
             "preDelay": 0,
@@ -37113,6 +37142,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 4,
         "fragments": [
           {
             "preDelay": 0,
@@ -37290,6 +37320,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 5,
         "fragments": [
           {
             "preDelay": 0,
@@ -37546,6 +37577,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 5,
         "fragments": [
           {
             "preDelay": 0,
@@ -37802,6 +37834,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 5,
         "fragments": [
           {
             "preDelay": 0,
@@ -38090,6 +38123,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 5,
         "fragments": [
           {
             "preDelay": 0,
@@ -38378,6 +38412,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 5,
         "fragments": [
           {
             "preDelay": 0,
@@ -38519,6 +38554,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 5,
         "fragments": [
           {
             "preDelay": 0,
@@ -38799,6 +38835,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 5,
         "fragments": [
           {
             "preDelay": 0,
@@ -39087,6 +39124,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 5,
         "fragments": [
           {
             "preDelay": 0,
@@ -39375,6 +39413,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 5,
         "fragments": [
           {
             "preDelay": 0,
@@ -39599,6 +39638,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 5,
         "fragments": [
           {
             "preDelay": 0,
@@ -39839,6 +39879,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 6,
         "fragments": [
           {
             "preDelay": 0,
@@ -40299,6 +40340,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 6,
         "fragments": [
           {
             "preDelay": 0,
@@ -40759,6 +40801,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 6,
         "fragments": [
           {
             "preDelay": 0,
@@ -41211,6 +41254,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 6,
         "fragments": [
           {
             "preDelay": 0,
@@ -41647,6 +41691,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 6,
         "fragments": [
           {
             "preDelay": 0,
@@ -41963,6 +42008,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 5,
         "fragments": [
           {
             "preDelay": 0,
@@ -42399,6 +42445,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 7,
         "fragments": [
           {
             "preDelay": 0,
@@ -42851,6 +42898,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 9,
         "fragments": [
           {
             "preDelay": 0,
@@ -43311,6 +43359,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 7,
         "fragments": [
           {
             "preDelay": 0,
@@ -43771,6 +43820,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 7,
         "fragments": [
           {
             "preDelay": 0,
@@ -44215,6 +44265,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 9,
         "fragments": [
           {
             "preDelay": 0,
@@ -44739,6 +44790,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 9,
         "fragments": [
           {
             "preDelay": 0,
@@ -45263,6 +45315,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 7,
         "fragments": [
           {
             "preDelay": 0,
@@ -45691,6 +45744,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 8,
         "fragments": [
           {
             "preDelay": 0,
@@ -46119,6 +46173,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 8,
         "fragments": [
           {
             "preDelay": 0,
@@ -46579,6 +46634,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 8,
         "fragments": [
           {
             "preDelay": 0,
@@ -47031,6 +47087,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 8,
         "fragments": [
           {
             "preDelay": 0,
@@ -47483,6 +47540,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 7,
         "fragments": [
           {
             "preDelay": 0,
@@ -47943,6 +48001,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 7,
         "fragments": [
           {
             "preDelay": 0,
@@ -48451,6 +48510,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 8,
         "fragments": [
           {
             "preDelay": 0,
@@ -48959,6 +49019,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 8,
         "fragments": [
           {
             "preDelay": 0,
@@ -49419,6 +49480,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 8,
         "fragments": [
           {
             "preDelay": 0,
@@ -49879,6 +49941,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 9,
         "fragments": [
           {
             "preDelay": 0,
@@ -50135,6 +50198,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 9,
         "fragments": [
           {
             "preDelay": 0,
@@ -50308,6 +50372,7 @@
         "preDelay": 0,
         "postDelay": 0,
         "maxWait": -1,
+        "tag": 9,
         "fragments": [
           {
             "preDelay": 0,
@@ -51128,6 +51193,222 @@
           "hidden": false
         }
       ]
+    },
+    "football": {
+      "time": 300,
+      "wait": 3,
+      "stamps": [
+        1,
+        2,
+        4
+      ],
+      "ahead": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          3,
+          3
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          10,
+          8
+        ],
+        [
+          10000,
+          9
+        ]
+      ],
+      "weights": {
+        "0": [
+          100,
+          50,
+          25,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "1": [
+          50,
+          100,
+          50,
+          25,
+          12,
+          6,
+          0,
+          0,
+          0,
+          0
+        ],
+        "2": [
+          25,
+          50,
+          100,
+          50,
+          25,
+          12,
+          6,
+          3,
+          0,
+          0
+        ],
+        "3": [
+          12,
+          25,
+          50,
+          100,
+          50,
+          25,
+          12,
+          6,
+          3,
+          0
+        ],
+        "4": [
+          6,
+          12,
+          25,
+          50,
+          100,
+          50,
+          25,
+          12,
+          6,
+          3
+        ],
+        "5": [
+          3,
+          6,
+          12,
+          25,
+          50,
+          100,
+          50,
+          25,
+          12,
+          6
+        ],
+        "6": [
+          0,
+          3,
+          6,
+          12,
+          25,
+          50,
+          100,
+          50,
+          25,
+          12
+        ],
+        "7": [
+          0,
+          0,
+          3,
+          6,
+          12,
+          25,
+          50,
+          100,
+          50,
+          25
+        ],
+        "8": [
+          0,
+          0,
+          0,
+          3,
+          6,
+          12,
+          25,
+          50,
+          100,
+          50
+        ],
+        "9": [
+          0,
+          0,
+          0,
+          0,
+          3,
+          6,
+          12,
+          25,
+          50,
+          100
+        ]
+      },
+      "teams": [
+        {
+          "name": "normal",
+          "weight": 10,
+          "players": {
+            "forward": "enemy_4012_mumssi",
+            "goalkeeper": "enemy_4013_mubufn",
+            "muscleman": "enemy_4014_mugnfu"
+          }
+        },
+        {
+          "name": "shooter",
+          "weight": 10,
+          "players": {
+            "forward": "enemy_4022_mushtm",
+            "goalkeeper": "enemy_4023_mushtb",
+            "muscleman": "enemy_4024_mushtg"
+          }
+        },
+        {
+          "name": "hurrier",
+          "weight": 10,
+          "players": {
+            "forward": "enemy_4025_muhrym",
+            "goalkeeper": "enemy_4026_muhryb",
+            "muscleman": "enemy_4027_muhryg"
+          }
+        },
+        {
+          "name": "kungfuer",
+          "weight": 10,
+          "players": {
+            "forward": "enemy_4028_mukfum",
+            "goalkeeper": "enemy_4029_mukfub",
+            "muscleman": "enemy_4030_mukfug"
+          }
+        }
+      ],
+      "roles": {
+        "mumssi": "forward",
+        "mubufn": "goalkeeper",
+        "mugnfu": "muscleman"
+      }
     },
     "bgm": "act1multifootball"
   },
@@ -52247,6 +52528,402 @@
           "sp": 0,
           "value": 0,
           "block_cnt": 3
+        }
+      }
+    },
+    "enemy_4022_mushtm": {
+      "name": "战术队击球手",
+      "maxHp": 20000,
+      "atk": 500,
+      "def": 300,
+      "res": 20,
+      "moveSpeed": 1,
+      "baseAttackTime": 1.5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1.25,
+          "slapshot_force": 1.65
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "passtheball",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        },
+        {
+          "key": "slapshot",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        }
+      ]
+    },
+    "enemy_4023_mushtb": {
+      "name": "战术队守门员",
+      "maxHp": 25000,
+      "atk": 900,
+      "def": 400,
+      "res": 20,
+      "moveSpeed": 1.2,
+      "baseAttackTime": 1.5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 3,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "clearance_force": 1.5,
+          "tile_col_end": 9,
+          "defence": 0.5
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        },
+        {
+          "key": "clearance",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        }
+      ]
+    },
+    "enemy_4024_mushtg": {
+      "name": "战术队击人手",
+      "maxHp": 20000,
+      "atk": 700,
+      "def": 500,
+      "res": 20,
+      "moveSpeed": 1,
+      "baseAttackTime": 1.5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "periodic_damage": {
+          "damage": 0
+        },
+        "Reborn": {
+          "duration": 20
+        },
+        "searchtarget": {
+          "range_radius": 2.5
+        },
+        "passiveMarkTarget": {
+          "move_speed": 1.4,
+          "duration": 3,
+          "cooldown": 6
+        }
+      }
+    },
+    "enemy_4025_muhrym": {
+      "name": "爱球会击球手",
+      "maxHp": 20000,
+      "atk": 800,
+      "def": 300,
+      "res": 20,
+      "moveSpeed": 2.2,
+      "baseAttackTime": 3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1.1,
+          "slapshot_force": 1
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "passtheball",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        },
+        {
+          "key": "slapshot",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 0.2,
+            "block_volume": 1,
+            "move_speed": 0.8,
+            "up_duration": 2
+          }
+        }
+      ]
+    },
+    "enemy_4026_muhryb": {
+      "name": "爱球会守门员",
+      "maxHp": 30000,
+      "atk": 1200,
+      "def": 400,
+      "res": 20,
+      "moveSpeed": 3.2,
+      "baseAttackTime": 3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 3,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "clearance_force": 1.3,
+          "tile_col_end": 9,
+          "defence": 0.5
+        },
+        "searchBall": {
+          "range_radius": 2
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        },
+        {
+          "key": "clearance",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        }
+      ]
+    },
+    "enemy_4027_muhryg": {
+      "name": "爱球会击人手",
+      "maxHp": 20000,
+      "atk": 800,
+      "def": 500,
+      "res": 20,
+      "moveSpeed": 2.2,
+      "baseAttackTime": 3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1.2,
+          "slapshot_force": 2.8
+        },
+        "searchBall": {
+          "range_radius": 2
+        }
+      }
+    },
+    "enemy_4028_mukfum": {
+      "name": "球德联击球手",
+      "maxHp": 30000,
+      "atk": 1200,
+      "def": 500,
+      "res": 20,
+      "moveSpeed": 1,
+      "baseAttackTime": 5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1.35,
+          "slapshot_force": 1.5
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "passtheball",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        },
+        {
+          "key": "slapshot",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3,
+            "aoe_duration": 10,
+            "damage_duration": 1.5,
+            "ball_damage": 1000
+          }
+        }
+      ]
+    },
+    "enemy_4029_mukfub": {
+      "name": "球德联守门员",
+      "maxHp": 30000,
+      "atk": 1700,
+      "def": 550,
+      "res": 20,
+      "moveSpeed": 1.5,
+      "baseAttackTime": 5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 3,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "clearance_force": 1.3,
+          "tile_col_end": 9,
+          "defence": 0.5
+        },
+        "searchBall": {
+          "range_radius": 1.5
+        },
+        "rage": {
+          "hp_ratio": 0.5,
+          "atk": 2,
+          "def": 2,
+          "rage_duration": 15
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        },
+        {
+          "key": "clearance",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        }
+      ]
+    },
+    "enemy_4030_mukfug": {
+      "name": "球德联击人手",
+      "maxHp": 25000,
+      "atk": 1200,
+      "def": 500,
+      "res": 20,
+      "moveSpeed": 0.8,
+      "baseAttackTime": 5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "periodic_damage": {
+          "damage": 0
+        },
+        "Reborn": {
+          "duration": 20
+        },
+        "searchtarget": {
+          "range_radius": 2
         }
       }
     },

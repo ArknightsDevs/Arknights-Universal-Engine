@@ -5,6 +5,7 @@ import { makeEnemy } from './units.js';
 import { foeSpawn } from './foes.js';
 import { emit } from './bus.js';
 import { joinRoute } from './routes.js';
+import { teamKey, kickoffWait } from './football.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').WaveAction} WaveAction */
@@ -17,11 +18,12 @@ import { joinRoute } from './routes.js';
  * @param {number} fragAt the frame its fragment began @param {number} wave the wave that waits for it, −1 for none
  */
 export function spawnEnemy(w, c, a, fragAt, wave) {
-  const u = makeEnemy(w, c, { key: a.key, route: a.route, frag: fragAt, wave, unharmful: a.unharmful, ...(a.place ? { place: a.place } : {}) });
+  const u = makeEnemy(w, c, { key: teamKey(w, c, a.key), route: a.route, frag: fragAt, wave, unharmful: a.unharmful, ...(a.place ? { place: a.place } : {}) });
   if (a.place) joinRoute(c, u);
   w.units.push(u);
   w.events.push({ type: 'spawn', id: u.id, key: u.key });
   foeSpawn(w, c, u);
+  kickoffWait(w, c, u);
   emit(w, 'deploy', { unit: u, initial: false });
   emit(w, 'enemySpawn', { enemy: u });
   return u;

@@ -20,7 +20,7 @@ const tile = (key, passable) => ({ key, height: 'LOWLAND', buildable: 'ALL', pas
 const TILES = { '.': tile('tile_football', 'ALL'), '#': tile('tile_forbidden', 'FLY_ONLY'), A: tile('tile_allygoal', 'ALL'), E: tile('tile_enemygoal', 'ALL') };
 
 /** RMA70刺球's physics (PRTS oldid=436366): friction 0.7, restitution 0.75, threshold 2300, force 450, block 3. */
-const RMA70 = Object.freeze({ friction: 0.7, restitution: 0.75, force: 450, need: 2300, block: 3 });
+const RMA70 = Object.freeze({ friction: 0.7, restitution: 0.75, force: 450, need: 2300, block: 3, points: 1 });
 
 /**
  * A field of rows (row 0 first: '.' 球场, '#' a wall, 'A' our goal, 'E' theirs) with a ball of `p` at (x, y).

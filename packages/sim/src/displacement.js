@@ -227,16 +227,15 @@ export function slideStep(c, t, w) {
 }
 
 /**
- * Whether a slide goes on after this frame's move (位移-3, 足球-4, 足球-5): a ball that went into a goal has left the
- * field; one that one of ours stops settles; otherwise the slide ends — settled — once its speed is at most 0.1 with
+ * Whether a slide goes on after this frame's move (位移-3, 足球-4, 足球-5): a ball that went into a goal, or that one
+ * of ours stops, settles; otherwise the slide ends — settled — once its speed is at most 0.1 with
  * its 硬直 and pull over.
  * @param {Content} c @param {Unit} t @param {World} [w]
  */
 function slideGoesOn(c, t, w) {
   const s = /** @type {NonNullable<Unit['slide']>} */ (t.slide), speed = len(s.vx, s.vy);
   const end = t.ball && w ? ballMoved(w, c, t, speed) : null;
-  if (end === 'goal') return false;
-  if (end === 'stop') return settle(t, w, c);
+  if (end) return settle(t, w, c);
   return speed <= STOP_SPEED && s.hard === 0 && !s.pull ? settle(t, w, c) : true;
 }
 

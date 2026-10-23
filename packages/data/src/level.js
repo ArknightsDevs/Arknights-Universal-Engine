@@ -6,6 +6,7 @@ import { branchesOf, extractWaves, predefinesOf, stagesOf, maskCovers, levelCard
 import { devicesOf } from './devices.js';
 import { extractOptions } from './skeleton.js';
 import { enemyOf, sharedEnemies, damageTypeOf } from './enemies.js';
+import { footballField, footballPlayers } from './football.js';
 
 /** @typedef {'NORMAL' | 'FOUR_STAR'} Difficulty */
 /** @typedef {{ mods: Record<string, number>, enemy?: string[], exclude?: string[] }} EnemyMul */
@@ -178,19 +179,21 @@ function cardsField(raw) {
 /**
  * A whole level (关卡-1…关卡-5): `id` names it in the content.
  * @param {{ id: string, level: unknown, enemyDb: unknown, handbook?: unknown, commit: string, view?: { vector: unknown, source: string }, stage?: unknown,
- *   missions?: unknown, charTable?: unknown }} input
+ *   missions?: unknown, charTable?: unknown, coop?: unknown }} input
  * @returns {Record<string, unknown>}
  */
-export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage, missions, charTable }) {
+export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage, missions, charTable, coop }) {
   const lv = asObject(level, 'level');
   const { width, height, tiles } = extractTiles(field(lv, 'mapData', 'level')), blockEdges = extractEdges(lv.mapData);
   const { routes, routeOf, extraOf } = routeTable(field(lv, 'routes', 'level'), lv.extraRoutes);
   // a branch's spawns name the level's extra routes (守御-6)
   const waves = extractWaves(field(lv, 'waves', 'level'), routeOf), branches = branchesOf(lv.branches, extraOf);
   const runes = lv.runes ?? null, difficulties = { NORMAL: difficultyOf(runes, 'NORMAL'), FOUR_STAR: difficultyOf(runes, 'FOUR_STAR') };
+  // 阵地足球's teams field players the waves do not name (足球-6)
+  const football = footballField(tiles, asObject(field(lv, 'options', 'level'), 'level.options'), coop, missions);
   const frags = [...waves.flatMap((w) => w.fragments), ...Object.values(branches).flat()];
   const spawned = frags.flatMap((f) => f.actions.filter((a) => a.type === 'SPAWN').map((a) => a.key));
-  const keys = [...new Set([...spawned, ...Object.values(difficulties).flatMap((d) => Object.values(d.replace))])].toSorted();
+  const keys = [...new Set([...spawned, ...Object.values(difficulties).flatMap((d) => Object.values(d.replace)), ...footballPlayers(football)])].toSorted();
   const refs = new Map(asArray(lv.enemyDbRefs ?? [], 'level.enemyDbRefs').map((r, i) => {
     const o = asObject(r, `level.enemyDbRefs[${i}]`);
     return [asString(field(o, 'id', `level.enemyDbRefs[${i}]`), `level.enemyDbRefs[${i}].id`), o];
@@ -201,7 +204,7 @@ export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage
     source: { repo: 'Kengxxiao/ArknightsGameData', commit, server: 'zh_CN', ...(view ? { view: view.source } : {}) },
     level: { id, ...stageNames(stage), width, height, options: extractOptions(field(lv, 'options', 'level')), tiles, ...(blockEdges.length > 0 ? { blockEdges } : {}),
       routes, waves, ...branchesField(branches), predefines: predefinesOf(lv.predefines), stages: withTasks(stagesOf(lv.predefines), missions), ...cardsField(lv.predefines),
-      ...fortressField(lv.globalBuffs),
+      ...fortressField(lv.globalBuffs), ...football,
       ...(view ? { view: viewOf(view.vector) } : {}), ...(typeof lv.bgmEvent === 'string' && lv.bgmEvent ? { bgm: lv.bgmEvent } : {}) },
     difficulties,
     enemies,

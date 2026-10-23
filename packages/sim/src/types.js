@@ -18,7 +18,7 @@
  *   dontBlockWave?: boolean, hidden?: string, group?: string, pack?: string, weight?: number, unharmful?: boolean }} WaveAction
  */
 /** A fragment (波次-1, 波次-2). @typedef {{ preDelay: number, actions: WaveAction[] }} Fragment */
-/** A wave (波次-1…波次-3); `maxWait` is maxTimeWaitingForNextWave, −1 for none. @typedef {{ preDelay: number, postDelay: number, maxWait: number, fragments: Fragment[] }} Wave */
+/** A wave (波次-1…波次-3); `maxWait` is maxTimeWaitingForNextWave, −1 for none; `tag` 阵地足球's kickoff tag (足球-6). @typedef {{ preDelay: number, postDelay: number, maxWait: number, tag?: number, fragments: Fragment[] }} Wave */
 /**
  * A level's own cards (关卡-7): its operator cards with their training, its token cards with their count, alias and
  * whether they are hidden at first (波次-9).
@@ -40,6 +40,13 @@
  * blackboards by level and a roadblock's blast; a builder's progress key, hits and seconds on the field; the rubble
  * pile's range cells, its guards' branch and its check times.
  * @typedef {{ rest: number, wave: number, waveLast: number, life: number, restAdd: number }} FortressRules
+ */
+/**
+ * 阵地足球's settings (足球-6): the match time and the players' wait at a kickoff (seconds), the stamps' net goals, the
+ * kickoff level of each lead ([lead, level] in order), each level's weights of the wave tags, the teams with their
+ * weights and players by role, and the role of each name part of the standard team's players.
+ * @typedef {{ time: number, wait: number, stamps: number[], ahead: [number, number][], weights: Record<string, number[]>,
+ *   teams: { name: string, weight: number, players: Record<string, string> }[], roles: Record<string, string> }} FootballRules
  * @typedef {{ kind: 'workshop' | 'lounge' | 'platform' | 'roadblock' | 'gym', modes: Record<string, number>[], boom?: number }} FacilityDef
  * @typedef {{ sp: 'sp' | 'sp2', hits: number, life: number }} BuilderDef
  * @typedef {{ range: string, cells: Cell[], branch: string, first: number, every: number }} RubbleDef
@@ -63,7 +70,7 @@
  * its co-op stages (合作-6).
  * @typedef {import('./level.js').LevelMap & { id: string, code?: string, name?: string, options: LevelOptions, routes: Route[], waves: Wave[],
  *   hiddenGroups?: string[], predefines?: Predefine[], stages?: Stage[], view?: number[], works?: { dealt: number, taken: number }, cards?: LevelCards,
- *   branches?: Record<string, Fragment[]>, fortress?: FortressRules, uncovered?: string[] }} Level
+ *   branches?: Record<string, Fragment[]>, fortress?: FortressRules, football?: FootballRules, uncovered?: string[] }} Level
  */
 
 /** @typedef {'phys' | 'arts' | 'true' | 'elemental'} DamageType */
@@ -738,10 +745,10 @@
  *   its 失衡 slide: speed (tiles/s) and 硬直 frames left (位移-3); a pull on it — its point, its puller's centre, its force,
  *   the distance it began at, its frames left, whether it stopped (位移-4). A 静态刚体 keeps vx and vy at 0 and drops the
  *   slide when the force ends (位移-5)
- * @property {{ f: number, e: number, force: number, need: number, block: number, sum: number, ax: number, ay: number, touch: number[] }} [ball]
+ * @property {{ f: number, e: number, force: number, need: number, block: number, points: number, sum: number, ax: number, ay: number, touch: number[], goal?: number }} [ball]
  *   a ball's physics (足球-2): friction factor, restitution, default force, the damage that kicks it, the block count left
- *   that stops it; the damage and direction summed so far (足球-3); the units of ours it touched last frame (足球-4).
- *   Left out for other units
+ *   that stops it, the points of its goal (足球-7); the damage and direction summed so far (足球-3); the units of ours it
+ *   touched last frame (足球-4); the goal it went into this frame (足球-5, SCORE_GOAL). Left out for other units
  * @property {number} anim schema ANIM
  * @property {Drift} [drift] 恐惧 / 诱导 movement, present once either has been applied (状态-10, 状态-11)
  * @property {number} [summoner] the id of the unit that summoned it (召唤-4, 召唤-6); left out for others
@@ -888,6 +895,11 @@
  * @typedef {{ phase: 'defend' | 'rest' | 'go' | 'over', round: number, start: number, until: number, next: number, fell: boolean, defended: number, damage: number,
  *   ready: boolean[], pools: Record<string, number>[], guards: { at: number, key: string, route: number }[], freed: boolean, total: number, out: number }} FortressState
  */
+/**
+ * 阵地足球's progress (足球-6, 足球-7): the team drawn (its index), our goals and theirs, the frame the current kickoff
+ * began, the frame the match ends.
+ * @typedef {{ team: number, home: number, away: number, kick: number, until: number }} FootballState
+ */
 
 /**
  * @typedef {object} World
@@ -908,6 +920,7 @@
  *   (敌能-79), once one has been taken. 守御-6 does not read it
  * @property {number} bornThisFrame units created so far in this frame
  * @property {FortressState} [fortress] 堡垒守御's progress (守御-1), only in its levels
+ * @property {FootballState} [football] 阵地足球's progress (足球-6, 足球-7), only in its levels
  * @property {Shot[]} shots projectiles in flight, in launch order (攻击-3)
  * @property {Alchemy[]} [alchemy] the 炼金单元 on the field (技能-13), once there has been one
  * @property {Tasting[]} [tastings] free-tasting areas (敌能-62), once one has been placed

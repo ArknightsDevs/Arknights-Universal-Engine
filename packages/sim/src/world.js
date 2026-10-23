@@ -14,7 +14,7 @@ import { releaseAll } from './blocking.js';
 import { operatorsAttack, shotsFly } from './combat.js';
 import { tickAlchemy } from './alchemy.js';
 import { foeEffects, foeDeath, foeFatal, releasePassengers, foeHooks, foeDown } from './foes.js';
-import { ballHooks } from './football.js';
+import { ballHooks, newFootball, tickFootball } from './football.js';
 import { noteExit } from './exits.js';
 import { applyCommand } from './commands.js';
 import { leaveField, startCost, costRate } from './deck.js';
@@ -70,6 +70,7 @@ export function createWorld(c, o) {
   };
   for (const alias of w.predefined) { placeDevice(w, c, alias); placePredefined(w, c, alias); }
   setUpFortress(w, c);
+  if (c.level.football) w.football = newFootball(w, c);
   c.behaviors?.world?.(w, c);
   return w;
 }
@@ -216,6 +217,7 @@ export function step(w, level, commands = []) {
   shotsFly(w, c);
   foeEffects(w, c);
   emit(w, 'tick', { frames: 1 });
+  tickFootball(w, c);
   removeDead(w, c);
   checkEnd(w, c);
   w.frame++;
@@ -256,6 +258,6 @@ function pushText(out, tag, s) {
  */
 export function stateHash(w) {
   return hashValue(HASH_START, { frame: w.frame, rng: w.rng, nextId: w.nextId, sched: w.sched, predefined: w.predefined, result: w.result, stage: w.stage, players: w.players, units: w.units, shots: w.shots, blasts: w.blasts, bolts: w.bolts,
-    fortress: w.fortress, broods: w.broods, alchemy: w.alchemy, zones: w.zones, tastings: w.tastings, exits: w.exits, branchAt: w.branchAt });
+    fortress: w.fortress, football: w.football, broods: w.broods, alchemy: w.alchemy, zones: w.zones, tastings: w.tastings, exits: w.exits, branchAt: w.branchAt });
 }
 

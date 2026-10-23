@@ -10,7 +10,7 @@ import { asArray, asInt, asNumber, asObject, asString, field } from './validate.
  * @typedef {{ alias: string, objective: string, goal: number, advanced?: number, time: number, rest: number, enemy?: string, hpMax?: number }} Stage
  */
 /** @typedef {{ preDelay: number, actions: WaveAction[] }} Fragment */
-/** @typedef {{ preDelay: number, postDelay: number, maxWait: number, fragments: Fragment[] }} Wave */
+/** @typedef {{ preDelay: number, postDelay: number, maxWait: number, tag?: number, fragments: Fragment[] }} Wave */
 
 /** The data's action types the simulation acts on (波次-1); every other type is NONE. */
 const ACTION_TYPES = Object.freeze({ SPAWN: 'SPAWN', ACTIVATE_PREDEFINED: 'ACTIVATE', TRIGGER_PREDEFINED: 'ACTIVATE', WITHDRAW_PREDEFINED: 'WITHDRAW', STORY: 'STORY' });
@@ -84,6 +84,8 @@ export function extractWaves(wavesRaw, routeOf) {
       preDelay: asNumber(wave.preDelay ?? 0, `${wp}.preDelay`, 0, 1e6),
       postDelay: asNumber(wave.postDelay ?? 0, `${wp}.postDelay`, 0, 1e6),
       maxWait: asNumber(wave.maxTimeWaitingForNextWave ?? -1, `${wp}.maxTimeWaitingForNextWave`, -1, 1e6),
+      // 阵地足球's kickoff tag (足球-6), when the wave has one
+      ...(wave.advancedWaveTag !== null && wave.advancedWaveTag !== undefined ? { tag: asInt(Number(wave.advancedWaveTag), `${wp}.advancedWaveTag`, 0, 99) } : {}),
       fragments: asArray(field(wave, 'fragments', wp), `${wp}.fragments`).map((fRaw, fi) => {
         const fp = `${wp}.fragments[${fi}]`, frag = asObject(fRaw, fp);
         const actions = asArray(field(frag, 'actions', fp), `${fp}.actions`).map((a, ai) => readAction(a, `${fp}.actions[${ai}]`, routeOf));

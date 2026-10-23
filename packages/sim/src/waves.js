@@ -12,6 +12,7 @@ import { spawnEnemy } from './spawn.js';
 import { defendStart, defendEnd, cutDefence, mayBegin } from './fortress.js';
 import { placeDevice, withdrawDevice } from './devices.js';
 import { placePredefined, isPredefinedOperator } from './predefined.js';
+import { kickoffWave } from './football.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Wave} Wave @typedef {import('./types.js').WaveAction} WaveAction @typedef {import('./types.js').Schedule} Schedule */
@@ -98,11 +99,12 @@ function actingNow(c, wave, s) {
 const frames = (seconds) => secondsToFrames(Math.max(0, seconds));
 
 /**
- * A wave begins (波次-2, 波次-5): its random alternatives are drawn and its preDelay starts. After the last wave: done.
+ * A wave begins (波次-2, 波次-5): its random alternatives are drawn and its preDelay starts. After the last wave: done. In
+ * 阵地足球 the next is the kickoff's layout (足球-6), and there is always one.
  * @param {World} w @param {Content} c @param {number} at the frame it begins
  */
 function beginWave(w, c, at) {
-  const s = w.sched, next = s.wave + 1, wave = c.level.waves[next];
+  const s = w.sched, next = w.football ? kickoffWave(w, c, at) : s.wave + 1, wave = c.level.waves[next];
   if (!wave) { w.sched = { ...s, wave: next, step: 'done', at }; return; }
   const all = actionsOf(wave);
   const chosen = groupsOf(wave).map((ids) => ids[weightedPick(w, ids.map((i) => all[i].weight ?? 1))]);

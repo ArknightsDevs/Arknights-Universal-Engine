@@ -11,7 +11,7 @@ import { addBuff, makeBuff } from './buffs.js';
 import { tileOf } from './body.js';
 import { tileAt } from './level.js';
 import { passable } from './paths.js';
-import { blockLoad, canBlock, releaseAll } from './blocking.js';
+import { blockLoad, canBlock } from './blocking.js';
 import { dealDamage } from './damage.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
@@ -33,9 +33,9 @@ export const FAR_SHARE = 0.2;
 export const GOAL_TILES = Object.freeze({ ours: 'tile_allygoal', theirs: 'tile_enemygoal' });
 
 /**
- * A ball's record (足球-2): `physic`'s friction factor, restitution, default force and the damage that kicks it, and
- * the block that stops it (`aura`'s `block_cnt`).
- * @typedef {{ friction: number, restitution: number, force: number, need: number, block: number }} BallParams
+ * A ball's record (足球-2): `physic`'s friction factor, restitution, default force and the damage that kicks it, the
+ * block that stops it (`aura`'s `block_cnt`), and the points a goal of it scores (足球-7: 1, 至纯源石球 3).
+ * @typedef {{ friction: number, restitution: number, force: number, need: number, block: number, points: number }} BallParams
  */
 
 /**
@@ -44,7 +44,7 @@ export const GOAL_TILES = Object.freeze({ ours: 'tile_allygoal', theirs: 'tile_e
  * @param {Unit} u @param {BallParams} p
  */
 export function makeBall(u, p) {
-  u.ball = { f: p.friction, e: p.restitution, force: p.force, need: p.need, block: p.block, sum: 0, ax: 0, ay: 0, touch: [] };
+  u.ball = { f: p.friction, e: p.restitution, force: p.force, need: p.need, block: p.block, points: p.points, sum: 0, ax: 0, ay: 0, touch: [] };
   addBuff(u, makeBuff({ key: 'ball', src: u.id, flags: { noAttack: true, unblockable: true, root: true,
     'immune:stun': true, 'immune:cold': true, 'immune:enemyCold': true, 'immune:freeze': true, 'immune:enemyFreeze': true, 'immune:sleep': true } }));
 }
@@ -160,19 +160,18 @@ export function goalOf(c, b) {
 }
 
 /**
- * A ball goes into a goal (足球-5): the event `score` (its `goal` by SCORE_GOAL), and it leaves the field quietly —
- * no knockdown, no life lost.
+ * A ball goes into a goal (足球-5): the event `score` (its `goal` by SCORE_GOAL); the ball notes the goal, and leaves
+ * the field quietly at the frame's end (足球-7).
  * @param {World} w @param {Unit} b @param {'ours' | 'theirs'} goal
  */
 export function scored(w, b, goal) {
   w.events.push({ type: 'score', id: b.id, goal: SCORE_GOAL[goal] });
-  w.units.splice(w.units.indexOf(b), 1);
-  releaseAll(w, b.id);
+  if (b.ball) b.ball.goal = SCORE_GOAL[goal];
 }
 
 /**
- * After a sliding ball's move this frame (足球-4, 足球-5): it hurts the units it ran into; then a goal ('goal': it has
- * left the field), or one of ours that stops it ('stop'); null while it slides on.
+ * After a sliding ball's move this frame (足球-4, 足球-5): it hurts the units it ran into; then a goal ('goal': it stops
+ * and leaves at the frame's end), or one of ours that stops it ('stop'); null while it slides on.
  * @param {World} w @param {Content} c @param {Unit} b @param {number} speed @returns {'goal' | 'stop' | null}
  */
 export function ballMoved(w, c, b, speed) {

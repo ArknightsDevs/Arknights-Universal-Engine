@@ -296,6 +296,8 @@ export const FOE_EXTRAS = Object.freeze({
   enemy_1322_wdgyht_2: { talents: { ShiftImmune: {} }, source: `${PRTS}%E2%80%9C%E8%A7%81%E4%B9%A0%E7%81%B0%E7%A4%BC%E5%B8%BD%E2%80%9D&oldid=355350` },
   // 梅菲斯特: 在场时令所有敌方单位的生命回复速度+100%. `field` marks this page; the other `healaura` blackboards are not it (敌能-74).
   enemy_1507_mephi: { talents: { healaura: { field: 1 } }, source: `${PRTS}%E6%A2%85%E8%8F%B2%E6%96%AF%E7%89%B9&oldid=371401` },
+  // 至纯源石球: 「进球时获得3倍得分」 (足球-7)
+  enemy_4019_mugold: { talents: { physic: { score: 3 } }, source: `${PRTS}%E8%87%B3%E7%BA%AF%E6%BA%90%E7%9F%B3%E7%90%83&oldid=437059` },
   // 吸血 (敌能-75). `page` marks a page that was read; 虹吸巨刃 has the same numbers and stays uncovered (关卡-2).
   // 萨卡兹宿主百夫长 / 卫巢百夫长: 最多同时攻击3个目标，不会攻击飞行单位；成功造成伤害后治疗伤害量的 150%。
   enemy_1114_rgrdmn: { talents: { vampire: { page: 1 }, noFly: {} }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E5%AE%BF%E4%B8%BB%E7%99%BE%E5%A4%AB%E9%95%BF&oldid=365976` },

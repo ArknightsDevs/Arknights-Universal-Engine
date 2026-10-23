@@ -16,7 +16,8 @@ export const ballAura = (bb) => {
 };
 
 /**
- * `physic` (足球-2): at its spawn the enemy becomes a ball — `aura`'s `block_cnt` (3 when it has no ball `aura`).
+ * `physic` (足球-2): at its spawn the enemy becomes a ball — `aura`'s `block_cnt` (3 when it has no ball `aura`); a goal
+ * of it scores `score` (足球-7: the page's extra for 至纯源石球), else 1.
  * @type {FoeBehavior}
  */
 const physic = Object.freeze({
@@ -24,7 +25,7 @@ const physic = Object.freeze({
     const bb = ctx.bb, aura = ctx.talent('aura');
     if (!PHYSIC_KEYS.every((k) => typeof bb[k] === 'number')) return;
     const block = aura && ballAura(aura) ? /** @type {number} */ (aura.block_cnt) : BALL_BLOCK;
-    ctx.ball({ friction: bb.friction_factor, restitution: bb.restitution_factor, force: bb.force, need: bb.value, block });
+    ctx.ball({ friction: bb.friction_factor, restitution: bb.restitution_factor, force: bb.force, need: bb.value, block, points: typeof bb.score === 'number' ? bb.score : 1 });
   },
 });
 
