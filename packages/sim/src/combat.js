@@ -2,6 +2,7 @@
 // candidates in the official order are locked and a swing starts; at the end of its wind-up they take hits of the
 // attacker's attack — a healer's heals, a ranged attacker's projectiles — and the attacker waits out its interval.
 import { FPS, secondsToFrames, hypot } from '@aue/math';
+import { turnLR } from './lr.js';
 import { KIND, ANIM } from '@aue/schema';
 import { offsetTile, dirVec, frontOf } from './dir.js';
 import { push, pull, PULL_POINT } from './displacement.js';
@@ -493,6 +494,8 @@ function startSwing(w, c, a, found, mods) {
   // faces them when it is an attack-everything-it-blocks (there is one thing it stands against), and a splash / extra-target
   // swing turns nobody (there is no single target to face). The highest-priority target is the first locked one.
   const face = targets.length === 1 || locked.blocked ? 1 : 0;
+  // an enemy turns toward what it attacks (敌能-90)
+  if (face) turnLR(a, targets[0].x - a.x);
   for (const t of targets) w.events.push({ type: 'attack', id: a.id, target: t.id, wind, face });
   a.swing = { wind, since: 0, targets: targets.map((t) => t.id), mods: locked };
   if (a.swing.wind === 0) land(w, c, a);

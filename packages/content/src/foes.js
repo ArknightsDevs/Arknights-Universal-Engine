@@ -24,6 +24,10 @@ import { chargedBehaviors } from './charged.js';
 import { staticBehaviors } from './static.js';
 import { ballBehaviors, ballAura, ballBoom, ballBoomTick, PHYSIC_KEYS } from './ball.js';
 import { pitchBehaviors, spotAura } from './pitch.js';
+import { lostLifeBehaviors } from './lostlife.js';
+import { bristleBehaviors } from './bristle.js';
+import { boarBehaviors, boarOwns, boarRush, boarFirst, boarTick, boarSpawn, boarHit } from './boar.js';
+import { flameBehaviors } from './flame.js';
 import { footballerBehaviors, rebornShape, noPeriodic, KICK_SKILLS } from './footballers.js';
 import { timeBehaviors } from './times.js';
 import { runnerBehaviors } from './runners.js';
@@ -300,6 +304,14 @@ export const FOE_EXTRAS = Object.freeze({
   enemy_1507_mephi: { talents: { healaura: { field: 1 } }, source: `${PRTS}%E6%A2%85%E8%8F%B2%E6%96%AF%E7%89%B9&oldid=371401` },
   // 至纯源石球: 「进球时获得3倍得分」 (足球-7)
   enemy_4019_mugold: { talents: { physic: { score: 3 } }, source: `${PRTS}%E8%87%B3%E7%BA%AF%E6%BA%90%E7%9F%B3%E7%90%83&oldid=437059` },
+  // 净浊之焰: 「…攻击力100%灼燃损伤」 (敌能-38, el 3; its blast is 敌能-93)
+  enemy_1177_dufrbl_2: { talents: { epdamage: { el: 3 } }, source: `${PRTS}%E5%87%80%E6%B5%8A%E4%B9%8B%E7%84%B0&oldid=436069` },
+  // 箭棘兽: 「弱点部位位于正面，背面所受伤害降低」 — its `Weakness` is of the damage from behind (敌能-91)
+  enemy_1310_mhprpn_2: { talents: { Weakness: { back: 1 } }, source: `${PRTS}%E7%AE%AD%E6%A3%98%E5%85%BD&oldid=439219` },
+  // 狙击步兵组长: 天赋「不会攻击飞行单位」 (敌能-33); its 眩晕打击 is 敌能-36
+  enemy_1047_sagent_2: { talents: { noFly: {} }, source: `${PRTS}%E7%8B%99%E5%87%BB%E6%AD%A5%E5%85%B5%E7%BB%84%E9%95%BF&oldid=436077` },
+  // 无胄盟第三小队组长: 「普通攻击时额外造成攻击力35%的侵蚀损伤」 (敌能-38, el 2)，「普通攻击与技能不会攻击飞行单位」 (敌能-33)
+  enemy_1182_flasrt_2: { talents: { EpDamage: { el: 2 }, noFly: {} }, source: `${PRTS}%E6%97%A0%E8%83%84%E7%9B%9F%E7%AC%AC%E4%B8%89%E5%B0%8F%E9%98%9F%E7%BB%84%E9%95%BF&oldid=436771` },
   // 北境意志球 / 底海滑动球: 「进入未覆盖冰面的球场地块时，将该地块切换为冰面状态：摩擦力-0.3」 / 粘液 +0.3 (足球-16)
   enemy_4033_muftic: { talents: { physic: { cover: -0.3 } }, source: `${PRTS}%E5%8C%97%E5%A2%83%E6%84%8F%E5%BF%97%E7%90%83&oldid=435576` },
   enemy_4034_muftgl: { talents: { physic: { cover: 0.3 } }, source: `${PRTS}%E5%BA%95%E6%B5%B7%E6%BB%91%E5%8A%A8%E7%90%83&oldid=435718` },
@@ -415,14 +427,28 @@ const Boom = Object.freeze({
     : { ...mods, type: 'arts', scale: ctx.bb.atk_scale, channel: { hits: ctx.bb['attack@times'], duration: ctx.bb['attack@cooldown'], after: ctx.bb['attack@attack_cd'] } }),
 });
 
-/** "投石机" (敌能-7): the first attack reaches its attack radius, as arts with a cross splash; then melee only. @type {FoeBehavior} */
+/** Whether a `FirstAttack` blackboard is "投石机"'s (敌能-7). @param {Record<string, unknown>} bb */
+const throwShape = (bb) => typeof bb['attack@first_atk_scale'] === 'number';
+
+/**
+ * "投石机" (敌能-7): the first attack reaches its attack radius, as arts with a cross splash; then melee only. 凶豕兽's
+ * shape is its charge's extra hit (敌能-92, boar.js).
+ * @type {FoeBehavior}
+ */
 const FirstAttack = Object.freeze({
-  targets: (ctx, cands) => (ctx.state.get('thrown') ? cands : [...new Set([...cands, ...ctx.foes(ctx.self.base.rangeRadius + 0.25)])]),
+  targets: (ctx, cands) => (!throwShape(ctx.bb) || ctx.state.get('thrown') ? cands : [...new Set([...cands, ...ctx.foes(ctx.self.base.rangeRadius + 0.25)])]),
   attack: (ctx, mods) => {
-    if (ctx.state.get('thrown')) return mods;
+    if (!throwShape(ctx.bb) || ctx.state.get('thrown')) return mods;
     ctx.state.set('thrown', 1);
     return { ...mods, type: 'arts', scale: ctx.bb['attack@first_atk_scale'], cross: true };
   },
+  hit: (ctx, target) => { if (boarFirst(ctx.bb) && boarRush(ctx.talent('Rush') ?? {})) boarHit(ctx, target); },
+});
+
+/** `Rush` by its shape (敌能-19, 敌能-92): 凶豕兽's charge, else 冲锋. @type {FoeBehavior} */
+const Rush = Object.freeze({
+  spawn: (ctx) => { if (boarRush(ctx.bb)) boarSpawn(ctx); },
+  tick: (ctx) => { if (boarRush(ctx.bb)) boarTick(ctx); else avengerBehaviors.Rush.tick?.(ctx); },
 });
 
 /** The 倍率 on a frozen target an `atkup` blackboard gives (敌能-27), or undefined. @param {Record<string, number>} bb */
@@ -555,6 +581,11 @@ export const foeBehaviors = Object.freeze({
   ...ballBehaviors,
   ...footballerBehaviors,
   ...pitchBehaviors,
+  ...lostLifeBehaviors,
+  ...bristleBehaviors,
+  ...boarBehaviors,
+  ...flameBehaviors,
+  Rush,
   ...pengBehaviors,
   ...bombardBehaviors,
   ...cannonBehaviors,
@@ -588,7 +619,9 @@ export const foeBehaviors = Object.freeze({
  * lists no other user), a player's `searchBall` and its skills `passtheball`, `slapshot` and `clearance` are read by
  * `football` (足球-9, 足球-10).
  */
-export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp', 'Stronger', 'storm', 'firstattack', 'AttributeStorage', 'SkillTrigger', 'searchBall', ...KICK_SKILLS]);
+export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp', 'Stronger', 'storm', 'firstattack', 'AttributeStorage', 'SkillTrigger', 'searchBall', ...KICK_SKILLS,
+  // 温顺的武装大驮兽: it acts only on a 稳固锁链, which only a 接驳地块 brings; the engine has neither (敌能-88)
+  'RopeTriggerAbility']);
 
 /**
  * The blackboard keys an ability's behaviour needs that the data tables do not carry (FOE_EXTRAS gives them, from PRTS,
@@ -617,6 +650,8 @@ export const FOE_NEEDS = Object.freeze({
   periodic_damage: Object.freeze(['self']),
   // 足球-2: a ball's physics, all four from the data.
   physic: PHYSIC_KEYS,
+  Weakness: Object.freeze(['damage_resistance', 'back']), Weaken: Object.freeze(['duration', 'atk']), SummonFireBall: Object.freeze(['cnt']), SummonFireBall2: Object.freeze(['cnt']), QuillSpray: Object.freeze(['hp_ratio', 'atk_scale', 'range_radius']),
+  damage_trigger: Object.freeze(['hp_ratio']), Stab: Object.freeze(['atk_scale', 'ep_damage_ratio']),
   rage: Object.freeze(['hp_ratio', 'atk', 'def', 'rage_duration']), airleakage: Object.freeze(['value', 'kick_times']), airinflation: Object.freeze(['value', 'kick_times']), passiveMarkTarget: Object.freeze(['move_speed', 'duration', 'cooldown']),
   Shield: Object.freeze(['max_block_damage_cnt', 'block_damage_cnt']),
   def_reduce: Object.freeze(['gate']),
@@ -677,7 +712,7 @@ const cartBoom = (k, bb) => k === 'boom' && cartShape(bb);
  * The shape checks of the shared names (关卡-2): each says whether a blackboard of its names is the shape its behaviour
  * understands, and passes every other name. In a list, so that each family adds one entry, not one more `&&`.
  */
-const SHAPE_OWNERS = Object.freeze([rebornShape, elementHitOwns, takeOffOwns, wineOwns, whipOwns, bornBugsOwns, radioOwns, shieldOwns, punchOwns, passiveOwns, defdownOwns, knightOwns, blinkOwns, healAuraOwns, vampireOwns, chargeAttackOwns, rebornOwns, faustOwns, shotbuffOwns, bornCarOwns, stunAttackOwns, bombdOwns]);
+const SHAPE_OWNERS = Object.freeze([rebornShape, boarOwns, elementHitOwns, takeOffOwns, wineOwns, whipOwns, bornBugsOwns, radioOwns, shieldOwns, punchOwns, passiveOwns, defdownOwns, knightOwns, blinkOwns, healAuraOwns, vampireOwns, chargeAttackOwns, rebornOwns, faustOwns, shotbuffOwns, bornCarOwns, stunAttackOwns, bombdOwns]);
 
 /**
  * Whether an ability has what its behaviour needs (关卡-2). A shared talent name only counts when its blackboard is the

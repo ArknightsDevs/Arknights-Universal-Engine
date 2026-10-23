@@ -759,6 +759,7 @@
  *   every so many frames, the next and the last frame (足球-15); the friction change it leaves on the tiles it enters
  *   (足球-16). Left out for other units
  * @property {{ block: number }} [spot] a 守门位's block for one of ours on its tile (足球-13). Left out for other units
+ * @property {-1} [lr] an enemy faces left (敌能-90); left out while it faces right
  * @property {number} anim schema ANIM
  * @property {Drift} [drift] 恐惧 / 诱导 movement, present once either has been applied (状态-10, 状态-11)
  * @property {number} [summoner] the id of the unit that summoned it (召唤-4, 召唤-6); left out for others

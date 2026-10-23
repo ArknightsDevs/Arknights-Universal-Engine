@@ -2,6 +2,7 @@
 // straight), waits, disappearing and appearing, patrols — walked a frame at a time; units content moves; and its 路径距离
 // for 仇恨值.
 import { FPS, secondsToFrames, hypot } from '@aue/math';
+import { turnLR } from './lr.js';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { flowField, chain, keyAt, passable, crossable, isHole, routeTiles } from './paths.js';
@@ -129,6 +130,7 @@ function walkPath(e, budget) {
   let left = budget;
   while (e.pt * 2 < e.path.length) {
     const px = e.path[e.pt * 2], py = e.path[e.pt * 2 + 1], dx = px - e.x, dy = py - e.y, d = Math.sqrt(dx * dx + dy * dy);
+    turnLR(e, dx);
     if (d > left) { e.x += (dx / d) * left; e.y += (dy / d) * left; return -1; }
     e.x = px; e.y = py; left -= d; e.pt++;
   }
@@ -142,6 +144,9 @@ function endLeg(e, legs) {
   e.pt = 0;
   e.wait = -1;
 }
+
+/** Whether no wait of its way holds an enemy (路线-1, 敌能-93: 「无视停驻检查点」): the flag `noWait`. @param {Unit} e */
+const skipsWaits = (e) => !!statsOf(e).flags.noWait;
 
 /**
  * Whether a waiting leg still holds the enemy this frame (路线-1): a wait of n frames holds it for n whole frames — when
@@ -276,7 +281,7 @@ export function yieldRoute(w, c, e) {
     const leg = legs[e.leg];
     if (!leg || leg.t === 'move') { e.path = []; e.pt = 0; return; }
     if (leg.t === 'wait' || leg.t === 'until') {
-      if (holds(w, e, leg, false)) return;
+      if (!skipsWaits(e) && holds(w, e, leg, false)) return;
     } else {
       e.hidden = leg.t === 'disappear';
       if (leg.t === 'appear') { e.x = leg.x; e.y = leg.y; }
@@ -300,7 +305,7 @@ export function followRoute(w, c, e, speed) {
       e.hidden = leg.t === 'disappear';
       if (leg.t === 'appear') { e.x = leg.x; e.y = leg.y; }
     } else if (leg.t === 'wait' || leg.t === 'until') {
-      if (holds(w, e, leg, budget < speed)) return false;
+      if (!skipsWaits(e) && holds(w, e, leg, budget < speed)) return false;
     } else {
       if (e.path.length === 0) e.path = planLeg(c, route, e, leg);
       budget = walkPath(e, budget);

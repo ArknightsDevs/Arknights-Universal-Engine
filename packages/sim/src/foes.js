@@ -17,6 +17,8 @@ import { board, alight, detour, wayKeys, becomeFlyer, becomeGround, displace, le
 import { draw } from './rng.js';
 import { release } from './blocking.js';
 import { spawnDevice } from './devices.js';
+import { stopSlide } from './displacement.js';
+import { inBack } from './lr.js';
 import { keyAt, passable, isHole } from './paths.js';
 import { bringIn, hatch } from './broods.js';
 import { takeBranch } from './spawn.js';
@@ -133,6 +135,8 @@ export const BOLT_RADIUS = 0.3;
  *   area at the centre of the target's tile (敌能-62)
  * @property {() => { id: number, x: number, y: number, kind: number }[]} departed enemies and operators that left since
  *   this ability last asked (敌能-63); the first call only arms the log
+ * @property {() => void} steady its 失衡 ends now where it is, with no speed left (位移-3; 敌能-89)
+ * @property {(u: Unit) => boolean} behind whether a unit's centre is in the half of the plane behind it (敌能-90, 敌能-91)
  * @property {(x: number, y: number) => void} place puts this enemy at (x, y); during its own turn that is the whole move
  *   this frame (路线-5, 敌能-73)
  * @property {() => { x: number, y: number } | null} course where the move it is on is heading, or null when it is not on one (敌能-73)
@@ -296,7 +300,7 @@ function contextOf(w, c, e, of) {
  * The rest of an ability's context (敌能-2, 敌能-49). Split so `contextOf` stays within the line limit.
  * @param {World} w @param {Content} c @param {Unit} e @param {Record<string, number>} ab
  * @returns {Pick<FoeContext, 'setHp' | 'resetSkills' | 'onWay' | 'detour' | 'release' | 'placeDevice' | 'summon' | 'draw' | 'remove'
- *   | 'devour' | 'lend' | 'around' | 'enemies' | 'fly' | 'attackAgain' | 'ammoOf' | 'spendAmmo' | 'renew' | 'ours' | 'place'
+ *   | 'devour' | 'lend' | 'around' | 'enemies' | 'fly' | 'attackAgain' | 'ammoOf' | 'spendAmmo' | 'renew' | 'ours' | 'place' | 'steady' | 'behind'
  *   | 'course' | 'open' | 'planted' | 'summonNext' | 'grantLoot' | 'hurl'>}
  */
 function lateContext(w, c, e, ab) {
@@ -355,7 +359,7 @@ function openAt(c, e, x, y) {
  * The context members that place an enemy or ask where it is going (敌能-44, 敌能-73). Kept out of contextOf so that
  * function stays within the line limit.
  * @param {World} w @param {Content} c @param {Unit} e @param {Record<string, number>} ab
- * @returns {Pick<FoeContext, 'attackAgain' | 'hurl' | 'grantLoot' | 'summonNext' | 'planted' | 'place' | 'course' | 'open'>}
+ * @returns {Pick<FoeContext, 'attackAgain' | 'hurl' | 'grantLoot' | 'summonNext' | 'planted' | 'place' | 'steady' | 'behind' | 'course' | 'open'>}
  */
 function moveMembers(w, c, e, ab) {
   return {
@@ -365,6 +369,8 @@ function moveMembers(w, c, e, ab) {
     summonNext: (branchId) => takeBranch(w, c, branchId),
     planted: (key) => w.units.filter((u) => u.buffs.some((b) => b.key === key && b.src === e.id)),
     place: (x, y) => { displace(e, x, y); ab['@held'] = w.frame; },
+    steady: () => { stopSlide(e); },
+    behind: (u) => inBack(e, u),
     course: () => courseOf(c, e),
     open: (x, y) => openAt(c, e, x, y),
   };

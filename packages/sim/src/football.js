@@ -16,6 +16,7 @@ import { weightedPick, draw } from './rng.js';
 import { withdraw } from './deck.js';
 import { withdrawDevice } from './devices.js';
 import { makeSpot, expireBalls, goalOpen } from './pitch.js';
+import { turnLR } from './lr.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').FootballState} FootballState @typedef {import('./types.js').FootballRules} FootballRules */
@@ -75,6 +76,7 @@ export function chaseStep(w, c, e, x, y) {
   if (!(sp > 0) || !(d > 0)) return false;
   const k = d <= sp ? 1 : sp / d, nx = e.x + dx * k, ny = e.y + dy * k, t = tileAt(c.level, Math.round(ny), Math.round(nx));
   if (!passable(t, false) || t?.obstacle) return false;
+  turnLR(e, dx);
   displace(e, nx, ny);
   e.ab['@held'] = w.frame;
   return true;
