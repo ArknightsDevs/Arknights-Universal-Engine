@@ -149,6 +149,7 @@ export const BOLT_RADIUS = 0.3;
  *   default force × scale, and frees it (足球-9)
  * @property {(which: 'ours' | 'theirs') => { x: number, y: number }[]} goalTiles the centres of a goal's tiles (足球-1)
  * @property {(x: number, y: number) => boolean} chase one frame's straight move toward a point, its move this frame (足球-9)
+ * @property {(block: number) => void} goalSpot makes this enemy a 守门位 that gives `block` (足球-13)
  * @property {(t: Unit, p: Payload) => void} hurl throws a homing skill projectile (敌能-83). Its speed is an enemy
  *   projectile's (攻击-3). `amount` is frozen as given. Arrival deals that as a skill hit, not an attack, then `status`
  *   when the target is still up

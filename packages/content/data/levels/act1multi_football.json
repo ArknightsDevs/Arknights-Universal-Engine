@@ -125,135 +125,48 @@
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_enemygoal",
-          "height": "LOWLAND",
-          "buildable": "NONE",
-          "passable": "ALL",
-          "side": "ALL"
-        }
-      ],
-      [
-        {
-          "key": "tile_allygoal",
-          "height": "LOWLAND",
-          "buildable": "NONE",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
@@ -311,135 +224,48 @@
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_enemygoal",
-          "height": "LOWLAND",
-          "buildable": "NONE",
-          "passable": "ALL",
-          "side": "ALL"
-        }
-      ],
-      [
-        {
-          "key": "tile_allygoal",
-          "height": "LOWLAND",
-          "buildable": "NONE",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
@@ -497,135 +323,48 @@
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_enemygoal",
-          "height": "LOWLAND",
-          "buildable": "NONE",
-          "passable": "ALL",
-          "side": "ALL"
-        }
-      ],
-      [
-        {
-          "key": "tile_allygoal",
-          "height": "LOWLAND",
-          "buildable": "NONE",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
-        },
-        {
-          "key": "tile_football",
-          "height": "LOWLAND",
-          "buildable": "ALL",
-          "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
@@ -683,7 +422,48 @@
           "height": "LOWLAND",
           "buildable": "ALL",
           "passable": "ALL",
-          "side": "ALL"
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",
@@ -719,6 +499,268 @@
           "buildable": "ALL",
           "passable": "ALL",
           "side": "ALL"
+        },
+        {
+          "key": "tile_enemygoal",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        }
+      ],
+      [
+        {
+          "key": "tile_allygoal",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_enemygoal",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        }
+      ],
+      [
+        {
+          "key": "tile_allygoal",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_enemygoal",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        }
+      ],
+      [
+        {
+          "key": "tile_allygoal",
+          "height": "LOWLAND",
+          "buildable": "NONE",
+          "passable": "ALL",
+          "side": "ALL"
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
+        },
+        {
+          "key": "tile_football",
+          "height": "LOWLAND",
+          "buildable": "ALL",
+          "passable": "ALL",
+          "side": "ALL",
+          "landball": true
         },
         {
           "key": "tile_football",

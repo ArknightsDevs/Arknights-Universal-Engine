@@ -13,6 +13,7 @@ import { tileAt } from './level.js';
 import { passable } from './paths.js';
 import { blockLoad, canBlock } from './blocking.js';
 import { dealDamage } from './damage.js';
+import { isKeeper, catchBall } from './pitch.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {NonNullable<Unit['ball']>} Ball */
@@ -181,14 +182,14 @@ export function collide(w, c, b, speed) {
 }
 
 /**
- * Whether one of ours near a ball stops it (足球-4): an operator within BALL_STOP_RADIUS of its centre, able to block,
- * with at least the ball's `block` of its block count left.
+ * The one of ours near a ball that stops it (足球-4), or null: an operator within BALL_STOP_RADIUS of its centre, able
+ * to block, with at least the ball's `block` of its block count left; the first in the units' order.
  * @param {World} w @param {Unit} b
  */
-export function stopped(w, b) {
+export function stopper(w, b) {
   const s = /** @type {Ball} */ (b.ball), r = BALL_STOP_RADIUS;
-  return w.units.some((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !u.hidden && (u.x - b.x) * (u.x - b.x) + (u.y - b.y) * (u.y - b.y) <= r * r
-    && canBlock(statsOf(u)) && statsOf(u).blockCnt - blockLoad(w, u) >= s.block);
+  return w.units.find((u) => u.kind === KIND.OPERATOR && u.hp > 0 && !u.hidden && (u.x - b.x) * (u.x - b.x) + (u.y - b.y) * (u.y - b.y) <= r * r
+    && canBlock(statsOf(u)) && statsOf(u).blockCnt - blockLoad(w, u) >= s.block) ?? null;
 }
 
 /**
@@ -211,13 +212,18 @@ export function scored(w, b, goal) {
 }
 
 /**
- * After a sliding ball's move this frame (足球-4, 足球-5): it hurts the units it ran into; then a goal ('goal': it stops
- * and leaves at the frame's end), or one of ours that stops it ('stop'); null while it slides on.
- * @param {World} w @param {Content} c @param {Unit} b @param {number} speed @returns {'goal' | 'stop' | null}
+ * After a sliding ball's move this frame (足球-4, 足球-5, 足球-14): it hurts the units it ran into; then a goal ('goal':
+ * it stops and leaves at the frame's end), or one of ours that stops it — a goalkeeper catches it ('catch') —
+ * ('stop'); null while it slides on.
+ * @param {World} w @param {Content} c @param {Unit} b @param {number} speed @returns {'goal' | 'stop' | 'catch' | null}
  */
 export function ballMoved(w, c, b, speed) {
   collide(w, c, b, speed);
   const goal = goalOf(c, b);
   if (goal) { scored(w, b, goal); return 'goal'; }
-  return stopped(w, b) ? 'stop' : null;
+  const by = stopper(w, b);
+  if (!by) return null;
+  if (!isKeeper(by)) return 'stop';
+  catchBall(w, b, by);
+  return 'catch';
 }

@@ -21,6 +21,7 @@ import { moreDeploy, keepsLast } from './talentmore.js';
 import { shareArrive } from './talentaround.js';
 import { spendBoost } from './talentfight.js';
 import { lootHeld, takeLoot } from './loot.js';
+import { spotAt, ballCardProblem, kickoffBall } from './pitch.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 /** @typedef {import('@aue/schema').Command} Command */
@@ -58,6 +59,7 @@ export function deployProblem(w, c, seat, cmd) {
   const card = cardProblem(w, c, seat, cmd, d);
   if (card) return card;
   if (isDown(p)) return 'player down';
+  if (d.ballCard) return ballCardProblem(w, c, seat, cmd.row, cmd.col) ?? placeProblem(w, c, seat, cmd, d.cost);
   return d.summon ? summonProblem(w, c, seat, cmd.op) ?? limitProblem(w, c, seat, d) ?? placeProblem(w, c, seat, cmd, d.cost) ?? rangeProblem(w, c, seat, cmd)
     ?? trapProblem(w, c, seat, cmd) : operatorProblem(w, c, seat, cmd);
 }
@@ -91,7 +93,7 @@ function operatorProblem(w, c, seat, cmd) {
   if (d.builder) return builderProblem(w, c, seat, cmd);
   if (d.rumble) return rumbleProblem(w, c, seat, cmd);
   if (p.deployed.includes(cmd.op)) return 'already deployed';
-  return limitProblem(w, c, seat, d) ?? (w.frame < cardOf(p, cmd.op).ready ? 'redeploying' : null) ?? (cardLocked(w, cardOf(p, cmd.op)) ? 'devoured' : null) ?? placeProblem(w, c, seat, cmd, deployCost(c, p, cmd.op, w));
+  return limitProblem(w, c, seat, d, cmd) ?? (w.frame < cardOf(p, cmd.op).ready ? 'redeploying' : null) ?? (cardLocked(w, cardOf(p, cmd.op)) ? 'devoured' : null) ?? placeProblem(w, c, seat, cmd, deployCost(c, p, cmd.op, w));
 }
 
 /**
@@ -106,10 +108,12 @@ function rumbleProblem(w, c, seat, cmd) {
 }
 
 /**
- * The deploy limit (部署-2, 召唤-4, 符文-2): an operator that is not free, or a summon whose 部署占用数 is 1, needs a place.
- * @param {World} w @param {Content} c @param {number} seat @param {import('./types.js').OperatorDef} d
+ * The deploy limit (部署-2, 召唤-4, 符文-2): an operator that is not free, or a summon whose 部署占用数 is 1, needs a place
+ * — not on a 守门位's tile (足球-13).
+ * @param {World} w @param {Content} c @param {number} seat @param {import('./types.js').OperatorDef} d @param {DeployCommand} [cmd]
  */
-function limitProblem(w, c, seat, d) {
+function limitProblem(w, c, seat, d, cmd) {
+  if (cmd && spotAt(w, cmd.row, cmd.col)) return null;
   const takes = d.summon ? d.summon.occupy === 1 : !free(d);
   return takes && occupying(w, c, seat, free) >= deployLimit(c, seat, w) ? 'deploy limit reached' : null;
 }
@@ -141,16 +145,28 @@ function placeProblem(w, c, seat, cmd, cost) {
 }
 
 /**
+ * A card that is no operator of the seat's (召唤-4, 足球-14): a summon's, or a ball card — the ball comes back on the
+ * tile, the card's cost paid. Whether it was one.
+ * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd
+ */
+function deployCard(w, c, seat, cmd) {
+  const d = c.operators[cmd.op];
+  if (d.summon) deploySummon(w, c, seat, cmd);
+  else if (d.ballCard) {
+    w.players[seat].cost -= d.cost;
+    kickoffBall(w, c, seat, cmd.row, cmd.col);
+  }
+  return !!(d.summon || d.ballCard);
+}
+
+/**
  * Deploys: the cost of now (部署-3) is paid and kept on the unit, the cuts it took gone (部署-10); its trait takes hold,
  * then its passive skill starts; a seat whose deck asks for it remembers the operator as its last (职业-31).
  * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd
  */
 function deploy(w, c, seat, cmd) {
   if (deployProblem(w, c, seat, cmd)) return;
-  if (c.operators[cmd.op].summon) {
-    deploySummon(w, c, seat, cmd);
-    return;
-  }
+  if (deployCard(w, c, seat, cmd)) return;
   const p = w.players[seat], op = c.operators[cmd.op], b = op.builder, paid = b || op.rumble ? op.cost : deployCost(c, p, cmd.op, w);
   const u = makeOperator(w, c, { key: cmd.op, owner: seat, row: cmd.row, col: cmd.col, dir: cmd.dir, paid });
   p.cost -= paid;

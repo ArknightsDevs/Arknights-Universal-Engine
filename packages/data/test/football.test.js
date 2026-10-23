@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { footballField, footballPlayers, isFootball, COOP_TEAMS } from '../src/football.js';
 import { extractWaves } from '../src/waves.js';
+import { extractTiles } from '../src/skeleton-world.js';
 
 const T = (/** @type {string} */ key) => ({ key });
 const FIELD = [[T('tile_forbidden'), T('tile_forbidden')], [T('tile_allygoal'), T('tile_enemygoal')]];
@@ -41,4 +42,10 @@ test('[足球-1] a level without both goals, or without the table, has none', ()
 test('[足球-6] a wave\'s advancedWaveTag is its tag; a wave without one has none', () => {
   const raw = [{ advancedWaveTag: '7', fragments: [] }, { advancedWaveTag: null, fragments: [] }, { fragments: [] }];
   assert.deepEqual(extractWaves(raw, (i) => i).map((w) => w.tag), [7, undefined, undefined]);
+});
+
+test('[足球-14] a tile whose blackboard says landball is one of our half a ball card may be deployed on', () => {
+  const t = (/** @type {string} */ key, /** @type {unknown[] | null} */ blackboard) => ({ tileKey: key, heightType: 'LOWLAND', buildableType: 'MELEE', passableMask: 'ALL', playerSideMask: 'ALL', blackboard });
+  const m = extractTiles({ tiles: [t('tile_football', [{ key: 'tile', value: 0, valueStr: 'landball' }]), t('tile_football', null)], map: [[0, 1]] });
+  assert.deepEqual(m.tiles[0].map((x) => x.landball), [true, undefined]);
 });

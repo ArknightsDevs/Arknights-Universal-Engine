@@ -20,6 +20,7 @@ import { seatRules, withRunes } from './runes.js';
 import { carriedDef } from './carried.js';
 import { withBuilders } from './fortress.js';
 import { withLootCards } from './loot.js';
+import { withBallCards } from './pitch.js';
 import { OFFICIAL_SOURCE } from './mods/source.js';
 
 /** The official behaviours: skills (技能-6), enemy abilities (敌能-2), the chalice's 伤判 (敌能-41), the mudshield barrier (敌能-66) and W's planted C4 (敌能-76). */
@@ -125,6 +126,7 @@ export async function matchContent(match, { source = OFFICIAL_SOURCE, kits = {} 
   const limitAdd = await withSeatRunes(operators, decks, match.runes ?? []);
   withBuilders(lv.level, lv.devices, operators, decks);
   withLootCards(lv.level, lv.devices, operators, decks);
+  withBallCards(lv.level, lv.devices, operators, decks);
   // the level's runes on our units are every seat's (关卡-2, 符文-1)
   for (const k of Object.keys(operators)) operators[k] = withRunes(operators[k], lv.runes);
   const used = [...new Set(Object.keys(entries).map((k) => k.split('#')[0]))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));

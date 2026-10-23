@@ -32,11 +32,12 @@
  * A device's record (关卡-6, 装置-1): its name, attributes and its talents' blackboard; its side when it is the enemies'
  * (装置-3), the statuses it is immune to, and the modifiers it gives every enemy while on the field (装置-4); its tile a
  * 类障碍物地块 while it stands (`routeBlock`, 寻路-1), the side of its square body a ball bounces off (`square`, 足球-12),
- * what a ball's damage to it and damage with no source are multiplied by (`ballDamage`, `envDamage`).
+ * what a ball's damage to it and damage with no source are multiplied by (`ballDamage`, `envDamage`); a ball card's
+ * device (`ballCard`, 足球-14).
  * @typedef {{ name: string, maxHp: number, atk: number, def: number, res: number, blockCnt: number, baseAttackTime: number, aspd: number, tauntLevel: number,
  *   massLevel: number, talentBb: Record<string, number>, side?: 'ENEMY', immune?: string[], enemyMods?: Record<string, number>, talents?: Record<string, number>[],
  *   cost?: number, facility?: FacilityDef, builder?: BuilderDef, rubble?: RubbleDef, rumble?: RumbleDef, inert?: boolean, routeBlock?: boolean, square?: number,
- *   ballDamage?: number, envDamage?: number }} DeviceDef
+ *   ballDamage?: number, envDamage?: number, ballCard?: boolean }} DeviceDef
  */
 /**
  * 堡垒守御 (守御-1…守御-6): the level's times in seconds and the life a rest gives; a facility's kind, its modes'
@@ -571,7 +572,8 @@
  * `critTalents` its chances to strike harder (攻击-4), `timedTalents` its talents in time on the field (部署-7),
  * `deployTalents` what its talents do at its deployment (部署-8); from its seat's runes, `runeMods` its always-on buff
  * (符文-3), `probSp` its chances of SP on dealing damage (符文-4), `rangeSp` the SP it gives in its attack range (符文-5); a
- * carried unit's record (符文-6) what its deployment does (`carried`, 装置-6). A 轰隆隆先生 card carries `rumble` (装置-7). A summon's record names its owner's key (`summoner`)
+ * carried unit's record (符文-6) what its deployment does (`carried`, 装置-6). A 轰隆隆先生 card carries `rumble` (装置-7), a
+ * ball card `ballCard` (足球-14). A summon's record names its owner's key (`summoner`)
  * and how its card works (`summon`, 召唤-3, 召唤-4); `position` ALL lets it stand on melee and ranged tiles. An operator a mod
  * adds names the official operator whose figure and voice it has (`look`, mod-11).
  * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
@@ -579,7 +581,7 @@
  *   talentBb?: Record<string, number>, talentMods?: Record<string, number>, talentTrait?: Partial<TraitDef>, fieldTalents?: TeamTalent[], fieldAspd?: { ally: number, enemy: number, cnt: number, allyExtra: number, enemyExtra: number },
  *   powers?: string[], rangeTalents?: RangeTalent[],
  *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[], summoner?: string, summon?: SummonDef,
- *   runeMods?: Record<string, number>, probSp?: { prob: number, sp: number }[], rangeSp?: { sp: number, interval: number }, carried?: CarriedEffect, builder?: BuilderDef, rumble?: RumbleDef }} OperatorDef
+ *   runeMods?: Record<string, number>, probSp?: { prob: number, sp: number }[], rangeSp?: { sp: number, interval: number }, carried?: CarriedEffect, builder?: BuilderDef, rumble?: RumbleDef, ballCard?: boolean }} OperatorDef
  */
 /**
  * A summon's card rules (召唤-3, 召唤-4): its limits on the field and held, what its owner's deployment adds (0: no card),
@@ -751,8 +753,9 @@
  * @property {{ f: number, e: number, force: number, need: number, block: number, points: number, sum: number, ax: number, ay: number, touch: number[], bump?: number[], goal?: number, sel?: number, selUntil?: number }} [ball]
  *   a ball's physics (足球-2): friction factor, restitution, default force, the damage that kicks it, the block count left
  *   that stops it, the points of its goal (足球-7); the damage and direction summed so far (足球-3); the units of ours it
- *   touched last frame (足球-4); the goal it went into this frame (足球-5, SCORE_GOAL); the player holding it and the
- *   frame its hold ends (足球-9). Left out for other units
+ *   touched last frame (足球-4), the devices it bounced off this frame (足球-12); the goal it went into this frame (足球-5,
+ *   SCORE_GOAL); the player holding it and the frame its hold ends (足球-9). Left out for other units
+ * @property {{ block: number }} [spot] a 守门位's block for one of ours on its tile (足球-13). Left out for other units
  * @property {number} anim schema ANIM
  * @property {Drift} [drift] 恐惧 / 诱导 movement, present once either has been applied (状态-10, 状态-11)
  * @property {number} [summoner] the id of the unit that summoned it (召唤-4, 召唤-6); left out for others
@@ -869,10 +872,12 @@
  * open cost request (−1 for none), `askCd` the frames until they may ask again (合作-5); its summons' cards, once one
  * has one (召唤-4); once talents give them (部署-10, 职业-30), the cut for its next operator (`cut`), the cuts on cards
  * (`cuts`), the cards whose first skill has started (`once`), its last operator deployed (`last`, 职业-31) and the kinds of
- * enemy each card killed (`slain`, 职业-34); `loot`, its 轰隆隆先生 cards, only when the deck has one (装置-7).
+ * enemy each card killed (`slain`, 职业-34); `loot`, its 轰隆隆先生 cards, only when the deck has one (装置-7); `balls`, the
+ * balls its goalkeepers caught, with the frame its card's time is up and the tile each was caught on, only while it
+ * holds one (足球-14).
  * @typedef {{ life: number, cost: number, costTimer: number, deployed: string[], cards: Record<string, Card>, revive: number, downs: number,
  *   ask: number, askCd: number, summons?: Record<string, SummonCard>, cut?: number, cuts?: Record<string, number>, once?: string[], last?: string,
- *   slain?: Record<string, string[]>, loot?: Record<string, LootPile> }} Player
+ *   slain?: Record<string, string[]>, loot?: Record<string, LootPile>, balls?: { id: number, until: number, row: number, col: number }[] }} Player
  */
 
 /**

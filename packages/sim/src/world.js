@@ -44,6 +44,7 @@ import { holds } from './vs.js';
 import { lifeFatal, lifeBehaviors } from './talentlife.js';
 import { newFortress, setUpFortress, fortressHooks, tickFortress } from './fortress.js';
 import { fieldContent } from './facilities.js';
+import { goalkeepers } from './pitch.js';
 import { bleedTick } from './blight.js';
 import { returnLoot, boomLoot, lootForSeat } from './loot.js';
 
@@ -186,6 +187,7 @@ export function step(w, level, commands = []) {
   w.events = [];
   w.bornThisFrame = 0;
   for (const [seat, cmd] of commands) applyCommand(w, c, seat, cmd);
+  goalkeepers(w);
   runTimers(w);
   if (w.frame === 0) emit(w, 'battleStart', {});
   gainCost(w, c);

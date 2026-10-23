@@ -15,6 +15,7 @@ import { releaseAll } from './blocking.js';
 import { weightedPick, draw } from './rng.js';
 import { withdraw } from './deck.js';
 import { withdrawDevice } from './devices.js';
+import { makeSpot, expireBalls } from './pitch.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').FootballState} FootballState @typedef {import('./types.js').FootballRules} FootballRules */
@@ -69,11 +70,12 @@ export function chaseStep(w, c, e, x, y) {
 }
 
 /**
- * The context's 阵地足球 members (足球-2, 足球-9): make the enemy a ball (its hook on at once); the balls on the field;
+ * The context's 阵地足球 members (足球-2, 足球-9, 足球-13): make the enemy a ball (its hook on at once); the balls on the field;
  * whether a ball is free for it — no other player holds it —; hold a ball — it stops and is this player's for that many
- * frames —; kick a ball at its default force × a scale, which frees it; a goal's tiles; a move toward a point.
+ * frames —; kick a ball at its default force × a scale, which frees it; a goal's tiles; a move toward a point; make
+ * the enemy a 守门位.
  * @param {World} w @param {Content} c @param {Unit} e
- * @returns {Pick<import('./foes.js').FoeContext, 'ball' | 'balls' | 'freeBall' | 'holdBall' | 'kickBall' | 'goalTiles' | 'chase'>}
+ * @returns {Pick<import('./foes.js').FoeContext, 'ball' | 'balls' | 'freeBall' | 'holdBall' | 'kickBall' | 'goalTiles' | 'chase' | 'goalSpot'>}
  */
 export function footballContext(w, c, e) {
   return {
@@ -89,6 +91,7 @@ export function footballContext(w, c, e) {
     },
     goalTiles: (which) => goalTiles(c, which),
     chase: (x, y) => chaseStep(w, c, e, x, y),
+    goalSpot: (block) => makeSpot(e, block),
   };
 }
 
@@ -162,8 +165,8 @@ function leave(w, u) {
 }
 
 /**
- * After a goal (足球-7): every enemy leaves the field quietly, the predefined units in effect leave, and every operator
- * of ours retreats (撤退-1) — its redeploy time starts.
+ * After a goal (足球-7): every enemy leaves the field quietly — a caught ball too, its card gone (足球-14) —, the
+ * predefined units in effect leave, and every operator of ours retreats (撤退-1) — its redeploy time starts.
  * @param {World} w @param {Content} c
  */
 function clearField(w, c) {
@@ -174,17 +177,20 @@ function clearField(w, c) {
     withdrawDevice(w, alias);
   }
   for (const op of w.units.filter((x) => x.kind === KIND.OPERATOR && x.hp > 0)) withdraw(w, c, op);
+  for (const p of w.players) delete p.balls;
 }
 
 /** The stamps of a match (足球-7): the stamps' net goals it reached. @param {FootballRules} f @param {FootballState} st */
 export const footballStamps = (f, st) => f.stamps.filter((n) => st.home - st.away >= n).length;
 
 /**
- * The end of a frame of 阵地足球 (足球-5, 足球-7): a ball that went into a goal leaves — in a match its points go to the
- * side that scored and the field is cleared for the next kickoff —; at the match's end the battle is over.
+ * The end of a frame of 阵地足球 (足球-5, 足球-7, 足球-14): a caught ball whose card's time is up comes back; a ball that
+ * went into a goal leaves — in a match its points go to the side that scored and the field is cleared for the next
+ * kickoff —; at the match's end the battle is over.
  * @param {World} w @param {Content} c
  */
 export function tickFootball(w, c) {
+  expireBalls(w, c);
   const balls = w.units.filter((u) => u.ball?.goal !== undefined);
   for (const b of balls) leave(w, b);
   const st = w.football;

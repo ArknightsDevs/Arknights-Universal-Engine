@@ -23,6 +23,7 @@ import { auraBehaviors } from './auras.js';
 import { chargedBehaviors } from './charged.js';
 import { staticBehaviors } from './static.js';
 import { ballBehaviors, ballAura, PHYSIC_KEYS } from './ball.js';
+import { pitchBehaviors, spotAura } from './pitch.js';
 import { footballerBehaviors, rebornShape, noPeriodic, KICK_SKILLS } from './footballers.js';
 import { timeBehaviors } from './times.js';
 import { runnerBehaviors } from './runners.js';
@@ -544,6 +545,7 @@ export const foeBehaviors = Object.freeze({
   ...bombdBehaviors,
   ...ballBehaviors,
   ...footballerBehaviors,
+  ...pitchBehaviors,
   ...pengBehaviors,
   ...bombardBehaviors,
   ...cannonBehaviors,
@@ -669,13 +671,13 @@ const SHAPE_OWNERS = Object.freeze([rebornShape, elementHitOwns, takeOffOwns, wi
 
 /**
  * Whether an ability has what its behaviour needs (关卡-2). A shared talent name only counts when its blackboard is the
- * shape that behaviour understands (敌能-38, 敌能-47, 敌能-63, 敌能-65, 敌能-66, 敌能-67, 敌能-68, 敌能-70, 敌能-71, 敌能-73, 敌能-74, 敌能-75, 敌能-77, 敌能-78, 敌能-79, 敌能-81, 敌能-82, 敌能-83, 敌能-85, 敌能-86) — an `aura` only with 敌能-28's stack cap (敌能-45) or as a ball's (足球-2); anything else
+ * shape that behaviour understands (敌能-38, 敌能-47, 敌能-63, 敌能-65, 敌能-66, 敌能-67, 敌能-68, 敌能-70, 敌能-71, 敌能-73, 敌能-74, 敌能-75, 敌能-77, 敌能-78, 敌能-79, 敌能-81, 敌能-82, 敌能-83, 敌能-85, 敌能-86) — an `aura` only with 敌能-28's stack cap (敌能-45), as a ball's (足球-2) or a 守门位's (足球-13); anything else
  * stays incomplete. The nest pulse does not need `el`: the page names 神经损伤. A `Boom` with `heal_scale` needs its page
  * marker (敌能-58). The candy cart's `boom` needs no death-blast radius or delay (敌能-82).
  * @param {string} k @param {Record<string, unknown>} bb
  */
 const complete = (k, bb) => SHAPE_OWNERS.every((own) => own(k, bb))
-  && (k !== 'aura' || stackCapped(bb) || ballAura(bb))
+  && (k !== 'aura' || stackCapped(bb) || ballAura(bb) || spotAura(bb))
   && (nestPulseOwns(k, bb) || cartBoom(k, bb) || noPeriodic(k, bb) || (healBoom(k, bb) ? typeof bb.page === 'number' : (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number')));
 
 /**
