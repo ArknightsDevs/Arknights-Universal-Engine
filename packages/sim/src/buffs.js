@@ -9,7 +9,7 @@ import { statsOf, maxHpOf } from './attrs.js';
 /**
  * A hit a buff's 伤判 behaviour sees (伤害-8). `amount` passed beside it is what this buff has left; `dmg.amount` is the
  * hit's base, before defences and 伤判. `credit` is the source the kill is counted for, also when the events see none.
- * @typedef {{ dmg: { amount: number, tags?: readonly string[] }, src: Unit | null, credit: Unit | null, tags: readonly string[], c?: import('./types.js').Content }} TakeHit
+ * @typedef {{ dmg: { amount: number, type?: string, tags?: readonly string[] }, src: Unit | null, credit: Unit | null, tags: readonly string[], c?: import('./types.js').Content }} TakeHit
  */
 
 /**
@@ -51,6 +51,16 @@ export function refreshHp(u) {
   if (max === u.maxHp) return;
   if (u.hp > 0) u.hp = u.hp * (max / u.maxHp);
   u.maxHp = max;
+}
+
+/**
+ * Sets a unit's base maximum HP and the cached maximum, without rescaling current HP (敌能-45). The cache has to move
+ * with the base: the next buff refresh would otherwise scale a still-positive HP by the new maximum over the old one.
+ * @param {Unit} u @param {number} hp
+ */
+export function setBaseMaxHp(u, hp) {
+  u.base.maxHp = hp;
+  u.maxHp = maxHpOf(u);
 }
 
 /** The longer of two remaining times, −1 (no end) being the longest. @param {number} a @param {number} b */
@@ -144,6 +154,17 @@ export function stamp(b, frame) {
 export function removeBuff(u, which) {
   const before = u.buffs.length;
   u.buffs = u.buffs.filter((b) => (typeof which === 'string' ? b.key !== which : b !== which));
+  if (u.buffs.length !== before) refreshHp(u);
+  return before - u.buffs.length;
+}
+
+/**
+ * Removes buffs of one key that carry `tag` (敌能-72). Other buffs of that key stay. Removal is not expiry.
+ * @param {Unit} u @param {string} key @param {string} tag @returns {number}
+ */
+export function removeTagged(u, key, tag) {
+  const before = u.buffs.length;
+  u.buffs = u.buffs.filter((b) => b.key !== key || b.tag !== tag);
   if (u.buffs.length !== before) refreshHp(u);
   return before - u.buffs.length;
 }
