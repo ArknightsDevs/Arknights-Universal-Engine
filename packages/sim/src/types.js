@@ -167,6 +167,11 @@
  *   vx?: number, vy?: number, until?: number }} Alchemy
  */
 /**
+ * A 【免费品尝】 area (敌能-62): the centre of a tile (`x` the column, `y` the row), its radius, the frames it still has
+ * (`remain`, counted down at the frame's end), and the attack speed and physical dodge it gives.
+ * @typedef {{ x: number, y: number, radius: number, remain: number, aspd: number, dodge: number }} Tasting
+ */
+/**
  * What a skill gives the friendly units (summons too) in its operator's attack range while it runs (技能-11): its
  * operator too unless `others`; modifiers; 鼓舞, a share of the operator's attack, defence or maximum HP for each
  * attribute (最终加算; never to a unit with `noInspire`).
@@ -569,10 +574,11 @@
  * whether it takes a place in the deploy limit (部署占用数), its 再部署策略, whether it stays when its owner leaves (召唤-5),
  * whether it may only stand in its owner's attack range, the copies its owner's skill gives at its start or end (召唤-8),
  * the seconds it stays (召唤-9), what its owner's skill's end does to it (召唤-10), and for a tactical point the seconds
- * of its point form and its block bonus in its summon form (召唤-11).
+ * of its point form and its block bonus in its summon form (召唤-11). `device` is set only when the page's 实体类型 is
+ * 装置 (敌能-54); a summon that is merely unattacked does not have it.
  * @typedef {{ deployLimit: number, holdLimit: number, supply: number, occupy: number, respawn: 'default' | 'unique' | 'queue', stays?: boolean,
  *   ownerRange?: boolean, grant?: { n: number, at: 'start' | 'end' }, life?: number, skillEnd?: { recover: boolean, below?: number },
- *   tactical?: { every: number, block: number } }} SummonDef
+ *   tactical?: { every: number, block: number }, device?: boolean }} SummonDef
  */
 /**
  * A deployment talent (部署-8): SP between `sp[0]` and below `sp[1]`, a heal of every operator (`value` HP or `scale` × the
@@ -680,7 +686,7 @@
  * @property {number} prio event priority in the damage step (伤害-8)
  * @property {number} shield barrier (屏障) left
  * @property {number} shieldHits shield (护盾) layers left
- * @property {string} shieldType the damage type it absorbs, "" for every type
+ * @property {string} shieldType the damage type it absorbs, "" for every type, or several joined by "+" (伤害-8)
  * @property {number} n a counter its behaviour keeps (麻痹's decay, 狂躁's damage)
  * @property {string} tag marks a buff a behaviour made, to find it again ("" for none)
  * @property {string} act the key its behaviour is found by, "" for its own key (状态-1)
@@ -785,6 +791,14 @@
  *   blast: number }} Bolt
  */
 /**
+ * A zone that ticks once a second (污染秽蚀, 敌能-46; a 燃烧区域, 敌能-60): where its centre is, how far it reaches, the
+ * true damage on 低地 and on 高地, whether it reaches flying units, ignores 无法选择 and 迷彩, and includes our devices.
+ * A burn zone sets `arts` (flat arts each tick) and `pad` (added to the radius for the ally collider); 污染秽蚀 leaves
+ * both off. Its source's id, the frame it was placed, frames until the next tick, frames of life left.
+ * @typedef {{ x: number, y: number, radius: number, low: number, high: number, air: boolean, open: boolean, wide: boolean,
+ *   src: number, placed: number, next: number, life: number, arts?: number, pad?: number }} Zone
+ */
+/**
  * An enemy another brings in after a delay (敌能-22): its key, where it appears, the route and leg it goes on with, the
  * frame its fragment began, the frames left.
  * @typedef {{ key: string, x: number, y: number, route: number, leg: number, frag: number, left: number }} Brood
@@ -876,11 +890,16 @@
  * @property {StageState} stage the co-op stages (合作-6)
  * @property {Blast[]} blasts delayed explosions (敌能-3)
  * @property {Bolt[]} bolts 直击 bolts in flight (敌能-4)
+ * @property {Zone[]} [zones] areas that tick once a second (污染秽蚀 敌能-46, 燃烧区域 敌能-60), once there has been one
  * @property {Brood[]} [broods] enemies brought in that appear later (敌能-22), once there has been one
+ * @property {Record<string, number>} [branchAt] how many plain SPAWN individuals 召唤弩炮 has taken from each branch
+ *   (敌能-79), once one has been taken. 守御-6 does not read it
  * @property {number} bornThisFrame units created so far in this frame
  * @property {FortressState} [fortress] 堡垒守御's progress (守御-1), only in its levels
  * @property {Shot[]} shots projectiles in flight, in launch order (攻击-3)
  * @property {Alchemy[]} [alchemy] the 炼金单元 on the field (技能-13), once there has been one
+ * @property {Tasting[]} [tastings] free-tasting areas (敌能-62), once one has been placed
+ * @property {{ id: number, x: number, y: number, kind: number }[]} [exits] enemies and operators that left, once an ability asked (敌能-63)
  * @property {Record<string, string | number>[]} events this frame's presentation events (not part of the state)
  * @property {import('./bus.js').Bus} [bus] the hook bus and timers (钩子-1, 钩子-2; not part of the state)
  */
