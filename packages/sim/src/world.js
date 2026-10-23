@@ -182,7 +182,7 @@ export function step(w, level, commands = []) {
   elementHooks(w, level);
   healHooks(w, level);
   foeHooks(w, c);
-  ballHooks(w);
+  ballHooks(w, c);
   w.events = [];
   w.bornThisFrame = 0;
   for (const [seat, cmd] of commands) applyCommand(w, c, seat, cmd);

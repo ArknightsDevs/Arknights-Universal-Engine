@@ -173,17 +173,17 @@ export function push(w, c, t, force, o) {
   t.slide = { vx: s.vx + a.ux * v, vy: s.vy + a.uy * v, hard: HARD_FRAMES };
   release(t);
   t.swing = null;
-  if (!o.effect) step(c, t, t.slide.vx / FPS, t.slide.vy / FPS);
+  if (!o.effect) step(c, t, t.slide.vx / FPS, t.slide.vy / FPS, w);
   return true;
 }
 
 /**
  * Moves a sliding unit by (dx, dy) unless that leaves the map or, for a ground unit, enters a tile it cannot walk or
- * crosses a closed edge (位移-3, 地图-2): then it stops where it is.
- * @param {Content} c @param {Unit} t @param {number} dx @param {number} dy
+ * crosses a closed edge (位移-3, 地图-2): then it stops where it is. A ball moves by its own rules (足球-4).
+ * @param {Content} c @param {Unit} t @param {number} dx @param {number} dy @param {World} [w]
  */
-function step(c, t, dx, dy) {
-  if (t.ball) { ballStep(c, t, dx, dy); return; }
+function step(c, t, dx, dy, w) {
+  if (t.ball) { ballStep(c, t, dx, dy, w); return; }
   const m = c.level, nx = t.x + dx, ny = t.y + dy, r = Math.round(ny), col = Math.round(nx), r0 = Math.round(t.y), c0 = Math.round(t.x), tile = tileAt(m, r, col);
   const walled = (r !== r0 || col !== c0) && tileAt(m, r0, c0) !== null && !crossable(m, r0 * m.width + c0, r * m.width + col, false);
   if (!tile || tile.passable !== 'ALL' || walled) {
@@ -219,22 +219,22 @@ export function slideStep(c, t, w) {
   const [vx, vy] = p ? pulled(t, p, s.vx * k, s.vy * k) : [s.vx * k, s.vy * k];
   t.slide = { vx, vy, hard: Math.max(0, s.hard - 1), ...(p ? { pull: { ...p, left: p.left - 1 } } : {}) };
   if (statsOf(t).flags.levitate) return settle(t, w, c);
-  const x0 = t.x, y0 = t.y;
-  step(c, t, t.slide.vx / FPS, t.slide.vy / FPS);
+  const x0 = t.x, y0 = t.y, moving = len(t.slide.vx, t.slide.vy);
+  step(c, t, t.slide.vx / FPS, t.slide.vy / FPS, w);
   const tr = t.slide.pull?.trauma;
   if (tr && w) traumaStep(w, c, t, tr, hypot(t.x - x0, t.y - y0));
-  return slideGoesOn(c, t, w);
+  return slideGoesOn(c, t, w, moving);
 }
 
 /**
  * Whether a slide goes on after this frame's move (位移-3, 足球-4, 足球-5): a ball that went into a goal, or that one
  * of ours stops, settles; otherwise the slide ends — settled — once its speed is at most 0.1 with
- * its 硬直 and pull over.
- * @param {Content} c @param {Unit} t @param {World} [w]
+ * its 硬直 and pull over. A ball's collisions take the speed it moved at this frame, before a bounce.
+ * @param {Content} c @param {Unit} t @param {World | undefined} w @param {number} moving
  */
-function slideGoesOn(c, t, w) {
+function slideGoesOn(c, t, w, moving) {
   const s = /** @type {NonNullable<Unit['slide']>} */ (t.slide), speed = len(s.vx, s.vy);
-  const end = t.ball && w ? ballMoved(w, c, t, speed) : null;
+  const end = t.ball && w ? ballMoved(w, c, t, moving) : null;
   if (end) return settle(t, w, c);
   return speed <= STOP_SPEED && s.hard === 0 && !s.pull ? settle(t, w, c) : true;
 }
@@ -243,13 +243,14 @@ function slideGoesOn(c, t, w) {
 const frictionOf = (c, t) => (t.ball ? ballFriction(c, t) : FRICTION);
 
 /**
- * One frame's move of a sliding ball (足球-4): where ballMove takes it; an axis that hit a wall turns back × the ball's
- * restitution.
- * @param {Content} c @param {Unit} t @param {number} dx @param {number} dy
+ * One frame's move of a sliding ball (足球-4, 足球-12): where ballMove takes it; an axis that hit a wall or a device's
+ * square body turns back × the ball's restitution; the devices it bounced off are noted for its collisions.
+ * @param {Content} c @param {Unit} t @param {number} dx @param {number} dy @param {World} [w]
  */
-function ballStep(c, t, dx, dy) {
-  const m = ballMove(c, t, dx, dy), e = t.ball?.e ?? 0, s = t.slide;
+function ballStep(c, t, dx, dy, w) {
+  const m = ballMove(w, c, t, dx, dy), e = t.ball?.e ?? 0, s = t.slide;
   displace(t, m.x, m.y);
+  if (t.ball && m.hit.length > 0) t.ball.bump = m.hit.map((u) => u.id);
   if (s && (m.bx || m.by)) t.slide = { ...s, vx: m.bx ? -s.vx * e : s.vx, vy: m.by ? -s.vy * e : s.vy };
 }
 

@@ -95,6 +95,15 @@ export function ballHit(b, src, amount) {
 export const ballFriction = (_c, b) => FRICTION * (b.ball?.f ?? 1);
 
 /**
+ * Whether a ball's circle at (x, y) overlaps the square of half side h centred at (cx, cy).
+ * @param {number} x @param {number} y @param {number} cx @param {number} cy @param {number} h
+ */
+function overlaps(x, y, cx, cy, h) {
+  const nx = Math.min(Math.max(x, cx - h), cx + h), ny = Math.min(Math.max(y, cy - h), cy + h);
+  return (x - nx) * (x - nx) + (y - ny) * (y - ny) < BALL_RADIUS * BALL_RADIUS;
+}
+
+/**
  * Whether a ball's circle at (x, y) overlaps a tile a ground unit cannot enter, or leaves the map (足球-4).
  * @param {Content} c @param {number} x @param {number} y
  */
@@ -102,41 +111,73 @@ export function walled(c, x, y) {
   const r = BALL_RADIUS;
   for (let row = Math.round(y - r); row <= Math.round(y + r); row++) {
     for (let col = Math.round(x - r); col <= Math.round(x + r); col++) {
-      if (passable(tileAt(c.level, row, col), false)) continue;
-      const nx = Math.min(Math.max(x, col - 0.5), col + 0.5), ny = Math.min(Math.max(y, row - 0.5), row + 0.5);
-      if ((x - nx) * (x - nx) + (y - ny) * (y - ny) < r * r) return true;
+      if (!passable(tileAt(c.level, row, col), false) && overlaps(x, y, col, row, 0.5)) return true;
     }
   }
   return false;
 }
 
+/** Half the side of a device's square body on the field (足球-12: 阵地屏障), or 0. @param {Content} c @param {Unit} u */
+export const squareHalf = (c, u) => (u.kind === KIND.DEVICE && u.hp > 0 && !u.hidden ? (c.devices?.[u.key]?.square ?? 0) / 2 : 0);
+
 /**
- * Where a sliding ball's move by (dx, dy) takes it this frame (足球-4): along x, then along y; a move that would put
- * its circle into a wall does not happen, and that axis bounces.
- * @param {Content} c @param {Unit} b @param {number} dx @param {number} dy
- * @returns {{ x: number, y: number, bx: boolean, by: boolean }}
+ * What a ball's circle at (x, y) runs into (足球-4, 足球-12): a wall ('wall'), else a device whose square body it
+ * overlaps, else null. @param {World | undefined} w @param {Content} c @param {number} x @param {number} y
+ * @returns {'wall' | Unit | null}
  */
-export function ballMove(c, b, dx, dy) {
-  const bx = walled(c, b.x + dx, b.y), x = bx ? b.x : b.x + dx;
-  const by = walled(c, x, b.y + dy), y = by ? b.y : b.y + dy;
-  return { x, y, bx, by };
+function blockerAt(w, c, x, y) {
+  if (walled(c, x, y)) return 'wall';
+  return w?.units.find((u) => { const h = squareHalf(c, u); return h > 0 && overlaps(x, y, u.x, u.y, h); }) ?? null;
+}
+
+/**
+ * Where a sliding ball's move by (dx, dy) takes it this frame (足球-4, 足球-12): along x, then along y; a move that
+ * would put its circle into a wall or a device's square body does not happen, and that axis bounces; the devices it
+ * bounced off.
+ * @param {World | undefined} w @param {Content} c @param {Unit} b @param {number} dx @param {number} dy
+ * @returns {{ x: number, y: number, bx: boolean, by: boolean, hit: Unit[] }}
+ */
+export function ballMove(w, c, b, dx, dy) {
+  const ax = blockerAt(w, c, b.x + dx, b.y), x = ax ? b.x : b.x + dx;
+  const ay = blockerAt(w, c, x, b.y + dy), y = ay ? b.y : b.y + dy;
+  /** @type {Unit[]} */
+  const hit = [];
+  for (const u of [ax, ay]) if (u && u !== 'wall' && !hit.includes(u)) hit.push(u);
+  return { x, y, bx: !!ax, by: !!ay, hit };
 }
 
 /** The radius a unit of ours runs into a ball at (足球-4): an operator's or a device's collider. */
 const COLLIDER = ALLY_COLLIDER_RADIUS;
 
+/** What a ball's damage to a unit is multiplied by (足球-12): a device's `ballDamage`, else 1. @param {Content} c @param {Unit} u */
+export const ballScale = (c, u) => (u.kind === KIND.DEVICE ? c.devices?.[u.key]?.ballDamage ?? 1 : 1);
+
 /**
- * The units of ours a sliding ball runs into this frame (足球-4): each new one takes true damage of the ball's speed ×
- * its attack; one still touching it from the frame before takes none.
+ * Whether a sliding ball touches a unit this frame (足球-4, 足球-12): an operator or a device within its circle and
+ * the unit's collider; one with a square body when the ball bounced off it.
+ * @param {Content} c @param {Unit} b @param {Set<number>} bumped @param {Unit} u
+ */
+function touches(c, b, bumped, u) {
+  if (!kicker(u) || !(u.hp > 0) || u.hidden) return false;
+  if (squareHalf(c, u) > 0) return bumped.has(u.id);
+  const reach = BALL_RADIUS + COLLIDER;
+  return (u.x - b.x) * (u.x - b.x) + (u.y - b.y) * (u.y - b.y) < reach * reach;
+}
+
+/**
+ * The units a sliding ball runs into this frame (足球-4, 足球-12): each new one takes true damage of the ball's speed ×
+ * its attack, × a device's `ballDamage`; one still touching it from the frame before takes none.
  * @param {World} w @param {Content} c @param {Unit} b @param {number} speed its speed this frame, tiles/s
  */
 export function collide(w, c, b, speed) {
-  const s = /** @type {Ball} */ (b.ball), reach = BALL_RADIUS + COLLIDER;
-  const now = w.units.filter((u) => kicker(u) && u.hp > 0 && !u.hidden && (u.x - b.x) * (u.x - b.x) + (u.y - b.y) * (u.y - b.y) < reach * reach);
+  const s = /** @type {Ball} */ (b.ball), bumped = new Set(s.bump ?? []);
+  delete s.bump;
+  const now = w.units.filter((u) => touches(c, b, bumped, u));
   const before = new Set(s.touch);
   s.touch = now.map((u) => u.id);
   const amount = speed * statsOf(b).atk;
-  for (const u of now) if (!before.has(u.id) && amount > 0) dealDamage(w, b, u, { type: 'true', amount }, c);
+  if (!(amount > 0)) return;
+  for (const u of now) if (!before.has(u.id)) dealDamage(w, b, u, { type: 'true', amount: amount * ballScale(c, u) }, c);
 }
 
 /**

@@ -10,7 +10,7 @@ import act1multiTr01 from '../data/levels/act1multi_tr01.json' with { type: 'jso
 import act1multiFortressRm01 from '../data/levels/act1multi_fortress_rm01.json' with { type: 'json' };
 import act1multiFortressHard01 from '../data/levels/act1multi_fortress_hard-01.json' with { type: 'json' };
 import { uncoveredAbilities, withFoeExtras } from './foes.js';
-import { profiledDevices } from './devices.js';
+import { profiledDevices, DEVICE_PROFILES } from './devices.js';
 import { CARRIED } from './carried.js';
 import { seatRules } from './runes.js';
 
@@ -73,6 +73,18 @@ function spawnedKeys(waves, branches, enemies) {
 }
 
 /**
+ * The devices a level never places (装置-3): its predefined units that are all hidden and that no wave or branch
+ * activates, and are no card. @param {any} level @param {any[]} waves @param {Record<string, any[]> | undefined} branches
+ * @returns {Set<string>}
+ */
+function unplacedDevices(level, waves, branches) {
+  const frags = [...waves.flatMap((/** @type {any} */ w) => w.fragments), ...Object.values(branches ?? {}).flat()];
+  const activated = new Set(frags.flatMap((/** @type {any} */ f) => f.actions.filter((/** @type {any} */ a) => a.type === 'ACTIVATE').map((/** @type {any} */ a) => a.key)));
+  const placed = new Set([...(level.predefines ?? []).filter((/** @type {any} */ p) => !p.hidden || activated.has(p.alias)), ...(level.cards?.tokens ?? [])].map((/** @type {any} */ p) => p.key));
+  return new Set((level.predefines ?? []).map((/** @type {any} */ p) => p.key).filter((/** @type {string} */ k) => !placed.has(k)));
+}
+
+/**
  * A level's options at a difficulty (关卡-2): the life point, the max cost and the cost recovery its runes set.
  * @param {any} options @param {{ lifePoint?: number, maxCost?: number, costScale?: number }} d
  */
@@ -120,8 +132,9 @@ export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
   const used = spawnedKeys(waves, branches, raw.enemies);
   const missing = uncoveredAbilities(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([k, e]) => withFoeExtras(k, /** @type {EnemyDef} */ (e))));
   if (missing.length > 0 && !beingTested(id, raw)) throw new RangeError(`level ${id} at ${difficulty}: enemy abilities not supported yet: ${missing.join(', ')}`);
-  // a carried unit's card (符文-6) is no device on the field: carried.js makes it
-  const dev = profiledDevices(Object.fromEntries(Object.entries(raw.devices ?? {}).filter(([k]) => !Object.hasOwn(CARRIED, k))));
+  // a carried unit's card (符文-6) is no device on the field: carried.js makes it; a device never placed needs no profile
+  const unplaced = unplacedDevices(raw.level, waves, branches);
+  const dev = profiledDevices(Object.fromEntries(Object.entries(raw.devices ?? {}).filter(([k]) => !Object.hasOwn(CARRIED, k) && (Object.hasOwn(DEVICE_PROFILES, k) || !unplaced.has(k)))));
   if (dev.missing.length > 0) throw new RangeError(`level ${id}: devices not supported yet: ${dev.missing.join(', ')}`);
   return {
     level: { ...raw.level, waves, ...(branches ? { branches } : {}), ...(missing.length > 0 ? { uncovered: missing } : {}), hiddenGroups: d.hiddenGroups, ...(dev.works ? { works: dev.works } : {}),

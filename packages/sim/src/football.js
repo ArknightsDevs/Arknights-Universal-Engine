@@ -22,16 +22,23 @@ import { withdrawDevice } from './devices.js';
 /** The owner of the ball's hook (钩子-1). */
 const OWNER = 'ball';
 
+/** Whether a unit is a device whose damage with no source is scaled (足球-12). @param {Content} c @param {Unit} u */
+const envScaled = (c, u) => u.kind === KIND.DEVICE && typeof c.devices?.[u.key]?.envDamage === 'number';
+
 /**
- * The ball's hook (足球-2, 足球-3, 钩子-3), once per world while it has a ball — hooks are no state (ADR 0057): a hit on a
- * ball deals it nothing; what it adds may kick the ball at its force.
- * @param {World} w
+ * The ball's hook (足球-2, 足球-3, 足球-12, 钩子-3), once per world while it has a ball or a device whose damage with no
+ * source is scaled — hooks are no state (ADR 0057): a hit on a ball deals it nothing, and what it adds may kick the ball
+ * at its force; damage with no source to such a device is × its `envDamage`.
+ * @param {World} w @param {Content} c
  */
-export function ballHooks(w) {
-  if (!w.units.some((u) => u.ball) || w.bus?.hooks.get('hpDamage')?.some((h) => h.owner === OWNER)) return;
+export function ballHooks(w, c) {
+  if (!w.units.some((u) => u.ball || envScaled(c, u)) || w.bus?.hooks.get('hpDamage')?.some((h) => h.owner === OWNER)) return;
   on(w, 'hpDamage', (ctx) => {
     const b = ctx.target;
-    if (!b.ball) return;
+    if (!b.ball) {
+      if (!ctx.credit && envScaled(c, b)) ctx.amount *= /** @type {number} */ (c.devices?.[b.key]?.envDamage);
+      return;
+    }
     const dir = ballHit(b, ctx.source, ctx.amount);
     ctx.amount = 0;
     if (dir) kickSlide(b, dir[0], dir[1], b.ball.force * FORCE_TO_SPEED);
@@ -47,14 +54,15 @@ export function goalTiles(c, which) {
 
 /**
  * One frame of a player moving on its own toward a point (足球-9): a straight step at its speed (路线-1's speed, none
- * while it cannot move), onto a tile it may stand on; that is its move this frame. Whether it moved.
+ * while it cannot move), onto a tile it may stand on — not a 类障碍物地块 (足球-12) —; that is its move this frame.
+ * Whether it moved.
  * @param {World} w @param {Content} c @param {Unit} e @param {number} x @param {number} y
  */
 export function chaseStep(w, c, e, x, y) {
   const sp = speedOf(c, e), dx = x - e.x, dy = y - e.y, d = Math.sqrt(dx * dx + dy * dy);
   if (!(sp > 0) || !(d > 0)) return false;
-  const k = d <= sp ? 1 : sp / d, nx = e.x + dx * k, ny = e.y + dy * k;
-  if (!passable(tileAt(c.level, Math.round(ny), Math.round(nx)), false)) return false;
+  const k = d <= sp ? 1 : sp / d, nx = e.x + dx * k, ny = e.y + dy * k, t = tileAt(c.level, Math.round(ny), Math.round(nx));
+  if (!passable(t, false) || t?.obstacle) return false;
   displace(e, nx, ny);
   e.ab['@held'] = w.frame;
   return true;
@@ -69,7 +77,7 @@ export function chaseStep(w, c, e, x, y) {
  */
 export function footballContext(w, c, e) {
   return {
-    ball: (p) => { makeBall(e, p); ballHooks(w); },
+    ball: (p) => { makeBall(e, p); ballHooks(w, c); },
     balls: () => w.units.filter((u) => u.ball && u.hp > 0 && !u.hidden && u.ball.goal === undefined),
     freeBall: (b) => !!b.ball && (b.ball.sel === undefined || b.ball.sel === e.id || (b.ball.selUntil ?? 0) <= w.frame),
     holdBall: (b, frames) => { if (!b.ball) return; stopSlide(b); b.ball.sel = e.id; b.ball.selUntil = w.frame + frames; },

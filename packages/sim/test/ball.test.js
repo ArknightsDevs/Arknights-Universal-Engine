@@ -5,13 +5,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FPS } from '@aue/math';
 import { createWorld, step } from '../src/index.js';
-import { makeEnemy, makeOperator } from '../src/units.js';
+import { makeEnemy, makeOperator, makeDevice } from '../src/units.js';
 import { dealDamage } from '../src/damage.js';
 import { applyStatus } from '../src/status.js';
 import { statsOf } from '../src/attrs.js';
 import { makeBall, hitDirection, FAR_SHARE } from '../src/ball.js';
 import { ballHooks } from '../src/football.js';
 import { FRICTION } from '../src/constants.js';
+import { fieldContent } from '../src/facilities.js';
 
 /** @typedef {import('../src/types.js').Unit} Unit */
 
@@ -40,7 +41,7 @@ function field(rows, x, y, p = RMA70) {
   b.x = x; b.y = y;
   w.units.push(b);
   makeBall(b, p);
-  ballHooks(w);
+  ballHooks(w, c);
   return { w, c, b };
 }
 
@@ -191,4 +192,45 @@ test('[足球-5] a ball whose centre enters their goal is our goal, in ours thei
   const ev2 = [];
   for (let i = 0; i < 30 && theirs.w.units.includes(theirs.b); i++) { step(theirs.w, theirs.c); ev2.push(...theirs.w.events); }
   assert.deepEqual(ev2.filter((e) => e.type === 'score').map((e) => e.goal), [0]);
+});
+
+/** 阵地屏障 as profiled (PRTS oldid=417821), with HP enough to count the damage. */
+const BARRIER = Object.freeze({ name: 'bar', maxHp: 1e9, atk: 0, def: 0, res: 0, blockCnt: 1, baseAttackTime: 1, aspd: 100, tauntLevel: -1, massLevel: 0,
+  talentBb: { damage_scale: 5 }, side: /** @type {'ENEMY'} */ ('ENEMY'), routeBlock: true, square: 0.9, ballDamage: 5, envDamage: 0 });
+
+/** A barrier on a tile of the field. @param {any} w @param {any} c @param {number} row @param {number} col */
+function barrier(w, c, row, col) {
+  c.devices = { bar: BARRIER };
+  const u = makeDevice(w, c, { alias: `bar#${col}`, key: 'bar', hidden: false, row, col, dir: 'UP' });
+  w.units.push(u);
+  ballHooks(w, c);
+  return u;
+}
+
+test('[足球-12] a ball bounces off a barrier\'s 0.9 square × its restitution, and the barrier takes its speed × its attack × 5', () => {
+  const { w, c, b } = field(['.........', '.........', '.........'], 1, 1);
+  const kicker = operator(w, c, 'op', 1, 0), bar = barrier(w, c, 1, 4);
+  hit(w, c, kicker, b, 2300);
+  let speed = 0;
+  for (let i = 0; i < 60 && b.slide && b.slide.vx > 0; i++) {
+    speed = b.slide.vx - (FRICTION * 0.7) / FPS;
+    step(w, c);
+  }
+  const s = /** @type {NonNullable<Unit['slide']>} */ (b.slide);
+  assert.ok(Math.abs(s.vx - -speed * 0.75) < 1e-9, `vx ${s.vx} vs ${-speed * 0.75}`);
+  assert.ok(b.x + 0.3 <= 4 - 0.45 + 1e-9, 'its circle stays out of the square');
+  assert.ok(Math.abs(bar.maxHp - bar.hp - speed * 10000 * 5) < 1e-3, `${bar.maxHp - bar.hp} vs ${speed * 10000 * 5}`);
+});
+
+test('[足球-12] a barrier takes nothing of damage with no source; its tile is a 类障碍物地块 while it stands', () => {
+  const { w, c } = field(['.....', '.....', '.....'], 0, 0);
+  const bar = barrier(w, c, 1, 2), op = operator(w, c, 'op', 1, 1);
+  dealDamage(w, null, bar, { type: 'true', amount: 1000 }, c);
+  assert.equal(bar.hp, bar.maxHp);
+  dealDamage(w, op, bar, { type: 'true', amount: 1000 }, c);
+  assert.equal(bar.hp, bar.maxHp - 1000);
+  assert.equal(fieldContent(w, c).level.tiles[1][2].obstacle, true);
+  assert.equal(fieldContent(w, c).level.tiles[1][1].obstacle, undefined);
+  w.units.splice(w.units.indexOf(bar), 1);
+  assert.equal(fieldContent(w, c), c, 'gone: the map as it is');
 });

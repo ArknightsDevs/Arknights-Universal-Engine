@@ -30,10 +30,13 @@
  */
 /**
  * A device's record (关卡-6, 装置-1): its name, attributes and its talents' blackboard; its side when it is the enemies'
- * (装置-3), the statuses it is immune to, and the modifiers it gives every enemy while on the field (装置-4).
+ * (装置-3), the statuses it is immune to, and the modifiers it gives every enemy while on the field (装置-4); its tile a
+ * 类障碍物地块 while it stands (`routeBlock`, 寻路-1), the side of its square body a ball bounces off (`square`, 足球-12),
+ * what a ball's damage to it and damage with no source are multiplied by (`ballDamage`, `envDamage`).
  * @typedef {{ name: string, maxHp: number, atk: number, def: number, res: number, blockCnt: number, baseAttackTime: number, aspd: number, tauntLevel: number,
  *   massLevel: number, talentBb: Record<string, number>, side?: 'ENEMY', immune?: string[], enemyMods?: Record<string, number>, talents?: Record<string, number>[],
- *   cost?: number, facility?: FacilityDef, builder?: BuilderDef, rubble?: RubbleDef, rumble?: RumbleDef, inert?: boolean }} DeviceDef
+ *   cost?: number, facility?: FacilityDef, builder?: BuilderDef, rubble?: RubbleDef, rumble?: RumbleDef, inert?: boolean, routeBlock?: boolean, square?: number,
+ *   ballDamage?: number, envDamage?: number }} DeviceDef
  */
 /**
  * 堡垒守御 (守御-1…守御-6): the level's times in seconds and the life a rest gives; a facility's kind, its modes'
@@ -745,7 +748,7 @@
  *   its 失衡 slide: speed (tiles/s) and 硬直 frames left (位移-3); a pull on it — its point, its puller's centre, its force,
  *   the distance it began at, its frames left, whether it stopped (位移-4). A 静态刚体 keeps vx and vy at 0 and drops the
  *   slide when the force ends (位移-5)
- * @property {{ f: number, e: number, force: number, need: number, block: number, points: number, sum: number, ax: number, ay: number, touch: number[], goal?: number, sel?: number, selUntil?: number }} [ball]
+ * @property {{ f: number, e: number, force: number, need: number, block: number, points: number, sum: number, ax: number, ay: number, touch: number[], bump?: number[], goal?: number, sel?: number, selUntil?: number }} [ball]
  *   a ball's physics (足球-2): friction factor, restitution, default force, the damage that kicks it, the block count left
  *   that stops it, the points of its goal (足球-7); the damage and direction summed so far (足球-3); the units of ours it
  *   touched last frame (足球-4); the goal it went into this frame (足球-5, SCORE_GOAL); the player holding it and the
