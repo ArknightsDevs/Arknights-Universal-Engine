@@ -33,7 +33,7 @@
  * (装置-3), the statuses it is immune to, and the modifiers it gives every enemy while on the field (装置-4).
  * @typedef {{ name: string, maxHp: number, atk: number, def: number, res: number, blockCnt: number, baseAttackTime: number, aspd: number, tauntLevel: number,
  *   massLevel: number, talentBb: Record<string, number>, side?: 'ENEMY', immune?: string[], enemyMods?: Record<string, number>, talents?: Record<string, number>[],
- *   cost?: number, facility?: FacilityDef, builder?: BuilderDef, rubble?: RubbleDef, inert?: boolean }} DeviceDef
+ *   cost?: number, facility?: FacilityDef, builder?: BuilderDef, rubble?: RubbleDef, rumble?: RumbleDef, inert?: boolean }} DeviceDef
  */
 /**
  * 堡垒守御 (守御-1…守御-6): the level's times in seconds and the life a rest gives; a facility's kind, its modes'
@@ -43,6 +43,8 @@
  * @typedef {{ kind: 'workshop' | 'lounge' | 'platform' | 'roadblock' | 'gym', modes: Record<string, number>[], boom?: number }} FacilityDef
  * @typedef {{ sp: 'sp' | 'sp2', hits: number, life: number }} BuilderDef
  * @typedef {{ range: string, cells: Cell[], branch: string, first: number, every: number }} RubbleDef
+ * 轰隆隆先生 (装置-7): seconds until the stun, the stun's length, the redeploy time, and the copies a seat starts with.
+ * @typedef {{ delay: number, stun: number, respawn: number, start?: number }} RumbleDef
  */
 /**
  * A co-op stage (合作-6, 合作-7): the alias of its controller, its objective, the minimum and advanced targets (for 突击 as
@@ -165,6 +167,11 @@
  * row) and radius, the frames it landed and ends, the thrower's attack then; drifting, its speed (tiles a second) until a frame.
  * @typedef {{ id: number, key: string, src: number, owner: number, cx: number, cy: number, r: number, born: number, end: number, atk: number,
  *   vx?: number, vy?: number, until?: number }} Alchemy
+ */
+/**
+ * A 【免费品尝】 area (敌能-62): the centre of a tile (`x` the column, `y` the row), its radius, the frames it still has
+ * (`remain`, counted down at the frame's end), and the attack speed and physical dodge it gives.
+ * @typedef {{ x: number, y: number, radius: number, remain: number, aspd: number, dodge: number }} Tasting
  */
 /**
  * What a skill gives the friendly units (summons too) in its operator's attack range while it runs (技能-11): its
@@ -554,7 +561,7 @@
  * `critTalents` its chances to strike harder (攻击-4), `timedTalents` its talents in time on the field (部署-7),
  * `deployTalents` what its talents do at its deployment (部署-8); from its seat's runes, `runeMods` its always-on buff
  * (符文-3), `probSp` its chances of SP on dealing damage (符文-4), `rangeSp` the SP it gives in its attack range (符文-5); a
- * carried unit's record (符文-6) what its deployment does (`carried`, 装置-6). A summon's record names its owner's key (`summoner`)
+ * carried unit's record (符文-6) what its deployment does (`carried`, 装置-6). A 轰隆隆先生 card carries `rumble` (装置-7). A summon's record names its owner's key (`summoner`)
  * and how its card works (`summon`, 召唤-3, 召唤-4); `position` ALL lets it stand on melee and ranged tiles. An operator a mod
  * adds names the official operator whose figure and voice it has (`look`, mod-11).
  * @typedef {OptionalStats & { name: string, position: string, cost: number, blockCnt: number, baseAttackTime: number, maxHp: number, atk: number, def: number, res: number,
@@ -562,17 +569,18 @@
  *   talentBb?: Record<string, number>, talentMods?: Record<string, number>, talentTrait?: Partial<TraitDef>, fieldTalents?: TeamTalent[], fieldAspd?: { ally: number, enemy: number, cnt: number, allyExtra: number, enemyExtra: number },
  *   powers?: string[], rangeTalents?: RangeTalent[],
  *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[], summoner?: string, summon?: SummonDef,
- *   runeMods?: Record<string, number>, probSp?: { prob: number, sp: number }[], rangeSp?: { sp: number, interval: number }, carried?: CarriedEffect, builder?: BuilderDef }} OperatorDef
+ *   runeMods?: Record<string, number>, probSp?: { prob: number, sp: number }[], rangeSp?: { sp: number, interval: number }, carried?: CarriedEffect, builder?: BuilderDef, rumble?: RumbleDef }} OperatorDef
  */
 /**
  * A summon's card rules (召唤-3, 召唤-4): its limits on the field and held, what its owner's deployment adds (0: no card),
  * whether it takes a place in the deploy limit (部署占用数), its 再部署策略, whether it stays when its owner leaves (召唤-5),
  * whether it may only stand in its owner's attack range, the copies its owner's skill gives at its start or end (召唤-8),
  * the seconds it stays (召唤-9), what its owner's skill's end does to it (召唤-10), and for a tactical point the seconds
- * of its point form and its block bonus in its summon form (召唤-11).
+ * of its point form and its block bonus in its summon form (召唤-11). `device` is set only when the page's 实体类型 is
+ * 装置 (敌能-54); a summon that is merely unattacked does not have it.
  * @typedef {{ deployLimit: number, holdLimit: number, supply: number, occupy: number, respawn: 'default' | 'unique' | 'queue', stays?: boolean,
  *   ownerRange?: boolean, grant?: { n: number, at: 'start' | 'end' }, life?: number, skillEnd?: { recover: boolean, below?: number },
- *   tactical?: { every: number, block: number } }} SummonDef
+ *   tactical?: { every: number, block: number }, device?: boolean }} SummonDef
  */
 /**
  * A deployment talent (部署-8): SP between `sp[0]` and below `sp[1]`, a heal of every operator (`value` HP or `scale` × the
@@ -680,7 +688,7 @@
  * @property {number} prio event priority in the damage step (伤害-8)
  * @property {number} shield barrier (屏障) left
  * @property {number} shieldHits shield (护盾) layers left
- * @property {string} shieldType the damage type it absorbs, "" for every type
+ * @property {string} shieldType the damage type it absorbs, "" for every type, or several joined by "+" (伤害-8)
  * @property {number} n a counter its behaviour keeps (麻痹's decay, 狂躁's damage)
  * @property {string} tag marks a buff a behaviour made, to find it again ("" for none)
  * @property {string} act the key its behaviour is found by, "" for its own key (状态-1)
@@ -774,15 +782,24 @@
 /**
  * A delayed explosion (敌能-3): where, how far it reaches, frames left, whether it reaches flying units, its source's id
  * (−1 for none), what it does. `buff`, when set, is given to each unit the explosion hits that is still on the field
- * (敌能-43). Left out otherwise: a null field would change the hash of every blast that has none.
+ * (敌能-43). `all`, when set, reaches every unit on the field, enemies included (敌能-86). Either is left out otherwise:
+ * a null field would change the hash of every blast that has none.
  * @typedef {{ x: number, y: number, radius: number, left: number, air: boolean, src: number, type: DamageType, amount: number,
- *   status: { key: string, seconds: number } | null, buff?: import('./buffs.js').BuffInit }} Blast
+ *   status: { key: string, seconds: number } | null, buff?: import('./buffs.js').BuffInit, all?: boolean }} Blast
  */
 /**
  * A 直击 bolt in flight (敌能-4): its source's id, where it is, its direction, what it does — or the radius of the
  * explosion it sets off (0 for none).
  * @typedef {{ src: number, x: number, y: number, dx: number, dy: number, type: DamageType, amount: number, status: { key: string, seconds: number } | null,
  *   blast: number }} Bolt
+ */
+/**
+ * A zone that ticks once a second (污染秽蚀, 敌能-46; a 燃烧区域, 敌能-60): where its centre is, how far it reaches, the
+ * true damage on 低地 and on 高地, whether it reaches flying units, ignores 无法选择 and 迷彩, and includes our devices.
+ * A burn zone sets `arts` (flat arts each tick) and `pad` (added to the radius for the ally collider); 污染秽蚀 leaves
+ * both off. Its source's id, the frame it was placed, frames until the next tick, frames of life left.
+ * @typedef {{ x: number, y: number, radius: number, low: number, high: number, air: boolean, open: boolean, wide: boolean,
+ *   src: number, placed: number, next: number, life: number, arts?: number, pad?: number }} Zone
  */
 /**
  * An enemy another brings in after a delay (敌能-22): its key, where it appears, the route and leg it goes on with, the
@@ -794,9 +811,11 @@
  * A projectile in flight (攻击-3): its shooter's and its target's ids, where it is (tile coordinates), its speed in
  * tiles per second, and what it carries — the damage type and amount, hits, 元素损伤 ('' and 0 for none); a boomerang
  * (职业-12) its way back's speed and, on its way back, `ret` 1; `held` 1 while content holds it where it arrived.
+ * `skillHit` 1 is a skill projectile (敌能-83): arrival deals what it carries as a skill hit, not an attack, then
+ * applies `hitStatus`. Absent on every other shot, so a shot that is not one still hashes the same.
  * @typedef {{ src: number, target: number, sx: number, sy: number, speed: number, type: DamageType, amount: number, times: number, element: string, ep: number,
  *   splash?: Splash | null, aftershock?: number, chain?: Chain | null, hitStatus?: { key: import('./status.js').StatusKey, seconds: number } | null,
- *   skill?: boolean, back?: number, ret?: number, held?: number, mark?: number, frozen?: number, ignoreDef?: number }} Shot
+ *   skill?: boolean, skillHit?: number, back?: number, ret?: number, held?: number, mark?: number, frozen?: number, ignoreDef?: number }} Shot
  */
 
 /**
@@ -825,6 +844,9 @@
 /**
  * A summon's card in a player's deck (召唤-4): copies held, the frame it may be deployed from, copies cooling (队列).
  * @typedef {{ held: number, ready: number, cooling: number }} SummonCard
+ * One seat's copies of a 轰隆隆先生 card (敌能-80, 装置-7): `held` waiting to deploy, `back` the frames those on the
+ * field return (the redeploy time started at deploy), `live` the ones on the field and the frame they trigger.
+ * @typedef {{ held: number, back: number[], live: { id: number, at: number }[] }} LootPile
  */
 /**
  * A player: life, cost and its timer, the operators on the field, the deck's cards; `revive` is the frames left until a
@@ -832,10 +854,10 @@
  * open cost request (−1 for none), `askCd` the frames until they may ask again (合作-5); its summons' cards, once one
  * has one (召唤-4); once talents give them (部署-10, 职业-30), the cut for its next operator (`cut`), the cuts on cards
  * (`cuts`), the cards whose first skill has started (`once`), its last operator deployed (`last`, 职业-31) and the kinds of
- * enemy each card killed (`slain`, 职业-34).
+ * enemy each card killed (`slain`, 职业-34); `loot`, its 轰隆隆先生 cards, only when the deck has one (装置-7).
  * @typedef {{ life: number, cost: number, costTimer: number, deployed: string[], cards: Record<string, Card>, revive: number, downs: number,
  *   ask: number, askCd: number, summons?: Record<string, SummonCard>, cut?: number, cuts?: Record<string, number>, once?: string[], last?: string,
- *   slain?: Record<string, string[]> }} Player
+ *   slain?: Record<string, string[]>, loot?: Record<string, LootPile> }} Player
  */
 
 /**
@@ -876,11 +898,16 @@
  * @property {StageState} stage the co-op stages (合作-6)
  * @property {Blast[]} blasts delayed explosions (敌能-3)
  * @property {Bolt[]} bolts 直击 bolts in flight (敌能-4)
+ * @property {Zone[]} [zones] areas that tick once a second (污染秽蚀 敌能-46, 燃烧区域 敌能-60), once there has been one
  * @property {Brood[]} [broods] enemies brought in that appear later (敌能-22), once there has been one
+ * @property {Record<string, number>} [branchAt] how many plain SPAWN individuals 召唤弩炮 has taken from each branch
+ *   (敌能-79), once one has been taken. 守御-6 does not read it
  * @property {number} bornThisFrame units created so far in this frame
  * @property {FortressState} [fortress] 堡垒守御's progress (守御-1), only in its levels
  * @property {Shot[]} shots projectiles in flight, in launch order (攻击-3)
  * @property {Alchemy[]} [alchemy] the 炼金单元 on the field (技能-13), once there has been one
+ * @property {Tasting[]} [tastings] free-tasting areas (敌能-62), once one has been placed
+ * @property {{ id: number, x: number, y: number, kind: number }[]} [exits] enemies and operators that left, once an ability asked (敌能-63)
  * @property {Record<string, string | number>[]} events this frame's presentation events (not part of the state)
  * @property {import('./bus.js').Bus} [bus] the hook bus and timers (钩子-1, 钩子-2; not part of the state)
  */

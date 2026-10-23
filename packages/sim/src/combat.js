@@ -18,7 +18,7 @@ import { traitWhiles } from './whiles.js';
 import { afterOwnHit, attacked, hitSp, caughtSp } from './riders.js';
 import { reachKeys } from './reach.js';
 import { ALLY_COLLIDER_RADIUS } from './constants.js';
-import { foeTargets, foeAttack, foeHit, isFoeOf } from './foes.js';
+import { foeTargets, foeAttack, foeHit, foeLanded, foeCancelHit, isFoeOf } from './foes.js';
 import { makeBuff, addBuff, removeBuff } from './buffs.js';
 import { tileOf } from './body.js';
 import { tickSkill, beforeAttack, attackMods, afterAttack } from './skills.js';
@@ -111,7 +111,7 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
  *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number, value?: number, prob?: number } | null,
  *   hitDebuff?: { seconds: number, mods: Record<string, number> }, displace?: { pull: boolean, force: number, along?: boolean },
- *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number }, aftershocks?: number, ignoreDef?: number }} Load
+ *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number }, aftershocks?: number, ignoreDef?: number, ignoreSelect?: boolean }} Load
  */
 
 /**
@@ -123,7 +123,7 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
 function damageOf(load, t) {
   const amount = load.frozen && statsOf(t).flags.freeze ? load.amount * load.frozen : load.amount;
   const how = load.hit, d = /** @type {import('./damage.js').Damage} */ ({ type: load.type, amount, isAttack: how !== 'aftershock', isSkill: !!load.skill, isProjectile: !!load.ranged,
-    ...(load.ignoreDef ? { defIgnorePct: load.ignoreDef } : {}) });
+    ...(load.ignoreDef ? { defIgnorePct: load.ignoreDef } : {}), ...(load.ignoreSelect ? { ignoreSelect: true } : {}) });
   if (how === 'splash' || how === 'aftershock') d.isSplash = true;
   if (how === 'chain' || how === 'aftershock') d.tags = [how];
   return d;
@@ -137,6 +137,7 @@ function damageOf(load, t) {
  * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {Load} load
  */
 function hitTarget(w, c, src, t, load) {
+  if (src && src.kind === KIND.ENEMY && !load.hit && foeCancelHit(w, c, src, t)) return;
   let total = 0;
   for (let k = 0; k < load.times; k++) total += oneHit(w, c, src, t, load);
   if (src && load.displace && t.hp > 0) displaceOnHit(w, c, src, t, load.displace);
@@ -193,6 +194,16 @@ function ridesOn(w, c, h, dmg, dealt) {
 }
 
 /**
+ * 敌能-46: bleed applies when a normal attack connects, including a hit that took no HP. Splash is not that attack.
+ * @param {World} w @param {Content} c @param {{ src: Unit | null, t: Unit, load: Load, dealt: number }} hit
+ */
+function foeConnect(w, c, hit) {
+  const { src, t, load, dealt } = hit;
+  if (!src || src.kind !== KIND.ENEMY || (load.hit ?? 'main') !== 'main') return;
+  foeLanded(w, c, src, t, { dealt, ranged: !!load.ranged, skill: !!load.skill });
+}
+
+/**
  * One hit of an attack on a target (伤害-7, 元素-2, 职业-5, 职业-17, 职业-20): the damage, what it sets off, a kill
  * credited, the 元素损伤 it carries, the status it gives, the trait's hit, what rides on it. Returns the HP taken.
  * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {Load} load
@@ -200,6 +211,7 @@ function ridesOn(w, c, h, dmg, dealt) {
 function oneHit(w, c, src, t, load) {
   const el = /** @type {import('./elements.js').Element | ''} */ (load.element), op = src && src.kind === KIND.OPERATOR ? src : null;
   const alive = t.hp > 0, dmg = hitDamage(w, c, op, t, load), dealt = dealDamage(w, src, t, dmg, c);
+  foeConnect(w, c, { src, t, load, dealt });
   if (op) traitDealt(w, c, op, t, { dmg, taken: dealt });
   if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
   if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
@@ -253,19 +265,20 @@ const loadOf = (a, mods) => ({
   ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.hitDebuff ? { hitDebuff: mods.hitDebuff } : {}), ...(mods.displace ? { displace: mods.displace } : {}), ...(mods.skill ? { skill: true } : {}), ...(mods.mark ? { mark: mods.mark } : {}),
   ...(mods.frozen ? { frozen: mods.frozen } : {}), ...(mods.ignoreDef ? { ignoreDef: mods.ignoreDef } : {}),
   ...(mods.splash ? { splash: mods.splash } : {}),
+  ...(mods.ignoreSelect ? { ignoreSelect: true } : {}),
 });
 
 /**
  * The units an enemy's tile splash reaches (敌能-7, 敌能-8): those it may attack on the target's tile and the four tiles
  * next to it (a cross), or the eight around it (a square). The locked target is included while 隐匿; the others are not
- * when 隐匿 is in effect (索敌-2). 迷彩 does not leave one out.
- * @param {World} w @param {Unit} a @param {Unit} t @param {'cross' | 'square'} area @returns {Unit[]}
+ * when 隐匿 is in effect (索敌-2). 迷彩 does not leave one out. `through` also keeps 隐匿 and 起飞 (敌能-55).
+ * @param {World} w @param {Unit} a @param {Unit} t @param {'cross' | 'square'} area @param {boolean} [through] @returns {Unit[]}
  */
-function areaOf(w, a, t, area) {
+function areaOf(w, a, t, area, through = false) {
   const [r, col] = tileOf(t);
   return w.units.filter((u) => {
-    if (u.hp <= 0 || u.hidden || !isFoeOf(u, a) || evadesGround(a, u)) return false;
-    if (u !== t && stealthed(u)) return false;
+    if (u.hp <= 0 || u.hidden || !isFoeOf(u, a)) return false;
+    if (!through && (evadesGround(a, u) || (u !== t && stealthed(u)))) return false;
     const [ur, uc] = tileOf(u), dr = Math.abs(ur - r), dc = Math.abs(uc - col);
     return area === 'square' ? Math.max(dr, dc) <= 1 : dr + dc <= 1;
   });
@@ -373,10 +386,10 @@ function heals(w, c, a, t, how) {
  */
 function deliverAll(w, c, a, sw, heals) {
   const load = loadOf(a, sw.mods), area = sw.mods.square ? 'square' : sw.mods.cross ? 'cross' : null, reached = [];
-  const share = sw.mods.splashScale ?? 1, direct = !!sw.mods.direct;
+  const share = sw.mods.splashScale ?? 1, direct = !!sw.mods.direct, through = !!sw.mods.ignoreSelect;
   for (const id of sw.targets) {
     const t = w.units.find((u) => u.id === id);
-    if (t && t.hp > 0 && !t.hidden) { deliver(w, c, a, t, { load, heals, area, share, direct }); reached.push(t); }
+    if (t && t.hp > 0 && !t.hidden) { deliver(w, c, a, t, { load, heals, area, share, direct, through }); reached.push(t); }
   }
   return reached;
 }
@@ -435,12 +448,12 @@ function selfHeal(w, c, a, reached) {
  * around it (the others at the splash's share, 敌能-26), a ranged attacker's projectile — not for an attack that hits
  * directly (敌能-27) —, or the hits.
  * @param {World} w @param {Content} c @param {Unit} a @param {Unit} t
- * @param {{ load: Load, heals: boolean, area: 'cross' | 'square' | null, share: number, direct: boolean }} how
+ * @param {{ load: Load, heals: boolean, area: 'cross' | 'square' | null, share: number, direct: boolean, through: boolean }} how
  */
 function deliver(w, c, a, t, how) {
   const far = how.heals ? null : fortressSplash(c, a, t), load = far ? { ...loadFor(w, c, a, t, how.load), splash: far } : loadFor(w, c, a, t, how.load);
   if (how.heals) heals(w, c, a, t, { load, jumps: load.chain ? chainOf(w, c, t, load.chain, { heals: true, antiAir: true }) : [] });
-  else if (how.area) for (const u of areaOf(w, a, t, how.area)) hitTarget(w, c, a, u, u === t ? load : { ...load, amount: load.amount * how.share, hit: 'splash' });
+  else if (how.area) for (const u of areaOf(w, a, t, how.area, how.through)) hitTarget(w, c, a, u, u === t ? load : { ...load, amount: load.amount * how.share, hit: 'splash' });
   else if (far || (shoots(c, a, how.heals) && !how.direct)) launch(w, a, t, a.kind === KIND.OPERATOR ? { ...load, boomerang: traitOf(c, a).boomerang } : load);
   else impact(w, c, a, t, load);
 }
@@ -645,14 +658,35 @@ export function operatorsAttack(w, c) {
  * @param {World} w @param {Content} c
  */
 export function shotsFly(w, c) {
-  flyShots(w, (s, t) => {
-    const src = w.units.find((u) => u.id === s.src && u.hp > 0) ?? null;
-    impact(w, c, src, t, { ...s, ranged: true });
-    return !!(s.back && src && hasHook(w, 'boomerangHit') && emit(w, 'boomerangHit', { unit: src, target: t, x: s.sx, y: s.sy, isSkill: !!s.skill, shot: s, hold: false }).hold);
-  }, (s, thrower) => {
+  flyShots(w, (s, t) => shotArrived(w, c, s, t), (s, thrower) => {
     caughtSp(c, thrower);
     emit(w, 'boomerangCaught', { unit: thrower, x: s.sx, y: s.sy, isSkill: !!s.skill });
   });
+}
+
+/**
+ * A skill projectile reaching its target (敌能-83). `impact` would mark the hit an attack (攻击-3); this one is a skill
+ * hit of the amount frozen at the throw, then its status when the target is still up. A hit that drops it to 0 HP
+ * applies no status.
+ * @param {World} w @param {Content} c @param {Unit | null} src @param {Unit} t @param {import('./types.js').Shot} s
+ */
+function landSkillShot(w, c, src, t, s) {
+  if (t.hp <= 0) return;
+  dealDamage(w, src, t, { type: s.type, amount: s.amount, isAttack: false, isSkill: true, isProjectile: true }, c);
+  const st = s.hitStatus;
+  if (t.hp > 0 && st) inflict(w, t, st.key, { seconds: st.seconds, src });
+}
+
+/**
+ * A projectile reaching its target (攻击-3, 职业-12, 敌能-83). A skill projectile lands as a skill hit. Anything else
+ * hits as an attack, and a boomerang may then be held (`hold`). Whether content holds it.
+ * @param {World} w @param {Content} c @param {import('./types.js').Shot} s @param {Unit} t
+ */
+function shotArrived(w, c, s, t) {
+  const src = w.units.find((u) => u.id === s.src && u.hp > 0) ?? null;
+  if (s.skillHit) { landSkillShot(w, c, src, t, s); return false; }
+  impact(w, c, src, t, { ...s, ranged: true });
+  return !!(s.back && src && hasHook(w, 'boomerangHit') && emit(w, 'boomerangHit', { unit: src, target: t, x: s.sx, y: s.sy, isSkill: !!s.skill, shot: s, hold: false }).hold);
 }
 
 /**
@@ -689,6 +723,18 @@ function takeAgain(e) {
 }
 
 /**
+ * A skill asked to occupy this attack's interval (敌能-62, `holdAttack`). The cooldown becomes that interval and then
+ * counts down this same frame, so the next swing is one interval later. Called only once `noAttack` has already let go.
+ * @param {Unit} e
+ */
+function takeHold(e) {
+  if (e.ab['@holdAtk'] !== 1) return;
+  delete e.ab['@holdAtk'];
+  const s = statsOf(e);
+  setAtkCd(e, intervalFrames(s.bat, s.aspd));
+}
+
+/**
  * An enemy's attack this frame (敌人攻击-1, 攻击-2): like an operator's — a swing under way goes on; the cooldown counts
  * down while it can act; when it is out and there is a target, the first in the official order (索敌-5) — as many as
  * its abilities' mods say (敌能-2), one by default — are locked and a swing starts — not while it is blocked under 战栗 (状态-5; a swing under way goes on). One that cannot act, has no
@@ -703,6 +749,7 @@ export function enemyAttack(w, c, e) {
   const swinging = e.swing !== null;
   if (e.swing) advanceSwing(w, c, e);
   takeAgain(e);
+  takeHold(e);
   if (e.atkCd > 0) { e.atkCd--; return swinging; }
   if (e.swing) return true;
   if (s.flags.disarmedCombat && e.blockedBy >= 0) return false;
