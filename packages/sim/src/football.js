@@ -5,7 +5,7 @@
 import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { on } from './bus.js';
-import { makeBall, ballHit, FORCE_TO_SPEED, GOAL_TILES } from './ball.js';
+import { makeBall, ballHit, FORCE_TO_SPEED, GOAL_TILES, goalOf, scored, clearLine, hurtStep } from './ball.js';
 import { kickSlide, stopSlide } from './displacement.js';
 import { displace, speedOf } from './routes.js';
 import { tileAt } from './level.js';
@@ -15,7 +15,7 @@ import { releaseAll } from './blocking.js';
 import { weightedPick, draw } from './rng.js';
 import { withdraw } from './deck.js';
 import { withdrawDevice } from './devices.js';
-import { makeSpot, expireBalls } from './pitch.js';
+import { makeSpot, expireBalls, goalOpen } from './pitch.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').FootballState} FootballState @typedef {import('./types.js').FootballRules} FootballRules */
@@ -27,17 +27,28 @@ const OWNER = 'ball';
 const envScaled = (c, u) => u.kind === KIND.DEVICE && typeof c.devices?.[u.key]?.envDamage === 'number';
 
 /**
- * The ball's hook (足球-2, 足球-3, 足球-12, 钩子-3), once per world while it has a ball or a device whose damage with no
- * source is scaled — hooks are no state (ADR 0057): a hit on a ball deals it nothing, and what it adds may kick the ball
- * at its force; damage with no source to such a device is × its `envDamage`.
+ * Notes a hit an operator of ours dealt an enemy — not a ball nor a 守门位 — in 阵地足球 (足球-15).
+ * @param {World} w @param {Unit} t @param {Unit | null} by
+ */
+function noteHit(w, t, by) {
+  const st = w.football;
+  if (st && by?.kind === KIND.OPERATOR && t.kind === KIND.ENEMY && !t.ball && !t.spot) (st.hits ??= []).push([t.id, by.id, w.frame]);
+}
+
+/**
+ * The ball's hook (足球-2, 足球-3, 足球-12, 足球-15, 钩子-3), once per world in 阵地足球 or while it has a ball or a
+ * device whose damage with no source is scaled — hooks are no state (ADR 0057): a hit on a ball deals it nothing, and
+ * what it adds may kick the ball at its force; damage with no source to such a device is × its `envDamage`; a hit of an
+ * operator's on another enemy is noted.
  * @param {World} w @param {Content} c
  */
 export function ballHooks(w, c) {
-  if (!w.units.some((u) => u.ball || envScaled(c, u)) || w.bus?.hooks.get('hpDamage')?.some((h) => h.owner === OWNER)) return;
+  if (!(w.football || w.units.some((u) => u.ball || envScaled(c, u))) || w.bus?.hooks.get('hpDamage')?.some((h) => h.owner === OWNER)) return;
   on(w, 'hpDamage', (ctx) => {
     const b = ctx.target;
     if (!b.ball) {
       if (!ctx.credit && envScaled(c, b)) ctx.amount *= /** @type {number} */ (c.devices?.[b.key]?.envDamage);
+      noteHit(w, b, ctx.credit);
       return;
     }
     const dir = ballHit(b, ctx.source, ctx.amount);
@@ -75,7 +86,8 @@ export function chaseStep(w, c, e, x, y) {
  * frames —; kick a ball at its default force × a scale, which frees it; a goal's tiles; a move toward a point; make
  * the enemy a 守门位.
  * @param {World} w @param {Content} c @param {Unit} e
- * @returns {Pick<import('./foes.js').FoeContext, 'ball' | 'balls' | 'freeBall' | 'holdBall' | 'kickBall' | 'goalTiles' | 'chase' | 'goalSpot'>}
+ * @returns {Pick<import('./foes.js').FoeContext, 'ball' | 'balls' | 'freeBall' | 'holdBall' | 'kickBall' | 'goalTiles' | 'chase' | 'goalSpot' | 'carry'
+ *   | 'goalOpen' | 'clearLine' | 'hits' | 'skillBb'>}
  */
 export function footballContext(w, c, e) {
   return {
@@ -83,16 +95,38 @@ export function footballContext(w, c, e) {
     balls: () => w.units.filter((u) => u.ball && u.hp > 0 && !u.hidden && u.ball.goal === undefined),
     freeBall: (b) => !!b.ball && (b.ball.sel === undefined || b.ball.sel === e.id || (b.ball.selUntil ?? 0) <= w.frame),
     holdBall: (b, frames) => { if (!b.ball) return; stopSlide(b); b.ball.sel = e.id; b.ball.selUntil = w.frame + frames; },
-    kickBall: (b, ux, uy, scale) => {
+    kickBall: (b, ux, uy, scale, hurt) => {
       if (!b.ball) return;
       delete b.ball.sel;
       delete b.ball.selUntil;
       kickSlide(b, ux, uy, b.ball.force * scale * FORCE_TO_SPEED);
+      if (hurt) {
+        const every = secondsToFrames(hurt.every);
+        b.ball.hurt = { amount: hurt.amount, every, next: w.frame + every, until: w.frame + secondsToFrames(hurt.seconds) };
+      }
     },
     goalTiles: (which) => goalTiles(c, which),
     chase: (x, y) => chaseStep(w, c, e, x, y),
     goalSpot: (block) => makeSpot(e, block),
+    carry: (b) => carry(w, c, e, b),
+    goalOpen: (g) => goalOpen(w, c, g),
+    clearLine: (x, y) => clearLine(w, c, e, { x, y }),
+    hits: () => (w.football?.hits ?? []).filter(([, , f]) => f >= w.frame - 1).map(([target, source]) => ({ target, source })),
+    skillBb: (name) => c.enemies[e.key]?.skills?.find((s) => s.key === name)?.bb ?? null,
   };
+}
+
+/**
+ * A player carries a ball (足球-15: 带球): the ball is at its centre, this player's for the frame; a ball that goes into
+ * a goal so is scored (足球-5). @param {World} w @param {Content} c @param {Unit} e @param {Unit} b
+ */
+function carry(w, c, e, b) {
+  if (!b.ball || b.slide) return;
+  displace(b, e.x, e.y);
+  b.ball.sel = e.id;
+  b.ball.selUntil = w.frame + 1;
+  const goal = goalOf(c, b);
+  if (goal) scored(w, b, goal);
 }
 
 /**
@@ -184,13 +218,15 @@ function clearField(w, c) {
 export const footballStamps = (f, st) => f.stamps.filter((n) => st.home - st.away >= n).length;
 
 /**
- * The end of a frame of 阵地足球 (足球-5, 足球-7, 足球-14): a caught ball whose card's time is up comes back; a ball that
- * went into a goal leaves — in a match its points go to the side that scored and the field is cleared for the next
+ * The end of a frame of 阵地足球 (足球-5, 足球-7, 足球-14, 足球-15): a caught ball whose card's time is up comes back; a
+ * shot's hurt goes on; the hits before this frame are forgotten; a ball that went into a goal leaves — in a match its points go to the side that scored and the field is cleared for the next
  * kickoff —; at the match's end the battle is over.
  * @param {World} w @param {Content} c
  */
 export function tickFootball(w, c) {
   expireBalls(w, c);
+  for (const b of w.units.filter((u) => u.ball?.hurt)) hurtStep(w, c, b);
+  if (w.football?.hits) w.football.hits = w.football.hits.filter(([, , f]) => f >= w.frame);
   const balls = w.units.filter((u) => u.ball?.goal !== undefined);
   for (const b of balls) leave(w, b);
   const st = w.football;

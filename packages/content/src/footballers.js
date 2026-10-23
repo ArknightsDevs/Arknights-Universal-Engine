@@ -1,9 +1,12 @@
-// 阵地足球's players (docs/spec/football.md 足球-9…足球-11): a forward or a goalkeeper (talent `football`) chases a free
-// ball within its `searchBall` radius, and one within its reach it stops, holds and — at its skill's hit — kicks: the
-// forward shoots at our goal or passes to the player nearest it, the goalkeeper clears to the middle column. The
+// 阵地足球's players (docs/spec/football.md 足球-9…足球-11, 足球-15): a forward or a goalkeeper (talent `football`) chases
+// a free ball within its `searchBall` radius, and one within its reach it stops, holds and — at its skill's hit — kicks:
+// the forward shoots at our goal or passes to the player nearest it, the goalkeeper clears to the middle column. The
 // muscleman (`searchtarget`) chases the nearest of our units that can block. Each is revived at full HP, any number of
-// times (`Reborn` with a `duration` only). The skills `slapshot`, `passtheball` and `clearance` are read here.
+// times (`Reborn` with a `duration` only). The skills `slapshot`, `passtheball` and `clearance` are read here; what a
+// team does beyond that is teams.js's.
+import { KIND } from '@aue/schema';
 import { beginRevival, endRebirth, avengerBehaviors } from './avenger.js';
+import { MARK, RAGE, DRIBBLE, dist2, anyOf, openGoalTile, clearGoalTile, forwards, nearBall, kickless, teamBehaviors } from './teams.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').FoeContext} FoeContext @typedef {import('@aue/sim').Unit} Unit */
 
@@ -30,9 +33,6 @@ export const KICK_TIMES = Object.freeze({
   enemy_4029_mukfub: { clearance: [0.367, 1.333] },
 });
 
-/** @param {Unit} a @param {{ x: number, y: number }} b */
-const dist2 = (a, b) => (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-
 /** Whether an enemy is a player (足球-9): it has `football` or `searchtarget`. @param {FoeContext} ctx @param {Unit} u */
 const isPlayer = (ctx, u) => !!(ctx.talentOf(u, 'football') || ctx.talentOf(u, 'searchtarget'));
 
@@ -51,7 +51,10 @@ function onItsOwn(ctx) {
 const players = (ctx) => ctx.enemies().filter((u) => isPlayer(ctx, u) && !ctx.stats(u).flags.sidelined);
 
 /** A goal's nearest distance from a point, squared (足球-10). @param {FoeContext} ctx @param {{ x: number, y: number }} p */
-const toOurGoal = (ctx, p) => Math.min(...ctx.goalTiles('ours').map((g) => dist2(/** @type {Unit} */ (/** @type {unknown} */ (p)), g)));
+const toOurGoal = (ctx, p) => Math.min(...ctx.goalTiles('ours').map((g) => dist2(p, g)));
+
+/** The unit of a list nearest our goal, the first on the field on a tie (足球-10). @param {FoeContext} ctx @param {Unit[]} list */
+const nearestGoal = (ctx, list) => list.toSorted((a, b) => toOurGoal(ctx, a) - toOurGoal(ctx, b) || a.id - b.id)[0] ?? null;
 
 /**
  * A forward's choice (足球-10): it shoots when it is the player nearest our goal or the only player; otherwise it shoots
@@ -60,25 +63,33 @@ const toOurGoal = (ctx, p) => Math.min(...ctx.goalTiles('ours').map((g) => dist2
  */
 function forwardChoice(ctx) {
   const all = players(ctx), others = all.filter((u) => u !== ctx.self);
-  const nearest = all.toSorted((a, b) => toOurGoal(ctx, a) - toOurGoal(ctx, b) || a.id - b.id)[0];
-  if (others.length === 0 || nearest === ctx.self) return { skill: 'slapshot', to: null };
+  if (others.length === 0 || nearestGoal(ctx, all) === ctx.self) return { skill: 'slapshot', to: null };
   if (ctx.draw() < 1 / (all.length + 1)) return { skill: 'slapshot', to: null };
-  return { skill: 'passtheball', to: others.toSorted((a, b) => toOurGoal(ctx, a) - toOurGoal(ctx, b) || a.id - b.id)[0] };
+  return { skill: 'passtheball', to: nearestGoal(ctx, others) };
+}
+
+/** The middle column's target (足球-10): a random row of the goal's, in the column ⌊their goal ÷ 2⌋. @param {FoeContext} ctx */
+function middle(ctx) {
+  const mid = ctx.goalTiles('theirs')[0]?.x ?? 12, rows = ctx.goalTiles('ours').map((g) => g.y);
+  return { x: Math.floor(mid / 2), y: anyOf(ctx, rows) ?? ctx.self.y };
 }
 
 /**
- * Where a kick goes (足球-10): a shot at the centre of a random tile of our goal, a pass at the player chosen, a
- * clearance at a random passable tile of the middle column. @param {FoeContext} ctx @param {string} skill @param {Unit | null} to
+ * Where a kick goes (足球-10, 足球-15): a 战术队 forward's (`aim`) shot and pass at an open tile of our goal; a shot at
+ * the centre of a random tile of our goal; a pass at the player chosen; a clearance — a 战术队 goalkeeper's at a tile of
+ * our goal it has a clear line to, an 爱球会 goalkeeper's (`toForward`) at the forward nearest our goal — at a random
+ * row of the middle column. @param {FoeContext} ctx @param {string} skill @param {Unit | null} to
  * @returns {{ x: number, y: number }}
  */
 function kickTarget(ctx, skill, to) {
-  if (skill === 'passtheball' && to) return { x: to.x, y: to.y };
+  const bb = ctx.bb;
   if (skill === 'clearance') {
-    const mid = ctx.goalTiles('theirs')[0]?.x ?? 12, col = Math.floor(mid / 2), rows = ctx.goalTiles('ours').map((g) => g.y);
-    return { x: col, y: rows[Math.floor(ctx.draw() * rows.length)] ?? ctx.self.y };
+    const fw = bb.toForward ? nearestGoal(ctx, forwards(ctx)) : null;
+    return (bb.aim ? clearGoalTile(ctx) : null) ?? (fw ? { x: fw.x, y: fw.y } : middle(ctx));
   }
-  const goal = ctx.goalTiles('ours');
-  return goal[Math.floor(ctx.draw() * goal.length)] ?? { x: 0, y: ctx.self.y };
+  if (bb.aim) return openGoalTile(ctx) ?? { x: 0, y: ctx.self.y };
+  if (skill === 'passtheball' && to) return { x: to.x, y: to.y };
+  return anyOf(ctx, ctx.goalTiles('ours')) ?? { x: 0, y: ctx.self.y };
 }
 
 /** The ball a player kicks, by id from its state, or null. @param {FoeContext} ctx */
@@ -86,8 +97,8 @@ const heldBall = (ctx) => ctx.balls().find((b) => b.id === ctx.state.get('ball')
 
 /**
  * The kick under way (足球-10): at its hit the ball still within reach is kicked at its force × the skill's scale toward
- * the target noted at the start; until the skill's end the player stays. Whether it is under way.
- * @param {FoeContext} ctx
+ * the target noted at the start — with a 球德联 shot's hurt (足球-15) —; until the skill's end the player stays.
+ * Whether it is under way. @param {FoeContext} ctx
  */
 function kickUnderWay(ctx) {
   const st = ctx.state, hit = st.get('hit'), end = st.get('end');
@@ -95,9 +106,9 @@ function kickUnderWay(ctx) {
   if (hit === ctx.frame) {
     const b = heldBall(ctx), reach = st.get('reach'), to = { x: st.get('tx'), y: st.get('ty') };
     if (b && dist2(ctx.self, b) <= reach * reach) {
-      const dx = to.x - b.x, dy = to.y - b.y, d = Math.sqrt(dx * dx + dy * dy), scale = st.get('scale');
+      const dx = to.x - b.x, dy = to.y - b.y, d = Math.sqrt(dx * dx + dy * dy), scale = st.get('scale'), hurt = st.get('hurt') ? ctx.skillBb('slapshot') : null;
       ctx.holdBall(b, 1);
-      if (d > 0) ctx.kickBall(b, dx / d, dy / d, scale);
+      if (d > 0) ctx.kickBall(b, dx / d, dy / d, scale, hurt ? { amount: hurt.ball_damage, every: hurt.damage_duration, seconds: hurt.aoe_duration } : undefined);
     }
   }
   ctx.chase(ctx.self.x, ctx.self.y);
@@ -105,19 +116,56 @@ function kickUnderWay(ctx) {
 }
 
 /**
- * Starts a kick (足球-10): the ball within reach stops and is held; the skill, its target and its scale are noted, its
- * hit and end by KICK_TIMES (none listed: at once).
- * @param {FoeContext} ctx @param {Unit} b @param {Record<string, number>} bb @param {number} reach
+ * The carry under way (足球-15: 爱球会's 带球): from its start, while the ball is still at its feet — not kicked away,
+ * not caught —, the forward goes for the nearest tile of our goal with the ball, faster and taking more block (the buff
+ * `dribble`); before its start it stays with the ball held. Whether it is under way. @param {FoeContext} ctx
+ */
+function dribbleUnderWay(ctx) {
+  const st = ctx.state, from = st.get('dFrom'), to = st.get('dTo');
+  if (!(to > ctx.frame)) return false;
+  const b = heldBall(ctx);
+  const reach = st.get('reach');
+  if (!b || b.slide || dist2(ctx.self, b) > reach * reach + 1e-9) {
+    st.set('dTo', 0);
+    ctx.removeBuff(ctx.self, DRIBBLE);
+    return false;
+  }
+  if (ctx.frame < from) { ctx.holdBall(b, 1); return true; }
+  if (ctx.frame === from) {
+    const bb = ctx.skillBb('slapshot') ?? {};
+    ctx.addBuff(ctx.self, { key: DRIBBLE, left: to - from, mods: { blockCnt: bb.block_volume ?? 0, movePct: bb.move_speed ?? 0 } });
+  }
+  const g = nearestGoal(ctx, /** @type {Unit[]} */ (/** @type {unknown} */ (ctx.goalTiles('ours'))));
+  if (g && onItsOwn(ctx)) ctx.chase(g.x, g.y);
+  ctx.carry(b);
+  return true;
+}
+
+/**
+ * Starts a kick (足球-10, 足球-15): the ball within reach stops and is held; the skill, its target and its scale are
+ * noted, its hit and end by KICK_TIMES (none listed: at once). An 爱球会 forward's shot is a carry: `duration` seconds
+ * on, for `up_duration` seconds. @param {FoeContext} ctx @param {Unit} b @param {Record<string, number>} bb @param {number} reach
  */
 function startKick(ctx, b, bb, reach) {
   const goalkeeper = typeof bb.clearance_force === 'number';
   const { skill, to } = goalkeeper ? { skill: 'clearance', to: null } : forwardChoice(ctx);
+  const st = ctx.state, shot = skill === 'slapshot' ? ctx.skillBb('slapshot') : null;
+  st.set('ball', b.id);
+  st.set('reach', reach);
+  if (typeof shot?.up_duration === 'number') {
+    const from = ctx.frame + ctx.frames(shot.duration ?? 0);
+    st.set('dFrom', from);
+    st.set('dTo', from + ctx.frames(shot.up_duration));
+    ctx.holdBall(b, 1);
+    return;
+  }
   const [h, e] = KICK_TIMES[ctx.self.key]?.[skill] ?? [0, 0], hit = ctx.frames(h), end = Math.max(hit + 1, ctx.frames(e));
-  const t = kickTarget(ctx, skill, to), st = ctx.state;
+  const t = kickTarget(ctx, skill, to);
   ctx.holdBall(b, hit + 1);
-  st.set('ball', b.id); st.set('hit', ctx.frame + hit); st.set('end', ctx.frame + end); st.set('reach', reach);
+  st.set('hit', ctx.frame + hit); st.set('end', ctx.frame + end);
   st.set('tx', t.x); st.set('ty', t.y);
   st.set('scale', skill === 'clearance' ? bb.clearance_force : skill === 'slapshot' ? bb.slapshot_force : bb.passing_force);
+  st.set('hurt', typeof shot?.ball_damage === 'number' ? 1 : 0);
   if (hit === 0) kickUnderWay(ctx);
 }
 
@@ -127,16 +175,28 @@ function startKick(ctx, b, bb, reach) {
  */
 const inArea = (bb, b) => typeof bb.tile_col_end !== 'number' || Math.round(b.x) >= bb.tile_col_end;
 
+/** The operator of ours nearest it on the field, or null (足球-15). @param {FoeContext} ctx */
+const nearestOperator = (ctx) => ctx.ours().filter((u) => u.kind === KIND.OPERATOR).toSorted((a, b) => dist2(ctx.self, a) - dist2(ctx.self, b) || a.id - b.id)[0] ?? null;
+
 /**
- * `football` (足球-9, 足球-10): on its own, a free ball within its reach is kicked; else it goes for the nearest free
- * ball within its `searchBall` radius. A goalkeeper's reach is its `defence`, a forward's 0.2.
+ * `football` (足球-9, 足球-10, 足球-15): on its own, a free ball within its reach is kicked; else it goes for the nearest
+ * free ball within its `searchBall` radius. A goalkeeper's reach is its `defence`, a forward's 0.2. A raging 球德联
+ * goalkeeper goes for the nearest of our operators instead, a player with no kick of its own (爱球会's muscleman) for
+ * ours near the ball.
  * @type {FoeBehavior}
  */
 const football = Object.freeze({
   tick: (ctx) => {
     const bb = ctx.bb;
-    if (kickUnderWay(ctx) || !onItsOwn(ctx)) return;
-    const reach = typeof bb.defence === 'number' ? bb.defence : FORWARD_REACH, radius = ctx.talent('searchBall')?.range_radius ?? 0;
+    if (kickUnderWay(ctx) || dribbleUnderWay(ctx) || !onItsOwn(ctx)) return;
+    const radius = ctx.talent('searchBall')?.range_radius ?? 0;
+    if (ctx.buffValue(ctx.self, RAGE) !== null) {
+      const op = nearestOperator(ctx);
+      if (op) ctx.chase(op.x, op.y);
+      return;
+    }
+    if (kickless(ctx)) { nearBall(ctx, radius); return; }
+    const reach = typeof bb.defence === 'number' ? bb.defence : FORWARD_REACH;
     const free = ctx.balls().filter((b) => ctx.freeBall(b) && inArea(bb, b)).toSorted((a, b) => dist2(ctx.self, a) - dist2(ctx.self, b) || a.id - b.id);
     const near = free[0];
     if (!near || dist2(ctx.self, near) > radius * radius) return;
@@ -146,14 +206,16 @@ const football = Object.freeze({
 });
 
 /**
- * `searchtarget` (足球-11): on its own, the muscleman goes for the nearest of our units within `range_radius` that can
- * block (a block count above 0).
+ * `searchtarget` (足球-11, 足球-15): on its own, the muscleman goes for the nearest of our units within `range_radius`
+ * that can block (a block count above 0); a 战术队 muscleman with a mark (teams.js) goes for the unit it marked.
  * @type {FoeBehavior}
  */
 const searchtarget = Object.freeze({
   tick: (ctx) => {
     const r = ctx.bb.range_radius;
     if (typeof r !== 'number' || !onItsOwn(ctx)) return;
+    const marked = ctx.buffValue(ctx.self, MARK), m = marked !== null ? ctx.unit(marked) : null;
+    if (m) { ctx.chase(m.x, m.y); return; }
     const near = ctx.ours().filter((u) => ctx.stats(u).blockCnt > 0 && dist2(ctx.self, u) <= r * r).toSorted((a, b) => dist2(ctx.self, a) - dist2(ctx.self, b) || a.id - b.id)[0];
     if (near) ctx.chase(near.x, near.y);
   },
@@ -178,6 +240,5 @@ export const rebornShape = (k, bb) => k !== 'Reborn' || typeof bb.hp_ratio === '
 /** `periodic_damage` of 0 does nothing (足球-11: the muscleman's). @param {string} k @param {Record<string, unknown>} bb */
 export const noPeriodic = (k, bb) => k === 'periodic_damage' && bb.damage === 0 && !('self' in bb);
 
-/** The behaviours of this file, by talent name. @type {Readonly<Record<string, FoeBehavior>>} */
-export const footballerBehaviors = Object.freeze({ football, searchtarget, Reborn });
-
+/** The behaviours of this file and teams.js, by talent name. @type {Readonly<Record<string, FoeBehavior>>} */
+export const footballerBehaviors = Object.freeze({ football, searchtarget, Reborn, ...teamBehaviors });

@@ -150,6 +150,63 @@ export function ballMove(w, c, b, dx, dy) {
 /** The radius a unit of ours runs into a ball at (足球-4): an operator's or a device's collider. */
 const COLLIDER = ALLY_COLLIDER_RADIUS;
 
+/** @typedef {{ x: number, y: number }} Point */
+
+/**
+ * Whether the segment from a to b passes within r of a point p.
+ * @param {Point} a @param {Point} b @param {Point} p @param {number} r
+ */
+function nearSegment(a, b, p, r) {
+  const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy, t = l2 > 0 ? Math.min(1, Math.max(0, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2)) : 0;
+  const px = a.x + dx * t - p.x, py = a.y + dy * t - p.y;
+  return px * px + py * py < r * r;
+}
+
+/**
+ * Whether the segment from a to b passes through the square of half side h centred at p (a slab test).
+ * @param {Point} a @param {Point} b @param {Point} p @param {number} h
+ */
+function crossesSquare(a, b, p, h) {
+  let lo = 0, hi = 1;
+  for (const [s0, d, m] of [[a.x, b.x - a.x, p.x], [a.y, b.y - a.y, p.y]]) {
+    if (d === 0) { if (Math.abs(s0 - m) > h) return false; continue; }
+    const t0 = (m - h - s0) / d, t1 = (m + h - s0) / d;
+    lo = Math.max(lo, Math.min(t0, t1));
+    hi = Math.min(hi, Math.max(t0, t1));
+  }
+  return lo <= hi;
+}
+
+/**
+ * Whether a ball could roll from a to b touching none of ours and no device's square body (足球-15): no operator or
+ * device of ours within the ball's radius and its collider of the line, no square body within the ball's radius of it.
+ * @param {World} w @param {Content} c @param {Point} a @param {Point} b
+ */
+export function clearLine(w, c, a, b) {
+  return !w.units.some((u) => {
+    const h = squareHalf(c, u);
+    if (h > 0) return crossesSquare(a, b, u, h + BALL_RADIUS);
+    return u.hp > 0 && !u.hidden && (u.kind === KIND.OPERATOR || (u.kind === KIND.DEVICE && u.base.hostile !== true)) && nearSegment(a, b, u, BALL_RADIUS + COLLIDER);
+  });
+}
+
+/**
+ * A shot's hurt on a ball (足球-15): every `every` frames until `until`, `amount` physical damage to each of ours its
+ * circle touches (as 足球-4's collisions), from the ball. @param {World} w @param {Content} c @param {Unit} b
+ */
+export function hurtStep(w, c, b) {
+  const h = b.ball?.hurt;
+  if (!h || b.hidden) return;
+  if (w.frame >= h.next) {
+    h.next += h.every;
+    const reach = BALL_RADIUS + COLLIDER;
+    for (const u of w.units.filter((x) => kicker(x) && x.hp > 0 && !x.hidden && squareHalf(c, x) === 0 && (x.x - b.x) * (x.x - b.x) + (x.y - b.y) * (x.y - b.y) < reach * reach)) {
+      dealDamage(w, b, u, { type: 'phys', amount: h.amount }, c);
+    }
+  }
+  if (w.frame >= h.until && b.ball) delete b.ball.hurt;
+}
+
 /** What a ball's damage to a unit is multiplied by (足球-12): a device's `ballDamage`, else 1. @param {Content} c @param {Unit} u */
 export const ballScale = (c, u) => (u.kind === KIND.DEVICE ? c.devices?.[u.key]?.ballDamage ?? 1 : 1);
 

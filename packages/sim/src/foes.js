@@ -145,11 +145,19 @@ export const BOLT_RADIUS = 0.3;
  * @property {() => Unit[]} balls the balls on the field that have not gone into a goal (足球-9)
  * @property {(b: Unit) => boolean} freeBall whether no other player holds the ball (足球-9)
  * @property {(b: Unit, frames: number) => void} holdBall stops the ball and makes it this enemy's for that many frames (足球-9)
- * @property {(b: Unit, ux: number, uy: number, scale: number) => void} kickBall kicks the ball along a unit vector at its
- *   default force × scale, and frees it (足球-9)
+ * @property {(b: Unit, ux: number, uy: number, scale: number, hurt?: { amount: number, every: number, seconds: number }) => void} kickBall
+ *   kicks the ball along a unit vector at its default force × scale, and frees it (足球-9); with `hurt`, the ball deals that
+ *   damage to ours it touches every `every` seconds for `seconds` (足球-15)
  * @property {(which: 'ours' | 'theirs') => { x: number, y: number }[]} goalTiles the centres of a goal's tiles (足球-1)
  * @property {(x: number, y: number) => boolean} chase one frame's straight move toward a point, its move this frame (足球-9)
  * @property {(block: number) => void} goalSpot makes this enemy a 守门位 that gives `block` (足球-13)
+ * @property {(b: Unit) => void} carry the ball at this enemy's centre, its for the frame; into a goal, scored (足球-15)
+ * @property {(g: { x: number, y: number }) => boolean} goalOpen whether a goal tile has no barrier nor goalkeeper in front (足球-15)
+ * @property {(x: number, y: number) => boolean} clearLine whether a ball from this enemy to a point touches none of ours
+ *   and no barrier (足球-15)
+ * @property {() => { target: number, source: number }[]} hits the hits our operators dealt enemies — not balls nor 守门位
+ *   — this frame and the last (足球-15)
+ * @property {(name: string) => Record<string, number> | null} skillBb the blackboard of one of its skills by name, or null
  * @property {(t: Unit, p: Payload) => void} hurl throws a homing skill projectile (敌能-83). Its speed is an enemy
  *   projectile's (攻击-3). `amount` is frozen as given. Arrival deals that as a skill hit, not an attack, then `status`
  *   when the target is still up

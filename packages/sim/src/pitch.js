@@ -31,6 +31,17 @@ export function makeSpot(u, block) {
 /** The 守门位 on a tile, or null (足球-13). @param {World} w @param {number} row @param {number} col */
 export const spotAt = (w, row, col) => w.units.find((u) => u.spot && u.hp > 0 && !u.hidden && Math.round(u.x) === col && Math.round(u.y) === row) ?? null;
 
+/**
+ * Whether a goal tile is open (足球-15): the tile in front of it — toward the field's middle — has no device that
+ * blocks routes (阵地屏障) and is no 守门位 with a goalkeeper on it.
+ * @param {World} w @param {Content} c @param {{ x: number, y: number }} g
+ */
+export function goalOpen(w, c, g) {
+  const col = g.x + (g.x < c.level.width / 2 ? 1 : -1), row = g.y, at = (/** @type {Unit} */ u) => u.hp > 0 && !u.hidden && Math.round(u.x) === col && Math.round(u.y) === row;
+  if (w.units.some((u) => u.kind === KIND.DEVICE && at(u) && c.devices?.[u.key]?.routeBlock)) return false;
+  return !(spotAt(w, row, col) && w.units.some((u) => at(u) && isKeeper(u)));
+}
+
 /** Whether a unit is one of ours a 守门位 works on (足球-13): an operator or a device of ours on the field. @param {Unit} u */
 const ours = (u) => u.hp > 0 && !u.hidden && (u.kind === KIND.OPERATOR || (u.kind === KIND.DEVICE && u.base.hostile !== true));
 

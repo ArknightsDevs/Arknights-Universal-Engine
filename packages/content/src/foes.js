@@ -300,6 +300,12 @@ export const FOE_EXTRAS = Object.freeze({
   enemy_1507_mephi: { talents: { healaura: { field: 1 } }, source: `${PRTS}%E6%A2%85%E8%8F%B2%E6%96%AF%E7%89%B9&oldid=371401` },
   // 至纯源石球: 「进球时获得3倍得分」 (足球-7)
   enemy_4019_mugold: { talents: { physic: { score: 3 } }, source: `${PRTS}%E8%87%B3%E7%BA%AF%E6%BA%90%E7%9F%B3%E7%90%83&oldid=437059` },
+  // 战术队击球手: 射门、传球「必定瞄准前方没有阵地屏障的/守门位没有干员的球门」 (足球-15)
+  enemy_4022_mushtm: { talents: { football: { aim: 1 } }, source: `${PRTS}%E6%88%98%E6%9C%AF%E9%98%9F%E5%87%BB%E7%90%83%E6%89%8B&oldid=437027` },
+  // 战术队守门员: 发球「总是瞄准自身与球门之间无我方单位/阵地屏障遮挡的球门」 (足球-15)
+  enemy_4023_mushtb: { talents: { football: { aim: 1 } }, source: `${PRTS}%E6%88%98%E6%9C%AF%E9%98%9F%E5%AE%88%E9%97%A8%E5%91%98&oldid=437032` },
+  // 爱球会守门员: 发球「优先瞄准击球手」 (足球-15)
+  enemy_4026_muhryb: { talents: { football: { toForward: 1 } }, source: `${PRTS}%E7%88%B1%E7%90%83%E4%BC%9A%E5%AE%88%E9%97%A8%E5%91%98&oldid=435541` },
   // 吸血 (敌能-75). `page` marks a page that was read; 虹吸巨刃 has the same numbers and stays uncovered (关卡-2).
   // 萨卡兹宿主百夫长 / 卫巢百夫长: 最多同时攻击3个目标，不会攻击飞行单位；成功造成伤害后治疗伤害量的 150%。
   enemy_1114_rgrdmn: { talents: { vampire: { page: 1 }, noFly: {} }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E5%AE%BF%E4%B8%BB%E7%99%BE%E5%A4%AB%E9%95%BF&oldid=365976` },
@@ -608,6 +614,7 @@ export const FOE_NEEDS = Object.freeze({
   periodic_damage: Object.freeze(['self']),
   // 足球-2: a ball's physics, all four from the data.
   physic: PHYSIC_KEYS,
+  rage: Object.freeze(['hp_ratio', 'atk', 'def', 'rage_duration']), passiveMarkTarget: Object.freeze(['move_speed', 'duration', 'cooldown']),
   Shield: Object.freeze(['max_block_damage_cnt', 'block_damage_cnt']),
   def_reduce: Object.freeze(['gate']),
   rush: Object.freeze(['dlancer_t[trigger].move_speed', 'dlancer_t[trigger].interval', 'dlancer_t[trigger].trig_cnt', 'paged']),

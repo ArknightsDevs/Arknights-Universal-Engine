@@ -750,11 +750,13 @@
  *   its 失衡 slide: speed (tiles/s) and 硬直 frames left (位移-3); a pull on it — its point, its puller's centre, its force,
  *   the distance it began at, its frames left, whether it stopped (位移-4). A 静态刚体 keeps vx and vy at 0 and drops the
  *   slide when the force ends (位移-5)
- * @property {{ f: number, e: number, force: number, need: number, block: number, points: number, sum: number, ax: number, ay: number, touch: number[], bump?: number[], goal?: number, sel?: number, selUntil?: number }} [ball]
+ * @property {{ f: number, e: number, force: number, need: number, block: number, points: number, sum: number, ax: number, ay: number, touch: number[], bump?: number[], goal?: number, sel?: number, selUntil?: number,
+ *   hurt?: { amount: number, every: number, next: number, until: number } }} [ball]
  *   a ball's physics (足球-2): friction factor, restitution, default force, the damage that kicks it, the block count left
  *   that stops it, the points of its goal (足球-7); the damage and direction summed so far (足球-3); the units of ours it
  *   touched last frame (足球-4), the devices it bounced off this frame (足球-12); the goal it went into this frame (足球-5,
- *   SCORE_GOAL); the player holding it and the frame its hold ends (足球-9). Left out for other units
+ *   SCORE_GOAL); the player holding it and the frame its hold ends (足球-9); the damage a shot gave it to deal around it,
+ *   every so many frames, the next and the last frame (足球-15). Left out for other units
  * @property {{ block: number }} [spot] a 守门位's block for one of ours on its tile (足球-13). Left out for other units
  * @property {number} anim schema ANIM
  * @property {Drift} [drift] 恐惧 / 诱导 movement, present once either has been applied (状态-10, 状态-11)
@@ -906,8 +908,9 @@
  */
 /**
  * 阵地足球's progress (足球-6, 足球-7): the team drawn (its index), our goals and theirs, the frame the current kickoff
- * began, the frame the match ends.
- * @typedef {{ team: number, home: number, away: number, kick: number, until: number }} FootballState
+ * began, the frame the match ends; the hits our operators dealt enemies this frame and the last ([enemy id, operator id,
+ * frame], 足球-15).
+ * @typedef {{ team: number, home: number, away: number, kick: number, until: number, hits?: [number, number, number][] }} FootballState
  */
 
 /**
