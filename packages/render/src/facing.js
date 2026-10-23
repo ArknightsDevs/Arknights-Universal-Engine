@@ -8,7 +8,7 @@
 // 期间，目标换到别的**列**才按左右翻转，同一列时保持原来的左右；同一**格**时不判方向。全部只用到引擎自己的格子模型，
 // 没有任何手调的阈值。
 import { DIR } from '@aue/schema';
-import { faceTurns } from './faceModes.js';
+import { faceMode, faceTurns } from './faceModes.js';
 
 /** @typedef {{ side: 'front' | 'back', flip: boolean }} Facing */
 
@@ -55,4 +55,4 @@ export const sideOf = (dir) => (dir === DIR.UP ? 'back' : 'front');
 /** Whether a deploy direction alone is mirrored (渲染-4). @param {number} dir */
 export const flipOf = (dir) => dir === DIR.LEFT;
 /** Whether an operator turns toward a target at all (the per-operator table). */
-export { faceTurns };
+export { faceMode, faceTurns };

@@ -99,3 +99,10 @@ test('[渲染-4] an operator that does not turn (野鬃 2 技能) returns to its
   follow(f, { ...unit(0, ANIM.ATTACK), dir: DIR.UP, skill: SKILL_STATE.RUNNING }, 30, 'char_496_wildmn');
   assert.deepEqual([f.side, f.flip], ['back', false], 'both the side and the mirror return to the deploy direction');
 });
+
+test('[渲染-4] a 扩散术士 keeps its facing through an attack', () => {
+  const f = /** @type {import('../src/figure.js').Figure} */ (newFigure({ front: tinyModel(), back: tinyModel() }, { ...unit(0, ANIM.IDLE), dir: DIR.UP }, 0));
+  f.role = 'attack'; f.aim = { x: 3, y: -1, id: 9 }; f.side = 'front'; f.flip = true;
+  follow(f, { ...unit(0, ANIM.ATTACK), dir: DIR.UP, skill: SKILL_STATE.RUNNING }, 30, 'char_121_lava');
+  assert.deepEqual([f.side, f.flip], ['front', true], 'the side and the mirror stay where they were');
+});

@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { KIND, FORM } from '@aue/schema';
 import { createFigure } from './spine.js';
 import { formRoles, dollRoles, roleOf, operatorFacing, enemyFacing } from './roles.js';
-import { facingStep, flipOf, sideOf, faceTurns } from './facing.js';
+import { facingStep, flipOf, sideOf, faceMode } from './facing.js';
 import { SKILL_STATE } from '@aue/schema';
 
 /** Simulation frames per second (the engine's 时间-1). */
@@ -60,7 +60,10 @@ function faced(f, u, key) {
   const idle = { side: sideOf(u.dir), flip: flipOf(u.dir) };
   if (f.role !== 'attack') { f.aim = null; f.aimId = 0; return idle; }
   if (!f.aim) return idle;
-  if (!faceTurns(key, u.skill === SKILL_STATE.RUNNING)) return idle;
+  const mode = faceMode(key, u.skill === SKILL_STATE.RUNNING);
+  if (!mode.turn) {
+    return mode.keepCurrent ? { side: /** @type {'front' | 'back'} */ (f.side), flip: f.flip } : idle;
+  }
   const next = facingStep({ side: /** @type {'front' | 'back'} */ (f.side), flip: f.flipped }, f.aim.x - u.x, f.aim.y - u.y, f.aim.id !== f.aimId, sideOf(u.dir) === 'back');
   f.aimId = f.aim.id;
   return next;

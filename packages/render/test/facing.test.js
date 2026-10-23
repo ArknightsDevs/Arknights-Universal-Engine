@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 
 import { DIR } from '@aue/schema';
 import { operatorFacing } from '../src/roles.js';
-import { facingStep, sideOf, flipOf } from '../src/facing.js';
+import { facingStep, sideOf, flipOf, faceMode } from '../src/facing.js';
 import { FACE_OVERRIDES } from '../src/faceModes.js';
 
 const front = { side: /** @type {const} */ ('front'), flip: false };
@@ -73,4 +73,15 @@ test('sideOf and flipOf are the deploy direction alone (渲染-4)', () => {
 test('the per-operator table holds 野鬃 out only while its skill runs (渲染-4)', () => {
   assert.equal(typeof FACE_OVERRIDES, 'object');
   assert.equal(FACE_OVERRIDES.char_496_wildmn.when, 'skill');
+});
+
+test('the splash caster branch: seven keep their facing, the others turn (渲染-4)', () => {
+  for (const key of ['char_009_12fce', 'char_109_fmout', 'char_121_lava', 'char_166_skfire', 'char_2015_dusk', 'char_213_mostma', 'char_373_lionhd']) {
+    assert.deepEqual(faceMode(key), { turn: false, keepCurrent: true }, `${key} keeps its current facing`);
+  }
+  assert.deepEqual(faceMode('char_496_wildmn', true), { turn: false, keepCurrent: false }, '野鬃: no turn, back to deploy');
+  assert.equal(faceMode('char_496_wildmn', false).turn, true, '野鬃 outside its skill turns');
+  for (const key of ['char_4141_marcil', 'char_341_sntlla', 'char_1011_lava2']) {
+    assert.deepEqual(faceMode(key), { turn: true, keepCurrent: false }, `${key} turns`);
+  }
 });
