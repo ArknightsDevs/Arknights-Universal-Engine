@@ -4315,7 +4315,7 @@
     "id": "INF-0619",
     "clause": "渲染-4",
     "statement": "扩散术士分支不是整类不转：12F、远山、炎熔、天火、夕、莫斯提马、莱恩哈特 不转且保持当前朝向（按干员表加 keepCurrent）；玛露西尔、寒檀、炎狱炎熔、格雷伊 会转。",
-    "basis": "实机测试（2026-10-23，短视频已裁剪、无时间戳）：[寒檀](https://github.com/user-attachments/assets/c325c0f1-878d-4e7d-a9bb-49f9a5631e89)、[莱恩哈特](https://github.com/user-attachments/assets/5b220c9b-e4df-4c60-b4dc-49a7f70de3e2)、[玛露西尔](https://github.com/user-attachments/assets/0dadeb8f-df2d-40df-814f-0b18b13bffc9)、[远山/天火](https://github.com/user-attachments/assets/2830cd32-8047-45fc-a4af-45ebb5909c46)、[夕/格雷伊](https://github.com/user-attachments/assets/6dc3b0a8-7cac-4a17-be47-c33c0ea7be42)、[炎熔](https://github.com/user-attachments/assets/12a183d2-2508-4825-af85-424d461a21a1)、[炎狱炎熔/莫斯提马](https://github.com/user-attachments/assets/66bcca17-f5c8-4c6c-be8a-fcccbbd58ba6)。12F 的录像待补。",
+    "basis": "实机测试（2026-10-23，短视频已裁剪、无时间戳）：[寒檀](https://github.com/user-attachments/assets/c325c0f1-878d-4e7d-a9bb-49f9a5631e89)、[莱恩哈特](https://github.com/user-attachments/assets/5b220c9b-e4df-4c60-b4dc-49a7f70de3e2)、[玛露西尔](https://github.com/user-attachments/assets/0dadeb8f-df2d-40df-814f-0b18b13bffc9)、[远山/天火](https://github.com/user-attachments/assets/2830cd32-8047-45fc-a4af-45ebb5909c46)、[夕/格雷伊](https://github.com/user-attachments/assets/6dc3b0a8-7cac-4a17-be47-c33c0ea7be42)、[炎熔](https://github.com/user-attachments/assets/12a183d2-2508-4825-af85-424d461a21a1)、[炎狱炎熔/莫斯提马](https://github.com/user-attachments/assets/66bcca17-f5c8-4c6c-be8a-fcccbbd58ba6)、[12F](https://github.com/user-attachments/assets/2667d6e4-2bac-4273-a47c-09ffa17e8404)。",
     "status": "待查证"
   }
 ]

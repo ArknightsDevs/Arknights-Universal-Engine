@@ -16,9 +16,8 @@ export const FACE_OVERRIDES = {
   // 野鬃 2 技能期间不转身：实机录像第 498 帧（渲染-4）
   char_496_wildmn: { turn: false, when: 'skill', basis: '实机录像「野鬃二技能不转身」https://github.com/user-attachments/assets/f60cab20-cfc5-4b5a-84ba-61a1b9903209 第 498 帧' },
   // 扩散术士分支实机测试（2026-10-23）：这 7 人不转向，且保持当前朝向（与野鬃的“回部署”不同）。同分支的
-  // 玛露西尔、寒檀、炎狱炎熔、格雷伊实测会转向，所以不能按 branch 一刀切，只能逐个登记。短视频已裁剪、无时间戳；
-  // 12F 的录像待补。
-  char_009_12fce: { turn: false, keepCurrent: true, basis: '实机测试（2026-10-23）：12F 不转向，保持当前朝向；录像待补' },
+  // 玛露西尔、寒檀、炎狱炎熔、格雷伊实测会转向，所以不能按 branch 一刀切，只能逐个登记。录像见各条 basis。
+  char_009_12fce: { turn: false, keepCurrent: true, basis: '实机测试（2026-10-23，短视频已裁剪、无时间戳）：12F 不转向，保持当前朝向；https://github.com/user-attachments/assets/2667d6e4-2bac-4273-a47c-09ffa17e8404' },
   char_109_fmout: { turn: false, keepCurrent: true, basis: '实机测试（2026-10-23，短视频已裁剪、无时间戳）：远山不转向，保持当前朝向；https://github.com/user-attachments/assets/2830cd32-8047-45fc-a4af-45ebb5909c46' },
   char_121_lava: { turn: false, keepCurrent: true, basis: '实机测试（2026-10-23，短视频已裁剪、无时间戳）：炎熔不转向，保持当前朝向；https://github.com/user-attachments/assets/12a183d2-2508-4825-af85-424d461a21a1' },
   char_166_skfire: { turn: false, keepCurrent: true, basis: '实机测试（2026-10-23，短视频已裁剪、无时间戳）：天火不转向，保持当前朝向；https://github.com/user-attachments/assets/2830cd32-8047-45fc-a4af-45ebb5909c46' },
