@@ -71,7 +71,8 @@ export const skeletonContent = /** @type {any} */ ({
  */
 export function levelContent(id, difficulty) {
   const lv = levelAt(id, difficulty);
-  return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), devices: lv.devices, operators: skeletonContent.operators, behaviors: BEHAVIORS });
+  const operators = Object.fromEntries(Object.entries(skeletonContent.operators).map(([k, o]) => [k, withRunes(o, lv.runes)]));
+  return /** @type {any} */ ({ level: lv.level, enemies: enemiesOf(lv.enemies), devices: lv.devices, operators, behaviors: BEHAVIORS });
 }
 
 /**
@@ -90,7 +91,8 @@ function withoutTalents({ talentBb, talentMods, talentTrait, fieldTalents, range
  * (召唤-2), keyed "summon id#seat", with their owner's key (`summoner`). An operator with a loaded kit (兼容-6,
  * kitmod.js) fights by its kit: its record without its talents, its team talents not given by the engine, its kit's
  * world setup and skill behaviours; the content names the commit and the kits it uses. A seat's runes (符文-1) change its
- * operators and summons, and its deploy limit (level.options.characterLimitAdd); runes not supported throw. In 堡垒守御
+ * operators and summons, and its deploy limit (level.options.characterLimitAdd), the level's runes on our units every
+ * seat's (关卡-2); runes not supported throw. In 堡垒守御
  * every seat's deck has the level's builders too (守御-4), and each token whose device is 轰隆隆先生 (装置-7). The levels, operators and summons come from the content
  * source — the official content, or it with mods (mod-8) —; the content names the mods it is made with.
  * @param {{ level: string, difficulty: 'NORMAL' | 'FOUR_STAR', seed: number, decks: { id: string, build: import('./operators.js').Build }[][], runes?: import('./runes.js').SeatRune[][] }} match
@@ -123,6 +125,8 @@ export async function matchContent(match, { source = OFFICIAL_SOURCE, kits = {} 
   const limitAdd = await withSeatRunes(operators, decks, match.runes ?? []);
   withBuilders(lv.level, lv.devices, operators, decks);
   withLootCards(lv.level, lv.devices, operators, decks);
+  // the level's runes on our units are every seat's (关卡-2, 符文-1)
+  for (const k of Object.keys(operators)) operators[k] = withRunes(operators[k], lv.runes);
   const used = [...new Set(Object.keys(entries).map((k) => k.split('#')[0]))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   const kb = used.length ? kitsBehaviors(entries) : null;
   const behaviors = kb ? { ...BEHAVIORS, world: kb.world, skills: { ...BEHAVIORS.skills, ...kb.skills }, buffs: { ...BEHAVIORS.buffs, ...kb.buffs }, traits: kb.traits } : BEHAVIORS;

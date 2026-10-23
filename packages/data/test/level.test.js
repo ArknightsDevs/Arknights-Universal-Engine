@@ -122,6 +122,20 @@ test('[关卡-2] runes: the max cost, the operators\' block count, shared enemie
   assert.deepEqual([...sharedEnemies(runes)], ['e_a', 'e_b']);
 });
 
+test('[关卡-2] runes on our units are kept as seat runes, the mask a number (ALL all ten professions); other runes not supported are named', () => {
+  const rune = (/** @type {string} */ key, /** @type {Record<string, number | string>} */ bb, /** @type {unknown} */ professionMask) => ({ key, difficultyMask: 'ALL', professionMask,
+    blackboard: Object.entries(bb).map(([k, v]) => (typeof v === 'string' ? { key: k, value: 0, valueStr: v } : { key: k, value: v, valueStr: null })) });
+  // IG-FT-1's (level_act1multi_football): 技力需求-20%, the SP rune
+  const runes = [rune('env_gbuff_new', { key: 'sp_recovery_reduction', sp_recovery_per_sec: 1 }, 1023), rune('char_skill_cd_mul', { scale: 0.8 }, 'ALL'), rune('char_attribute_mul', { atk: 1.1 }, 639),
+    rune('global_cost_recovery', { value: 1 }, 1023)];
+  assert.deepEqual(difficultyOf(runes, 'NORMAL'), { hiddenGroups: [], enemyMul: [], replace: {}, unsupported: ['global_cost_recovery'], ours: [
+    { key: 'env_gbuff_new', professions: 1023, board: [['key', 'sp_recovery_reduction'], ['sp_recovery_per_sec', 1]] },
+    { key: 'char_skill_cd_mul', professions: 1023, board: [['scale', 0.8]] },
+    { key: 'char_attribute_mul', professions: 639, board: [['atk', 1.1]] },
+  ] });
+  assert.throws(() => difficultyOf([rune('char_skill_cd_mul', { scale: 0.8 }, 'MELEE')], 'NORMAL'), /professionMask/);
+});
+
 test('[地图-2] closed edges: a tile, its side and the mask, in data order; none without blockEdges; unknown sides and masks refused', () => {
   const lv = /** @type {any} */ (makeLevel()), out = (/** @type {any} */ l) => /** @type {any} */ (extractLevel({ id: 'lv', level: l, enemyDb: db(), commit: 'c' })).level;
   assert.equal(out(lv).blockEdges, undefined);

@@ -302,13 +302,15 @@ test('[敌能-50] noFly is added only for the two throwers; the witch\'s boom an
   assert.equal(left.includes('occupy'), true);
 });
 
-test('[敌能-50] unread { damage } users stay uncovered and the tick does not run', () => {
+test('[敌能-50] [足球-11] unread { damage } users stay uncovered and the tick does not run; a { damage: 0 } — the players\' — does nothing', () => {
   const unread = /** @type {[string, number][]} */ ([
-    ['enemy_1227_dair', 60], ['enemy_1227_dair_2', 90], ['enemy_15032_dqhrgr', 0], ['enemy_19053_akrbt', 300],
-    ['enemy_19054_akrbsp', 350], ['enemy_4005_musqrl', 5000], ['enemy_4005_musqrl_2', 5000], ['enemy_4014_mugnfu', 0],
-    ['enemy_4014_mugnfu_2', 330], ['enemy_4024_mushtg', 0], ['enemy_4024_mushtg_2', 0], ['enemy_4030_mukfug', 0],
-    ['enemy_4030_mukfug_2', 0], ['enemy_5036_dqger_2', 300],
+    ['enemy_1227_dair', 60], ['enemy_1227_dair_2', 90], ['enemy_19053_akrbt', 300],
+    ['enemy_19054_akrbsp', 350], ['enemy_4005_musqrl', 5000], ['enemy_4005_musqrl_2', 5000],
+    ['enemy_4014_mugnfu_2', 330], ['enemy_5036_dqger_2', 300],
   ]);
+  for (const key of ['enemy_15032_dqhrgr', 'enemy_4014_mugnfu', 'enemy_4024_mushtg', 'enemy_4024_mushtg_2', 'enemy_4030_mukfug', 'enemy_4030_mukfug_2']) {
+    assert.equal(uncoveredAbilities([bare(key, 0)]).includes('periodic_damage'), false, key);
+  }
   for (const [key, damage] of unread) {
     assert.equal(FOE_EXTRAS[key], undefined, key);
     const raw = bare(key, damage);

@@ -163,7 +163,13 @@ const route = obj({
 const tile = obj({ key: str, buildable: oneOf('NONE', 'MELEE', 'RANGED', 'ALL'), height: oneOf('LOWLAND', 'HIGHLAND'), passable: oneOf('NONE', 'FLY_ONLY', 'ALL'), side: oneOf('ALL', 'SIDE_A', 'SIDE_B') },
   { goal: oneOf('A', 'B') });
 const difficulty = obj({ enemyMul: list(obj({ mods: dict(num(0, 1000), 8) }, { enemy: list(str, 0, 64), exclude: list(str, 0, 64) }), 0, 16), hiddenGroups: list(str, 0, 64), replace: dict(str, 64), unsupported: list(str, 0, 64) },
-  { lifePoint: int(1, 999), maxCost: int(0, 999), costScale: num(0.01, 100), blockAdd: int(-10, 10) });
+  { lifePoint: int(1, 999), maxCost: int(0, 999), costScale: num(0.01, 100), blockAdd: int(-10, 10),
+    ours: list(obj({ key: str, professions: int(0, 1023), board: list(list(either(num(), str), 2, 2), 0, 32) }), 0, 32) });
+/** 阵地足球's settings (足球-1, 足球-6). */
+const football = obj({
+  time: num(1, 36000), wait: num(0, 3600), stamps: list(int(0, 999), 0, 8), ahead: list(list(int(0, 1e6), 2, 2), 1, 32), weights: dict(list(num(0, 1e6), 1, 64), 32),
+  teams: list(obj({ name: str, weight: num(0, 1e6), players: dict(str, 8) }), 1, 16), roles: dict(str, 8),
+});
 const device = obj({
   name: str, maxHp: num(1, 1e9), atk: num(0, 1e7), def: num(0, 1e6), res: num(-100, 100), blockCnt: int(0, 99), cost: int(0, 99), aspd: num(1, 1000), baseAttackTime: num(0.05, 600),
   tauntLevel: int(-10, 10), massLevel: int(0, 10), talentBb: bb, talents: list(bb, 0, 16),
@@ -171,7 +177,7 @@ const device = obj({
 const levelBody = obj({
   id: str, code: str, name: str, width: int(1, 64), height: int(1, 64), bgm: str, view: list(num(), 0, 16),
   options: obj({ characterLimit: int(0, 99), costIncreaseTime: num(0.01, 3600), initialCost: int(0, 999), maxCost: int(0, 999), maxLifePoint: int(1, 999), moveMultiplier: num(0.01, 100) }),
-  tiles: list(list(tile, 1, 64), 1, 64), routes: list(route, 0, 4096), waves: list(obj({ preDelay: num(0, 3600), postDelay: num(0, 3600), maxWait: num(-1, 1e6), fragments: list(fragment, 0, 64) }), 0, 256),
+  tiles: list(list(tile, 1, 64), 1, 64), routes: list(route, 0, 4096), waves: list(obj({ preDelay: num(0, 3600), postDelay: num(0, 3600), maxWait: num(-1, 1e6), fragments: list(fragment, 0, 64) }, { tag: int(0, 99) }), 0, 256),
   predefines: list(obj({ key: str, alias: str, row: int(0, 63), col: int(0, 63), dir: oneOf('UP', 'DOWN', 'LEFT', 'RIGHT'), hidden: bool }, { build }), 0, 256),
   stages: list(obj({ alias: str, goal: int(0, 1e6), objective: oneOf('protect', 'target', 'survive', 'tower'), rest: int(0, 3600), time: int(0, 36000), task: dict(str, 8) }, { advanced: int(0, 1e6), enemy: str }), 0, 16),
 }, {
@@ -179,6 +185,7 @@ const levelBody = obj({
   branches: dict(list(fragment, 0, 64), 64),
   cards: obj({ operators: list(obj({ key: str, build }), 0, 16), tokens: list(obj({ key: str, alias: str, count: int(0, 99), hidden: bool }), 0, 16) }),
   fortress: obj({ life: int(1, 999), rest: int(0, 3600), restAdd: int(0, 3600), wave: int(0, 3600), waveLast: int(0, 3600) }),
+  football,
 });
 /** A level's file (data/levels/<id>.json, 关卡-1). */
 const levelShape = obj({ level: levelBody, difficulties: obj({ NORMAL: difficulty, FOUR_STAR: difficulty }), enemies: dict(enemyShape, 512), devices: dict(device, 64) }, { source: dict(str, 8), testing: bool });

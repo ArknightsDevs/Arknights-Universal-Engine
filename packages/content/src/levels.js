@@ -12,6 +12,7 @@ import act1multiFortressHard01 from '../data/levels/act1multi_fortress_hard-01.j
 import { uncoveredAbilities, withFoeExtras } from './foes.js';
 import { profiledDevices } from './devices.js';
 import { CARRIED } from './carried.js';
+import { seatRules } from './runes.js';
 
 /** @typedef {'NORMAL' | 'FOUR_STAR'} Difficulty */
 /** @typedef {import('@aue/sim').EnemyDef} EnemyDef */
@@ -87,21 +88,34 @@ export const TESTING = Object.freeze(['act1multi_fortress_rm01', 'act1multi_fort
 const beingTested = (id, raw) => TESTING.includes(id) || raw.testing === true;
 
 /**
- * A level at a difficulty (关卡-2), as @aue/sim's level and enemies; `attack` adds each enemy's attack timing.
- * Throws for a level with runes not supported at that difficulty, whose enemies there have abilities with no
+ * A level's file and its rules at a difficulty, with its runes on our units read (关卡-2, 符文-1); throws for no such
+ * level or difficulty, or runes not supported there.
+ * @param {string} id @param {Difficulty} difficulty @param {Readonly<Record<string, any>>} levels
+ */
+function difficultyAt(id, difficulty, levels) {
+  const raw = Object.hasOwn(levels, id) ? levels[id] : undefined;
+  if (!raw) throw new RangeError(`no level ${id}`);
+  const d = raw.difficulties[difficulty];
+  if (!d) throw new RangeError(`level ${id}: no difficulty ${difficulty}`);
+  const ours = seatRules(d.ours ?? []);
+  const unsupported = [...d.unsupported, ...ours.unsupported];
+  if (unsupported.length > 0) throw new RangeError(`level ${id} at ${difficulty}: runes not supported yet: ${unsupported.join(', ')}`);
+  return { raw, d, ours };
+}
+
+/**
+ * A level at a difficulty (关卡-2), as @aue/sim's level and enemies; `attack` adds each enemy's attack timing; the
+ * effects of its runes on our units (`runes`, 符文-1…5 on every seat). Throws for a level with runes not supported at that difficulty, whose enemies there have abilities with no
  * behaviour yet — unless it is being tested (one of TESTING, or a level file that says so, `testing: true`): then the
  * level names them (`uncovered`, 关卡-8) —, or with devices not
  * profiled yet (装置-3).
  * @param {string} id @param {Difficulty} difficulty @param {(key: string) => object} [attack]
  * @param {Readonly<Record<string, any>>} [levels] the extracted levels to take it from (LEVELS)
- * @returns {{ level: import('@aue/sim').Content['level'], enemies: Record<string, EnemyDef>, blockAdd: number, devices: Record<string, import('@aue/sim').DeviceDef> }}
+ * @returns {{ level: import('@aue/sim').Content['level'], enemies: Record<string, EnemyDef>, blockAdd: number, runes: import('./runes.js').RuneEffect[],
+ *   devices: Record<string, import('@aue/sim').DeviceDef> }}
  */
 export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
-  const raw = Object.hasOwn(levels, id) ? levels[id] : undefined;
-  if (!raw) throw new RangeError(`no level ${id}`);
-  const d = raw.difficulties[difficulty];
-  if (!d) throw new RangeError(`level ${id}: no difficulty ${difficulty}`);
-  if (d.unsupported.length > 0) throw new RangeError(`level ${id} at ${difficulty}: runes not supported yet: ${d.unsupported.join(', ')}`);
+  const { raw, d, ours } = difficultyAt(id, difficulty, levels);
   const { waves, branches } = replacedSpawns(raw.level, d.replace);
   const used = spawnedKeys(waves, branches, raw.enemies);
   const missing = uncoveredAbilities(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([k, e]) => withFoeExtras(k, /** @type {EnemyDef} */ (e))));
@@ -114,6 +128,7 @@ export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
       options: optionsAt(raw.level.options, d) },
     enemies: Object.fromEntries(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([k, e]) => [k, { ...multiplied(k, /** @type {EnemyDef} */ (e), d.enemyMul), ...attack(k) }])),
     blockAdd: d.blockAdd ?? 0,
+    runes: ours.effects,
     devices: dev.devices,
   };
 }

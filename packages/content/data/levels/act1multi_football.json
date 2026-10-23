@@ -51424,9 +51424,32 @@
         "enemy_4032_muftmg": "enemy_4016_mubuln",
         "enemy_4031_muftsn": "enemy_4015_musucr"
       },
-      "unsupported": [
-        "env_gbuff_new",
-        "char_skill_cd_mul"
+      "unsupported": [],
+      "ours": [
+        {
+          "key": "env_gbuff_new",
+          "professions": 1023,
+          "board": [
+            [
+              "key",
+              "sp_recovery_reduction"
+            ],
+            [
+              "sp_recovery_per_sec",
+              1
+            ]
+          ]
+        },
+        {
+          "key": "char_skill_cd_mul",
+          "professions": 1023,
+          "board": [
+            [
+              "scale",
+              0.8
+            ]
+          ]
+        }
       ]
     },
     "FOUR_STAR": {
@@ -51439,9 +51462,32 @@
         "enemy_4013_mubufn": "enemy_4013_mubufn_2",
         "enemy_4014_mugnfu": "enemy_4014_mugnfu_2"
       },
-      "unsupported": [
-        "env_gbuff_new",
-        "char_skill_cd_mul"
+      "unsupported": [],
+      "ours": [
+        {
+          "key": "env_gbuff_new",
+          "professions": 1023,
+          "board": [
+            [
+              "key",
+              "sp_recovery_reduction"
+            ],
+            [
+              "sp_recovery_per_sec",
+              1
+            ]
+          ]
+        },
+        {
+          "key": "char_skill_cd_mul",
+          "professions": 1023,
+          "board": [
+            [
+              "scale",
+              0.8
+            ]
+          ]
+        }
       ]
     }
   },
