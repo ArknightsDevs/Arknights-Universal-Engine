@@ -9,6 +9,7 @@ import act2multiRm01 from '../data/levels/act2multi_rm01.json' with { type: 'jso
 import act1multiTr01 from '../data/levels/act1multi_tr01.json' with { type: 'json' };
 import act1multiFortressRm01 from '../data/levels/act1multi_fortress_rm01.json' with { type: 'json' };
 import act1multiFortressHard01 from '../data/levels/act1multi_fortress_hard-01.json' with { type: 'json' };
+import act1multiFootball from '../data/levels/act1multi_football.json' with { type: 'json' };
 import { uncoveredAbilities, withFoeExtras } from './foes.js';
 import { profiledDevices, DEVICE_PROFILES } from './devices.js';
 import { CARRIED } from './carried.js';
@@ -21,6 +22,7 @@ import { seatRules } from './runes.js';
 export const LEVELS = Object.freeze({
   act1multi_01: act1multi01, act1multi_02: act1multi02, act1multi_06: act1multi06, 'act1multi_hard-02': act1multiHard02, act1multi_rm07: act1multiRm07,
   act2multi_rm01: act2multiRm01, act1multi_tr01: act1multiTr01, act1multi_fortress_rm01: act1multiFortressRm01, 'act1multi_fortress_hard-01': act1multiFortressHard01,
+  act1multi_football: act1multiFootball,
 });
 
 /** enemy_attribute_mul's keys and the enemy fields they multiply, with each field's value when the enemy has none. */
@@ -57,13 +59,16 @@ function replacedSpawns(level, replace) {
 }
 
 /**
- * The enemies a level's waves and branches spawn (关卡-2, 守御-6), and those their abilities bring in turn (a split, a
- * summon, a rebirth as another: an enemy key in a blackboard, 敌能-22).
+ * The enemies a level's waves and branches spawn (关卡-2, 守御-6) — in 阵地足球 every team's players (足球-6) —, and
+ * those their abilities bring in turn (a split, a summon, a rebirth as another: an enemy key in a blackboard, 敌能-22).
  * @param {any[]} waves @param {Record<string, any[]> | undefined} branches @param {Record<string, any>} enemies the level's records
+ * @param {import('@aue/sim').FootballRules} [football]
  */
-function spawnedKeys(waves, branches, enemies) {
+function spawnedKeys(waves, branches, enemies, football) {
   const frags = [...waves.flatMap((/** @type {any} */ w) => w.fragments), ...Object.values(branches ?? {}).flat()];
   const used = new Set(frags.flatMap((/** @type {any} */ f) => f.actions.filter((/** @type {any} */ a) => a.type === 'SPAWN').map((/** @type {any} */ a) => a.key)));
+  // 阵地足球's teams: a drawn team's players spawn in place of the standard team's (足球-6)
+  for (const t of football?.teams ?? []) for (const k of Object.values(t.players)) if (Object.hasOwn(enemies, k)) used.add(k);
   for (const k of used) {
     const e = enemies[k];
     const named = e ? [...Object.values(e.talents ?? {}), ...(e.skills ?? []).map((/** @type {any} */ x) => x.bb)].flatMap((bb) => Object.values(bb)) : [];
@@ -94,7 +99,7 @@ function optionsAt(options, d) {
 }
 
 /** The levels being tested (关卡-8): they load with enemy abilities that have no behaviour yet, which do nothing there. */
-export const TESTING = Object.freeze(['act1multi_fortress_rm01', 'act1multi_fortress_hard-01']);
+export const TESTING = Object.freeze(['act1multi_fortress_rm01', 'act1multi_fortress_hard-01', 'act1multi_football']);
 
 /** Whether a level is being tested (关卡-8): one of TESTING, or its file says so. @param {string} id @param {any} raw */
 const beingTested = (id, raw) => TESTING.includes(id) || raw.testing === true;
@@ -129,7 +134,7 @@ function difficultyAt(id, difficulty, levels) {
 export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
   const { raw, d, ours } = difficultyAt(id, difficulty, levels);
   const { waves, branches } = replacedSpawns(raw.level, d.replace);
-  const used = spawnedKeys(waves, branches, raw.enemies);
+  const used = spawnedKeys(waves, branches, raw.enemies, raw.level.football);
   const missing = uncoveredAbilities(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([k, e]) => withFoeExtras(k, /** @type {EnemyDef} */ (e))));
   if (missing.length > 0 && !beingTested(id, raw)) throw new RangeError(`level ${id} at ${difficulty}: enemy abilities not supported yet: ${missing.join(', ')}`);
   // a carried unit's card (符文-6) is no device on the field: carried.js makes it; a device never placed needs no profile

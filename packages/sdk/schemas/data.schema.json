@@ -2349,6 +2349,16 @@
               "type": "null"
             }
           ]
+        },
+        "landball": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -2400,6 +2410,7 @@
         "type": {
           "enum": [
             "MOVE",
+            "PATROL_MOVE",
             "WAIT_CURRENT_FRAGMENT_TIME",
             "WAIT_FOR_SECONDS",
             "DISAPPEAR",

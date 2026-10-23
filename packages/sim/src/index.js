@@ -51,6 +51,7 @@ export { reserveIds } from './units.js';
 
 /** @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').DeviceDef} DeviceDef */
+/** @typedef {import('./types.js').FootballRules} FootballRules */
 /** @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Buff} Buff */

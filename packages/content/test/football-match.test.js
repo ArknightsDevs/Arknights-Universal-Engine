@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { secondsToFrames } from '@aue/math';
-import { createWorld, step, damage, football as fb } from '@aue/sim';
+import { createWorld, step, damage, displacement, football as fb } from '@aue/sim';
 import football from '../data/levels/act1multi_football.json' with { type: 'json' };
 
 /** @typedef {import('@aue/sim').Unit} Unit @typedef {import('@aue/sim').World} World */
@@ -145,4 +145,25 @@ test('[足球-7] the match ends at its time: the battle is won and the stamps ar
   assert.equal(events.filter((e) => e.type === 'end').length, 1);
   assert.equal(footballStamps(RULES, st), 2);
   assert.deepEqual([0, 1, 2, 3, 4, 7].map((net) => footballStamps(RULES, { ...st, home: net, away: 0 })), [0, 1, 2, 2, 3, 3]);
+});
+
+test('[关卡-8] [足球-6] IG-FT-1 loads as a level being tested, with every team\'s players; a match with a goal clears the field for the next kickoff', async () => {
+  const { levelAt, TESTING, matchContent: mc } = await import('../src/index.js');
+  assert.ok(TESTING.includes('act1multi_football'));
+  const lv = levelAt('act1multi_football', 'NORMAL');
+  for (const t of RULES.teams) for (const k of Object.values(t.players)) assert.ok(Object.hasOwn(lv.enemies, k), k);
+  assert.ok((lv.level.uncovered ?? []).length > 0, 'some abilities still to come');
+  const BUILD = { elite: 2, level: 90, potential: 1, trust: 100, skill: 0, skillLevel: 10 };
+  const c = await mc({ level: 'act1multi_football', difficulty: 'NORMAL', seed: 1, decks: [[{ id: 'char_010_chen', build: BUILD }]] });
+  assert.ok(c.operators['trap_165_muftbl#0']?.ballCard && c.decks?.[0].includes('trap_165_muftbl#0'), 'the ball card in the deck');
+  const w = createWorld(c, { seed: 1, players: 1 });
+  for (let i = 0; i < 10 && !ballOf(w); i++) step(w, c);
+  const b = /** @type {Unit} */ (ballOf(w));
+  // their goal from right in front of it, on a row the first kickoff leaves open (its barriers on rows 1, 2, 6 and 7)
+  b.x = 10;
+  b.y = 4;
+  displacement.kickSlide(b, 1, 0, 4.5);
+  run(w, c, 30);
+  assert.equal(/** @type {any} */ (w.football).home, 1);
+  assert.equal(w.units.some((u) => u.ball && u.id === b.id), false, 'the ball scored left');
 });

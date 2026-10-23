@@ -158,10 +158,10 @@ const fragment = obj({ preDelay: num(0, 3600), actions: list(action, 0, 256) });
 const cell64 = obj({ row: int(-64, 128), col: int(-64, 128) });
 const route = obj({
   motion: oneOf('WALK', 'FLY'), start: cell64, end: cell64, spawnOffset: obj({ x: num(-10, 10), y: num(-10, 10) }), allowDiagonal: bool,
-  checkpoints: list(obj({ type: oneOf('MOVE', 'WAIT_CURRENT_FRAGMENT_TIME', 'WAIT_FOR_SECONDS', 'DISAPPEAR', 'APPEAR_AT_POS'), row: int(-64, 128), col: int(-64, 128), time: num(0, 1e6), dx: num(-10, 10), dy: num(-10, 10) }), 0, 256),
+  checkpoints: list(obj({ type: oneOf('MOVE', 'PATROL_MOVE', 'WAIT_CURRENT_FRAGMENT_TIME', 'WAIT_FOR_SECONDS', 'DISAPPEAR', 'APPEAR_AT_POS'), row: int(-64, 128), col: int(-64, 128), time: num(0, 1e6), dx: num(-10, 10), dy: num(-10, 10) }), 0, 256),
 });
 const tile = obj({ key: str, buildable: oneOf('NONE', 'MELEE', 'RANGED', 'ALL'), height: oneOf('LOWLAND', 'HIGHLAND'), passable: oneOf('NONE', 'FLY_ONLY', 'ALL'), side: oneOf('ALL', 'SIDE_A', 'SIDE_B') },
-  { goal: oneOf('A', 'B') });
+  { goal: oneOf('A', 'B'), landball: bool });
 const difficulty = obj({ enemyMul: list(obj({ mods: dict(num(0, 1000), 8) }, { enemy: list(str, 0, 64), exclude: list(str, 0, 64) }), 0, 16), hiddenGroups: list(str, 0, 64), replace: dict(str, 64), unsupported: list(str, 0, 64) },
   { lifePoint: int(1, 999), maxCost: int(0, 999), costScale: num(0.01, 100), blockAdd: int(-10, 10),
     ours: list(obj({ key: str, professions: int(0, 1023), board: list(list(either(num(), str), 2, 2), 0, 32) }), 0, 32) });
