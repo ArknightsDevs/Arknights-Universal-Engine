@@ -1,17 +1,18 @@
-// Enemy abilities (docs/spec/foes.md 敌能-1…敌能-4, 敌能-22, 敌能-30, 敌能-39): the hooks through which the content's behaviours
+// Enemy abilities (docs/spec/foes.md 敌能-1…敌能-4, 敌能-22, 敌能-30, 敌能-39, 敌能-45): the hooks through which the content's behaviours
 // act on an enemy's talents and skills, the skills' cooldowns, delayed explosions, 直击 bolts, the enemies an enemy
 // brings in, 吞噬, and one draw from the match.
 import { secondsToFrames, FPS } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
-import { addBuff, removeBuff, makeBuff, retune, setLeft } from './buffs.js';
+import { addBuff, removeBuff, makeBuff, retune, setLeft, setBaseMaxHp } from './buffs.js';
+import { setAmmo } from './skills.js';
 import { inflict } from './status.js';
 import { dealDamage, heal, setHp, knockDown } from './damage.js';
 import { dealEp } from './elements.js';
 import { selectable, sortAllies, friendly, evadesGround, stealthed } from './targeting.js';
 import { tileOf } from './body.js';
 import { tileAt } from './level.js';
-import { board, alight, detour, wayKeys, becomeFlyer } from './routes.js';
+import { board, alight, detour, wayKeys, becomeFlyer, becomeGround } from './routes.js';
 import { draw } from './rng.js';
 import { release } from './blocking.js';
 import { spawnDevice } from './devices.js';
@@ -19,6 +20,8 @@ import { keyAt } from './paths.js';
 import { bringIn, hatch } from './broods.js';
 import { devour } from './deck.js';
 import { blightContext, tickBlight } from './blight.js';
+import { atPoint } from './tactical.js';
+import { on } from './bus.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').EnemyDef} EnemyDef @typedef {import('./types.js').Blast} Blast @typedef {import('./types.js').Bolt} Bolt */
@@ -63,7 +66,8 @@ export const BOLT_RADIUS = 0.3;
  * @property {() => void} use a skill was used: its cooldown starts again — one with a cooldown below 0 is not ready again
  * @property {(seconds: number) => number} frames seconds as whole frames (时间-2)
  * @property {(name: string) => Record<string, number> | null} talent another talent's blackboard
- * @property {(radius: number) => Unit[]} foes the units it may attack within `radius` of it
+ * @property {(radius: number, sel?: import('./targeting.js').Selector) => Unit[]} foes the units it may attack within `radius` of it.
+ *   `sel` is 索敌-2's selector; omitted, flying units stay out and 迷彩 still hides a unit
  * @property {(units: Unit[]) => Unit[]} order units it may attack in the order its attack picks them (索敌-5)
  * @property {(radius: number) => Unit[]} allies the enemies (not neutral units) on the field within `radius` of it, itself too
  * @property {(u: Unit, name: string) => Record<string, number> | null} talentOf another enemy's talent blackboard
@@ -81,6 +85,8 @@ export const BOLT_RADIUS = 0.3;
  * @property {(b: { x: number, y: number, radius: number, delay: number, air: boolean, sourced: boolean, buff?: import('./buffs.js').BuffInit } & Payload) => void} blast
  * @property {(b: { dx: number, dy: number, blast?: number } & Payload) => void} bolt
  * @property {(t: Unit, hp: number) => void} setHp sets a unit's HP outright (伤害-9)
+ * @property {(hp: number) => void} setBaseMaxHp sets this enemy's base maximum HP and the cached maximum, without
+ *   rescaling its current HP (敌能-45). A later buff refresh would scale a still-positive HP if the cache were stale.
  * @property {() => void} resetSkills its skills' cooldowns back to their first ones (敌能-18)
  * @property {(u: Unit) => boolean} onWay whether a unit's tile is on its way to the end of the move it is on, its own tile
  *   included (寻路-2)
@@ -99,12 +105,20 @@ export const BOLT_RADIUS = 0.3;
  * @property {(t: Unit, area: 'cross' | 'square') => Unit[]} around the units it may attack on a unit's tile and the four
  *   tiles next to it (a cross) or the eight around it (a square), in creation order (敌能-29)
  * @property {() => Unit[]} enemies every enemy on the field that is not neutral, selectable or not (敌能-25)
+ * @property {(u: Unit | null) => boolean} defaultAlly the unit is still on the field and is a 默认类 ally (敌能-54)
  * @property {() => void} fly its own motion becomes flying and the move it is on is planned again (路线-2, 敌能-34)
  * @property {() => void} attackAgain its next attack may start at once: the attack cooldown is cleared (敌能-44, 攻击-2)
  * @property {(o: { x: number, y: number, radius: number, life: number, low: number, high: number, air?: boolean, open?: boolean, wide?: boolean, arts?: number, pad?: number }) => void} zone
  *   places a zone (污染秽蚀 敌能-46; a 燃烧区域 when `arts` is set, 敌能-60)
  * @property {(t: Unit, damage: number, seconds: number) => void} bleed gives or refreshes 逐腐 bleed (敌能-46)
  * @property {(u: Unit) => boolean} onLow whether a unit's tile is 低地 (敌能-46)
+ * @property {() => void} ground a flying unit's own motion becomes ground (`WALK`) and the move it is on drops its plan
+ *   (路线-2, 敌能-48); a unit that is not flying is left as it is
+ * @property {(u: Unit) => number} ammoOf shots left on a unit's running ammo skill, otherwise 0 (敌能-49, 技能-4)
+ * @property {(u: Unit, n: number) => void} spendAmmo takes that many shots, not below 0, and does not end the skill (敌能-49)
+ * @property {(u: Unit, key: string, frames: number, mods: Record<string, number>) => void} renew sets that buff's frames
+ *   left and replaces its modifiers; adds it when the unit has none (敌能-49)
+ * @property {() => Unit[]} ours operators and our devices still on the field (敌能-49)
  */
 
 /**
@@ -114,6 +128,8 @@ export const BOLT_RADIUS = 0.3;
  * @property {(ctx: FoeContext) => void} [tick]
  * @property {(ctx: FoeContext, cands: Unit[]) => Unit[]} [targets]
  * @property {(ctx: FoeContext, mods: AttackMods) => AttackMods} [attack]
+ * @property {(ctx: FoeContext, target: Unit) => boolean} [cancelHit] before the main hit of its normal attack is settled
+ *   (a splash, a chain and an aftershock are not this): true cancels that hit (敌能-49)
  * @property {(ctx: FoeContext) => void} [death]
  * @property {(ctx: FoeContext, target: Unit, dealt: number, ranged: boolean) => void} [hit] a hit of its normal attack
  *   dealt damage (`ranged`: it came by a projectile)
@@ -122,6 +138,8 @@ export const BOLT_RADIUS = 0.3;
  * @property {(ctx: FoeContext) => boolean} [fatal] its HP ran out: true when the ability keeps it on the field, its HP
  *   above 0
  * @property {(ctx: FoeContext) => void} [unbalanceEnd] 失衡 ended this turn, after the slide settled (敌能-2)
+ * @property {(ctx: FoeContext, hit: FoeHpDamage) => void} [hpDamage] a hit on it came through 伤判 with damage left,
+ *   before its HP drops (敌能-2; the bus's `hpDamage`, 钩子-3). The amount of this hit is already fixed
  */
 
 /** The squared distance between two points. @param {{ x: number, y: number }} a @param {{ x: number, y: number }} b */
@@ -151,6 +169,16 @@ function abilities(c, e) {
   for (const s of d.skills ?? []) if (Object.hasOwn(own, s.key)) out.push([s.key, s.bb, s]);
   t.by.set(e.key, out);
   return out;
+}
+
+/**
+ * A 默认类 ally still on the field (敌能-54): an operator, not a 装置类 summon and not in 战术点 form. A level device is
+ * not an operator. A summon form keeps the `tactical` key with no end; only the point form (a remaining time) is excluded.
+ * @param {Content} c @param {Unit | null} u
+ */
+function defaultAlly(c, u) {
+  if (!u || u.kind !== KIND.OPERATOR || !(u.hp > 0) || atPoint(u)) return false;
+  return c.operators[u.key]?.summon?.device !== true;
 }
 
 /**
@@ -190,7 +218,7 @@ function contextOf(w, c, e, of) {
     use: () => { if (skill) ab[`${name}.cd`] = skill.cooldown < 0 ? ONCE : secondsToFrames(skill.cooldown); },
     frames: secondsToFrames,
     talent: (t) => defOf(c, e).talents?.[t] ?? null,
-    foes: (radius) => w.units.filter((u) => isFoeOf(u, e) && selectable(u) && dist2(u, e) <= radius * radius),
+    foes: (radius, sel) => w.units.filter((u) => isFoeOf(u, e) && selectable(u, sel) && dist2(u, e) <= radius * radius),
     order: (units) => sortAllies(e, units, FPS),
     allies: (radius) => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0 && !u.hidden && dist2(u, e) <= radius * radius),
     talentOf: (u, t) => (u.kind === KIND.ENEMY ? defOf(c, u).talents?.[t] ?? null : null),
@@ -207,6 +235,22 @@ function contextOf(w, c, e, of) {
     // `buff` is omitted when absent: a null field would change the hash of every blast (敌能-43).
     blast: (b) => { w.blasts.push({ x: b.x, y: b.y, radius: b.radius, left: secondsToFrames(b.delay), air: b.air, src: b.sourced ? e.id : -1, type: b.type, amount: b.amount, status: b.status ?? null, ...(b.buff ? { buff: b.buff } : {}) }); },
     bolt: (b) => { fireBolt(w, e, b); },
+    setBaseMaxHp: (hp) => { setBaseMaxHp(e, hp); },
+    ...blightContext(w, c, e),
+    ground: () => { becomeGround(e); },
+    defaultAlly: (u) => defaultAlly(c, u),
+    ...lateContext(w, c, e, ab),
+  };
+}
+
+/**
+ * The rest of an ability's context (敌能-2, 敌能-49). Split so `contextOf` stays within the line limit.
+ * @param {World} w @param {Content} c @param {Unit} e @param {Record<string, number>} ab
+ * @returns {Pick<FoeContext, 'setHp' | 'resetSkills' | 'onWay' | 'detour' | 'release' | 'placeDevice' | 'summon' | 'draw' | 'remove'
+ *   | 'devour' | 'lend' | 'around' | 'enemies' | 'fly' | 'attackAgain' | 'ammoOf' | 'spendAmmo' | 'renew' | 'ours'>}
+ */
+function lateContext(w, c, e, ab) {
+  return {
     setHp: (t, hp) => { setHp(t, hp); },
     resetSkills: () => { for (const s of defOf(c, e).skills ?? []) ab[`${s.key}.cd`] = secondsToFrames(s.initCooldown); },
     onWay: (u) => wayKeys(c, e).includes(keyAt(c.level, u.x, u.y)),
@@ -222,7 +266,10 @@ function contextOf(w, c, e, of) {
     enemies: () => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0),
     fly: () => { becomeFlyer(e); },
     attackAgain: () => { ab['@again'] = 1; },
-    ...blightContext(w, c, e),
+    ammoOf: (u) => ammoLeft(c, u),
+    spendAmmo: (u, n) => { const st = u.skill; if (st && ammoLeft(c, u) > 0) setAmmo(st, st.ammo - n); },
+    renew: (u, key, frames, mods) => { renewBuff(e, u, key, frames, mods); },
+    ours: () => w.units.filter(ourUnit),
   };
 }
 
@@ -234,6 +281,32 @@ function setBuffOf(e, u, key, value, mods) {
   const b = u.buffs.find((x) => x.key === key);
   if (b) retune(u, b, value, mods);
   else addBuff(u, makeBuff({ key, src: e.id, value, mods }));
+}
+
+/** Shots left on a running ammo skill (敌能-49, 技能-4); 0 when the unit has none running. @param {Content} c @param {Unit} u */
+function ammoLeft(c, u) {
+  const st = u.skill;
+  if (!st?.active || u.kind !== KIND.OPERATOR) return 0;
+  return c.operators[u.key]?.skill?.ammo ? st.ammo : 0;
+}
+
+/**
+ * A buff's remaining time replaced, its modifiers replaced with `mods` (敌能-49). The same key stays where it is in
+ * the list. A unit without it gains one.
+ * @param {Unit} src @param {Unit} u @param {string} key @param {number} frames @param {Record<string, number>} mods
+ */
+function renewBuff(src, u, key, frames, mods) {
+  const b = u.buffs.find((x) => x.key === key);
+  if (!b) { addBuff(u, makeBuff({ key, src: src.id, left: frames, mods })); return; }
+  setLeft(b, frames);
+  if (!sameMods(mods, b.mods)) retune(u, b, b.value, mods);
+}
+
+/** An operator, or a device of ours, still on the field (敌能-49). A neutral unit is neither. @param {Unit} u */
+function ourUnit(u) {
+  if (u.hp <= 0 || u.hidden) return false;
+  if (u.kind === KIND.OPERATOR) return true;
+  return u.kind === KIND.DEVICE && u.base.hostile !== true;
 }
 
 /** Frames a lent buff lasts without being given again (敌能-25): it outlasts the next frame's buff tick. */
@@ -356,6 +429,17 @@ export function foeAttack(w, c, e, mods) {
   return out;
 }
 
+/**
+ * Before the main hit of an enemy's normal attack (敌能-49). True when an ability cancels it: no HP damage, no
+ * 元素损伤, no on-hit status, displacement, `attackHit` or SP. A splash, a chain and an aftershock do not ask.
+ * @param {World} w @param {Content} c @param {Unit} e @param {Unit} t
+ */
+export function foeCancelHit(w, c, e, t) {
+  let stop = false;
+  each(w, c, e, 'cancelHit', (b, ctx) => { if (!stop && b.cancelHit?.(ctx, t)) stop = true; });
+  return stop;
+}
+
 /** Whether an enemy rides a carrier (敌能-16). @param {Unit} u */
 export const carried = (u) => Object.hasOwn(u.ab, '@carrier');
 
@@ -395,6 +479,29 @@ export function foeHit(w, c, e, t, how) {
  */
 export function foeLanded(w, c, e, t, how) {
   each(w, c, e, 'landed', (b, ctx) => b.landed?.(ctx, t, how));
+}
+
+/**
+ * The hit a foe `hpDamage` hook sees (敌能-2): the bus event's `source` (none for a sourceless hit), `credit` (who it
+ * is credited to), `amount` (the damage left after 伤判) and `dmg` (钩子-3).
+ * @typedef {{ source: Unit | null, credit: Unit | null, amount: number, dmg: import('./damage.js').Damage }} FoeHpDamage
+ */
+
+/** The owner of the bus handler below (钩子-1). */
+const HP_DAMAGE = 'foeHpDamage';
+
+/**
+ * The foe `hpDamage` hook (敌能-2) on the bus's `hpDamage` (钩子-3): once per world, and only when a foe behaviour of the
+ * content has one. Every hit on an enemy with damage left after 伤判 calls it once, before the HP drops.
+ * @param {World} w @param {Content} c
+ */
+export function foeHooks(w, c) {
+  if (!Object.values(c.behaviors?.foes ?? {}).some((b) => b.hpDamage) || w.bus?.hooks.get('hpDamage')?.some((h) => h.owner === HP_DAMAGE)) return;
+  on(w, 'hpDamage', (ctx) => {
+    if (ctx.target.kind !== KIND.ENEMY) return;
+    const hit = { source: ctx.source, credit: ctx.credit, amount: ctx.amount, dmg: ctx.dmg };
+    each(w, c, ctx.target, 'hpDamage', (b, x) => b.hpDamage?.(x, hit));
+  }, { owner: HP_DAMAGE });
 }
 
 /**
