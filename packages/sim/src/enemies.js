@@ -24,6 +24,19 @@ function reachGoal(w, c, e) {
 }
 
 /**
+ * The turn of an enemy that does not walk (位移-3, 足球-2): one in 失衡 only slides, and when that slide ends its
+ * abilities hear it (敌能-2) — unless it left the field, as a ball in a goal does (足球-5); a ball at rest stays where it
+ * is: it neither walks, is blocked nor attacks.
+ * @param {World} w @param {Content} c @param {Unit} e
+ */
+function stillTurn(w, c, e) {
+  e.anim = ANIM.IDLE;
+  if (!e.slide) return;
+  const still = slideStep(c, e, w);
+  if (!still && w.units.includes(e)) foeUnbalanceEnd(w, c, e);
+}
+
+/**
  * One enemy's turn (帧-1): one in 失衡 only slides (位移-3), and when that slide ends its abilities hear it (敌能-2);
  * otherwise it is released if its blocker is gone or cannot block; it may be blocked; it attacks; an enemy that is not
  * blocked and did not attack walks, unless content placed it this turn (路线-5, 敌能-73), and may be blocked where it arrives.
@@ -31,12 +44,7 @@ function reachGoal(w, c, e) {
  */
 function enemyTurn(w, c, e) {
   foeTick(w, c, e);
-  if (e.slide) {
-    const still = slideStep(c, e, w);
-    e.anim = ANIM.IDLE;
-    if (!still) foeUnbalanceEnd(w, c, e);
-    return;
-  }
+  if (e.slide || e.ball) { stillTurn(w, c, e); return; }
   keepOrRelease(w, e);
   tryBlock(w, c, e);
   const attacked = enemyAttack(w, c, e);

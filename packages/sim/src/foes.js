@@ -27,6 +27,7 @@ import { on } from './bus.js';
 import { placeTasting, tickTastings } from './tasting.js';
 import { readDeparted } from './exits.js';
 import { grantLootCards } from './loot.js';
+import { ballContext } from './football.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').EnemyDef} EnemyDef @typedef {import('./types.js').Blast} Blast @typedef {import('./types.js').Bolt} Bolt */
@@ -140,6 +141,7 @@ export const BOLT_RADIUS = 0.3;
  * @property {(branchId: string) => Unit | null} summonNext the next plain SPAWN individual of a level branch, at that
  *   entry's own route start (敌能-79); null when the branch has none left. A missing enemy key is skipped
  * @property {(key: string, n: number) => void} grantLoot each allied seat's 待部署区 gains n of the device card `key` (敌能-80)
+ * @property {(p: import('./ball.js').BallParams) => void} ball makes this enemy a ball (足球-2)
  * @property {(t: Unit, p: Payload) => void} hurl throws a homing skill projectile (敌能-83). Its speed is an enemy
  *   projectile's (攻击-3). `amount` is frozen as given. Arrival deals that as a skill hit, not an attack, then `status`
  *   when the target is still up
@@ -268,6 +270,7 @@ function contextOf(w, c, e, of) {
     defaultAlly: (u) => defaultAlly(c, u),
     departed: () => readDeparted(w, ab, name),
     ...barrelContext(w, ab),
+    ...ballContext(w, e),
     ...lateContext(w, c, e, ab),
   };
 }

@@ -14,6 +14,7 @@ import { releaseAll } from './blocking.js';
 import { operatorsAttack, shotsFly } from './combat.js';
 import { tickAlchemy } from './alchemy.js';
 import { foeEffects, foeDeath, foeFatal, releasePassengers, foeHooks, foeDown } from './foes.js';
+import { ballHooks } from './football.js';
 import { noteExit } from './exits.js';
 import { applyCommand } from './commands.js';
 import { leaveField, startCost, costRate } from './deck.js';
@@ -180,6 +181,7 @@ export function step(w, level, commands = []) {
   elementHooks(w, level);
   healHooks(w, level);
   foeHooks(w, c);
+  ballHooks(w);
   w.events = [];
   w.bornThisFrame = 0;
   for (const [seat, cmd] of commands) applyCommand(w, c, seat, cmd);
