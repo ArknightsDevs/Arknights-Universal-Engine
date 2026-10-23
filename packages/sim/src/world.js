@@ -193,7 +193,7 @@ export function step(w, level, commands = []) {
   tickStage(w, c);
   tickWaves(w, c);
   tickFortress(w, c);
-  tickBuffs(w, buffBehaviors(c));
+  tickBuffs(w, buffBehaviors(c), c);
   // 轰隆隆先生 triggers after buffs, so the stun's first frame is this one (装置-7).
   boomLoot(w, c);
   // A skill that switches to the 替身 as it starts: after buffs tick, before the rest of the frame, so the switch's flags
