@@ -143,8 +143,10 @@ test('[敌能-76] the cast ends only its own 自缚: a 束缚 put on W from else
 });
 
 test('[敌能-76] the blast on time takes the same path as the early one: a buff behaviour of the content halves both', () => {
+  /** @type {import('@aue/sim').buffs.Behavior} */
+  const halve = { take: (_w, _u, _b, amount) => amount / 2 };
   /** @param {any} c */
-  const halving = (c) => { c.behaviors = { ...c.behaviors, buffs: { ...c.behaviors.buffs, halve: { take: (_w, _u, _b, amount) => amount / 2 } } }; };
+  const halving = (c) => { c.behaviors = { ...c.behaviors, buffs: { ...c.behaviors.buffs, halve } }; };
   const late = arena(wOf(5), [['guard', 1, 0]], { tune: halving }), early = arena(wOf(5), [['guard', 1, 0]], { tune: halving });
   const lateCarrier = op(late.w, 'guard'), earlyCarrier = op(early.w, 'guard');
   if (!lateCarrier || !earlyCarrier) throw new Error('missing operators');
