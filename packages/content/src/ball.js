@@ -16,8 +16,9 @@ export const ballAura = (bb) => {
 };
 
 /**
- * `physic` (足球-2): at its spawn the enemy becomes a ball — `aura`'s `block_cnt` (3 when it has no ball `aura`); a goal
- * of it scores `score` (足球-7: the page's extra for 至纯源石球), else 1.
+ * `physic` (足球-2, 足球-16): at its spawn the enemy becomes a ball — `aura`'s `block_cnt` (3 when it has no ball
+ * `aura`); a goal of it scores `score` (足球-7: the page's extra for 至纯源石球), else 1; it leaves `cover` (北境意志球's
+ * ice, 底海滑动球's slime) on the tiles it enters.
  * @type {FoeBehavior}
  */
 const physic = Object.freeze({
@@ -25,9 +26,55 @@ const physic = Object.freeze({
     const bb = ctx.bb, aura = ctx.talent('aura');
     if (!PHYSIC_KEYS.every((k) => typeof bb[k] === 'number')) return;
     const block = aura && ballAura(aura) ? /** @type {number} */ (aura.block_cnt) : BALL_BLOCK;
-    ctx.ball({ friction: bb.friction_factor, restitution: bb.restitution_factor, force: bb.force, need: bb.value, block, points: typeof bb.score === 'number' ? bb.score : 1 });
+    ctx.ball({ friction: bb.friction_factor, restitution: bb.restitution_factor, force: bb.force, need: bb.value, block, points: typeof bb.score === 'number' ? bb.score : 1,
+      ...(typeof bb.cover === 'number' ? { cover: bb.cover } : {}) });
+  },
+});
+
+/**
+ * Whether a ball started to roll since its last turn (足球-16): it is in 失衡 now and was not then.
+ * @param {import('@aue/sim').FoeContext} ctx
+ */
+function kicked(ctx) {
+  const was = ctx.state.get('rolling');
+  ctx.state.set('rolling', ctx.unbalanced ? 1 : 0);
+  return ctx.unbalanced && !was;
+}
+
+/** Whether a `boom` blackboard is a ball's (足球-16): its counter. @param {Record<string, unknown>} bb */
+export const ballBoom = (bb) => ['max_value', 'add_value_min', 'add_value_max', 'range_radius', 'duration', 'stun', 'damage'].every((k) => typeof bb[k] === 'number');
+
+/**
+ * 高能源石球's counter (足球-16): from `max_value`, each time it starts to roll it changes by a random amount in
+ * [add_value_min, add_value_max) (随机-1); once it is at most 0, `duration` seconds on the ball blows up where it is
+ * then — every unit within `range_radius`, flying too, takes `damage` true damage and `stun` seconds of 晕眩 — and
+ * the counter is `max_value` again. @param {import('@aue/sim').FoeContext} ctx
+ */
+export function ballBoomTick(ctx) {
+  const bb = ctx.bb, st = ctx.state, self = ctx.self;
+  if (!st.get('set')) { st.set('set', 1); st.set('count', bb.max_value); }
+  if (kicked(ctx)) {
+    st.set('count', st.get('count') + bb.add_value_min + ctx.draw() * (bb.add_value_max - bb.add_value_min));
+    if (st.get('count') <= 0 && !st.get('at')) st.set('at', ctx.frame + ctx.frames(bb.duration));
+  }
+  if (!st.get('at') || ctx.frame < st.get('at')) return;
+  ctx.blast({ x: self.x, y: self.y, radius: bb.range_radius, delay: 0, air: true, sourced: true, all: true, type: 'true', amount: bb.damage, status: { key: 'stun', seconds: bb.stun } });
+  st.set('count', bb.max_value);
+  st.set('at', 0);
+}
+
+/**
+ * 漏气甲虫球 and 膨胀甲虫球 (足球-16, `airleakage`, `airinflation`): each time it starts to roll, its kick threshold
+ * changes by `value`, at most `kick_times` times. @type {FoeBehavior}
+ */
+const air = Object.freeze({
+  tick: (ctx) => {
+    const bb = ctx.bb, st = ctx.state;
+    if (!kicked(ctx) || st.get('n') >= bb.kick_times) return;
+    st.set('n', st.get('n') + 1);
+    ctx.ballNeed(bb.value);
   },
 });
 
 /** The behaviours of this file, by talent name. @type {Readonly<Record<string, FoeBehavior>>} */
-export const ballBehaviors = Object.freeze({ physic });
+export const ballBehaviors = Object.freeze({ physic, airleakage: air, airinflation: air });

@@ -215,7 +215,7 @@ export function slideStep(c, t, w) {
   const s = t.slide;
   if (!s) return false;
   if (statsOf(t).flags.staticBody) return staticStep(c, t, w);
-  const v = len(s.vx, s.vy), nv = Math.max(0, v - frictionOf(c, t) / FPS), k = v > 0 ? nv / v : 0, p = s.pull && s.pull.left > 0 ? s.pull : undefined;
+  const v = len(s.vx, s.vy), nv = Math.max(0, v - frictionOf(c, t, w) / FPS), k = v > 0 ? nv / v : 0, p = s.pull && s.pull.left > 0 ? s.pull : undefined;
   const [vx, vy] = p ? pulled(t, p, s.vx * k, s.vy * k) : [s.vx * k, s.vy * k];
   t.slide = { vx, vy, hard: Math.max(0, s.hard - 1), ...(p ? { pull: { ...p, left: p.left - 1 } } : {}) };
   if (statsOf(t).flags.levitate) return settle(t, w, c);
@@ -239,8 +239,8 @@ function slideGoesOn(c, t, w, moving) {
   return speed <= STOP_SPEED && s.hard === 0 && !s.pull ? settle(t, w, c) : true;
 }
 
-/** The deceleration friction gives a sliding unit (位移-3): μg, a ball's own (足球-4). @param {Content} c @param {Unit} t */
-const frictionOf = (c, t) => (t.ball ? ballFriction(c, t) : FRICTION);
+/** The deceleration friction gives a sliding unit (位移-3): μg, a ball's own (足球-4, 足球-16). @param {Content} c @param {Unit} t @param {World} [w] */
+const frictionOf = (c, t, w) => (t.ball ? ballFriction(c, t, w) : FRICTION);
 
 /**
  * One frame's move of a sliding ball (足球-4, 足球-12): where ballMove takes it; an axis that hit a wall or a device's

@@ -36,7 +36,7 @@ export const GOAL_TILES = Object.freeze({ ours: 'tile_allygoal', theirs: 'tile_e
 /**
  * A ball's record (足球-2): `physic`'s friction factor, restitution, default force and the damage that kicks it, the
  * block that stops it (`aura`'s `block_cnt`), and the points a goal of it scores (足球-7: 1, 至纯源石球 3).
- * @typedef {{ friction: number, restitution: number, force: number, need: number, block: number, points: number }} BallParams
+ * @typedef {{ friction: number, restitution: number, force: number, need: number, block: number, points: number, cover?: number }} BallParams
  */
 
 /**
@@ -45,7 +45,7 @@ export const GOAL_TILES = Object.freeze({ ours: 'tile_allygoal', theirs: 'tile_e
  * @param {Unit} u @param {BallParams} p
  */
 export function makeBall(u, p) {
-  u.ball = { f: p.friction, e: p.restitution, force: p.force, need: p.need, block: p.block, points: p.points, sum: 0, ax: 0, ay: 0, touch: [] };
+  u.ball = { f: p.friction, e: p.restitution, force: p.force, need: p.need, block: p.block, points: p.points, sum: 0, ax: 0, ay: 0, touch: [], ...(p.cover ? { cover: p.cover } : {}) };
   addBuff(u, makeBuff({ key: 'ball', src: u.id, flags: { noAttack: true, unblockable: true, root: true,
     'immune:stun': true, 'immune:cold': true, 'immune:enemyCold': true, 'immune:freeze': true, 'immune:enemyFreeze': true, 'immune:sleep': true } }));
 }
@@ -92,8 +92,29 @@ export function ballHit(b, src, amount) {
   return dir;
 }
 
-/** A ball's friction (足球-4): 位移-3's μg × its own factor. @param {Content} _c @param {Unit} b */
-export const ballFriction = (_c, b) => FRICTION * (b.ball?.f ?? 1);
+/** The ice or slime on a ball's tile (足球-16): its friction change, 0 for none. @param {World | undefined} w @param {Content} c @param {Unit} b */
+const coverOf = (w, c, b) => {
+  const [r, col] = tileOf(b);
+  return w?.football?.cover?.[String(r * c.level.width + col)] ?? 0;
+};
+
+/** A ball's friction (足球-4, 足球-16): 位移-3's μg × its own factor with its tile's ice or slime, not below 0. @param {Content} c @param {Unit} b @param {World} [w] */
+export const ballFriction = (c, b, w) => FRICTION * Math.max(0, (b.ball?.f ?? 1) + coverOf(w, c, b));
+
+/**
+ * A ball that leaves ice or slime covers the 球场 tile it is on with it (足球-16), whatever covered it before.
+ * @param {World} w @param {Content} c @param {Unit} b
+ */
+function coverTile(w, c, b) {
+  const st = w.football, mod = b.ball?.cover;
+  if (!st || !mod) return;
+  const [r, col] = tileOf(b);
+  if (tileAt(c.level, r, col)?.key !== PITCH_TILE) return;
+  (st.cover ??= {})[String(r * c.level.width + col)] = mod;
+}
+
+/** The tile a ball's ice or slime covers (足球-16): the field's own. */
+const PITCH_TILE = 'tile_football';
 
 /**
  * Whether a ball's circle at (x, y) overlaps the square of half side h centred at (cx, cy).
@@ -276,6 +297,7 @@ export function scored(w, b, goal) {
  */
 export function ballMoved(w, c, b, speed) {
   collide(w, c, b, speed);
+  coverTile(w, c, b);
   const goal = goalOf(c, b);
   if (goal) { scored(w, b, goal); return 'goal'; }
   const by = stopper(w, b);

@@ -158,6 +158,7 @@ export const BOLT_RADIUS = 0.3;
  * @property {() => { target: number, source: number }[]} hits the hits our operators dealt enemies — not balls nor 守门位
  *   — this frame and the last (足球-15)
  * @property {(name: string) => Record<string, number> | null} skillBb the blackboard of one of its skills by name, or null
+ * @property {(d: number) => void} ballNeed changes this ball's kick threshold by d, not below 0 (足球-16)
  * @property {(t: Unit, p: Payload) => void} hurl throws a homing skill projectile (敌能-83). Its speed is an enemy
  *   projectile's (攻击-3). `amount` is frozen as given. Arrival deals that as a skill hit, not an attack, then `status`
  *   when the target is still up

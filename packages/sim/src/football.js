@@ -87,7 +87,7 @@ export function chaseStep(w, c, e, x, y) {
  * the enemy a 守门位.
  * @param {World} w @param {Content} c @param {Unit} e
  * @returns {Pick<import('./foes.js').FoeContext, 'ball' | 'balls' | 'freeBall' | 'holdBall' | 'kickBall' | 'goalTiles' | 'chase' | 'goalSpot' | 'carry'
- *   | 'goalOpen' | 'clearLine' | 'hits' | 'skillBb'>}
+ *   | 'goalOpen' | 'clearLine' | 'hits' | 'skillBb' | 'ballNeed'>}
  */
 export function footballContext(w, c, e) {
   return {
@@ -106,6 +106,7 @@ export function footballContext(w, c, e) {
       }
     },
     goalTiles: (which) => goalTiles(c, which),
+    ballNeed: (d) => { if (e.ball) e.ball.need = Math.max(0, e.ball.need + d); },
     chase: (x, y) => chaseStep(w, c, e, x, y),
     goalSpot: (block) => makeSpot(e, block),
     carry: (b) => carry(w, c, e, b),
@@ -200,7 +201,8 @@ function leave(w, u) {
 
 /**
  * After a goal (足球-7): every enemy leaves the field quietly — a caught ball too, its card gone (足球-14) —, the
- * predefined units in effect leave, and every operator of ours retreats (撤退-1) — its redeploy time starts.
+ * predefined units in effect leave, the ice and slime melt (足球-16), and every operator of ours retreats (撤退-1) — its
+ * redeploy time starts.
  * @param {World} w @param {Content} c
  */
 function clearField(w, c) {
@@ -212,6 +214,7 @@ function clearField(w, c) {
   }
   for (const op of w.units.filter((x) => x.kind === KIND.OPERATOR && x.hp > 0)) withdraw(w, c, op);
   for (const p of w.players) delete p.balls;
+  if (w.football) delete w.football.cover;
 }
 
 /** The stamps of a match (足球-7): the stamps' net goals it reached. @param {FootballRules} f @param {FootballState} st */

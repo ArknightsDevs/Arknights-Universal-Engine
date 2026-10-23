@@ -32,7 +32,7 @@ export const clearGoalTile = (ctx) => anyOf(ctx, ctx.goalTiles('ours').filter((g
 
 /**
  * The forwards on the field (足球-15): players with a pass or a shot of their own.
- * @param {FoeContext} ctx
+ * @param {FoeContext} ctx @returns {Unit[]}
  */
 export const forwards = (ctx) => ctx.enemies().filter((u) => ctx.talentOf(u, 'football') && !ctx.stats(u).flags.sidelined && typeof ctx.talentOf(u, 'football')?.slapshot_force === 'number' && u !== ctx.self);
 

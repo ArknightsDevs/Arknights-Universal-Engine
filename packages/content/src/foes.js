@@ -22,7 +22,7 @@ import { statueBehaviors } from './statue.js';
 import { auraBehaviors } from './auras.js';
 import { chargedBehaviors } from './charged.js';
 import { staticBehaviors } from './static.js';
-import { ballBehaviors, ballAura, PHYSIC_KEYS } from './ball.js';
+import { ballBehaviors, ballAura, ballBoom, ballBoomTick, PHYSIC_KEYS } from './ball.js';
 import { pitchBehaviors, spotAura } from './pitch.js';
 import { footballerBehaviors, rebornShape, noPeriodic, KICK_SKILLS } from './footballers.js';
 import { timeBehaviors } from './times.js';
@@ -300,6 +300,9 @@ export const FOE_EXTRAS = Object.freeze({
   enemy_1507_mephi: { talents: { healaura: { field: 1 } }, source: `${PRTS}%E6%A2%85%E8%8F%B2%E6%96%AF%E7%89%B9&oldid=371401` },
   // 至纯源石球: 「进球时获得3倍得分」 (足球-7)
   enemy_4019_mugold: { talents: { physic: { score: 3 } }, source: `${PRTS}%E8%87%B3%E7%BA%AF%E6%BA%90%E7%9F%B3%E7%90%83&oldid=437059` },
+  // 北境意志球 / 底海滑动球: 「进入未覆盖冰面的球场地块时，将该地块切换为冰面状态：摩擦力-0.3」 / 粘液 +0.3 (足球-16)
+  enemy_4033_muftic: { talents: { physic: { cover: -0.3 } }, source: `${PRTS}%E5%8C%97%E5%A2%83%E6%84%8F%E5%BF%97%E7%90%83&oldid=435576` },
+  enemy_4034_muftgl: { talents: { physic: { cover: 0.3 } }, source: `${PRTS}%E5%BA%95%E6%B5%B7%E6%BB%91%E5%8A%A8%E7%90%83&oldid=435718` },
   // 战术队击球手: 射门、传球「必定瞄准前方没有阵地屏障的/守门位没有干员的球门」 (足球-15)
   enemy_4022_mushtm: { talents: { football: { aim: 1 } }, source: `${PRTS}%E6%88%98%E6%9C%AF%E9%98%9F%E5%87%BB%E7%90%83%E6%89%8B&oldid=437027` },
   // 战术队守门员: 发球「总是瞄准自身与球门之间无我方单位/阵地屏障遮挡的球门」 (足球-15)
@@ -384,8 +387,8 @@ const deathBlast = (ctx) => {
  * @type {FoeBehavior}
  */
 const boom = Object.freeze({
-  death: (ctx) => { if (!cartShape(ctx.bb)) deathBlast(ctx); },
-  tick: (ctx) => { if (cartShape(ctx.bb)) cartTick(ctx); },
+  death: (ctx) => { if (!cartShape(ctx.bb) && !ballBoom(ctx.bb)) deathBlast(ctx); },
+  tick: (ctx) => { if (cartShape(ctx.bb)) cartTick(ctx); else if (ballBoom(ctx.bb)) ballBoomTick(ctx); },
   attack: (ctx, mods) => (cartShape(ctx.bb) ? cartAttack(ctx, mods) : mods),
 });
 
@@ -614,7 +617,7 @@ export const FOE_NEEDS = Object.freeze({
   periodic_damage: Object.freeze(['self']),
   // 足球-2: a ball's physics, all four from the data.
   physic: PHYSIC_KEYS,
-  rage: Object.freeze(['hp_ratio', 'atk', 'def', 'rage_duration']), passiveMarkTarget: Object.freeze(['move_speed', 'duration', 'cooldown']),
+  rage: Object.freeze(['hp_ratio', 'atk', 'def', 'rage_duration']), airleakage: Object.freeze(['value', 'kick_times']), airinflation: Object.freeze(['value', 'kick_times']), passiveMarkTarget: Object.freeze(['move_speed', 'duration', 'cooldown']),
   Shield: Object.freeze(['max_block_damage_cnt', 'block_damage_cnt']),
   def_reduce: Object.freeze(['gate']),
   rush: Object.freeze(['dlancer_t[trigger].move_speed', 'dlancer_t[trigger].interval', 'dlancer_t[trigger].trig_cnt', 'paged']),
@@ -685,7 +688,7 @@ const SHAPE_OWNERS = Object.freeze([rebornShape, elementHitOwns, takeOffOwns, wi
  */
 const complete = (k, bb) => SHAPE_OWNERS.every((own) => own(k, bb))
   && (k !== 'aura' || stackCapped(bb) || ballAura(bb) || spotAura(bb))
-  && (nestPulseOwns(k, bb) || cartBoom(k, bb) || noPeriodic(k, bb) || (healBoom(k, bb) ? typeof bb.page === 'number' : (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number')));
+  && (nestPulseOwns(k, bb) || cartBoom(k, bb) || (k === 'boom' && ballBoom(bb)) || noPeriodic(k, bb) || (healBoom(k, bb) ? typeof bb.page === 'number' : (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number')));
 
 /**
  * The abilities (talents and skills) of the given enemies — their extras merged — that have no behaviour and are not
