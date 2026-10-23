@@ -254,6 +254,16 @@ function ballStep(c, t, dx, dy) {
 }
 
 /**
+ * Stops a unit's slide at once where it is (足球-9: a player stops the ball before kicking it): 失衡 ends, no speed.
+ * @param {Unit} t
+ */
+export function stopSlide(t) {
+  if (!t.slide) return;
+  t.slide = undefined;
+  displace(t, t.x, t.y);
+}
+
+/**
  * Sends a unit sliding along (ux, uy) — a unit vector — at `speed` tiles/s, its slide replaced, with 位移-3's 硬直:
  * a ball's kick (足球-3). It leaves its blocker and its swing is cut.
  * @param {Unit} t @param {number} ux @param {number} uy @param {number} speed

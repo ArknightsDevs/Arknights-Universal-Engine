@@ -27,7 +27,7 @@ import { on } from './bus.js';
 import { placeTasting, tickTastings } from './tasting.js';
 import { readDeparted } from './exits.js';
 import { grantLootCards } from './loot.js';
-import { ballContext } from './football.js';
+import { footballContext } from './football.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').EnemyDef} EnemyDef @typedef {import('./types.js').Blast} Blast @typedef {import('./types.js').Bolt} Bolt */
@@ -142,6 +142,13 @@ export const BOLT_RADIUS = 0.3;
  *   entry's own route start (敌能-79); null when the branch has none left. A missing enemy key is skipped
  * @property {(key: string, n: number) => void} grantLoot each allied seat's 待部署区 gains n of the device card `key` (敌能-80)
  * @property {(p: import('./ball.js').BallParams) => void} ball makes this enemy a ball (足球-2)
+ * @property {() => Unit[]} balls the balls on the field that have not gone into a goal (足球-9)
+ * @property {(b: Unit) => boolean} freeBall whether no other player holds the ball (足球-9)
+ * @property {(b: Unit, frames: number) => void} holdBall stops the ball and makes it this enemy's for that many frames (足球-9)
+ * @property {(b: Unit, ux: number, uy: number, scale: number) => void} kickBall kicks the ball along a unit vector at its
+ *   default force × scale, and frees it (足球-9)
+ * @property {(which: 'ours' | 'theirs') => { x: number, y: number }[]} goalTiles the centres of a goal's tiles (足球-1)
+ * @property {(x: number, y: number) => boolean} chase one frame's straight move toward a point, its move this frame (足球-9)
  * @property {(t: Unit, p: Payload) => void} hurl throws a homing skill projectile (敌能-83). Its speed is an enemy
  *   projectile's (攻击-3). `amount` is frozen as given. Arrival deals that as a skill hit, not an attack, then `status`
  *   when the target is still up
@@ -270,7 +277,7 @@ function contextOf(w, c, e, of) {
     defaultAlly: (u) => defaultAlly(c, u),
     departed: () => readDeparted(w, ab, name),
     ...barrelContext(w, ab),
-    ...ballContext(w, e),
+    ...footballContext(w, c, e),
     ...lateContext(w, c, e, ab),
   };
 }

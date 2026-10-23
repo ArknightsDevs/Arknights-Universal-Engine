@@ -5,8 +5,11 @@
 import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { on } from './bus.js';
-import { makeBall, ballHit, FORCE_TO_SPEED } from './ball.js';
-import { kickSlide } from './displacement.js';
+import { makeBall, ballHit, FORCE_TO_SPEED, GOAL_TILES } from './ball.js';
+import { kickSlide, stopSlide } from './displacement.js';
+import { displace, speedOf } from './routes.js';
+import { tileAt } from './level.js';
+import { passable } from './paths.js';
 import { addBuff, makeBuff } from './buffs.js';
 import { releaseAll } from './blocking.js';
 import { weightedPick, draw } from './rng.js';
@@ -35,12 +38,50 @@ export function ballHooks(w) {
   }, { owner: OWNER });
 }
 
+/** The centres of a goal's tiles (足球-1), in row order. @param {Content} c @param {'ours' | 'theirs'} which */
+export function goalTiles(c, which) {
+  const m = c.level, key = GOAL_TILES[which], out = [];
+  for (let r = 0; r < m.height; r++) for (let col = 0; col < m.width; col++) if (m.tiles[r][col]?.key === key) out.push({ x: col, y: r });
+  return out;
+}
+
 /**
- * The context's ball member (足球-2): makes the enemy a ball, its hook on at once.
- * @param {World} w @param {Unit} e @returns {Pick<import('./foes.js').FoeContext, 'ball'>}
+ * One frame of a player moving on its own toward a point (足球-9): a straight step at its speed (路线-1's speed, none
+ * while it cannot move), onto a tile it may stand on; that is its move this frame. Whether it moved.
+ * @param {World} w @param {Content} c @param {Unit} e @param {number} x @param {number} y
  */
-export function ballContext(w, e) {
-  return { ball: (p) => { makeBall(e, p); ballHooks(w); } };
+export function chaseStep(w, c, e, x, y) {
+  const sp = speedOf(c, e), dx = x - e.x, dy = y - e.y, d = Math.sqrt(dx * dx + dy * dy);
+  if (!(sp > 0) || !(d > 0)) return false;
+  const k = d <= sp ? 1 : sp / d, nx = e.x + dx * k, ny = e.y + dy * k;
+  if (!passable(tileAt(c.level, Math.round(ny), Math.round(nx)), false)) return false;
+  displace(e, nx, ny);
+  e.ab['@held'] = w.frame;
+  return true;
+}
+
+/**
+ * The context's 阵地足球 members (足球-2, 足球-9): make the enemy a ball (its hook on at once); the balls on the field;
+ * whether a ball is free for it — no other player holds it —; hold a ball — it stops and is this player's for that many
+ * frames —; kick a ball at its default force × a scale, which frees it; a goal's tiles; a move toward a point.
+ * @param {World} w @param {Content} c @param {Unit} e
+ * @returns {Pick<import('./foes.js').FoeContext, 'ball' | 'balls' | 'freeBall' | 'holdBall' | 'kickBall' | 'goalTiles' | 'chase'>}
+ */
+export function footballContext(w, c, e) {
+  return {
+    ball: (p) => { makeBall(e, p); ballHooks(w); },
+    balls: () => w.units.filter((u) => u.ball && u.hp > 0 && !u.hidden && u.ball.goal === undefined),
+    freeBall: (b) => !!b.ball && (b.ball.sel === undefined || b.ball.sel === e.id || (b.ball.selUntil ?? 0) <= w.frame),
+    holdBall: (b, frames) => { if (!b.ball) return; stopSlide(b); b.ball.sel = e.id; b.ball.selUntil = w.frame + frames; },
+    kickBall: (b, ux, uy, scale) => {
+      if (!b.ball) return;
+      delete b.ball.sel;
+      delete b.ball.selUntil;
+      kickSlide(b, ux, uy, b.ball.force * scale * FORCE_TO_SPEED);
+    },
+    goalTiles: (which) => goalTiles(c, which),
+    chase: (x, y) => chaseStep(w, c, e, x, y),
+  };
 }
 
 /**

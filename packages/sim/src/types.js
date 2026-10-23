@@ -745,10 +745,11 @@
  *   its 失衡 slide: speed (tiles/s) and 硬直 frames left (位移-3); a pull on it — its point, its puller's centre, its force,
  *   the distance it began at, its frames left, whether it stopped (位移-4). A 静态刚体 keeps vx and vy at 0 and drops the
  *   slide when the force ends (位移-5)
- * @property {{ f: number, e: number, force: number, need: number, block: number, points: number, sum: number, ax: number, ay: number, touch: number[], goal?: number }} [ball]
+ * @property {{ f: number, e: number, force: number, need: number, block: number, points: number, sum: number, ax: number, ay: number, touch: number[], goal?: number, sel?: number, selUntil?: number }} [ball]
  *   a ball's physics (足球-2): friction factor, restitution, default force, the damage that kicks it, the block count left
  *   that stops it, the points of its goal (足球-7); the damage and direction summed so far (足球-3); the units of ours it
- *   touched last frame (足球-4); the goal it went into this frame (足球-5, SCORE_GOAL). Left out for other units
+ *   touched last frame (足球-4); the goal it went into this frame (足球-5, SCORE_GOAL); the player holding it and the
+ *   frame its hold ends (足球-9). Left out for other units
  * @property {number} anim schema ANIM
  * @property {Drift} [drift] 恐惧 / 诱导 movement, present once either has been applied (状态-10, 状态-11)
  * @property {number} [summoner] the id of the unit that summoned it (召唤-4, 召唤-6); left out for others

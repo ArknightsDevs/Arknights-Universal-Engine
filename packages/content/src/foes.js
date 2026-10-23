@@ -23,6 +23,7 @@ import { auraBehaviors } from './auras.js';
 import { chargedBehaviors } from './charged.js';
 import { staticBehaviors } from './static.js';
 import { ballBehaviors, ballAura, PHYSIC_KEYS } from './ball.js';
+import { footballerBehaviors, rebornShape, noPeriodic, KICK_SKILLS } from './footballers.js';
 import { timeBehaviors } from './times.js';
 import { runnerBehaviors } from './runners.js';
 import { takeDmg } from './chalice.js';
@@ -542,6 +543,7 @@ export const foeBehaviors = Object.freeze({
   ...helmKnightBehaviors,
   ...bombdBehaviors,
   ...ballBehaviors,
+  ...footballerBehaviors,
   ...pengBehaviors,
   ...bombardBehaviors,
   ...cannonBehaviors,
@@ -572,9 +574,10 @@ export const foeBehaviors = Object.freeze({
  * unit (合作-9), `Light` is read by `Bomb`, `DmgUp` acts only on devices the engine does not have (敌能-11), `Stronger` is
  * read by `Devour` (敌能-30), `storm` acts only in a 沙尘暴 the engine's levels do not have (敌能-24), `firstattack` is read by
  * 萨卡兹穿刺手's `rush` (敌能-53), `AttributeStorage` and `SkillTrigger` are read by `ForeverEnhance` (敌能-61; the excerpt
- * lists no other user).
+ * lists no other user), a player's `searchBall` and its skills `passtheball`, `slapshot` and `clearance` are read by
+ * `football` (足球-9, 足球-10).
  */
-export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp', 'Stronger', 'storm', 'firstattack', 'AttributeStorage', 'SkillTrigger']);
+export const FOE_COVERED = Object.freeze(['dead', 'Light', 'DmgUp', 'Stronger', 'storm', 'firstattack', 'AttributeStorage', 'SkillTrigger', 'searchBall', ...KICK_SKILLS]);
 
 /**
  * The blackboard keys an ability's behaviour needs that the data tables do not carry (FOE_EXTRAS gives them, from PRTS,
@@ -662,7 +665,7 @@ const cartBoom = (k, bb) => k === 'boom' && cartShape(bb);
  * The shape checks of the shared names (关卡-2): each says whether a blackboard of its names is the shape its behaviour
  * understands, and passes every other name. In a list, so that each family adds one entry, not one more `&&`.
  */
-const SHAPE_OWNERS = Object.freeze([elementHitOwns, takeOffOwns, wineOwns, whipOwns, bornBugsOwns, radioOwns, shieldOwns, punchOwns, passiveOwns, defdownOwns, knightOwns, blinkOwns, healAuraOwns, vampireOwns, chargeAttackOwns, rebornOwns, faustOwns, shotbuffOwns, bornCarOwns, stunAttackOwns, bombdOwns]);
+const SHAPE_OWNERS = Object.freeze([rebornShape, elementHitOwns, takeOffOwns, wineOwns, whipOwns, bornBugsOwns, radioOwns, shieldOwns, punchOwns, passiveOwns, defdownOwns, knightOwns, blinkOwns, healAuraOwns, vampireOwns, chargeAttackOwns, rebornOwns, faustOwns, shotbuffOwns, bornCarOwns, stunAttackOwns, bombdOwns]);
 
 /**
  * Whether an ability has what its behaviour needs (关卡-2). A shared talent name only counts when its blackboard is the
@@ -673,7 +676,7 @@ const SHAPE_OWNERS = Object.freeze([elementHitOwns, takeOffOwns, wineOwns, whipO
  */
 const complete = (k, bb) => SHAPE_OWNERS.every((own) => own(k, bb))
   && (k !== 'aura' || stackCapped(bb) || ballAura(bb))
-  && (nestPulseOwns(k, bb) || cartBoom(k, bb) || (healBoom(k, bb) ? typeof bb.page === 'number' : (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number')));
+  && (nestPulseOwns(k, bb) || cartBoom(k, bb) || noPeriodic(k, bb) || (healBoom(k, bb) ? typeof bb.page === 'number' : (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number')));
 
 /**
  * The abilities (talents and skills) of the given enemies — their extras merged — that have no behaviour and are not
