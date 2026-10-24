@@ -315,12 +315,18 @@ export const FOE_EXTRAS = Object.freeze({
   // 北境意志球 / 底海滑动球: 「进入未覆盖冰面的球场地块时，将该地块切换为冰面状态：摩擦力-0.3」 / 粘液 +0.3 (足球-16)
   enemy_4033_muftic: { talents: { physic: { cover: -0.3 } }, source: `${PRTS}%E5%8C%97%E5%A2%83%E6%84%8F%E5%BF%97%E7%90%83&oldid=435576` },
   enemy_4034_muftgl: { talents: { physic: { cover: 0.3 } }, source: `${PRTS}%E5%BA%95%E6%B5%B7%E6%BB%91%E5%8A%A8%E7%90%83&oldid=435718` },
-  // 战术队击球手: 射门、传球「必定瞄准前方没有阵地屏障的/守门位没有干员的球门」 (足球-15)
+  // 战术队击球手 / 战术队精英击球手: 射门、传球「必定瞄准前方没有阵地屏障的/守门位没有干员的球门」 (足球-15)
   enemy_4022_mushtm: { talents: { football: { aim: 1 } }, source: `${PRTS}%E6%88%98%E6%9C%AF%E9%98%9F%E5%87%BB%E7%90%83%E6%89%8B&oldid=437027` },
-  // 战术队守门员: 发球「总是瞄准自身与球门之间无我方单位/阵地屏障遮挡的球门」 (足球-15)
+  enemy_4022_mushtm_2: { talents: { football: { aim: 1 } }, source: `${PRTS}%E6%88%98%E6%9C%AF%E9%98%9F%E7%B2%BE%E8%8B%B1%E5%87%BB%E7%90%83%E6%89%8B&oldid=437029` },
+  // 战术队守门员 / 战术队精英守门员: 发球「总是瞄准自身与球门之间无我方单位/阵地屏障遮挡的球门」 (足球-15)
   enemy_4023_mushtb: { talents: { football: { aim: 1 } }, source: `${PRTS}%E6%88%98%E6%9C%AF%E9%98%9F%E5%AE%88%E9%97%A8%E5%91%98&oldid=437032` },
-  // 爱球会守门员: 发球「优先瞄准击球手」 (足球-15)
+  enemy_4023_mushtb_2: { talents: { football: { aim: 1 } }, source: `${PRTS}%E6%88%98%E6%9C%AF%E9%98%9F%E7%B2%BE%E8%8B%B1%E5%AE%88%E9%97%A8%E5%91%98&oldid=437031` },
+  // 爱球会守门员 / 爱球会荣誉守门员: 发球「优先瞄准击球手」 (足球-15)
   enemy_4026_muhryb: { talents: { football: { toForward: 1 } }, source: `${PRTS}%E7%88%B1%E7%90%83%E4%BC%9A%E5%AE%88%E9%97%A8%E5%91%98&oldid=435541` },
+  enemy_4026_muhryb_2: { talents: { football: { toForward: 1 } }, source: `${PRTS}%E7%88%B1%E7%90%83%E4%BC%9A%E8%8D%A3%E8%AA%89%E5%AE%88%E9%97%A8%E5%91%98&oldid=435540` },
+  // “锤锤到肉”阵地击人手: its periodic_damage of 330 has no text on its page (oldid=435315 keeps the blackboard in a
+  // comment); every page that writes the talent out says 「自身每秒受到N…真实伤害」 (敌能-50), so it is that (足球-11)
+  enemy_4014_mugnfu_2: { talents: { periodic_damage: { self: 1 } }, source: `${PRTS}%E2%80%9C%E9%94%A4%E9%94%A4%E5%88%B0%E8%82%89%E2%80%9D%E9%98%B5%E5%9C%B0%E5%87%BB%E4%BA%BA%E6%89%8B&oldid=435315` },
   // 吸血 (敌能-75). `page` marks a page that was read; 虹吸巨刃 has the same numbers and stays uncovered (关卡-2).
   // 萨卡兹宿主百夫长 / 卫巢百夫长: 最多同时攻击3个目标，不会攻击飞行单位；成功造成伤害后治疗伤害量的 150%。
   enemy_1114_rgrdmn: { talents: { vampire: { page: 1 }, noFly: {} }, source: `${PRTS}%E8%90%A8%E5%8D%A1%E5%85%B9%E5%AE%BF%E4%B8%BB%E7%99%BE%E5%A4%AB%E9%95%BF&oldid=365976` },

@@ -667,6 +667,34 @@
                             }
                           ]
                         }
+                      },
+                      "catchUp": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "maxHp": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100
+                              },
+                              "atk": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100
+                              },
+                              "moveSpeed": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       }
                     },
                     "additionalProperties": false
@@ -696,7 +724,7 @@
             "additionalProperties": {
               "anyOf": [
                 {
-                  "$ref": "#/$defs/s50"
+                  "$ref": "#/$defs/s51"
                 },
                 {
                   "type": "null"
@@ -859,7 +887,7 @@
         "maxLength": 64
       },
       "additionalProperties": {
-        "$ref": "#/$defs/s50"
+        "$ref": "#/$defs/s51"
       }
     },
     "tokens": {
@@ -912,7 +940,7 @@
               {
                 "type": "array",
                 "items": {
-                  "$ref": "#/$defs/s52"
+                  "$ref": "#/$defs/s53"
                 },
                 "minItems": 1,
                 "maxItems": 3
@@ -922,7 +950,7 @@
                 "additionalProperties": {
                   "anyOf": [
                     {
-                      "$ref": "#/$defs/s52"
+                      "$ref": "#/$defs/s53"
                     },
                     {
                       "type": "null"
@@ -2990,11 +3018,32 @@
               }
             ]
           }
+        },
+        "elite": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 4096
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
     },
-    "s46": {
+    "s47": {
       "anyOf": [
         {
           "type": "array",
@@ -3021,17 +3070,17 @@
         }
       ]
     },
-    "s45": {
+    "s46": {
       "anyOf": [
         {
-          "$ref": "#/$defs/s46"
+          "$ref": "#/$defs/s47"
         },
         {
           "type": "null"
         }
       ]
     },
-    "s44": {
+    "s45": {
       "type": "object",
       "properties": {
         "mods": {
@@ -3050,15 +3099,40 @@
           }
         },
         "enemy": {
-          "$ref": "#/$defs/s45"
+          "$ref": "#/$defs/s46"
         },
         "exclude": {
-          "$ref": "#/$defs/s45"
+          "$ref": "#/$defs/s46"
         }
       },
       "additionalProperties": false
     },
-    "s49": {
+    "s44": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/s45"
+          },
+          "minItems": 0,
+          "maxItems": 16
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/s45"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "s50": {
       "type": "object",
       "additionalProperties": {
         "anyOf": [
@@ -3081,7 +3155,7 @@
         ]
       }
     },
-    "s48": {
+    "s49": {
       "anyOf": [
         {
           "type": "array",
@@ -3102,11 +3176,11 @@
           "maxItems": 2
         },
         {
-          "$ref": "#/$defs/s49"
+          "$ref": "#/$defs/s50"
         }
       ]
     },
-    "s47": {
+    "s48": {
       "type": "object",
       "properties": {
         "key": {
@@ -3123,7 +3197,7 @@
             {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/s48"
+                "$ref": "#/$defs/s49"
               },
               "minItems": 0,
               "maxItems": 32
@@ -3133,7 +3207,7 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "$ref": "#/$defs/s48"
+                    "$ref": "#/$defs/s49"
                   },
                   {
                     "type": "null"
@@ -3150,32 +3224,10 @@
       "type": "object",
       "properties": {
         "enemyMul": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/s44"
-              },
-              "minItems": 0,
-              "maxItems": 16
-            },
-            {
-              "type": "object",
-              "additionalProperties": {
-                "anyOf": [
-                  {
-                    "$ref": "#/$defs/s44"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              }
-            }
-          ]
+          "$ref": "#/$defs/s44"
         },
         "hiddenGroups": {
-          "$ref": "#/$defs/s46"
+          "$ref": "#/$defs/s47"
         },
         "replace": {
           "type": "object",
@@ -3192,7 +3244,17 @@
           }
         },
         "unsupported": {
-          "$ref": "#/$defs/s46"
+          "$ref": "#/$defs/s47"
+        },
+        "talentMul": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/s44"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "lifePoint": {
           "anyOf": [
@@ -3249,7 +3311,7 @@
                 {
                   "type": "array",
                   "items": {
-                    "$ref": "#/$defs/s47"
+                    "$ref": "#/$defs/s48"
                   },
                   "minItems": 0,
                   "maxItems": 32
@@ -3259,7 +3321,7 @@
                   "additionalProperties": {
                     "anyOf": [
                       {
-                        "$ref": "#/$defs/s47"
+                        "$ref": "#/$defs/s48"
                       },
                       {
                         "type": "null"
@@ -3277,7 +3339,7 @@
       },
       "additionalProperties": false
     },
-    "s51": {
+    "s52": {
       "type": "object",
       "properties": {
         "key": {
@@ -3300,12 +3362,12 @@
           "maximum": 1000000
         },
         "bb": {
-          "$ref": "#/$defs/s49"
+          "$ref": "#/$defs/s50"
         }
       },
       "additionalProperties": false
     },
-    "s50": {
+    "s51": {
       "type": "object",
       "properties": {
         "name": {
@@ -3388,7 +3450,7 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "$ref": "#/$defs/s49"
+                    "$ref": "#/$defs/s50"
                   },
                   {
                     "type": "null"
@@ -3479,7 +3541,7 @@
                 {
                   "type": "array",
                   "items": {
-                    "$ref": "#/$defs/s51"
+                    "$ref": "#/$defs/s52"
                   },
                   "minItems": 0,
                   "maxItems": 16
@@ -3489,7 +3551,7 @@
                   "additionalProperties": {
                     "anyOf": [
                       {
-                        "$ref": "#/$defs/s51"
+                        "$ref": "#/$defs/s52"
                       },
                       {
                         "type": "null"
@@ -3507,7 +3569,7 @@
       },
       "additionalProperties": false
     },
-    "s53": {
+    "s54": {
       "type": "object",
       "properties": {
         "level": {
@@ -3603,7 +3665,7 @@
       },
       "additionalProperties": false
     },
-    "s52": {
+    "s53": {
       "type": "object",
       "properties": {
         "maxLevel": {
@@ -3619,7 +3681,7 @@
             {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/s53"
+                "$ref": "#/$defs/s54"
               },
               "minItems": 1,
               "maxItems": 8
@@ -3629,7 +3691,7 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "$ref": "#/$defs/s53"
+                    "$ref": "#/$defs/s54"
                   },
                   {
                     "type": "null"

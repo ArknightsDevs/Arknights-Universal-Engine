@@ -50,38 +50,68 @@ function weightsOf(coop) {
 }
 
 /**
- * The co-op teams with their weights and players (足球-6). @param {Record<string, unknown>} coop
- * @returns {{ name: string, weight: number, players: Record<string, string> }[]}
+ * The co-op teams with their weights and players (足球-6), and each team's elite players: a player's `_2` that the
+ * level's enemy references name (`has`). @param {Record<string, unknown>} coop @param {(key: string) => boolean} has
+ * @returns {{ name: string, weight: number, players: Record<string, string>, elite?: Record<string, string> }[]}
  */
-function teamsOf(coop) {
+function teamsOf(coop, has) {
   const p = 'cooperate_battle_table', players = asObject(field(coop, 'footballTeamPlayers', p), `${p}.footballTeamPlayers`);
   const weights = asArray(field(coop, 'footballTeamWeights', p), `${p}.footballTeamWeights`).map((x, i) => asObject(x, `${p}.footballTeamWeights[${i}]`));
   return COOP_TEAMS.map((name) => {
     const w = weights.find((x) => x.teamName === name), roles = asObject(field(players, name, `${p}.footballTeamPlayers`), `${p}.footballTeamPlayers.${name}`);
     if (!w) throw new Error(`${p}.footballTeamWeights has no ${name}`);
+    const keys = Object.entries(roles).map(([role, key]) => [role, asString(key, `${p}.footballTeamPlayers.${name}.${role}`)]);
+    const elite = keys.filter(([, key]) => has(`${key}_2`)).map(([role, key]) => [role, `${key}_2`]);
     return { name, weight: asNumber(field(w, 'weight', p), `${p}.footballTeamWeights.${name}.weight`, 0, 1e6),
-      players: Object.fromEntries(Object.entries(roles).map(([role, key]) => [role, asString(key, `${p}.footballTeamPlayers.${name}.${role}`)])) };
+      players: Object.fromEntries(keys), ...(elite.length > 0 ? { elite: Object.fromEntries(elite) } : {}) };
   });
 }
 
+/** The global buff that strengthens the players by our lead (足球-17). */
+const CATCH_UP = 'cooperate_enemy_catch_up';
+
 /**
- * A 阵地足球 level's settings (足球-6), none for another level: the match time (`maxPlayTime`), the players' wait at a
- * kickoff, the stamps' net goals, the kickoff tables, the co-op teams and the name part of each player role.
- * @param {{ key: string }[][]} tiles @param {Record<string, unknown>} options the raw level.options @param {unknown} coop
- * cooperate_battle_table.json @param {unknown} [missions] @returns {{ football?: Record<string, unknown> }}
+ * What each goal of our lead adds to the players (足球-17): the level's `cooperate_enemy_catch_up` global buff — max
+ * HP, ATK and move speed as fractions —, none when it adds nothing. A non-zero `attack_speed` is not read yet.
+ * @param {unknown} raw level.globalBuffs @returns {{ catchUp?: { maxHp: number, atk: number, moveSpeed: number } }}
  */
-export function footballField(tiles, options, coop, missions) {
+function catchUpOf(raw) {
+  const buff = asArray(raw ?? [], 'level.globalBuffs').map((x, i) => asObject(x, `level.globalBuffs[${i}]`)).find((x) => x.prefabKey === CATCH_UP);
+  if (!buff) return {};
+  const p = `level.globalBuffs[${CATCH_UP}]`;
+  const bb = Object.fromEntries(asArray(field(buff, 'blackboard', p), `${p}.blackboard`).map((e, i) => {
+    const o = asObject(e, `${p}.blackboard[${i}]`);
+    return [asString(field(o, 'key', p), `${p}.key`), asNumber(o.value, `${p}.blackboard[${i}].value`, 0, 100)];
+  }));
+  if (bb.attack_speed) throw new Error(`${p}: attack_speed ${bb.attack_speed} is not read yet`);
+  const up = { maxHp: bb.max_hp ?? 0, atk: bb.atk ?? 0, moveSpeed: bb.move_speed ?? 0 };
+  return up.maxHp || up.atk || up.moveSpeed ? { catchUp: up } : {};
+}
+
+/**
+ * A 阵地足球 level's settings (足球-6, 足球-17), none for another level: the match time (`maxPlayTime`), the players'
+ * wait at a kickoff, the stamps' net goals, the kickoff tables, the co-op teams with their elite players, the name part
+ * of each player role, and what our lead adds to the players.
+ * @param {{ key: string }[][]} tiles @param {{ options: unknown, globalBuffs?: unknown }} level the raw level's options and
+ * global buffs @param {unknown} coop cooperate_battle_table.json @param {unknown} [missions]
+ * @param {(key: string) => boolean} [has] whether the level's enemy references name a key
+ * @returns {{ football?: Record<string, unknown> }}
+ */
+export function footballField(tiles, level, coop, missions, has = () => false) {
   if (!isFootball(tiles) || coop === undefined) return {};
-  const c = asObject(coop, 'cooperate_battle_table'), p = 'cooperate_battle_table';
+  const c = asObject(coop, 'cooperate_battle_table'), p = 'cooperate_battle_table', options = asObject(level.options, 'level.options');
   const stamps = asArray(missions ?? [], 'missions').map(missionGoals).filter((n) => n !== null);
   const roles = asObject(field(c, 'footballPlayersName', p), `${p}.footballPlayersName`);
   return { football: {
     time: asNumber(field(options, 'maxPlayTime', 'level.options'), 'level.options.maxPlayTime', 1, 1e6),
     wait: asNumber(field(c, 'footballPlayersWaitTimeOnWaveStart', p), `${p}.footballPlayersWaitTimeOnWaveStart`, 0, 1e6),
-    stamps, ahead: aheadOf(c), weights: weightsOf(c), teams: teamsOf(c),
+    stamps, ahead: aheadOf(c), weights: weightsOf(c), teams: teamsOf(c, has),
     roles: Object.fromEntries(Object.entries(roles).map(([k, v]) => [k, asString(v, `${p}.footballPlayersName.${k}`)])),
+    ...catchUpOf(level.globalBuffs),
   } };
 }
 
-/** The enemy keys a 阵地足球 level's teams field (足球-6), to extract with it. @param {{ football?: any }} f */
-export const footballPlayers = (f) => (f.football ? /** @type {{ players: Record<string, string> }[]} */ (f.football.teams).flatMap((t) => Object.values(t.players)) : []);
+/** The enemy keys a 阵地足球 level's teams field (足球-6), their elite players too, to extract with it. @param {{ football?: any }} f */
+export const footballPlayers = (f) => (f.football
+  ? /** @type {{ players: Record<string, string>, elite?: Record<string, string> }[]} */ (f.football.teams).flatMap((t) => [...Object.values(t.players), ...Object.values(t.elite ?? {})])
+  : []);

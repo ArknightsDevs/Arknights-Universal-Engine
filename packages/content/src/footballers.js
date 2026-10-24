@@ -17,12 +17,12 @@ const FORWARD_REACH = 0.2;
 export const KICK_SKILLS = Object.freeze(['passtheball', 'slapshot', 'clearance']);
 
 /**
- * Each player's kicks (足球-10): the hit and the end of the skill, seconds from its start — the OnAttack event and the
- * length of its clip in the player's model (PRTS's copy, torappu.prts.wiki/assets/enemy_spine/<key>/): a forward's
- * pass is Skill1 and its shot Skill2, in the order of its skills; a goalkeeper, with no skill clip, clears with Attack.
- * @type {Readonly<Record<string, Readonly<Record<string, readonly [number, number]>>>>}
+ * The kicks of the players of each team (足球-10): the hit and the end of the skill, seconds from its start — the
+ * OnAttack event and the length of its clip in the player's model (PRTS's copy, torappu.prts.wiki/assets/enemy_spine/<key>/):
+ * a forward's pass is Skill1 and its shot Skill2, in the order of its skills; a goalkeeper, with no skill clip, clears
+ * with Attack. @type {Readonly<Record<string, Readonly<Record<string, readonly [number, number]>>>>}
  */
-export const KICK_TIMES = Object.freeze({
+const TEAM_KICKS = Object.freeze({
   enemy_4012_mumssi: { passtheball: [1.033, 1.467], slapshot: [1.433, 2.033] },
   enemy_4022_mushtm: { passtheball: [0.8, 1.5], slapshot: [0.767, 1.5] },
   enemy_4025_muhrym: { passtheball: [0.8, 1.5], slapshot: [1.3, 2.033] },
@@ -32,6 +32,12 @@ export const KICK_TIMES = Object.freeze({
   enemy_4026_muhryb: { clearance: [0.367, 1.333] },
   enemy_4029_mukfub: { clearance: [0.367, 1.333] },
 });
+
+/**
+ * Each player's kicks (足球-10): a team's, and its elite player's (`_2`) — each elite model's Skill1, Skill2 and Attack
+ * have the same lengths and OnAttack times as its player's (both models read, isHarryh/Ark-Models@8a3857c).
+ */
+export const KICK_TIMES = Object.freeze({ ...TEAM_KICKS, ...Object.fromEntries(Object.entries(TEAM_KICKS).map(([k, v]) => [`${k}_2`, v])) });
 
 /** Whether an enemy is a player (足球-9): it has `football` or `searchtarget`. @param {FoeContext} ctx @param {Unit} u */
 const isPlayer = (ctx, u) => !!(ctx.talentOf(u, 'football') || ctx.talentOf(u, 'searchtarget'));

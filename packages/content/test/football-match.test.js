@@ -153,7 +153,7 @@ test('[关卡-8] [足球-6] IG-FT-1 loads as a level being tested, with every te
   const lv = levelAt('act1multi_football', 'NORMAL');
   for (const t of RULES.teams) for (const k of Object.values(t.players)) assert.ok(Object.hasOwn(lv.enemies, k), k);
   assert.deepEqual(lv.level.uncovered ?? [], [], 'IG-FT-1: every ability read');
-  assert.deepEqual(levelAt('act1multi_football', 'FOUR_STAR').level.uncovered, ['periodic_damage'], 'IG-FT-2: the 330 of “锤锤到肉” 击人手 still to come');
+  assert.deepEqual(levelAt('act1multi_football', 'FOUR_STAR').level.uncovered ?? [], [], 'IG-FT-2: every ability read, the 330 of “锤锤到肉” too');
   const BUILD = { elite: 2, level: 90, potential: 1, trust: 100, skill: 0, skillLevel: 10 };
   const c = await mc({ level: 'act1multi_football', difficulty: 'NORMAL', seed: 1, decks: [[{ id: 'char_010_chen', build: BUILD }]] });
   assert.ok(c.operators['trap_165_muftbl#0']?.ballCard && c.decks?.[0].includes('trap_165_muftbl#0'), 'the ball card in the deck');

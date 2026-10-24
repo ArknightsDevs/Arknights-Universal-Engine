@@ -237,7 +237,7 @@ export const skeletonSource = skeleton.source;
 
 export { skillDefOf, skillBehaviors } from './skills.js';
 export { BRANCHES, coveredBranch, withTrait, OPERATOR_TRAITS, withOwnTrait } from './traits.js';
-export { LEVELS, TESTING, levelAt } from './levels.js';
+export { LEVELS, TESTING, LEVEL_EXTRAS, levelAt } from './levels.js';
 export { withBuilders } from './fortress.js';
 export { withLootCards } from './loot.js';
 export { foeBehaviors, withFoeExtras, FOE_EXTRAS } from './foes.js';

@@ -133,13 +133,13 @@ function carry(w, c, e, b) {
 }
 
 /**
- * 阵地足球's state at the start (足球-6): the team drawn by its weight (随机-1), no goals, the match's end; the first
- * kickoff comes with the first wave.
+ * 阵地足球's state at the start (足球-6): the team drawn by its weight among those that weigh more than 0 (随机-1), no
+ * goals, the match's end; the first kickoff comes with the first wave.
  * @param {World} w @param {Content} c @returns {FootballState}
  */
 export function newFootball(w, c) {
-  const f = /** @type {FootballRules} */ (c.level.football);
-  return { team: weightedPick(w, f.teams.map((t) => t.weight)), home: 0, away: 0, kick: 0, until: secondsToFrames(f.time) };
+  const f = /** @type {FootballRules} */ (c.level.football), live = f.teams.flatMap((t, i) => (t.weight > 0 ? [i] : []));
+  return { team: live[weightedPick(w, live.map((i) => f.teams[i].weight))], home: 0, away: 0, kick: 0, until: secondsToFrames(f.time) };
 }
 
 /**
@@ -174,13 +174,33 @@ const roleOf = (f, key) => Object.entries(f.roles).find(([part]) => key.includes
 
 /**
  * The enemy a wave's SPAWN brings in (足球-6): a player of the level's standard team is the drawn team's player of the
- * same role; anything else as it is. @param {World} w @param {Content} c @param {string} key
+ * same role — an elite one (a difficulty's replacement, 关卡-2) the drawn team's elite player of that role —; anything
+ * else as it is. @param {World} w @param {Content} c @param {string} key
  */
 export function teamKey(w, c, key) {
   const f = c.level.football, st = w.football;
   if (!f || !st) return key;
   const role = roleOf(f, key), team = f.teams[st.team];
-  return role && team?.players[role] ? team.players[role] : key;
+  if (!role || !team?.players[role]) return key;
+  const elite = f.teams.some((t) => t.elite?.[role] === key);
+  return (elite && team.elite?.[role]) || team.players[role];
+}
+
+/** Whether a key is a player of the drawn team, an elite one too (足球-6). @param {FootballRules} f @param {FootballState} st @param {string} key */
+function drawnPlayer(f, st, key) {
+  const t = f.teams[st.team];
+  return !!t && (Object.values(t.players).includes(key) || Object.values(t.elite ?? {}).includes(key));
+}
+
+/**
+ * What a player brought in now has its base max HP, ATK and move speed multiplied by (足球-17): 1 + the level's
+ * fraction × our lead, while we lead; null for anything else. @param {World} w @param {Content} c @param {string} key
+ * @returns {{ maxHp: number, atk: number, moveSpeed: number } | null}
+ */
+export function catchUp(w, c, key) {
+  const f = c.level.football, st = w.football, up = f?.catchUp, lead = st ? st.home - st.away : 0;
+  if (!f || !st || !up || lead <= 0 || !drawnPlayer(f, st, key)) return null;
+  return { maxHp: 1 + up.maxHp * lead, atk: 1 + up.atk * lead, moveSpeed: 1 + up.moveSpeed * lead };
 }
 
 /**
@@ -189,7 +209,7 @@ export function teamKey(w, c, key) {
  */
 export function kickoffWait(w, c, u) {
   const f = c.level.football, st = w.football;
-  if (!f || !st || u.ball || !Object.values(f.teams[st.team]?.players ?? {}).includes(u.key)) return;
+  if (!f || !st || u.ball || !drawnPlayer(f, st, u.key)) return;
   // it ticks this frame too (状态-3): free on the frame the wait is over
   const left = st.kick + secondsToFrames(f.wait) - w.frame + 1;
   if (left > 0) addBuff(u, makeBuff({ key: 'kickoff', src: u.id, left, flags: { kickoff: true, root: true, noAttack: true } }));

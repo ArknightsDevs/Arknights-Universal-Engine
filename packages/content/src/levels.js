@@ -10,6 +10,7 @@ import act1multiTr01 from '../data/levels/act1multi_tr01.json' with { type: 'jso
 import act1multiFortressRm01 from '../data/levels/act1multi_fortress_rm01.json' with { type: 'json' };
 import act1multiFortressHard01 from '../data/levels/act1multi_fortress_hard-01.json' with { type: 'json' };
 import act1multiFootball from '../data/levels/act1multi_football.json' with { type: 'json' };
+import act1multiFootballHard01 from '../data/levels/act1multi_football_hard-01.json' with { type: 'json' };
 import { uncoveredAbilities, withFoeExtras } from './foes.js';
 import { profiledDevices, DEVICE_PROFILES } from './devices.js';
 import { CARRIED } from './carried.js';
@@ -22,8 +23,28 @@ import { seatRules } from './runes.js';
 export const LEVELS = Object.freeze({
   act1multi_01: act1multi01, act1multi_02: act1multi02, act1multi_06: act1multi06, 'act1multi_hard-02': act1multiHard02, act1multi_rm07: act1multiRm07,
   act2multi_rm01: act2multiRm01, act1multi_tr01: act1multiTr01, act1multi_fortress_rm01: act1multiFortressRm01, 'act1multi_fortress_hard-01': act1multiFortressHard01,
-  act1multi_football: act1multiFootball,
+  act1multi_football: act1multiFootball, 'act1multi_football_hard-01': act1multiFootballHard01,
 });
+
+const PRTS = 'https://prts.wiki/index.php?title=';
+
+/**
+ * What a level's PRTS page says beyond its data (足球-6): the teams not drawn there — IG-S-4 「将会遭遇下列球员之一：
+ * 战术队/爱球会/球德联精英球员」, so not the standard team.
+ * @type {Readonly<Record<string, { teamsOut: readonly string[], source: string }>>}
+ */
+export const LEVEL_EXTRAS = Object.freeze({
+  'act1multi_football_hard-01': { teamsOut: Object.freeze(['normal']), source: `${PRTS}IG-S-4%20%E5%A4%A7%E5%8A%9B%E5%87%BA%E5%A5%87%E8%BF%B9&oldid=428766` },
+});
+
+/**
+ * A level's 阵地足球 settings with its page's extras (足球-6): the teams it says are not drawn weigh 0.
+ * @param {string} id @param {import('@aue/sim').FootballRules | undefined} f
+ */
+function footballOf(id, f) {
+  const out = Object.hasOwn(LEVEL_EXTRAS, id) ? LEVEL_EXTRAS[id].teamsOut : [];
+  return f && out.length > 0 ? { ...f, teams: f.teams.map((t) => (out.includes(t.name) ? { ...t, weight: 0 } : t)) } : f;
+}
 
 /** enemy_attribute_mul's keys and the enemy fields they multiply, with each field's value when the enemy has none. */
 const MUL_FIELDS = Object.freeze({
@@ -48,6 +69,25 @@ function multiplied(key, e, muls) {
 }
 
 /**
+ * An enemy with every multiplier of its talents' values the difficulty has for it (关卡-2: enemy_talent_blackb_mul,
+ * keys `<talent>.<field>`): on the values it has; a field it lacks stays absent.
+ * @param {string} key @param {EnemyDef} e @param {{ mods: Record<string, number>, enemy?: string[], exclude?: string[] }[]} muls @returns {EnemyDef}
+ */
+function talentsMultiplied(key, e, muls) {
+  const mine = muls.filter((m) => !(m.enemy && !m.enemy.includes(key)) && !m.exclude?.includes(key));
+  if (mine.length === 0 || !e.talents) return e;
+  /** @type {Record<string, Record<string, number>>} */
+  const talents = Object.fromEntries(Object.entries(e.talents).map(([k, bb]) => [k, { ...bb }]));
+  for (const m of mine) {
+    for (const [k, v] of Object.entries(m.mods)) {
+      const [name, f] = k.split('.'), bb = talents[name];
+      if (bb && typeof bb[f] === 'number') bb[f] *= v;
+    }
+  }
+  return /** @type {EnemyDef} */ ({ ...e, talents });
+}
+
+/**
  * A level's waves and branches (守御-6) with a difficulty's replacements of the enemies they spawn (关卡-2).
  * @param {any} level @param {Record<string, string>} replace @returns {{ waves: any[], branches?: Record<string, any[]> }}
  */
@@ -59,6 +99,22 @@ function replacedSpawns(level, replace) {
 }
 
 /**
+ * 阵地足球's players a level's spawns bring in (足球-6): for each role a spawn names — a standard player, or an elite
+ * one —, every team's that may be drawn player of that role, or its elite one.
+ * @param {import('@aue/sim').FootballRules | undefined} football @param {Set<string>} spawned @returns {string[]}
+ */
+function teamPlayers(football, spawned) {
+  if (!football) return [];
+  const teams = football.teams, out = [];
+  for (const [part, role] of Object.entries(football.roles)) {
+    const named = [...spawned].filter((k) => k.includes(`_${part}`));
+    const elite = named.some((k) => teams.some((t) => t.elite?.[role] === k)), plain = named.some((k) => teams.some((t) => t.players[role] === k));
+    for (const t of teams.filter((x) => x.weight > 0)) out.push(...(plain ? [t.players[role]] : []), ...(elite && t.elite?.[role] ? [t.elite[role]] : []));
+  }
+  return out;
+}
+
+/**
  * The enemies a level's waves and branches spawn (关卡-2, 守御-6) — in 阵地足球 every team's players (足球-6) —, and
  * those their abilities bring in turn (a split, a summon, a rebirth as another: an enemy key in a blackboard, 敌能-22).
  * @param {any[]} waves @param {Record<string, any[]> | undefined} branches @param {Record<string, any>} enemies the level's records
@@ -67,8 +123,7 @@ function replacedSpawns(level, replace) {
 function spawnedKeys(waves, branches, enemies, football) {
   const frags = [...waves.flatMap((/** @type {any} */ w) => w.fragments), ...Object.values(branches ?? {}).flat()];
   const used = new Set(frags.flatMap((/** @type {any} */ f) => f.actions.filter((/** @type {any} */ a) => a.type === 'SPAWN').map((/** @type {any} */ a) => a.key)));
-  // 阵地足球's teams: a drawn team's players spawn in place of the standard team's (足球-6)
-  for (const t of football?.teams ?? []) for (const k of Object.values(t.players)) if (Object.hasOwn(enemies, k)) used.add(k);
+  for (const k of teamPlayers(football, used)) if (Object.hasOwn(enemies, k)) used.add(k);
   for (const k of used) {
     const e = enemies[k];
     const named = e ? [...Object.values(e.talents ?? {}), ...(e.skills ?? []).map((/** @type {any} */ x) => x.bb)].flatMap((bb) => Object.values(bb)) : [];
@@ -99,7 +154,7 @@ function optionsAt(options, d) {
 }
 
 /** The levels being tested (关卡-8): they load with enemy abilities that have no behaviour yet, which do nothing there. */
-export const TESTING = Object.freeze(['act1multi_fortress_rm01', 'act1multi_fortress_hard-01', 'act1multi_football']);
+export const TESTING = Object.freeze(['act1multi_fortress_rm01', 'act1multi_fortress_hard-01', 'act1multi_football', 'act1multi_football_hard-01']);
 
 /** Whether a level is being tested (关卡-8): one of TESTING, or its file says so. @param {string} id @param {any} raw */
 const beingTested = (id, raw) => TESTING.includes(id) || raw.testing === true;
@@ -134,7 +189,8 @@ function difficultyAt(id, difficulty, levels) {
 export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
   const { raw, d, ours } = difficultyAt(id, difficulty, levels);
   const { waves, branches } = replacedSpawns(raw.level, d.replace);
-  const used = spawnedKeys(waves, branches, raw.enemies, raw.level.football);
+  const football = footballOf(id, raw.level.football);
+  const used = spawnedKeys(waves, branches, raw.enemies, football);
   const missing = uncoveredAbilities(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([k, e]) => withFoeExtras(k, /** @type {EnemyDef} */ (e))));
   if (missing.length > 0 && !beingTested(id, raw)) throw new RangeError(`level ${id} at ${difficulty}: enemy abilities not supported yet: ${missing.join(', ')}`);
   // a carried unit's card (符文-6) is no device on the field: carried.js makes it; a device never placed needs no profile
@@ -142,9 +198,10 @@ export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
   const dev = profiledDevices(Object.fromEntries(Object.entries(raw.devices ?? {}).filter(([k]) => !Object.hasOwn(CARRIED, k) && (Object.hasOwn(DEVICE_PROFILES, k) || !unplaced.has(k)))));
   if (dev.missing.length > 0) throw new RangeError(`level ${id}: devices not supported yet: ${dev.missing.join(', ')}`);
   return {
-    level: { ...raw.level, waves, ...(branches ? { branches } : {}), ...(missing.length > 0 ? { uncovered: missing } : {}), hiddenGroups: d.hiddenGroups, ...(dev.works ? { works: dev.works } : {}),
+    level: { ...raw.level, ...(football ? { football } : {}), waves, ...(branches ? { branches } : {}), ...(missing.length > 0 ? { uncovered: missing } : {}), hiddenGroups: d.hiddenGroups, ...(dev.works ? { works: dev.works } : {}),
       options: optionsAt(raw.level.options, d) },
-    enemies: Object.fromEntries(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([k, e]) => [k, { ...multiplied(k, /** @type {EnemyDef} */ (e), d.enemyMul), ...attack(k) }])),
+    enemies: Object.fromEntries(Object.entries(raw.enemies).filter(([k]) => used.has(k))
+      .map(([k, e]) => [k, { ...talentsMultiplied(k, multiplied(k, /** @type {EnemyDef} */ (e), d.enemyMul), d.talentMul ?? []), ...attack(k) }])),
     blockAdd: d.blockAdd ?? 0,
     runes: ours.effects,
     devices: dev.devices,

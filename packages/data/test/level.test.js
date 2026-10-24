@@ -122,6 +122,13 @@ test('[关卡-2] runes: the max cost, the operators\' block count, shared enemie
   assert.deepEqual([...sharedEnemies(runes)], ['e_a', 'e_b']);
 });
 
+test('[关卡-2] enemy_talent_blackb_mul: its talent fields and their scales, with the enemies it is for or not for', () => {
+  const rune = (/** @type {Record<string, number | string>} */ bb) => ({ key: 'enemy_talent_blackb_mul', difficultyMask: 'ALL', blackboard: Object.entries(bb).map(([k, v]) => (typeof v === 'string' ? { key: k, value: 0, valueStr: v } : { key: k, value: v, valueStr: null })) });
+  const runes = [rune({ 'searchBall.range_radius': 1.5, enemy: 'e_a|e_b' }), rune({ 'Reborn.duration': 0.6 }), rune({ 'football.slapshot_force': 0.88, enemy_exclude: 'e_c' })];
+  assert.deepEqual(difficultyOf(runes, 'NORMAL'), { hiddenGroups: [], enemyMul: [], replace: {}, unsupported: [], talentMul: [
+    { mods: { 'searchBall.range_radius': 1.5 }, enemy: ['e_a', 'e_b'] }, { mods: { 'Reborn.duration': 0.6 } }, { mods: { 'football.slapshot_force': 0.88 }, exclude: ['e_c'] }] });
+});
+
 test('[关卡-2] runes on our units are kept as seat runes, the mask a number (ALL all ten professions); other runes not supported are named', () => {
   const rune = (/** @type {string} */ key, /** @type {Record<string, number | string>} */ bb, /** @type {unknown} */ professionMask) => ({ key, difficultyMask: 'ALL', professionMask,
     blackboard: Object.entries(bb).map(([k, v]) => (typeof v === 'string' ? { key: k, value: 0, valueStr: v } : { key: k, value: v, valueStr: null })) });

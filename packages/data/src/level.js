@@ -12,10 +12,11 @@ import { footballField, footballPlayers } from './football.js';
 /** @typedef {{ mods: Record<string, number>, enemy?: string[], exclude?: string[] }} EnemyMul */
 /** A rune on our units (关卡-2, 符文-1): its key, profession mask and blackboard. @typedef {{ key: string, professions: number, board: [string, number | string][] }} OurRune */
 /**
- * What a difficulty changes (关卡-2): hidden groups enabled, the life point, enemy multipliers, enemy replacements, the
- * runes on our units (`ours`, as seat runes on every seat), and the runes not supported yet.
- * @typedef {{ hiddenGroups: string[], lifePoint?: number, maxCost?: number, blockAdd?: number, costScale?: number, enemyMul: EnemyMul[], replace: Record<string, string>,
- *   ours?: OurRune[], unsupported: string[] }} DifficultyRules
+ * What a difficulty changes (关卡-2): hidden groups enabled, the life point, enemy multipliers of attributes and of
+ * talents' values (`talentMul`, keys `<talent>.<field>`), enemy replacements, the runes on our units (`ours`, as seat
+ * runes on every seat), and the runes not supported yet.
+ * @typedef {{ hiddenGroups: string[], lifePoint?: number, maxCost?: number, blockAdd?: number, costScale?: number, enemyMul: EnemyMul[], talentMul?: EnemyMul[],
+ *   replace: Record<string, string>, ours?: OurRune[], unsupported: string[] }} DifficultyRules
  */
 
 /** The runes 关卡-2 applies or that other clauses read (共同敌手, 合作-2). */
@@ -43,6 +44,16 @@ function boardOf(rune, rp) {
     return [asString(o.key, `${rp}.blackboard[${k}].key`), /** @type {number | string} */ (o.valueStr ?? o.value)];
   }));
 }
+
+/**
+ * A multiplier rune (关卡-2): the given keys' values, and the enemies it is for (`enemy`) or not for (`enemy_exclude`).
+ * @param {Record<string, number | string>} bb @param {string[]} keys @param {(k: string) => number} num @returns {EnemyMul}
+ */
+const mulOf = (bb, keys, num) => ({
+  mods: Object.fromEntries(keys.map((k) => [k, num(k)])),
+  ...(typeof bb.enemy === 'string' ? { enemy: list(bb.enemy) } : {}),
+  ...(typeof bb.enemy_exclude === 'string' ? { exclude: list(bb.enemy_exclude) } : {}),
+});
 
 /**
  * A rune on our units (关卡-2) as a seat rune (符文-1): its mask a number, or `ALL`.
@@ -73,13 +84,9 @@ export function difficultyOf(runesRaw, difficulty) {
       out[to] = num(from);
     } else if (key === 'char_blockcnt_add') out.blockAdd = asNumber(field(bb, 'value', `${rp}.blackboard`), `${rp}.blackboard.value`, -10, 10);
     else if (key === 'level_enemy_replace') out.replace[String(field(bb, 'key', `${rp}.blackboard`))] = String(field(bb, 'value', `${rp}.blackboard`));
-    else if (key === 'enemy_attribute_mul') {
-      out.enemyMul.push({
-        mods: Object.fromEntries(MUL_KEYS.filter((k) => k in bb).map((k) => [k, num(k)])),
-        ...(typeof bb.enemy === 'string' ? { enemy: list(bb.enemy) } : {}),
-        ...(typeof bb.enemy_exclude === 'string' ? { exclude: list(bb.enemy_exclude) } : {}),
-      });
-    } else if (OUR_RUNES.includes(key)) (out.ours ??= []).push(ourRune(rune, key, bb, rp));
+    else if (key === 'enemy_attribute_mul') out.enemyMul.push(mulOf(bb, MUL_KEYS.filter((k) => k in bb), num));
+    else if (key === 'enemy_talent_blackb_mul') (out.talentMul ??= []).push(mulOf(bb, Object.keys(bb).filter((k) => k.includes('.')), num));
+    else if (OUR_RUNES.includes(key)) (out.ours ??= []).push(ourRune(rune, key, bb, rp));
     else if (!(key === 'env_gbuff_new_with_verify' && bb.key === 'cooperate_enemy_side_shared') && !KNOWN_RUNES.includes(key)) out.unsupported.push(key);
   });
   out.hiddenGroups = out.hiddenGroups.filter((g) => !disabled.includes(g));
@@ -207,15 +214,15 @@ export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage
   // a branch's spawns name the level's extra routes (守御-6)
   const waves = extractWaves(field(lv, 'waves', 'level'), routeOf), branches = branchesOf(lv.branches, extraOf);
   const runes = lv.runes ?? null, difficulties = { NORMAL: difficultyOf(runes, 'NORMAL'), FOUR_STAR: difficultyOf(runes, 'FOUR_STAR') };
-  // 阵地足球's teams field players the waves do not name (足球-6)
-  const football = footballField(tiles, asObject(field(lv, 'options', 'level'), 'level.options'), coop, missions);
-  const frags = [...waves.flatMap((w) => w.fragments), ...Object.values(branches).flat()];
-  const spawned = frags.flatMap((f) => f.actions.filter((a) => a.type === 'SPAWN').map((a) => a.key));
-  const keys = [...new Set([...spawned, ...Object.values(difficulties).flatMap((d) => Object.values(d.replace)), ...footballPlayers(football)])].toSorted();
   const refs = new Map(asArray(lv.enemyDbRefs ?? [], 'level.enemyDbRefs').map((r, i) => {
     const o = asObject(r, `level.enemyDbRefs[${i}]`);
     return [asString(field(o, 'id', `level.enemyDbRefs[${i}]`), `level.enemyDbRefs[${i}].id`), o];
   }));
+  // 阵地足球's teams field players the waves do not name (足球-6), their elite ones those the references name
+  const football = footballField(tiles, { options: field(lv, 'options', 'level'), globalBuffs: lv.globalBuffs }, coop, missions, (k) => refs.has(k));
+  const frags = [...waves.flatMap((w) => w.fragments), ...Object.values(branches).flat()];
+  const spawned = frags.flatMap((f) => f.actions.filter((a) => a.type === 'SPAWN').map((a) => a.key));
+  const keys = [...new Set([...spawned, ...Object.values(difficulties).flatMap((d) => Object.values(d.replace)), ...footballPlayers(football)])].toSorted();
   const shared = sharedEnemies(runes);
   const enemies = withSummoned(keys, (k) => ({ ...enemyOf(enemyDb, k, refs.get(k)), ...damageTypeOf(handbook, k), ...(shared.has(k) ? { shared: true } : {}) }));
   return {

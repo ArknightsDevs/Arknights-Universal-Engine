@@ -46,11 +46,13 @@
  * @typedef {{ rest: number, wave: number, waveLast: number, life: number, restAdd: number }} FortressRules
  */
 /**
- * 阵地足球's settings (足球-6): the match time and the players' wait at a kickoff (seconds), the stamps' net goals, the
- * kickoff level of each lead ([lead, level] in order), each level's weights of the wave tags, the teams with their
- * weights and players by role, and the role of each name part of the standard team's players.
+ * 阵地足球's settings (足球-6, 足球-17): the match time and the players' wait at a kickoff (seconds), the stamps' net
+ * goals, the kickoff level of each lead ([lead, level] in order), each level's weights of the wave tags, the teams with
+ * their weights and players by role (and elite players by role, when the level has them), the role of each name part
+ * of the standard team's players, and what each goal of our lead adds to the players' max HP, ATK and move speed.
  * @typedef {{ time: number, wait: number, stamps: number[], ahead: [number, number][], weights: Record<string, number[]>,
- *   teams: { name: string, weight: number, players: Record<string, string> }[], roles: Record<string, string> }} FootballRules
+ *   teams: { name: string, weight: number, players: Record<string, string>, elite?: Record<string, string> }[], roles: Record<string, string>,
+ *   catchUp?: { maxHp: number, atk: number, moveSpeed: number } }} FootballRules
  * @typedef {{ kind: 'workshop' | 'lounge' | 'platform' | 'roadblock' | 'gym', modes: Record<string, number>[], boom?: number }} FacilityDef
  * @typedef {{ sp: 'sp' | 'sp2', hits: number, life: number }} BuilderDef
  * @typedef {{ range: string, cells: Cell[], branch: string, first: number, every: number }} RubbleDef

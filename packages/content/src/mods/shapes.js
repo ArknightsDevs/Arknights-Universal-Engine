@@ -162,14 +162,15 @@ const route = obj({
 });
 const tile = obj({ key: str, buildable: oneOf('NONE', 'MELEE', 'RANGED', 'ALL'), height: oneOf('LOWLAND', 'HIGHLAND'), passable: oneOf('NONE', 'FLY_ONLY', 'ALL'), side: oneOf('ALL', 'SIDE_A', 'SIDE_B') },
   { goal: oneOf('A', 'B'), landball: bool });
-const difficulty = obj({ enemyMul: list(obj({ mods: dict(num(0, 1000), 8) }, { enemy: list(str, 0, 64), exclude: list(str, 0, 64) }), 0, 16), hiddenGroups: list(str, 0, 64), replace: dict(str, 64), unsupported: list(str, 0, 64) },
-  { lifePoint: int(1, 999), maxCost: int(0, 999), costScale: num(0.01, 100), blockAdd: int(-10, 10),
+const enemyMul = list(obj({ mods: dict(num(0, 1000), 8) }, { enemy: list(str, 0, 64), exclude: list(str, 0, 64) }), 0, 16);
+const difficulty = obj({ enemyMul, hiddenGroups: list(str, 0, 64), replace: dict(str, 64), unsupported: list(str, 0, 64) },
+  { talentMul: enemyMul, lifePoint: int(1, 999), maxCost: int(0, 999), costScale: num(0.01, 100), blockAdd: int(-10, 10),
     ours: list(obj({ key: str, professions: int(0, 1023), board: list(list(either(num(), str), 2, 2), 0, 32) }), 0, 32) });
 /** 阵地足球's settings (足球-1, 足球-6). */
 const football = obj({
   time: num(1, 36000), wait: num(0, 3600), stamps: list(int(0, 999), 0, 8), ahead: list(list(int(0, 1e6), 2, 2), 1, 32), weights: dict(list(num(0, 1e6), 1, 64), 32),
-  teams: list(obj({ name: str, weight: num(0, 1e6), players: dict(str, 8) }), 1, 16), roles: dict(str, 8),
-});
+  teams: list(obj({ name: str, weight: num(0, 1e6), players: dict(str, 8) }, { elite: dict(str, 8) }), 1, 16), roles: dict(str, 8),
+}, { catchUp: obj({ maxHp: num(0, 100), atk: num(0, 100), moveSpeed: num(0, 100) }) });
 const device = obj({
   name: str, maxHp: num(1, 1e9), atk: num(0, 1e7), def: num(0, 1e6), res: num(-100, 100), blockCnt: int(0, 99), cost: int(0, 99), aspd: num(1, 1000), baseAttackTime: num(0.05, 600),
   tauntLevel: int(-10, 10), massLevel: int(0, 10), talentBb: bb, talents: list(bb, 0, 16),

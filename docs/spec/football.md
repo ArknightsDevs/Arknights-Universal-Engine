@@ -54,13 +54,13 @@
 
 阵地足球关的设置来自合作战斗表与关卡（内容整理成关卡的 `football`）：比赛时长（关卡选项 `maxPlayTime`，IG-FT-1 为 300 秒）、开球后球员的等待（`footballPlayersWaitTimeOnWaveStart`，3 秒）、领先球数到开球等级的对照（`footballAheadGoalCntFactor`）、每个开球等级下各波次标签的权重（`footballLevelOfWaveFactor`）、球队与球员（`footballTeamWeights`、`footballTeamPlayers`、`footballPlayersName`）。
 
-- **球队**：战斗开始时按权重抽一支球队（随机-2），整场不变。可抽的是阵地队（标准）、战术队、爱球会、球德联四支。
-- **球员**：波次里的标准队球员（名字中带 `mumssi` 的击球手、`mubufn` 的守门员、`mugnfu` 的击人手）出场时换成本场球队同一角色的球员。组装关卡时保留四支球队的全部球员（关卡-2 的出场敌人）。
+- **球队**：战斗开始时在权重大于 0 的球队里按权重抽一支（随机-2），整场不变。可抽的是阵地队（标准）、战术队、爱球会、球德联四支；IG-S-4 不抽阵地队（权重当作 0）。
+- **球员**：波次里的标准队球员（名字中带 `mumssi` 的击球手、`mubufn` 的守门员、`mugnfu` 的击人手）出场时换成本场球队同一角色的球员。难度把标准队球员换成了精英（关卡-2 的 `level_enemy_replace`，名字加 `_2`，如 IG-FT-2 与 IG-S-4）时，换上的是本场球队同一角色的精英球员：该队球员加 `_2`、关卡的敌人引用里有的那名（如战术队精英击球手 enemy_4022_mushtm_2）。组装关卡时保留可抽到的球队在这个难度会出场的全部球员（关卡-2 的出场敌人）。
 - **开球**：每个波次是一种开球布局，带标签 `advancedWaveTag`（0～9）；只有数字才是标签，别的关卡在这一栏写的文字（`stage`、`bosswave` 等）不读。开新一波时，取我方领先球数（落后按 0 算）所达到的表中最后一项的开球等级；按这一等级的权重抽一个标签（随机-2）；再在带这个标签的波次中等概率抽一个（随机-1），开始这一波。波次照常出怪和激活预部署单位（波次-1、波次-6），波次里的随机组照常抽取（波次-5）。阵地足球的波次没有最后一波。
 - **等待**：一次开球出场的球员，在开球（这一波开始的那一帧）后的等待时间内不移动、不攻击、不使用能力（Buff `kickoff`）；从开球帧 + 等待时间那一帧起行动。球和其他敌人不等待。
 - **状态**：阵地足球的进度（本场球队、双方进球、当前开球的帧、比赛结束的帧）是状态的一部分，进入快照和状态哈希。
 
-- 来源：数据：cooperate_battle_table 的 `footballAheadGoalCntFactor`、`footballLevelOfWaveFactor`、`footballTeamWeights`、`footballTeamPlayers`、`footballPlayersName`、`footballPlayersWaitTimeOnWaveStart`；关卡 `level_act1multi_football` 的 `options.maxPlayTime`、波次的 `advancedWaveTag`；[PRTS「促融共竞」oldid=377839](https://prts.wiki/index.php?title=%E4%BF%83%E8%9E%8D%E5%85%B1%E7%AB%9E&oldid=377839)「参赛的敌方球员组成了不同的球队，每次比赛都会随机登场其中一支队伍作为本次的对手」与参赛对手一览；[PRTS「阵地足球锦标」oldid=434049](https://prts.wiki/index.php?title=%E9%98%B5%E5%9C%B0%E8%B6%B3%E7%90%83%E9%94%A6%E6%A0%87&oldid=434049) 参赛球队一览（直球队、门神会、魔球帮标为新增）；四支球队、开球等级的取法与等概率抽波次为推断 INF-0625，等待的对象与起止为推断 INF-0626
+- 来源：数据：cooperate_battle_table 的 `footballAheadGoalCntFactor`、`footballLevelOfWaveFactor`、`footballTeamWeights`、`footballTeamPlayers`、`footballPlayersName`、`footballPlayersWaitTimeOnWaveStart`；关卡 `level_act1multi_football` 的 `options.maxPlayTime`、波次的 `advancedWaveTag`；[PRTS「促融共竞」oldid=377839](https://prts.wiki/index.php?title=%E4%BF%83%E8%9E%8D%E5%85%B1%E7%AB%9E&oldid=377839)「参赛的敌方球员组成了不同的球队，每次比赛都会随机登场其中一支队伍作为本次的对手」与参赛对手一览；[PRTS「阵地足球锦标」oldid=434049](https://prts.wiki/index.php?title=%E9%98%B5%E5%9C%B0%E8%B6%B3%E7%90%83%E9%94%A6%E6%A0%87&oldid=434049) 参赛球队一览（直球队、门神会、魔球帮标为新增）；[PRTS「IG-FT-2 大力出奇迹」oldid=428765](https://prts.wiki/index.php?title=IG-FT-2%20%E5%A4%A7%E5%8A%9B%E5%87%BA%E5%A5%87%E8%BF%B9&oldid=428765) 情报「[[“脚脚生风”阵地击球手]]，[[“头头是门”阵地守门员]]，[[“锤锤到肉”阵地击人手]]可能替换为战术队/爱球会/球德联系列的对应精英敌人组，于本场比赛中不再改变」；[PRTS「IG-S-4 大力出奇迹」oldid=428766](https://prts.wiki/index.php?title=IG-S-4%20%E5%A4%A7%E5%8A%9B%E5%87%BA%E5%A5%87%E8%BF%B9&oldid=428766) 情报「将会遭遇下列球员之一：战术队/爱球会/球德联精英球员」；数据：两关的 `enemyDbRefs` 列着四支球队的 `_2`；第一季录像（哔哩哔哩 BV173JM6iErM，2025.4 促融共竞#1 阵地足球）的四场 IG-FT-2 里出现「爱球会荣誉守门员」「战术队精英守门员」「“头头是门”阵地守门员」「球德联老牌守门员」，一场 IG-S-4 里出现「爱球会荣誉守门员」；四支球队、开球等级的取法与等概率抽波次为推断 INF-0625，等待的对象与起止为推断 INF-0626，精英球员的取法为推断 INF-0648，IG-S-4 不抽阵地队为推断 INF-0649
 
 ### 足球-7 进球与结束
 
@@ -99,9 +99,9 @@
 
 ### 足球-11 击人手
 
-`searchtarget` 的 `range_radius` 以内、阻挡数大于 0 的我方单位（干员、我方装置）中最近的一个，是击人手自主移动的目标（足球-9）；被阻挡时照常攻击阻挡它的单位（敌人攻击-1）。`periodic_damage` 的 `damage` 为 0 时什么也不做。
+`searchtarget` 的 `range_radius` 以内、阻挡数大于 0 的我方单位（干员、我方装置）中最近的一个，是击人手自主移动的目标（足球-9）；被阻挡时照常攻击阻挡它的单位（敌人攻击-1）。`periodic_damage` 的 `damage` 为 0 时什么也不做；“锤锤到肉”阵地击人手的 330 是敌能-50 的每秒自身真实伤害（内容补上 `self`）。
 
-- 来源：[PRTS「阵地击人手」oldid=437053](https://prts.wiki/index.php?title=%E9%98%B5%E5%9C%B0%E5%87%BB%E4%BA%BA%E6%89%8B&oldid=437053)「持续追踪半径2.0范围内距离自身最近的阻挡数>0的我方单位进行移动」「·优先攻击我方干员」；数据：enemy_database 的 `searchtarget.range_radius`、`periodic_damage.damage`（0）；直线移动同推断 INF-0628
+- 来源：[PRTS「阵地击人手」oldid=437053](https://prts.wiki/index.php?title=%E9%98%B5%E5%9C%B0%E5%87%BB%E4%BA%BA%E6%89%8B&oldid=437053)「持续追踪半径2.0范围内距离自身最近的阻挡数>0的我方单位进行移动」「·优先攻击我方干员」；数据：enemy_database 的 `searchtarget.range_radius`、`periodic_damage.damage`（0；“锤锤到肉”为 330）；[PRTS「“锤锤到肉”阵地击人手」oldid=435315](https://prts.wiki/index.php?title=%E2%80%9C%E9%94%A4%E9%94%A4%E5%88%B0%E8%82%89%E2%80%9D%E9%98%B5%E5%9C%B0%E5%87%BB%E4%BA%BA%E6%89%8B&oldid=435315) 天赋栏没写这一条（只在注释里留着 blackboard）；直线移动同推断 INF-0628，“锤锤到肉”的 330 为推断 INF-0650
 
 ### 足球-12 阵地屏障
 
@@ -160,3 +160,8 @@
 
 - 来源：[PRTS「高能源石球」oldid=435877](https://prts.wiki/index.php?title=%E9%AB%98%E8%83%BD%E6%BA%90%E7%9F%B3%E7%90%83&oldid=435877)「初始爆炸计数器为10；自身每次进入失衡状态时，爆炸计数器+[-6.0,-2.0)区间内的一个随机数」「爆炸计数器降至0时，延迟1.5s后对半径1.5范围内所有单位造成3s晕眩与1500点真实伤害，随后重置爆炸计数器至10」；[PRTS「漏气甲虫球」oldid=436197](https://prts.wiki/index.php?title=%E6%BC%8F%E6%B0%94%E7%94%B2%E8%99%AB%E7%90%83&oldid=436197)「每次进入失衡状态时，累计伤害阈值-2200（最多叠加3次）」；[PRTS「膨胀甲虫球」oldid=436302](https://prts.wiki/index.php?title=%E8%86%A8%E8%83%80%E7%94%B2%E8%99%AB%E7%90%83&oldid=436302)「每次进入失衡状态时，累计伤害阈值+150（最多叠加25次）」；[PRTS「北境意志球」oldid=435576](https://prts.wiki/index.php?title=%E5%8C%97%E5%A2%83%E6%84%8F%E5%BF%97%E7%90%83&oldid=435576)「进入未覆盖冰面的球场地块时，将该地块切换为冰面状态：摩擦力-0.3」；[PRTS「底海滑动球」oldid=435718](https://prts.wiki/index.php?title=%E5%BA%95%E6%B5%B7%E6%BB%91%E5%8A%A8%E7%90%83&oldid=435718)「进入未覆盖黏液的球场地块时，将改地块切换为粘液状态：摩擦力+0.3」；数据：enemy_database 的 `boom`、`airleakage`、`airinflation` 的 blackboard；冰面与黏液的作用方式、持续时间与「起滚」的判定为推断 INF-0640
 
+### 足球-17 领先时的追赶
+
+关卡的全局 Buff `cooperate_enemy_catch_up` 给出每领先一球球员增加的最大生命值、攻击力与移动速度的比例（IG-S-4 为 0.2、0.15、0.01；IG-FT-1 都是 0，不起作用）。本场球队的球员（含精英，足球-6）出场时，若我方领先 L 球（我方进球减对方进球，不足 0 不算），它的基础最大生命值、攻击力、移动速度分别乘以 1 + 比例 × L，满血出场。改的是基础值，重生（足球-9）后仍在。球和其他敌人不受影响。`attack_speed` 不为 0 时还不支持（提取时拒绝）。
+
+- 来源：[PRTS「IG-S-4 大力出奇迹」oldid=428766](https://prts.wiki/index.php?title=IG-S-4%20%E5%A4%A7%E5%8A%9B%E5%87%BA%E5%A5%87%E8%BF%B9&oldid=428766) 关卡描述「我方领先分数越多，对方球员的最大生命值、攻击力与移动速度越高」，情报「每个净胜球使所有敌方球员最大生命值+20%，攻击力+15%，移动速度+1%」；数据：关卡 `level_act1multi_football_hard-01` 与 `level_act1multi_football` 的 `globalBuffs`（`cooperate_enemy_catch_up` 的 `max_hp`、`atk`、`move_speed`、`attack_speed`）；生效的时机、乘在基础值上与重生后保留为推断 INF-0652
