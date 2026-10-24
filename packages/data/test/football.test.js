@@ -39,9 +39,9 @@ test('[足球-1] a level without both goals, or without the table, has none', ()
   assert.throws(() => footballField(FIELD, { maxPlayTime: 300 }, { ...COOP, footballTeamWeights: [] }, MISSIONS), /no normal/);
 });
 
-test('[足球-6] a wave\'s advancedWaveTag is its tag; a wave without one has none', () => {
-  const raw = [{ advancedWaveTag: '7', fragments: [] }, { advancedWaveTag: null, fragments: [] }, { fragments: [] }];
-  assert.deepEqual(extractWaves(raw, (i) => i).map((w) => w.tag), [7, undefined, undefined]);
+test('[足球-6] a wave\'s advancedWaveTag of digits is its tag; a wave without one, or with a word there as other levels have, has none', () => {
+  const raw = [{ advancedWaveTag: '7', fragments: [] }, { advancedWaveTag: null, fragments: [] }, { fragments: [] }, { advancedWaveTag: 'stage', fragments: [] }, { advancedWaveTag: '', fragments: [] }];
+  assert.deepEqual(extractWaves(raw, (i) => i).map((w) => w.tag), [7, undefined, undefined, undefined, undefined]);
 });
 
 test('[足球-14] a tile whose blackboard says landball is one of our half a ball card may be deployed on', () => {
