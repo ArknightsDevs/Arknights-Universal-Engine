@@ -7,6 +7,7 @@ import { KIND } from '@aue/schema';
 import { addBuff, makeBuff, removeBuff } from './buffs.js';
 import { board, alight } from './routes.js';
 import { tileAt } from './level.js';
+import { PREDEFINED } from './constants.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 
@@ -66,11 +67,12 @@ export function goalkeepers(w) {
 
 /**
  * A goalkeeper stops a ball (足球-14): the ball leaves the field — hidden where it is, nothing touching it — and the
- * goalkeeper's seat holds it until the card's time is up, with the tile it was caught on.
+ * goalkeeper's seat holds it until the card's time is up, with the tile it was caught on; a predefined operator's
+ * catch (波次-7, the level's own) is the first seat's.
  * @param {World} w @param {Unit} b @param {Unit} by
  */
 export function catchBall(w, b, by) {
-  const p = w.players[by.owner];
+  const p = w.players[by.key.endsWith(PREDEFINED) ? 0 : by.owner];
   if (!p || !b.ball) return;
   board(b);
   b.ball.touch = [];

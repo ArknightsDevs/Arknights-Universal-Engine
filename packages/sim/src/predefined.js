@@ -5,11 +5,12 @@
 import { DIR, KIND } from '@aue/schema';
 import { makeOperator } from './units.js';
 import { arrive } from './commands.js';
+import { PREDEFINED } from './constants.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
 
 /** The content key of a predefined operator. @param {string} alias */
-export const predefinedKey = (alias) => `${alias}#pre`;
+export const predefinedKey = (alias) => `${alias}${PREDEFINED}`;
 
 /** Whether a predefined unit is an operator of the content (波次-7). @param {Content} c @param {string} alias */
 export const isPredefinedOperator = (c, alias) => Object.hasOwn(c.operators, predefinedKey(alias)) && (c.level.predefines ?? []).some((x) => x.alias === alias && x.build);

@@ -141,9 +141,16 @@ export function hiddenGroupsOf(runesRaw, difficulty) {
 }
 
 /**
+ * Whether a predefined instance is an operator (波次-7): a character instance with a tile that has no alias or is an
+ * operator's (its key `char_…`). @param {string} list the predefines list it is in @param {Record<string, unknown>} o @param {string} key
+ */
+export const predefinedOperator = (list, o, key) => list === 'characterInsts' && !!o.position && typeof o.position === 'object' && (!o.alias || key.startsWith('char_'));
+
+/**
  * The predefined units (波次-6): the character and token instances that have an alias, with their key, whether they
  * start hidden, and their tile and facing when the data gives them; and the predefined operators (波次-7): the
- * character instances without an alias that have a tile, by their key, with their training (`build`).
+ * character instances with a tile that have no alias or are operators, by their alias (else their key), with their
+ * training (`build`).
  * @param {unknown} raw level.predefines
  * @returns {{ alias: string, key: string, hidden: boolean, row?: number, col?: number, dir?: string, build?: ReturnType<typeof levelBuild> }[]}
  */
@@ -153,10 +160,9 @@ export function predefinesOf(raw) {
   return ['characterInsts', 'tokenInsts'].flatMap((k) => (Array.isArray(pd[k]) ? pd[k] : []).flatMap((x, i) => {
     const p = `level.predefines.${k}[${i}]`, o = asObject(x, p);
     const pos = o.position && typeof o.position === 'object' ? asObject(o.position, `${p}.position`) : null;
-    const operator = !o.alias && k === 'characterInsts' && pos !== null;
+    const key = keyOf(o, p), operator = predefinedOperator(k, o, key);
     if (!o.alias && !operator) return [];
-    const key = keyOf(o, p);
-    return [{ alias: operator ? key : asString(o.alias, `${p}.alias`), key, hidden: o.hidden === true,
+    return [{ alias: o.alias ? asString(o.alias, `${p}.alias`) : key, key, hidden: o.hidden === true,
       ...(pos ? { row: asInt(field(pos, 'row', `${p}.position`), `${p}.position.row`, 0, 99), col: asInt(field(pos, 'col', `${p}.position`), `${p}.position.col`, 0, 99) } : {}),
       ...(typeof o.direction === 'string' ? { dir: o.direction } : {}), ...(operator ? { build: levelBuild(o, p) } : {}) }];
   }));
@@ -166,18 +172,18 @@ export function predefinesOf(raw) {
 const keyOf = (o, p) => asString(field(asObject(field(o, 'inst', p), `${p}.inst`), 'characterKey', `${p}.inst`), `${p}.inst.characterKey`);
 
 /**
- * The cards a level gives (关卡-7): its character cards with their training, and its token cards with how many and
- * whether they start hidden (and the alias a wave action shows them by).
+ * The cards a level gives (关卡-7): its character cards with their training, and its token cards with how many; each
+ * with whether it starts hidden (and the alias a wave action shows it by).
  * @param {unknown} raw level.predefines
- * @returns {{ operators: { key: string, build: ReturnType<typeof levelBuild> }[], tokens: { key: string, alias: string, count: number, hidden: boolean }[] }}
+ * @returns {{ operators: { key: string, build: ReturnType<typeof levelBuild>, alias?: string, hidden?: true }[], tokens: { key: string, alias: string, count: number, hidden: boolean }[] }}
  */
 export function levelCardsOf(raw) {
   if (raw === null || raw === undefined) return { operators: [], tokens: [] };
   const pd = asObject(raw, 'level.predefines');
   return {
     operators: (Array.isArray(pd.characterCards) ? pd.characterCards : []).map((x, i) => {
-      const p = `level.predefines.characterCards[${i}]`, o = asObject(x, p);
-      return { key: keyOf(o, p), build: levelBuild(o, p) };
+      const p = `level.predefines.characterCards[${i}]`, o = asObject(x, p), key = keyOf(o, p);
+      return { key, build: levelBuild(o, p), ...(o.hidden === true ? { alias: o.alias ? asString(o.alias, `${p}.alias`) : key, hidden: /** @type {const} */ (true) } : {}) };
     }),
     tokens: (Array.isArray(pd.tokenCards) ? pd.tokenCards : []).map((x, i) => {
       const p = `level.predefines.tokenCards[${i}]`, o = asObject(x, p), key = keyOf(o, p);

@@ -8,13 +8,13 @@
 
 1. 先取级别 0 的数据；
 2. 关卡的 `enemyDbRefs` 给这种敌人指定了级别时，用那个级别写明（`m_defined` 为 true）的字段覆盖；
-3. 再用 `enemyDbRefs` 的 `overwrittenData` 写明的字段覆盖。
+3. 再用 `enemyDbRefs` 的 `overwrittenData` 写明的字段覆盖。天赋（`talentBlackboard`）按键覆盖：它列出的每个键替换敌人同名的那一项，敌人没有的键加在后面，没列出的照旧；技能（`skills`）给出时整列替换。
 
 敌人的标签 `tags` 取 `enemyTags`（写明且不为空时），如 `machine`。
 
 `useDb` 为 false 时不查数据库，只用 `overwrittenData`。读出的字段：名字、生命、攻击、防御、法术抗性、移动速度、攻击间隔、阻挡数消耗、重量、元素抗性、损伤抵抗、各项免疫、攻击半径、攻击方式、移动方式、地位级别（`levelType`）、到达目标点扣的生命（`lifePointReduce`，目标-1），以及中立单位的 `dead.value`（合作-9）。
 
-- 来源：数据：enemy_database.enemies[].Value[].enemyData（每个字段带 `m_defined`）、level.enemyDbRefs[]（id、level、useDb、overwrittenData）；[PRTS「乌萨斯平民」oldid=436745](https://prts.wiki/index.php?title=%E4%B9%8C%E8%90%A8%E6%96%AF%E5%B9%B3%E6%B0%91&oldid=436745) 按「级别0」「级别1」分列敌人数值；覆盖的顺序为推断 INF-0066
+- 来源：数据：enemy_database.enemies[].Value[].enemyData（每个字段带 `m_defined`）、level.enemyDbRefs[]（id、level、useDb、overwrittenData）；[PRTS「乌萨斯平民」oldid=436745](https://prts.wiki/index.php?title=%E4%B9%8C%E8%90%A8%E6%96%AF%E5%B9%B3%E6%B0%91&oldid=436745) 按「级别0」「级别1」分列敌人数值；覆盖的顺序为推断 INF-0066；关卡的天赋覆写按键合并：[PRTS「IG-TR-2 规则教学-阵地足球」oldid=430161](https://prts.wiki/index.php?oldid=430161) 关卡内剧情「玫兰莎攻击足球一次」之后才「玫兰莎推动足球」（这关只把 RMA70 刺球的 `physic.value` 覆写为 900，球照常滚动），[PRTS「田鼷大盗」oldid=436670](https://prts.wiki/index.php?title=%E7%94%B0%E9%BC%B7%E5%A4%A7%E7%9B%97&oldid=436670)「装置的类型和数量取决于关卡配置」（IG-S-3 只覆写它的 `DeathPassive` 两项），所有关卡的 671 处天赋覆写里 212 处只列出原有键的一部分，为推断 INF-0655
 
 ### 关卡-2 难度与符文
 
@@ -57,9 +57,9 @@
 
 ### 关卡-7 关卡自带的卡
 
-关卡提取时一并记下关卡自带的卡（`cards`，只在关卡有的时候）：干员卡（`characterCards`）的干员 id 与练度（同 波次-7），装置卡（`tokenCards`）的 id、别名、张数和是否起初隐藏。引擎不把它们编进卡组：用固定阵容的玩法（训练场）由平台按它们组成对局设定里的卡组（同步-9）。
+关卡提取时一并记下关卡自带的卡（`cards`，只在关卡有的时候）：干员卡（`characterCards`）的干员 id 与练度（同 波次-7），装置卡（`tokenCards`）的 id、别名与张数，以及两种卡是否起初隐藏（隐藏的干员卡另记别名，没有别名时就是干员 id）：只有关卡里有动作会激活它的别名时才记为隐藏，没有动作激活的按不隐藏记（IG-TR-1 的克洛丝、末药、流星）。引擎不把它们编进卡组：用固定阵容的玩法（训练场）由平台按它们组成对局设定里的卡组（同步-9）。
 
-- 来源：[PRTS「IG-TR-1 规则教学-常规项目」oldid=430163](https://prts.wiki/index.php?oldid=430163)「固定编队」（克洛丝、蛇屠箱、末药、流星的练度与技能）「我方装置」（赛场啦啦队，可部署数量 1）；数据：level.predefines.characterCards、tokenCards
+- 来源：[PRTS「IG-TR-1 规则教学-常规项目」oldid=430163](https://prts.wiki/index.php?oldid=430163)「固定编队」（克洛丝、蛇屠箱、末药、流星的练度与技能）「我方装置」（赛场啦啦队，可部署数量 1）；数据：level.predefines.characterCards、tokenCards；[PRTS「IG-TR-2 规则教学-阵地足球」oldid=430161](https://prts.wiki/index.php?oldid=430161)「固定编队」（玫兰莎、米格鲁、芙兰卡、红云、蛇屠箱、砾，数据里六张都起初隐藏）；没有动作激活的不隐藏为推断 INF-0657
 
 ### 关卡-8 测试中的关卡
 

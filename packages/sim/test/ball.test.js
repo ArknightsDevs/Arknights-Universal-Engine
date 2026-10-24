@@ -115,12 +115,12 @@ test('[足球-2] a ball at rest stays put; 晕眩 and 冻结 do not take; it doe
   assert.deepEqual([s.flags.stun, s.flags.freeze, s.flags.noAttack, s.flags.unblockable], [undefined, undefined, true, true]);
 });
 
-test('[足球-4] it slides with μg × its friction factor: from 4.5 tiles/s the distance of v²/2a, to within one frame', () => {
+test('[足球-4] it slides the exact way of μg × its friction factor: from 4.5 tiles/s the distance of v²/2a, short only by the 0.1 it stops at', () => {
   const { w, c, b } = field(['.................', '.................', '.................'], 1, 1);
   const op = operator(w, c, 'op', 1, 0);
   hit(w, c, op, b, 2300);
   const frames = roll(w, c, b), a = FRICTION * 0.7;
-  assert.ok(Math.abs(b.x - 1 - (4.5 * 4.5) / (2 * a)) < 4.5 / FPS, `${b.x - 1} vs ${(4.5 * 4.5) / (2 * a)}`);
+  assert.ok(Math.abs(b.x - 1 - (4.5 * 4.5 - 0.1 * 0.1) / (2 * a)) < 0.04 * 4.5 / FPS, `${b.x - 1} vs ${(4.5 * 4.5) / (2 * a)}`);
   assert.equal(b.y, 1);
   assert.ok(Math.abs(frames - ((4.5 - 0.1) / a) * FPS) <= 1, `${frames} frames`);
 });
@@ -143,19 +143,13 @@ test('[足球-4] a wall turns the speed across it back × the restitution; along
   assert.ok(b.y - 0.5 >= 0.3, 'its circle stays out of the wall row');
 });
 
-test('[足球-4] it hurts each unit of ours it runs into once — its speed × its attack, true damage — and rolls on', () => {
+test('[足球-4] it rolls through our units untouched: an operator in its way that cannot stop it takes nothing', () => {
   const { w, c, b } = field(['.................', '.................', '.................'], 1, 1);
   const kicker = operator(w, c, 'op', 1, 0), inWay = operator(w, c, 'op', 1, 3);
   hit(w, c, kicker, b, 2300);
   const hp = inWay.hp;
-  let speedAtHit = 0;
-  for (let i = 0; i < 60 && b.slide; i++) {
-    const s = b.slide, v = Math.sqrt(s.vx * s.vx + s.vy * s.vy) - (FRICTION * 0.7) / FPS;
-    step(w, c);
-    if (inWay.hp < hp && !speedAtHit) speedAtHit = v;
-  }
-  assert.ok(speedAtHit > 0, 'it was hit');
-  assert.ok(Math.abs(hp - inWay.hp - speedAtHit * 10000) < 1e-6, `${hp - inWay.hp} vs ${speedAtHit * 10000}`);
+  roll(w, c, b);
+  assert.equal(inWay.hp, hp);
   assert.ok(b.x > 3.5, 'it rolled through');
 });
 
@@ -211,15 +205,17 @@ test('[足球-12] a ball bounces off a barrier\'s 0.9 square × its restitution,
   const { w, c, b } = field(['.........', '.........', '.........'], 1, 1);
   const kicker = operator(w, c, 'op', 1, 0), bar = barrier(w, c, 1, 4);
   hit(w, c, kicker, b, 2300);
-  let speed = 0;
+  let after = 0, mean = 0;
   for (let i = 0; i < 60 && b.slide && b.slide.vx > 0; i++) {
-    speed = b.slide.vx - (FRICTION * 0.7) / FPS;
+    // its speed after this frame's friction, and the frame's mean speed it moved — and hit — at
+    after = b.slide.vx - (FRICTION * 0.7) / FPS;
+    mean = b.slide.vx - (FRICTION * 0.7) / (2 * FPS);
     step(w, c);
   }
   const s = /** @type {NonNullable<Unit['slide']>} */ (b.slide);
-  assert.ok(Math.abs(s.vx - -speed * 0.75) < 1e-9, `vx ${s.vx} vs ${-speed * 0.75}`);
+  assert.ok(Math.abs(s.vx - -after * 0.75) < 1e-9, `vx ${s.vx} vs ${-after * 0.75}`);
   assert.ok(b.x + 0.3 <= 4 - 0.45 + 1e-9, 'its circle stays out of the square');
-  assert.ok(Math.abs(bar.maxHp - bar.hp - speed * 10000 * 5) < 1e-3, `${bar.maxHp - bar.hp} vs ${speed * 10000 * 5}`);
+  assert.ok(Math.abs(bar.maxHp - bar.hp - mean * 10000 * 5) < 1e-3, `${bar.maxHp - bar.hp} vs ${mean * 10000 * 5}`);
 });
 
 test('[足球-12] a barrier takes nothing of damage with no source; its tile is a 类障碍物地块 while it stands', () => {

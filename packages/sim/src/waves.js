@@ -100,7 +100,7 @@ const frames = (seconds) => secondsToFrames(Math.max(0, seconds));
 
 /**
  * A wave begins (波次-2, 波次-5): its random alternatives are drawn and its preDelay starts. After the last wave: done. In
- * 阵地足球 the next is the kickoff's layout (足球-6), and there is always one.
+ * 阵地足球 the next is the kickoff's layout (足球-6): with kickoff tags there is always one, without them they go in order.
  * @param {World} w @param {Content} c @param {number} at the frame it begins
  */
 function beginWave(w, c, at) {

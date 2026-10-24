@@ -43,12 +43,13 @@ export function devour(e, t) {
 }
 
 /**
- * Whether a deck card is held back (波次-9): its unit is one of the level's token cards hidden at first (关卡-7) and that
- * card's alias has not come into effect (波次-6). @param {World} w @param {Content} c @param {string} key the card (unit id#seat)
+ * Whether a deck card is held back (波次-9): its unit is one of the level's cards hidden at first (关卡-7) — a token's or
+ * an operator's — and that card's alias has not come into effect (波次-6). @param {World} w @param {Content} c @param {string} key the card (unit id#seat)
  */
 export function cardHidden(w, c, key) {
-  const id = key.split('#')[0], t = c.level.cards?.tokens.find((x) => x.key === id && x.hidden);
-  return t !== undefined && !w.predefined.includes(t.alias);
+  const id = key.split('#')[0], cards = c.level.cards;
+  const t = cards?.tokens.find((x) => x.key === id && x.hidden) ?? cards?.operators?.find((x) => x.key === id && x.hidden);
+  return t?.alias !== undefined && !w.predefined.includes(t.alias);
 }
 
 /**

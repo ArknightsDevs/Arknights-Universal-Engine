@@ -1,9 +1,10 @@
 // 足球 (docs/spec/football.md 足球-2…足球-5): a ball takes no damage; what our units deal it adds up — a direction for
 // each hit, a fifth of it from a unit not on its tile or the four beside it — until the total reaches the ball's
 // threshold, and then it is kicked at its own force along the summed direction (the kick itself is displacement.js's,
-// the hook football.js's). It slides like any 失衡 (位移-3) but with its own friction, bounces off walls by its
-// restitution, hurts the units of ours it runs into, stops by one of ours that can still block it, and a goal is
-// scored when its centre enters a goal tile.
+// the hook football.js's). It slides like any 失衡 (位移-3) but the exact way under its own friction, bounces off walls
+// and barriers by its restitution — a barrier hurt by it —, rolls through our units, stops by one of ours that can
+// still block it, and a goal is scored when its centre enters a goal tile.
+import { FPS } from '@aue/math';
 import { KIND, SCORE_GOAL } from '@aue/schema';
 import { FRICTION, ALLY_COLLIDER_RADIUS } from './constants.js';
 import { statsOf } from './attrs.js';
@@ -100,6 +101,12 @@ const coverOf = (w, c, b) => {
 
 /** A ball's friction (足球-4, 足球-16): 位移-3's μg × its own factor with its tile's ice or slime, not below 0. @param {Content} c @param {Unit} b @param {World} [w] */
 export const ballFriction = (c, b, w) => FRICTION * Math.max(0, (b.ball?.f ?? 1) + coverOf(w, c, b));
+
+/**
+ * How far a ball rolls in a frame (足球-4): at speed v (tiles/s) under a deceleration f (tiles/s²), the exact way — v·dt −
+ * f·dt²/2 —, or v²/2f when it stops within the frame. @param {number} v @param {number} f
+ */
+export const ballRoll = (v, f) => (v > f / FPS ? (v - f / (2 * FPS)) / FPS : (v * v) / (2 * f));
 
 /**
  * A ball that leaves ice or slime covers the 球场 tile it is on with it (足球-16), whatever covered it before.
@@ -232,26 +239,21 @@ export function hurtStep(w, c, b) {
 export const ballScale = (c, u) => (u.kind === KIND.DEVICE ? c.devices?.[u.key]?.ballDamage ?? 1 : 1);
 
 /**
- * Whether a sliding ball touches a unit this frame (足球-4, 足球-12): an operator or a device within its circle and
- * the unit's collider; one with a square body when the ball bounced off it.
- * @param {Content} c @param {Unit} b @param {Set<number>} bumped @param {Unit} u
+ * Whether a sliding ball runs into a unit this frame (足球-4, 足球-12): only a unit with a square body (阵地屏障), when
+ * the ball bounced off it; an operator or another device it passes, untouched.
+ * @param {Content} c @param {Set<number>} bumped @param {Unit} u
  */
-function touches(c, b, bumped, u) {
-  if (!kicker(u) || !(u.hp > 0) || u.hidden) return false;
-  if (squareHalf(c, u) > 0) return bumped.has(u.id);
-  const reach = BALL_RADIUS + COLLIDER;
-  return (u.x - b.x) * (u.x - b.x) + (u.y - b.y) * (u.y - b.y) < reach * reach;
-}
+const touches = (c, bumped, u) => kicker(u) && u.hp > 0 && !u.hidden && squareHalf(c, u) > 0 && bumped.has(u.id);
 
 /**
- * The units a sliding ball runs into this frame (足球-4, 足球-12): each new one takes true damage of the ball's speed ×
- * its attack, × a device's `ballDamage`; one still touching it from the frame before takes none.
+ * The units a sliding ball runs into this frame (足球-4, 足球-12): each new one takes true damage of the ball's speed
+ * (tiles/s) × its attack, × a device's `ballDamage`; one still touching it from the frame before takes none.
  * @param {World} w @param {Content} c @param {Unit} b @param {number} speed its speed this frame, tiles/s
  */
 export function collide(w, c, b, speed) {
   const s = /** @type {Ball} */ (b.ball), bumped = new Set(s.bump ?? []);
   delete s.bump;
-  const now = w.units.filter((u) => touches(c, b, bumped, u));
+  const now = w.units.filter((u) => touches(c, bumped, u));
   const before = new Set(s.touch);
   s.touch = now.map((u) => u.id);
   const amount = speed * statsOf(b).atk;

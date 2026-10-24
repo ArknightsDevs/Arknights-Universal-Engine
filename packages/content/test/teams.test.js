@@ -27,7 +27,8 @@ function field(units, barrierRows = []) {
   const predefines = barrierRows.map((r) => ({ alias: `bar#${r}`, key: 'trap_154_mugtps', hidden: true, row: r, col: 1, dir: 'UP' }));
   const c = /** @type {any} */ ({
     level: { id: 'ft', width: 13, height: 9, tiles: F.level.tiles, routes, predefines, football: F.level.football,
-      waves: [{ preDelay: 0, postDelay: 0, maxWait: -1, fragments: [{ preDelay: 0, actions: units.map(([key], i) => ({ type: 'SPAWN', key, route: i, count: 1, preDelay: 0, interval: 1 })) }] }],
+      // a kickoff tag, as IG-FT-1's waves have (足球-6): a team is drawn
+      waves: [{ preDelay: 0, postDelay: 0, maxWait: -1, tag: 0, fragments: [{ preDelay: 0, actions: units.map(([key], i) => ({ type: 'SPAWN', key, route: i, count: 1, preDelay: 0, interval: 1 })) }] }],
       options: { maxLifePoint: 99, initialCost: 99, maxCost: 99, costIncreaseTime: 1, characterLimit: 8, moveMultiplier: 0.5 } },
     enemies: Object.fromEntries(units.map(([k]) => [k, withFoeExtras(k, E[k])])),
     devices: profiledDevices({ trap_154_mugtps: F.devices.trap_154_mugtps }).devices,

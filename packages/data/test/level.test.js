@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { extractLevel, difficultyOf, mergeEnemyData, enemyOf } from '../src/index.js';
+import { extractLevel, difficultyOf, mergeEnemyData, overwriteEnemyData, enemyOf } from '../src/index.js';
 import { sharedEnemies } from '../src/enemies.js';
 import { extractLevelFromCheckout } from '../src/cli/level.js';
 
@@ -66,6 +66,11 @@ test('[关卡-1] enemies: level 0, then the level the level asks for, then its o
   missing.enemyDbRefs[0].level = 3;
   assert.throws(() => extractLevel({ id: 'lv', level: missing, enemyDb: db(), commit: '' }), /no level 3/);
   assert.deepEqual(mergeEnemyData({ a: wrap(1), attributes: { x: wrap(1) } }, { a: undef(9), b: wrap(2), attributes: null }, 'p'), { a: wrap(1), b: wrap(2), attributes: { x: wrap(1) } });
+  // a level's talents key by key (IG-TR-2's ball: only physic.value 900, its friction and force kept)
+  const bb = (/** @type {string} */ key, /** @type {number} */ value) => ({ key, value, valueStr: null });
+  const over = /** @type {any} */ (overwriteEnemyData({ talentBlackboard: [bb('a.x', 1), bb('a.y', 2), bb('b.z', 3)], skills: [1, 2] }, { talentBlackboard: [bb('c.w', 4), bb('a.x', 9)], skills: [3] }, 'p'));
+  assert.deepEqual(over.talentBlackboard.map((/** @type {any} */ t) => [t.key, t.value]), [['a.x', 9], ['a.y', 2], ['b.z', 3], ['c.w', 4]], 'replaced in place, the new one after');
+  assert.deepEqual(over.skills, [3], 'skills given still replace the list');
 });
 
 test('[关卡-2] a difficulty\'s runes: hidden groups enabled and disabled, the life point, enemy multipliers with their filters, replacements', () => {

@@ -21,13 +21,14 @@ const TILES = Array.from({ length: 9 }, (_, r) => Array.from({ length: 13 }, (__
   : col === 0 ? tile('tile_allygoal', 'ALL', 'NONE') : col === 12 ? tile('tile_enemygoal', 'ALL', 'NONE') : tile('tile_football', 'ALL'))));
 
 /**
- * A field of IG-FT-1's shape with the given enemies at points, each waiting on its own route.
- * @param {[string, number, number][]} units [key, x, y]
+ * A field of IG-FT-1's shape with the given enemies at points, each waiting on its own route — or, `walking`, each on its
+ * way to their goal's column.
+ * @param {[string, number, number][]} units [key, x, y] @param {boolean} [walking]
  */
-function field(units) {
+function field(units, walking = false) {
   // each stands where it spawned: a long wait there, its end our goal (a route ending where it starts would leave at once)
-  const routes = units.map(([, x, y]) => ({ start: { row: y, col: x }, end: { row: y, col: 0 }, motion: 'WALK',
-    checkpoints: [{ type: 'WAIT_FOR_SECONDS', row: y, col: x, time: 999, dx: 0, dy: 0 }] }));
+  const routes = units.map(([, x, y]) => (walking ? { start: { row: y, col: x }, end: { row: y, col: 12 }, motion: 'WALK', checkpoints: [] }
+    : { start: { row: y, col: x }, end: { row: y, col: 0 }, motion: 'WALK', checkpoints: [{ type: 'WAIT_FOR_SECONDS', row: y, col: x, time: 999, dx: 0, dy: 0 }] }));
   const c = /** @type {any} */ ({
     level: { id: 'ft', width: 13, height: 9, tiles: TILES, routes, waves: [{ preDelay: 0, postDelay: 0, maxWait: -1, fragments: [{ preDelay: 0,
       actions: units.map(([key], i) => ({ type: 'SPAWN', key, route: i, count: 1, preDelay: 0, interval: 1 })) }] }],
@@ -69,6 +70,20 @@ test('[足球-10] the only forward with a ball within 0.2 holds it and shoots at
   assert.ok(v <= 450 * 1.5 * 0.01 && v > 450 * 1.5 * 0.01 - 0.25, `speed ${v}`);
   assert.ok(s.vx < 0, 'toward our goal, the column 0');
   assert.equal(b.ball?.sel, undefined, 'freed by the kick');
+});
+
+test('[足球-10] from the touch to the end of its skill the player stays: its route does not walk it out of reach, and the kick comes', () => {
+  // its route goes right, away from the ball on its left
+  const { w, c } = field([[FORWARD, 6, 4], [BALL, 5.85, 4]], true);
+  const f = by(w, FORWARD), b = by(w, BALL), [hit, end] = KICK_TIMES[FORWARD].slapshot.map((t) => Math.round(t * 30));
+  run(w, c, 1);
+  assert.equal(b.ball?.sel, f.id, 'held at the touch');
+  const x = f.x;
+  run(w, c, hit);
+  assert.ok(b.slide, 'kicked at its hit');
+  assert.equal(f.x, x, 'it stood through the touch and the hit');
+  run(w, c, end - hit - 2);
+  assert.equal(f.x, x, 'and to the end of the skill');
 });
 
 test('[足球-10] the goalkeeper clears a ball within 0.5 toward the middle column at 1.5 ×; it does not go left of its column 9', () => {

@@ -206,7 +206,8 @@ const football = Object.freeze({
     const free = ctx.balls().filter((b) => ctx.freeBall(b) && inArea(bb, b)).toSorted((a, b) => dist2(ctx.self, a) - dist2(ctx.self, b) || a.id - b.id);
     const near = free[0];
     if (!near || dist2(ctx.self, near) > radius * radius) return;
-    if (dist2(ctx.self, near) <= reach * reach) { startKick(ctx, near, bb, reach); return; }
+    // it stays from the touch on (足球-10): no step of its route takes the ball out of its reach
+    if (dist2(ctx.self, near) <= reach * reach) { startKick(ctx, near, bb, reach); ctx.chase(ctx.self.x, ctx.self.y); return; }
     ctx.chase(near.x, near.y);
   },
 });

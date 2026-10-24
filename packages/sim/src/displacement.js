@@ -13,7 +13,7 @@ import { displace } from './routes.js';
 import { crossable } from './paths.js';
 import { dealDamage } from './damage.js';
 import { FRICTION, STOP_SPEED, HARD_FRAMES } from './constants.js';
-import { ballFriction, ballMove, ballMoved } from './ball.js';
+import { ballFriction, ballMove, ballMoved, ballRoll } from './ball.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /**
@@ -215,15 +215,31 @@ export function slideStep(c, t, w) {
   const s = t.slide;
   if (!s) return false;
   if (statsOf(t).flags.staticBody) return staticStep(c, t, w);
-  const v = len(s.vx, s.vy), nv = Math.max(0, v - frictionOf(c, t, w) / FPS), k = v > 0 ? nv / v : 0, p = s.pull && s.pull.left > 0 ? s.pull : undefined;
+  const fr = frictionOf(c, t, w), v = len(s.vx, s.vy), nv = Math.max(0, v - fr / FPS), k = v > 0 ? nv / v : 0, p = s.pull && s.pull.left > 0 ? s.pull : undefined;
   const [vx, vy] = p ? pulled(t, p, s.vx * k, s.vy * k) : [s.vx * k, s.vy * k];
   t.slide = { vx, vy, hard: Math.max(0, s.hard - 1), ...(p ? { pull: { ...p, left: p.left - 1 } } : {}) };
   if (statsOf(t).flags.levitate) return settle(t, w, c);
-  const x0 = t.x, y0 = t.y, moving = len(t.slide.vx, t.slide.vy);
-  step(c, t, t.slide.vx / FPS, t.slide.vy / FPS, w);
+  const x0 = t.x, y0 = t.y, moving = slideMove(c, t, w, { vx: s.vx, vy: s.vy, v, fr, pulled: !!p });
   const tr = t.slide.pull?.trauma;
   if (tr && w) traumaStep(w, c, t, tr, hypot(t.x - x0, t.y - y0));
   return slideGoesOn(c, t, w, moving);
+}
+
+/**
+ * This frame's move of a slide (位移-3, 足球-4): at its speed after friction — a ball, not pulled, the exact way under
+ * its deceleration: at its mean speed over the frame, up to where it stops. The speed it moved at.
+ * @param {Content} c @param {Unit} t @param {World | undefined} w
+ * @param {{ vx: number, vy: number, v: number, fr: number, pulled: boolean }} was its velocity and speed before friction, the friction, whether pulled
+ */
+function slideMove(c, t, w, was) {
+  const s = /** @type {NonNullable<Unit['slide']>} */ (t.slide);
+  if (!t.ball || was.pulled || !(was.v > 0)) {
+    step(c, t, s.vx / FPS, s.vy / FPS, w);
+    return len(s.vx, s.vy);
+  }
+  const m = ballRoll(was.v, was.fr);
+  step(c, t, (was.vx / was.v) * m, (was.vy / was.v) * m, w);
+  return m * FPS;
 }
 
 /**

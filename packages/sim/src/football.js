@@ -67,13 +67,14 @@ export function goalTiles(c, which) {
 
 /**
  * One frame of a player moving on its own toward a point (足球-9): a straight step at its speed (路线-1's speed, none
- * while it cannot move), onto a tile it may stand on — not a 类障碍物地块 (足球-12) —; that is its move this frame.
- * Whether it moved.
+ * while it cannot move), onto a tile it may stand on — not a 类障碍物地块 (足球-12) —; that is its move this frame. At
+ * the point already it stays there, its route not walked (足球-10: still through a kick). Whether it moved or stayed.
  * @param {World} w @param {Content} c @param {Unit} e @param {number} x @param {number} y
  */
 export function chaseStep(w, c, e, x, y) {
   const sp = speedOf(c, e), dx = x - e.x, dy = y - e.y, d = Math.sqrt(dx * dx + dy * dy);
-  if (!(sp > 0) || !(d > 0)) return false;
+  if (!(sp > 0)) return false;
+  if (!(d > 0)) { e.ab['@held'] = w.frame; return true; }
   const k = d <= sp ? 1 : sp / d, nx = e.x + dx * k, ny = e.y + dy * k, t = tileAt(c.level, Math.round(ny), Math.round(nx));
   if (!passable(t, false) || t?.obstacle) return false;
   turnLR(e, dx);
@@ -132,14 +133,19 @@ function carry(w, c, e, b) {
   if (goal) scored(w, b, goal);
 }
 
+/** Whether a level's kickoffs follow its waves' tags (足球-6): some wave has one; else the waves go in order. @param {Content} c */
+const tagged = (c) => c.level.waves.some((x) => x.tag !== undefined);
+
 /**
- * 阵地足球's state at the start (足球-6): the team drawn by its weight among those that weigh more than 0 (随机-1), no
- * goals, the match's end; the first kickoff comes with the first wave.
+ * 阵地足球's state at the start (足球-6): the team drawn by its weight among those that weigh more than 0 (随机-1) — in
+ * a level without kickoff tags none is drawn, the standard team (the first) plays —, no goals, the match's end; the
+ * first kickoff comes with the first wave.
  * @param {World} w @param {Content} c @returns {FootballState}
  */
 export function newFootball(w, c) {
   const f = /** @type {FootballRules} */ (c.level.football), live = f.teams.flatMap((t, i) => (t.weight > 0 ? [i] : []));
-  return { team: live[weightedPick(w, live.map((i) => f.teams[i].weight))], home: 0, away: 0, kick: 0, until: secondsToFrames(f.time) };
+  const team = tagged(c) ? live[weightedPick(w, live.map((i) => f.teams[i].weight))] : 0;
+  return { team, home: 0, away: 0, kick: 0, until: secondsToFrames(f.time) };
 }
 
 /**
@@ -154,15 +160,17 @@ export function kickoffLevel(f, lead) {
 
 /**
  * The wave of the next kickoff (足球-6): the level by our lead; a tag by that level's weights (随机-2); one of the
- * waves of that tag, each as likely (随机-1). The kickoff's frame is noted.
+ * waves of that tag, each as likely (随机-1). In a level without kickoff tags, the wave after the last one (past the
+ * last: none, the waves are over). The kickoff's frame is noted.
  * @param {World} w @param {Content} c @param {number} at the frame it begins
  */
 export function kickoffWave(w, c, at) {
   const f = /** @type {FootballRules} */ (c.level.football), st = /** @type {FootballState} */ (w.football);
+  st.kick = at;
+  if (!tagged(c)) return w.sched.wave + 1;
   const weights = f.weights[String(kickoffLevel(f, st.home - st.away))] ?? f.weights['0'];
   const tag = weightedPick(w, weights);
   const of = c.level.waves.flatMap((x, i) => (x.tag === tag ? [i] : []));
-  st.kick = at;
   return of.length > 0 ? of[Math.floor(draw(w) * of.length)] : 0;
 }
 

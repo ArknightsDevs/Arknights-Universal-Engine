@@ -22,7 +22,7 @@
 /**
  * A level's own cards (关卡-7): its operator cards with their training, its token cards with their count, alias and
  * whether they are hidden at first (波次-9).
- * @typedef {{ operators: { key: string, build: import('@aue/schema').Build }[], tokens: { key: string, alias: string, count: number, hidden: boolean }[] }} LevelCards
+ * @typedef {{ operators: { key: string, build: import('@aue/schema').Build, alias?: string, hidden?: boolean }[], tokens: { key: string, alias: string, count: number, hidden: boolean }[] }} LevelCards
  */
 /**
  * A predefined unit (波次-6): its tile and facing when the data gives them; a predefined operator's training (波次-7).

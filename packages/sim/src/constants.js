@@ -35,3 +35,6 @@ export const STOP_SPEED = 0.1;
 
 /** The 失衡硬直 in frames (spec 位移-3: 0.1 s). */
 export const HARD_FRAMES = 3;
+
+/** What a predefined operator's content key ends with (spec 波次-7): its alias, then this. */
+export const PREDEFINED = '#pre';

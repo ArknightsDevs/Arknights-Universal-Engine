@@ -184,7 +184,7 @@ const levelBody = obj({
 }, {
   blockEdges: list(obj({ row: int(0, 63), col: int(0, 63), dir: oneOf('UP', 'DOWN', 'LEFT', 'RIGHT'), mask: oneOf('WALK_ONLY') }), 0, 1024),
   branches: dict(list(fragment, 0, 64), 64),
-  cards: obj({ operators: list(obj({ key: str, build }), 0, 16), tokens: list(obj({ key: str, alias: str, count: int(0, 99), hidden: bool }), 0, 16) }),
+  cards: obj({ operators: list(obj({ key: str, build }, { alias: str, hidden: bool }), 0, 16), tokens: list(obj({ key: str, alias: str, count: int(0, 99), hidden: bool }), 0, 16) }),
   fortress: obj({ life: int(1, 999), rest: int(0, 3600), restAdd: int(0, 3600), wave: int(0, 3600), waveLast: int(0, 3600) }),
   football,
 });

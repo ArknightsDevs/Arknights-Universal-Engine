@@ -195,10 +195,17 @@ function fortressField(raw) {
 /** The level's branches (守御-6), only when it has some. @param {Record<string, unknown>} branches */
 const branchesField = (branches) => (Object.keys(branches).length > 0 ? { branches } : {});
 
-/** The level's own cards (关卡-7), only when it has some. @param {unknown} raw level.predefines */
-function cardsField(raw) {
-  const cards = levelCardsOf(raw);
-  return cards.operators.length || cards.tokens.length ? { cards } : {};
+/**
+ * The level's own cards (关卡-7), only when it has some: a card hidden at first stays hidden only when an action of the
+ * level activates its alias (波次-9). @param {unknown} raw level.predefines @param {{ actions: { type: string, key: string }[] }[]} frags
+ */
+function cardsField(raw, frags) {
+  const cards = levelCardsOf(raw), shown = new Set(frags.flatMap((f) => f.actions.filter((a) => a.type === 'ACTIVATE').map((a) => a.key)));
+  if (!cards.operators.length && !cards.tokens.length) return {};
+  return { cards: {
+    operators: cards.operators.map(({ alias, hidden, ...o }) => (hidden && alias !== undefined && shown.has(alias) ? { ...o, alias, hidden } : o)),
+    tokens: cards.tokens.map((t) => ({ ...t, hidden: t.hidden && shown.has(t.alias) })),
+  } };
 }
 
 /**
@@ -228,7 +235,7 @@ export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage
   return {
     source: { repo: 'Kengxxiao/ArknightsGameData', commit, server: 'zh_CN', ...(view ? { view: view.source } : {}) },
     level: { id, ...stageNames(stage), width, height, options: extractOptions(field(lv, 'options', 'level')), tiles, ...(blockEdges.length > 0 ? { blockEdges } : {}),
-      routes, waves, ...branchesField(branches), predefines: predefinesOf(lv.predefines), stages: withTasks(stagesOf(lv.predefines), missions), ...cardsField(lv.predefines),
+      routes, waves, ...branchesField(branches), predefines: predefinesOf(lv.predefines), stages: withTasks(stagesOf(lv.predefines), missions), ...cardsField(lv.predefines, frags),
       ...fortressField(lv.globalBuffs), ...football,
       ...(view ? { view: viewOf(view.vector) } : {}), ...(typeof lv.bgmEvent === 'string' && lv.bgmEvent ? { bgm: lv.bgmEvent } : {}) },
     difficulties,
