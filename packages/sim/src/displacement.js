@@ -251,7 +251,8 @@ function traumaStep(w, c, t, tr, moved) {
 function settle(t, w, c) {
   const tr = t.slide?.pull?.trauma;
   if (tr && w && c && tr.moved > 0 && t.hp > 0) dealDamage(w, w.units.find((u) => u.id === tr.src && u.hp > 0) ?? null, t, { type: 'arts', amount: tr.moved * tr.per }, c);
-  t.slide = undefined;
+  // JSON drops undefined keys. Remove it here too so another slide has the same key order after a snapshot.
+  delete t.slide;
   displace(t, t.x, t.y);
   return false;
 }
