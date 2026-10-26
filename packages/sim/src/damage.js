@@ -34,7 +34,7 @@ import { stealthed, liftoffRefused } from './targeting.js';
  * @property {boolean} [isAttack] @property {boolean} [isSkill] @property {boolean} [isSplash] @property {boolean} [isProjectile]
  * @property {string[]} [tags]
  * @property {boolean} [canDodge]
- * @property {boolean} [hpLoss]
+ * @property {boolean} [hpLoss] @property {boolean} [noHurtSp] gives no 受击回复 (技能-2: 敌能-103's burn)
  * @property {boolean} [sourceless] 无来源 though credited to its source: the events see no source, the kill is its source's,
  *   without the source's penetration and multiplier (伤害-7)
  * @property {number} [stopAt] this hit does not take the target below this HP (敌能-46: 无法致死 stops at 1)
@@ -490,7 +490,7 @@ export function dealDamage(w, src, target, dmg, c) {
   settle(dmg);
   if (dmg.hpLoss) return loseHp(w, src, target, dmg.amount, dmg);
   if (hitStops(w, src, target, dmg)) return 0;
-  hurtSp(target);
+  if (!dmg.noHurtSp) hurtSp(target);
   tallyTaken(target);
   if (c && src && !dmg.sourceless) runeSp(w, c, src);
   const seen = seenOf(src, dmg), ss = seen ? statsOf(seen) : null;

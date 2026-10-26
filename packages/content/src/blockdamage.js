@@ -1,6 +1,7 @@
 // 莱茵生命防卫科 (docs/spec/foes.md 敌能-51): `max_block_damage_cnt` layers of 护盾 on appearing, minus
 // `block_damage_cnt` already spent. Each layer cancels one physical or arts instance (伤害-8) and does not return.
-// Talents also named Shield, without these keys, stay uncovered (关卡-2).
+// 异质源石虫's `Shield` (敌能-102) is its 屏障, in heteroslime.js. Other talents also named Shield stay uncovered (关卡-2).
+import { heteroShield, heteroSpawn } from './heteroslime.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior */
 
@@ -18,6 +19,7 @@ function layersOf(bb) {
 /** 护盾 (敌能-51): those layers, absorbing only physical and arts damage. Silence does not stop a talent the page leaves unsilenceable. @type {FoeBehavior} */
 const Shield = Object.freeze({
   spawn: (ctx) => {
+    if (heteroShield(ctx.bb)) { heteroSpawn(ctx); return; }
     const n = layersOf(ctx.bb);
     if (n <= 0) return;
     ctx.addBuff(ctx.self, { key: 'blockDamage', shieldHits: n, shieldType: 'phys+arts' });

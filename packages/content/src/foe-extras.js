@@ -9,6 +9,10 @@ const PRTS = 'https://prts.wiki/index.php?title=';
  * @type {Readonly<Record<string, { talents?: Record<string, Record<string, number | string>>, skills?: Record<string, Record<string, number | string>>, source: string }>>}
  */
 export const FOE_EXTRAS = Object.freeze({
+  // 酸液源石虫: 普通攻击不会攻击飞行单位；普通攻击附加1层持续时间无限的【源石虫酸液】：防御力-10（可无限叠加）
+  enemy_1004_mslime: { talents: { defdown: { acid: 1 }, noFly: {} }, source: `${PRTS}%E9%85%B8%E6%B6%B2%E6%BA%90%E7%9F%B3%E8%99%AB&oldid=442831` },
+  // “庞贝”: 可同时攻击4个目标，不会攻击飞行单位；被阻挡时每10秒对半径1.4范围内的所有我方单位造成1000预计算的无途径法术溅射伤害
+  enemy_1050_lslime: { talents: { Targets: { n: 4 }, noFly: {}, rangedamage: { radius: 1.4 } }, source: `${PRTS}%E2%80%9C%E5%BA%9E%E8%B4%9D%E2%80%9D&oldid=440874` },
   // “美食速递”: 占用3个阻挡数；对进入自身半径0.5范围内的位于低地的我方单位/“狂欢之主”造成攻击力100%的物理伤害（不可对空）
   enemy_10038_cnvpiz_2: { talents: { act38side_scale: { block: 3, ram: 1 } }, source: `${PRTS}%E2%80%9C%E7%BE%8E%E9%A3%9F%E9%80%9F%E9%80%92%E2%80%9D&oldid=435407` },
   // “醉后狂欢”: 占用3个阻挡数；仅进行阻挡攻击
