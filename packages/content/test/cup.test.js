@@ -197,3 +197,14 @@ test('[锦标-5] 充能飘浮球 is aloft — 近地悬浮, an air unit — whil
   const s = /** @type {any} */ (b).slide;
   assert.ok(landed > 0 && (!s || Math.hypot(s.vx, s.vy) <= 0.8 + 0.2), 'down again about when it slows to 0.8');
 });
+
+test('[锦标-7] the 14 levels carry the two relics; as a seat\'s runes they cut its 再部署时间 by 30% and give 10 initial SP', async () => {
+  const relics = LEVELS.act1football_05.level.football.cup.relics;
+  assert.deepEqual(relics.map((/** @type {any} */ r) => [r.id, r.name, r.unlockedBy]), [['act1football_relic_01', '体能充沛', 'act1football_s01'], ['act1football_relic_02', '技艺精湛', 'act1football_s02']]);
+  const build = { elite: 2, level: 90, potential: 1, trust: 0, skill: 1, skillLevel: 7 }, decks = [[{ id: 'char_010_chen', build }]];
+  const plain = await matchContent({ level: 'act1football_05', difficulty: 'NORMAL', seed: 1, decks });
+  const fit = await matchContent({ level: 'act1football_05', difficulty: 'NORMAL', seed: 1, decks, runes: [relics.flatMap((/** @type {any} */ r) => r.runes)] });
+  const a = plain.operators['char_010_chen#0'], b = fit.operators['char_010_chen#0'];
+  assert.ok(Math.abs(/** @type {number} */ (b.respawnTime) - /** @type {number} */ (a.respawnTime) * 0.7) < 1e-9, 'respawn × 0.7');
+  assert.equal(/** @type {any} */ (b).skill.init - /** @type {any} */ (a).skill.init, 10, 'initial SP + 10');
+});

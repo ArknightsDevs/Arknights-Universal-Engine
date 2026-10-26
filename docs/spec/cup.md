@@ -60,3 +60,12 @@
 特训赛（关卡配置 `team_type` 为 1 或 2）在战斗开始时从协作表 `footballTeamWeights` 里 `teamType` 相同的球队中按权重抽一队（随机-1，足球-6 的抽签）：PF-S-1（类型 1）是阵地队 `normal`、战术队 `shooter`、直球队 `liner`，PF-S-2（类型 2）是爱球会 `hurrier`、球德联 `kungfuer`、魔球帮 `superer`、门神会 `bigbroer`，各 10。波次里写的是标准队（阵地队）的球员与它们的 `_2`；出场时换成抽到的球队同角色的球员（足球-6 的换人），`_2` 换成那名球员的 `_2`（精英）。
 
 - 来源：[PRTS「PF-S-1 耐力拉练」oldid=428767](https://prts.wiki/index.php?title=PF-S-1%20%E8%80%90%E5%8A%9B%E6%8B%89%E7%BB%83&oldid=428767)、[PRTS「PF-S-2 盘带练习」oldid=428768](https://prts.wiki/index.php?title=PF-S-2%20%E7%9B%98%E5%B8%A6%E7%BB%83%E4%B9%A0&oldid=428768) 的关卡描述（「<随机球队>每场比赛会随机遇到阵地队、战术队或直球队的对手」「<随机球队>每场比赛会随机遇到门神会、爱球会、球德联或魔球帮的对手」）；数据：两关 `options.configBlackBoard` 的 `team_type`，协作表的 `footballTeamWeights`（`teamType`、`weight`）与 `footballTeamPlayers`，两关波次里的 enemy_4012_mumssi、enemy_4013_mubufn、enemy_4014_mugnfu 与它们的 `_2`
+
+### 锦标-7 训练效果与双方队名
+
+锦标关卡的阵地足球设置另带两项活动数据（活动表 `activity_table` 的 ACT_FOOTBALL 活动）：
+
+- **双方队名**（`cup.sides`）：这一关在活动的关卡附加数据（`stageAdditionDataMap`）里的我方与对方队名，如「罗德岛队」对「业余组」。
+- **训练效果**（`cup.relics`）：活动的 `trapRuneDataDict` 里以 `<活动>_relic_` 开头的每一项：编号、解锁它的关卡（关卡附加数据里 `unlockBuffDesc` 与它的描述相同的那一关，PF-S-1、PF-S-2）、那一关给它的名字（体能充沛、技艺精湛）与描述，以及它的符文，按座位符文的格式（同步-9：`key`、职业掩码、黑板）。玩家已解锁的训练效果作为座位符文交给对局（符文-1）：体能充沛是 `char_respawntime_mul`（再部署时间 × 0.7，符文-2），技艺精湛是 `env_gbuff_new` 的 `modify_sp[born]`（初始技力 +10）。解锁与否由平台记录，引擎只提供数据。
+
+- 来源：数据：`activity_table.json` 的 `activity.ACT_FOOTBALL.act1football.stageAdditionDataMap`（`selfTeamName`、`enemyTeamName`，act1football_s01「体能充沛」「所有干员的再部署时间-30%」、act1football_s02「技艺精湛」「所有干员的初始技力+10」）与 `trapRuneDataDict` 的 `act1football_relic_01`、`act1football_relic_02`；PF-3 攻略录像（哔哩哔哩 BV1DxEm6vEtx P4）编队界面的「“体能充沛”已生效」

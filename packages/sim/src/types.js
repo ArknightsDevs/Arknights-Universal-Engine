@@ -57,10 +57,15 @@
  * of the standard team's players, and what each goal of our lead adds to the players' max HP, ATK and move speed; a
  * 阵地足球锦标 level's settings (锦标-1): its manager's enemy move speed for its 冻人冬日 stadium, the lead that wins at
  * once (−1 for none), the change to the deploy limit in a penalty shootout (锦标-4), the type of team it draws
- * (锦标-6, −1 for none), and its stadium, or the stadiums it draws one of by their weights (锦标-2).
+ * (锦标-6, −1 for none), and its stadium, or the stadiums it draws one of by their weights (锦标-2); the two sides'
+ * names and the event's relics (锦标-7).
  * @typedef {{ time: number, wait: number, stamps: number[], ahead: [number, number][], weights: Record<string, number[]>,
  *   teams: { name: string, weight: number, players: Record<string, string>, elite?: Record<string, string> }[], roles: Record<string, string>,
- *   catchUp?: { maxHp: number, atk: number, moveSpeed: number }, cup?: { moveSpeed: number, mercy: number, kickerDelta?: number, teamType: number, stadium?: Stadium, stadiums?: Stadium[] } }} FootballRules
+ *   catchUp?: { maxHp: number, atk: number, moveSpeed: number }, cup?: { moveSpeed: number, mercy: number, kickerDelta?: number, teamType: number, stadium?: Stadium, stadiums?: Stadium[],
+ *     sides?: { ours: string, theirs: string }, relics?: CupRelic[] } }} FootballRules
+ * A 锦标 relic (锦标-7): its id, the name and text of the stage that unlocks it, that stage, and its runes as seat runes
+ * (同步-9).
+ * @typedef {{ id: string, name: string, text: string, unlockedBy?: string, runes: { key: string, professions: number, board: [string, number | string][] }[] }} CupRelic
  * A 锦标 stadium (锦标-2): its name, the hidden group of the waves it enables, the ice it lays on every field tile at
  * each kickoff, what the enemies' move speed is multiplied by, its lightning, its weight where one is drawn.
  * @typedef {{ name: string, group?: string, ice?: number, moveMul?: number, thunder?: ThunderDef, weight?: number }} Stadium

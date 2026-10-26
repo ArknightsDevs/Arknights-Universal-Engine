@@ -46584,7 +46584,53 @@
         "moveSpeed": 1.2,
         "stadiumType": 1,
         "mercy": 5,
-        "teamType": -1
+        "teamType": -1,
+        "sides": {
+          "ours": "罗德岛队",
+          "theirs": "业余组"
+        },
+        "relics": [
+          {
+            "id": "act1football_relic_01",
+            "name": "体能充沛",
+            "text": "所有干员的再部署时间-30%",
+            "unlockedBy": "act1football_s01",
+            "runes": [
+              {
+                "key": "char_respawntime_mul",
+                "professions": 639,
+                "board": [
+                  [
+                    "scale",
+                    0.7
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "id": "act1football_relic_02",
+            "name": "技艺精湛",
+            "text": "所有干员的初始技力+10",
+            "unlockedBy": "act1football_s02",
+            "runes": [
+              {
+                "key": "env_gbuff_new",
+                "professions": 639,
+                "board": [
+                  [
+                    "key",
+                    "modify_sp[born]"
+                  ],
+                  [
+                    "sp",
+                    10
+                  ]
+                ]
+              }
+            ]
+          }
+        ]
       }
     },
     "view": [

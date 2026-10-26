@@ -217,10 +217,10 @@ function cardsField(raw, frags) {
 /**
  * A whole level (关卡-1…关卡-5): `id` names it in the content.
  * @param {{ id: string, level: unknown, enemyDb: unknown, handbook?: unknown, commit: string, view?: { vector: unknown, source: string }, stage?: unknown,
- *   missions?: unknown, charTable?: unknown, coop?: unknown }} input
+ *   missions?: unknown, charTable?: unknown, coop?: unknown, cupEvent?: unknown }} input
  * @returns {Record<string, unknown>}
  */
-export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage, missions, charTable, coop }) {
+export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage, missions, charTable, coop, cupEvent }) {
   const lv = asObject(level, 'level');
   const { width, height, tiles } = extractTiles(field(lv, 'mapData', 'level')), blockEdges = extractEdges(lv.mapData);
   const { routes, routeOf, extraOf } = routeTable(field(lv, 'routes', 'level'), lv.extraRoutes);
@@ -232,7 +232,7 @@ export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage
     return [asString(field(o, 'id', `level.enemyDbRefs[${i}]`), `level.enemyDbRefs[${i}].id`), o];
   }));
   // 阵地足球's teams field players the waves do not name (足球-6), their elite ones those the references name
-  const football = footballField(tiles, { options: field(lv, 'options', 'level'), globalBuffs: lv.globalBuffs, runes: lv.runes }, coop, missions, (k) => refs.has(k));
+  const football = footballField(tiles, { options: field(lv, 'options', 'level'), globalBuffs: lv.globalBuffs, runes: lv.runes, event: cupEvent }, coop, missions, (k) => refs.has(k));
   const frags = [...waves.flatMap((w) => w.fragments), ...Object.values(branches).flat()];
   const spawned = frags.flatMap((f) => f.actions.filter((a) => a.type === 'SPAWN').map((a) => a.key));
   const keys = [...new Set([...spawned, ...Object.values(difficulties).flatMap((d) => Object.values(d.replace)), ...footballPlayers(football)])].toSorted();

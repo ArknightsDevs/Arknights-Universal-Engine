@@ -124,6 +124,35 @@ function cupOf(runes, options, coop) {
     ...(bb.delta_buildable_cnt_penalty === undefined ? {} : { kickerDelta: bb.delta_buildable_cnt_penalty }), teamType: bb.team_type ?? -1 };
 }
 
+/** A rune of the event's as a seat rune (同步-9): its key, profession mask and board. @param {unknown} raw @param {string} p */
+function seatRuneOf(raw, p) {
+  const r = asObject(raw, p), sel = asObject(field(r, 'selector', p), `${p}.selector`);
+  const board = asArray(field(r, 'blackboard', p), `${p}.blackboard`).map((x, i) => {
+    const b = asObject(x, `${p}.blackboard[${i}]`), key = asString(field(b, 'key', p), `${p}.blackboard[${i}].key`);
+    return [key, typeof b.valueStr === 'string' ? b.valueStr : asNumber(b.value, `${p}.blackboard[${i}].value`, -1e9, 1e9)];
+  });
+  return { key: asString(field(r, 'key', p), `${p}.key`), professions: asNumber(field(sel, 'professionMask', p), `${p}.selector.professionMask`, 0, 1023), board };
+}
+
+/**
+ * A 锦标 stage's event settings (锦标-7): the two sides' names and the event's relics — each with the name and text of
+ * the stage that unlocks it (matched by the relic's description), and its runes as seat runes. None outside the event.
+ * @param {unknown} raw the event data the CLI reads (activity table) @returns {{ sides?: { ours: string, theirs: string }, relics?: unknown[] }}
+ */
+function cupEventField(raw) {
+  if (raw === undefined) return {};
+  const p = 'activity_table.ACT_FOOTBALL', ev = asObject(raw, p), st = asObject(field(ev, 'stage', p), `${p}.stage`);
+  const stages = asArray(field(ev, 'stages', p), `${p}.stages`).map((x, i) => asObject(x, `${p}.stages[${i}]`));
+  const relics = asArray(field(ev, 'relics', p), `${p}.relics`).map((x, i) => {
+    const r = asObject(x, `${p}.relics[${i}]`), text = asString(field(r, 'description', p), `${p}.relics[${i}].description`);
+    const by = stages.find((s) => s.unlockBuffDesc === text);
+    return { id: asString(field(r, 'id', p), `${p}.relics[${i}].id`), name: by ? asString(by.unlockBuffName, `${p}.unlockBuffName`) : '', text,
+      ...(by ? { unlockedBy: asString(by.stageId, `${p}.stageId`) } : {}),
+      runes: asArray(field(r, 'runes', p), `${p}.relics[${i}].runes`).map((y, j) => seatRuneOf(y, `${p}.relics[${i}].runes[${j}]`)) };
+  });
+  return { sides: { ours: asString(field(st, 'selfTeamName', p), `${p}.selfTeamName`), theirs: asString(field(st, 'enemyTeamName', p), `${p}.enemyTeamName`) }, relics };
+}
+
 /**
  * The teams a 锦标 level draws (锦标-6): those of its team type in the table, with the standard team's `_2` the level
  * names making each team's of the same role elite; none for a level without a team type.
@@ -162,8 +191,8 @@ function catchUpOf(raw) {
  * players' wait at a kickoff, the stamps' net goals, the kickoff tables, the co-op teams with their elite players — in a
  * 锦标 level those of its team type, none where its waves name its players —, the name part of each player role, what
  * our lead adds to the players, and the 锦标 settings.
- * @param {{ key: string }[][]} tiles @param {{ options: unknown, globalBuffs?: unknown, runes?: unknown }} level the raw
- * level's options, global buffs and runes @param {unknown} coop cooperate_battle_table.json @param {unknown} [missions]
+ * @param {{ key: string }[][]} tiles @param {{ options: unknown, globalBuffs?: unknown, runes?: unknown, event?: unknown }} level the raw
+ * level's options, global buffs and runes, and a 锦标 stage's event data (锦标-7) @param {unknown} coop cooperate_battle_table.json @param {unknown} [missions]
  * @param {(key: string) => boolean} [has] whether the level's enemy references name a key
  * @returns {{ football?: Record<string, unknown> }}
  */
@@ -177,7 +206,7 @@ export function footballField(tiles, level, coop, missions, has = () => false) {
     wait: asNumber(field(c, 'footballPlayersWaitTimeOnWaveStart', p), `${p}.footballPlayersWaitTimeOnWaveStart`, 0, 1e6),
     stamps, ahead: aheadOf(c), weights: weightsOf(c), teams: cup ? cupTeams(c, cup.teamType, has) : teamsOf(c, has, COOP_TEAMS),
     roles: Object.fromEntries(Object.entries(roles).map(([k, v]) => [k, asString(v, `${p}.footballPlayersName.${k}`)])),
-    ...catchUpOf(level.globalBuffs), ...(cup ? { cup } : {}),
+    ...catchUpOf(level.globalBuffs), ...(cup ? { cup: { ...cup, ...cupEventField(level.event) } } : {}),
   } };
 }
 

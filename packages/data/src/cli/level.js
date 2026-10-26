@@ -40,6 +40,22 @@ function missionsOf(data, id) {
   return undefined;
 }
 
+/**
+ * A 阵地足球锦标 stage's event data (锦标-7): the ACT_FOOTBALL activity that lists the stage — its entry for the stage,
+ * every stage's entry and the activity's relics (trapRuneDataDict `<activity>_relic_*`); none for other stages.
+ * @param {string} data the gamedata directory @param {unknown} stage the stage table entry @returns {unknown}
+ */
+function cupEventOf(data, stage) {
+  const table = /** @type {{ activity: Record<string, Record<string, any>>, trapRuneDataDict?: Record<string, unknown> }} */ (readJson(join(data, 'excel', 'activity_table.json')));
+  const stageId = /** @type {any} */ (stage)?.stageId;
+  for (const [actId, a] of Object.entries(table.activity.ACT_FOOTBALL ?? {})) {
+    if (!a.stageAdditionDataMap?.[stageId]) continue;
+    const relics = Object.entries(table.trapRuneDataDict ?? {}).filter(([k]) => k.startsWith(`${actId}_relic_`)).map(([, v]) => v);
+    return { stage: a.stageAdditionDataMap[stageId], stages: Object.values(a.stageAdditionDataMap), relics };
+  }
+  return undefined;
+}
+
 /** @param {string} dir @returns {string} */
 function gitCommit(dir) {
   try {
@@ -84,19 +100,18 @@ function viewFrom(data, file, level, map) {
 /**
  * Extract level `id` from a checkout, with its camera view from a map file when given (the first vector of its path,
  * or of `map.from`'s with the same map) and its code and name from the stage table (关卡-4), its stages' task texts
- * from the activity table (关卡-5).
+ * from the activity table (关卡-5), a 阵地足球锦标 stage's event data from it too (锦标-7).
  * @param {string} root the checkout directory @param {string} id @param {{ file: string, source: string, from?: string }} [map]
  * @returns {Record<string, unknown>}
  */
 export function extractLevelFromCheckout(root, id, map) {
   const data = join(root, 'zh_CN', 'gamedata');
-  const file = levelFile(data, id), level = readJson(file);
+  const file = levelFile(data, id), level = readJson(file), stage = stageOf(/** @type {{ stages: Record<string, unknown> }} */ (readJson(join(data, 'excel', 'stage_table.json'))).stages, id);
   return extractLevel({
     id, level, enemyDb: readJson(join(data, 'levels', 'enemydata', 'enemy_database.json')),
     handbook: readJson(join(data, 'excel', 'enemy_handbook_table.json')), commit: gitCommit(root),
     view: map ? viewFrom(data, file, level, map) : undefined,
-    stage: stageOf(/** @type {{ stages: Record<string, unknown> }} */ (readJson(join(data, 'excel', 'stage_table.json'))).stages, id),
-    missions: missionsOf(data, id),
+    stage, missions: missionsOf(data, id), cupEvent: cupEventOf(data, stage),
     charTable: readJson(join(data, 'excel', 'character_table.json')),
     coop: readJson(join(data, 'battle', 'cooperate_battle_table.json')),
   });
