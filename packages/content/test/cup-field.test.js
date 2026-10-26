@@ -1,14 +1,15 @@
 // 阵地足球锦标's stadiums and teams (docs/spec/cup.md 锦标-2, 锦标-3): each level's stadium and what it enables;
-// 冻人冬日's ice and speed and 旋旋风暴's wind in their levels headless; 智能裁判官, 直球队, 门神会 and 魔球帮 on a small
-// field of IG-FT-1's shape.
+// 冻人冬日's ice and speed and 旋旋风暴's wind in their levels headless; 超强对流's lightning, 智能裁判官, 直球队, 门神会
+// and 魔球帮 on a small field of IG-FT-1's shape.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { secondsToFrames } from '@aue/math';
-import { createWorld, step, attrs, displacement, cup } from '@aue/sim';
+import { createWorld, step, attrs, displacement, cup, THUNDER_PHASE } from '@aue/sim';
 import { LEVELS, levelAt, matchContent } from '../src/index.js';
 import { ballBehaviors } from '../src/ball.js';
 import { footballerBehaviors, AWAIT } from '../src/footballers.js';
 import { blinkBehaviors } from '../src/blink.js';
+import { THUNDER } from '../src/cup.js';
 
 /** @typedef {import('@aue/sim').Unit} Unit @typedef {import('@aue/sim').World} World */
 
@@ -35,6 +36,9 @@ test('[锦标-2] each level\'s stadium as its page says, the waves\' group it en
     assert.equal(cup.actingGroups(w, s1).includes(group), group !== undefined, `seed ${seed}`);
   }
   assert.equal(drawn.size, 5, 'all five come up');
+  const level = (/** @type {string} */ id) => THUNDER.indexOf(/** @type {any} */ (levelAt(id, 'NORMAL').level.football?.cup)?.stadium?.thunder);
+  assert.deepEqual([level('act1football_03'), level('act1football_ex02')], [0, 1], '超强对流 Lv1 in PF-3, Lv2 in PF-EX-2');
+  assert.equal(s1.level.football.cup.stadiums[2].thunder, THUNDER[2], 'and Lv3 drawn in 特训赛');
 });
 
 test('[锦标-2] 冻人冬日: every field tile iced at the kickoff, the enemies a fifth faster', async () => {
@@ -161,4 +165,20 @@ test('[锦标-3] 魔球帮: off its cooldown, moving on its own, it jumps onto a
   const y = fwd.y;
   run(w, c, 30);
   assert.ok(Math.abs(fwd.y - y) < 0.5 * 1 + 0.05, 'no second jump within 15 s: it walks');
+});
+
+test('[锦标-2] 超强对流: 20 s after the ball came on, a warning; 2 s on, the bolt — damage and a stun within 1.0 —; then 10 s of burning within 1.5', () => {
+  const c = field({ near: { at: [4, 7] }, mid: { at: [5, 7] }, far: { at: [4, 8] } });
+  c.level.football = { ...c.level.football, cup: { moveSpeed: 1.2, stadium: { name: 'thunder', thunder: THUNDER[0] } } };
+  const w = createWorld(c, { seed: 1, players: 1 }), by = (/** @type {string} */ k) => /** @type {Unit} */ (w.units.find((u) => u.key === k));
+  const at = (/** @type {number} */ phase) => (/** @type {any[]} */ ev) => ev.some((e) => e.type === 'thunder' && e.phase === phase);
+  const born = w.frame + 1, warned = run(w, c, secondsToFrames(20));
+  assert.ok(!at(THUNDER_PHASE.warn)(warned) && at(THUNDER_PHASE.warn)(run(w, c, 1)), `the warning at ${w.frame - born} frames`);
+  run(w, c, secondsToFrames(2) - 1);
+  assert.ok(at(THUNDER_PHASE.strike)(run(w, c, 1)), 'the bolt 2 s on');
+  assert.deepEqual(['near', 'mid', 'far'].map((k) => 1e5 - by(k).hp), [5000, 0, 0], 'the enemies within 1.0: 5000');
+  assert.ok(by('near').buffs.some((b) => b.key === 'stun' && b.left === secondsToFrames(5)), 'stunned 5 s');
+  const burned = run(w, c, secondsToFrames(10));
+  assert.deepEqual(['near', 'mid', 'far'].map((k) => 1e5 - by(k).hp), [10000, 5000, 0], 'then 500 a second within 1.5, ten times');
+  assert.ok(at(THUNDER_PHASE.over)(burned));
 });

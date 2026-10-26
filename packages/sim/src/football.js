@@ -19,6 +19,7 @@ import { makeSpot, expireBalls, goalOpen } from './pitch.js';
 import { turnLR } from './lr.js';
 import { isCup, isPlayerKey, cupEnd, penaltySide, penaltyWave, startCountdown, stadiumKickoff, stadiumSpeed } from './cup.js';
 import { refereeStep } from './referee.js';
+import { thunderStep } from './thunder.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').FootballState} FootballState @typedef {import('./types.js').FootballRules} FootballRules */
@@ -292,6 +293,7 @@ export const footballStamps = (f, st) => f.stamps.filter((n) => st.home - st.awa
 export function tickFootball(w, c) {
   expireBalls(w, c);
   refereeStep(w, c);
+  thunderStep(w, c);
   for (const b of w.units.filter((u) => u.ball?.hurt)) hurtStep(w, c, b);
   if (w.football?.hits) w.football.hits = w.football.hits.filter(([, , f]) => f >= w.frame);
   const balls = w.units.filter((u) => u.ball?.goal !== undefined);

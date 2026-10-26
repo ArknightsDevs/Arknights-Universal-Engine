@@ -61,8 +61,13 @@
  *   teams: { name: string, weight: number, players: Record<string, string>, elite?: Record<string, string> }[], roles: Record<string, string>,
  *   catchUp?: { maxHp: number, atk: number, moveSpeed: number }, cup?: { moveSpeed: number, stadium?: Stadium, stadiums?: Stadium[] } }} FootballRules
  * A 锦标 stadium (锦标-2): its name, the hidden group of the waves it enables, the ice it lays on every field tile at
- * each kickoff, what the enemies' move speed is multiplied by.
- * @typedef {{ name: string, group?: string, ice?: number, moveMul?: number }} Stadium
+ * each kickoff, what the enemies' move speed is multiplied by, its lightning.
+ * @typedef {{ name: string, group?: string, ice?: number, moveMul?: number, thunder?: ThunderDef }} Stadium
+ * 超强对流's lightning (锦标-2): seconds between a ball's warnings and from a warning to its bolt; the bolt's radius,
+ * its physical damage to ours and to the enemies and its stun in seconds; the ball's burning after it — radius, arts
+ * damage each second to ours and to the enemies, and how many seconds.
+ * @typedef {{ every: number, warn: number, radius: number, ally: number, enemy: number, stun: number,
+ *   burn: { radius: number, ally: number, enemy: number, seconds: number } }} ThunderDef
  * @typedef {{ kind: 'workshop' | 'lounge' | 'platform' | 'roadblock' | 'gym', modes: Record<string, number>[], boom?: number }} FacilityDef
  * @typedef {{ sp: 'sp' | 'sp2', hits: number, life: number }} BuilderDef
  * @typedef {{ range: string, cells: Cell[], branch: string, first: number, every: number }} RubbleDef
@@ -763,7 +768,8 @@
  *   the distance it began at, its frames left, whether it stopped (位移-4). A 静态刚体 keeps vx and vy at 0 and drops the
  *   slide when the force ends (位移-5)
  * @property {{ f: number, e: number, force: number, need: number, block: number, points: number, sum: number, ax: number, ay: number, touch: number[], bump?: number[], goal?: number, sel?: number, selUntil?: number,
- *   hurt?: { amount: number, every: number, next: number, until: number }, cover?: number, countdown?: number, ref?: { by: number, at: number, x: number, y: number } }} [ball]
+ *   hurt?: { amount: number, every: number, next: number, until: number }, cover?: number, countdown?: number, ref?: { by: number, at: number, x: number, y: number },
+ *   storm?: { next: number, bolt?: number, burns?: { lit: number, ticks: number } } }} [ball]
  *   a ball's physics (足球-2): friction factor, restitution, default force, the damage that kicks it, the block count left
  *   that stops it, the points of its goal (足球-7); the damage and direction summed so far (足球-3); the units of ours it
  *   touched last frame (足球-4), the devices it bounced off this frame (足球-12); the goal it went into this frame (足球-5,
