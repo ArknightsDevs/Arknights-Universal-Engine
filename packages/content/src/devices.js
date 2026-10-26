@@ -42,6 +42,12 @@ export const DEVICE_PROFILES = Object.freeze({
     profile: (d) => ({ side: 'ENEMY', immune: ['stun', 'silence', 'cold', 'freeze', 'sleep'], routeBlock: true, square: 0.9, ballDamage: d.talentBb.damage_scale, envDamage: 0 }),
     source: `${PRTS}%E9%98%B5%E5%9C%B0%E5%B1%8F%E9%9A%9C&oldid=417821`,
   },
+  // 智能裁判官 (锦标-2): 阵营=我方；可以对自身半径1.5范围内的1个足球（不可对空）进行普通攻击……向敌方球门的大致方向射出；攻击间隔、
+  // 射出力度的倍数取记录的
+  trap_309_muctba: {
+    profile: (d) => ({ referee: { radius: 1.5, every: d.baseAttackTime, force: d.talentBb['attack@force'] } }),
+    source: `${PRTS}%E6%99%BA%E8%83%BD%E8%A3%81%E5%88%A4%E5%AE%98&oldid=404176`,
+  },
   // 足球 (足球-14): 部署至我方半场来重新发球；部署费用取记录的
   trap_165_muftbl: { profile: () => ({ ballCard: true }), source: `${PRTS}%E8%B6%B3%E7%90%83&oldid=337850` },
   // 轰隆隆先生 (装置-7): 1.5s after deploy, stun the cross and break. Respawn is the page's 5s; the record has cost, not respawnTime.

@@ -30,6 +30,7 @@ import { uncoveredAbilities, withFoeExtras } from './foes.js';
 import { profiledDevices, DEVICE_PROFILES } from './devices.js';
 import { CARRIED } from './carried.js';
 import { seatRules } from './runes.js';
+import { withStadium, stadiumGroup } from './cup.js';
 
 /** @typedef {'NORMAL' | 'FOUR_STAR'} Difficulty */
 /** @typedef {import('@aue/sim').EnemyDef} EnemyDef */
@@ -209,7 +210,7 @@ function difficultyAt(id, difficulty, levels) {
 export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
   const { raw, d, ours } = difficultyAt(id, difficulty, levels);
   const { waves, branches } = replacedSpawns(raw.level, d.replace);
-  const football = footballOf(id, raw.level.football);
+  const football = withStadium(id, footballOf(id, raw.level.football)), group = stadiumGroup(football);
   const used = spawnedKeys(waves, branches, raw.enemies, football);
   const missing = uncoveredAbilities(Object.entries(raw.enemies).filter(([k]) => used.has(k)).map(([k, e]) => withFoeExtras(k, /** @type {EnemyDef} */ (e))));
   if (missing.length > 0 && !beingTested(id, raw)) throw new RangeError(`level ${id} at ${difficulty}: enemy abilities not supported yet: ${missing.join(', ')}`);
@@ -218,7 +219,7 @@ export function levelAt(id, difficulty, attack = () => ({}), levels = LEVELS) {
   const dev = profiledDevices(Object.fromEntries(Object.entries(raw.devices ?? {}).filter(([k]) => !Object.hasOwn(CARRIED, k) && (Object.hasOwn(DEVICE_PROFILES, k) || !unplaced.has(k)))));
   if (dev.missing.length > 0) throw new RangeError(`level ${id}: devices not supported yet: ${dev.missing.join(', ')}`);
   return {
-    level: { ...raw.level, ...(football ? { football } : {}), waves, ...(branches ? { branches } : {}), ...(missing.length > 0 ? { uncovered: missing } : {}), hiddenGroups: d.hiddenGroups, ...(dev.works ? { works: dev.works } : {}),
+    level: { ...raw.level, ...(football ? { football } : {}), waves, ...(branches ? { branches } : {}), ...(missing.length > 0 ? { uncovered: missing } : {}), hiddenGroups: group ? [...d.hiddenGroups, group] : d.hiddenGroups, ...(dev.works ? { works: dev.works } : {}),
       options: optionsAt(raw.level.options, d) },
     enemies: Object.fromEntries(Object.entries(raw.enemies).filter(([k]) => used.has(k))
       .map(([k, e]) => [k, { ...talentsMultiplied(k, multiplied(k, /** @type {EnemyDef} */ (e), d.enemyMul), d.talentMul ?? []), ...attack(k) }])),

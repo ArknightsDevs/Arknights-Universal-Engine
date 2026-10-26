@@ -30,6 +30,7 @@ export * as doll from './doll.js';
 export * as displacement from './displacement.js';
 export * as ball from './ball.js';
 export * as football from './football.js';
+export * as cup from './cup.js';
 export { moveOperator, canMoveTo } from './move.js';
 export * as devices from './devices.js';
 export * as fortress from './fortress.js';
@@ -52,6 +53,7 @@ export { reserveIds } from './units.js';
 /** @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').DeviceDef} DeviceDef */
 /** @typedef {import('./types.js').FootballRules} FootballRules */
+/** @typedef {import('./types.js').Stadium} Stadium */
 /** @typedef {import('./types.js').World} World */
 /** @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Buff} Buff */

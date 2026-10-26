@@ -324,6 +324,19 @@ export const FOE_EXTRAS = Object.freeze({
   // 爱球会守门员 / 爱球会荣誉守门员: 发球「优先瞄准击球手」 (足球-15)
   enemy_4026_muhryb: { talents: { football: { toForward: 1 } }, source: `${PRTS}%E7%88%B1%E7%90%83%E4%BC%9A%E5%AE%88%E9%97%A8%E5%91%98&oldid=435541` },
   enemy_4026_muhryb_2: { talents: { football: { toForward: 1 } }, source: `${PRTS}%E7%88%B1%E7%90%83%E4%BC%9A%E8%8D%A3%E8%AA%89%E5%AE%88%E9%97%A8%E5%91%98&oldid=435540` },
+  // 直球队击球手 / 直球队坚定击球手: 「射门力度更大，只会按照水平方向射门」；直球队守门员 / 直球队坚定守门员: 「开球力度更大，只会按照水平方向开球」 (锦标-3)
+  enemy_4060_mulinm: { talents: { football: { flat: 1 } }, source: `${PRTS}%E7%9B%B4%E7%90%83%E9%98%9F%E5%87%BB%E7%90%83%E6%89%8B&oldid=437064` },
+  enemy_4060_mulinm_2: { talents: { football: { flat: 1 } }, source: `${PRTS}%E7%9B%B4%E7%90%83%E9%98%9F%E5%9D%9A%E5%AE%9A%E5%87%BB%E7%90%83%E6%89%8B&oldid=437066` },
+  enemy_4061_mulinb: { talents: { football: { flat: 1 } }, source: `${PRTS}%E7%9B%B4%E7%90%83%E9%98%9F%E5%AE%88%E9%97%A8%E5%91%98&oldid=437069` },
+  enemy_4061_mulinb_2: { talents: { football: { flat: 1 } }, source: `${PRTS}%E7%9B%B4%E7%90%83%E9%98%9F%E5%9D%9A%E5%AE%9A%E5%AE%88%E9%97%A8%E5%91%98&oldid=437068` },
+  // 门神会击球手 / 门神会忠诚击球手: 「触球后会把足球回传给守门员」；门神会守门员 / 门神会全能守门员: 「会瞄准没有被<阵地屏障>阻挡的球门方向」 (锦标-3)
+  enemy_4057_mugoam: { talents: { football: { toKeeper: 1 } }, source: `${PRTS}%E9%97%A8%E7%A5%9E%E4%BC%9A%E5%87%BB%E7%90%83%E6%89%8B&oldid=436223` },
+  enemy_4057_mugoam_2: { talents: { football: { toKeeper: 1 } }, source: `${PRTS}%E9%97%A8%E7%A5%9E%E4%BC%9A%E5%BF%A0%E8%AF%9A%E5%87%BB%E7%90%83%E6%89%8B&oldid=436227` },
+  enemy_4058_mugoab: { talents: { football: { aim: 1 } }, source: `${PRTS}%E9%97%A8%E7%A5%9E%E4%BC%9A%E5%AE%88%E9%97%A8%E5%91%98&oldid=436226` },
+  enemy_4058_mugoab_2: { talents: { football: { aim: 1 } }, source: `${PRTS}%E9%97%A8%E7%A5%9E%E4%BC%9A%E5%85%A8%E8%83%BD%E5%AE%88%E9%97%A8%E5%91%98&oldid=436225` },
+  // 魔球帮击人手 / 魔球帮诡秘击人手: 「优先寻找足球附近的我方目标」 (锦标-3)
+  enemy_4056_musupg: { talents: { searchtarget: { nearBall: 1 } }, source: `${PRTS}%E9%AD%94%E7%90%83%E5%B8%AE%E5%87%BB%E4%BA%BA%E6%89%8B&oldid=436252` },
+  enemy_4056_musupg_2: { talents: { searchtarget: { nearBall: 1 } }, source: `${PRTS}%E9%AD%94%E7%90%83%E5%B8%AE%E8%AF%A1%E7%A7%98%E5%87%BB%E4%BA%BA%E6%89%8B&oldid=436249` },
   // “锤锤到肉”阵地击人手: its periodic_damage of 330 has no text on its page (oldid=435315 keeps the blackboard in a
   // comment); every page that writes the talent out says 「自身每秒受到N…真实伤害」 (敌能-50), so it is that (足球-11)
   enemy_4014_mugnfu_2: { talents: { periodic_damage: { self: 1 } }, source: `${PRTS}%E2%80%9C%E9%94%A4%E9%94%A4%E5%88%B0%E8%82%89%E2%80%9D%E9%98%B5%E5%9C%B0%E5%87%BB%E4%BA%BA%E6%89%8B&oldid=435315` },

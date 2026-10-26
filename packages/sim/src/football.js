@@ -17,7 +17,8 @@ import { withdraw } from './deck.js';
 import { withdrawDevice } from './devices.js';
 import { makeSpot, expireBalls, goalOpen } from './pitch.js';
 import { turnLR } from './lr.js';
-import { isCup, isPlayerKey, cupEnd, penaltySide, penaltyWave, startCountdown } from './cup.js';
+import { isCup, isPlayerKey, cupEnd, penaltySide, penaltyWave, startCountdown, stadiumKickoff, stadiumSpeed } from './cup.js';
+import { refereeStep } from './referee.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').FootballState} FootballState @typedef {import('./types.js').FootballRules} FootballRules */
@@ -152,14 +153,14 @@ const tagged = (c) => c.level.waves.some((x) => x.tag !== undefined);
 
 /**
  * 阵地足球's state at the start (足球-6): the team drawn by its weight among those that weigh more than 0 (随机-1) — in
- * a level without kickoff tags none is drawn, the standard team (the first) plays —, no goals, the match's end; the
- * first kickoff comes with the first wave.
+ * a level without kickoff tags or teams none is drawn, the standard team (the first) plays —, no goals, the match's end,
+ * a 锦标 stadium drawn among the level's, each as likely (锦标-2); the first kickoff comes with the first wave.
  * @param {World} w @param {Content} c @returns {FootballState}
  */
 export function newFootball(w, c) {
   const f = /** @type {FootballRules} */ (c.level.football), live = f.teams.flatMap((t, i) => (t.weight > 0 ? [i] : []));
-  const team = tagged(c) ? live[weightedPick(w, live.map((i) => f.teams[i].weight))] : 0;
-  return { team, home: 0, away: 0, kick: 0, until: secondsToFrames(f.time) };
+  const team = tagged(c) && live.length > 0 ? live[weightedPick(w, live.map((i) => f.teams[i].weight))] : 0, n = f.cup?.stadiums?.length ?? 0;
+  return { team, home: 0, away: 0, kick: 0, until: secondsToFrames(f.time), ...(n > 0 ? { stadium: Math.floor(draw(w) * n) } : {}) };
 }
 
 /**
@@ -181,6 +182,7 @@ export function kickoffLevel(f, lead) {
 export function kickoffWave(w, c, at) {
   const f = /** @type {FootballRules} */ (c.level.football), st = /** @type {FootballState} */ (w.football);
   st.kick = at;
+  stadiumKickoff(w, c);
   if (st.pk) return penaltyWave(w, c, at);
   if (!tagged(c)) return w.sched.wave + 1;
   const weights = f.weights[String(kickoffLevel(f, st.home - st.away))] ?? f.weights['0'];
@@ -217,13 +219,14 @@ function drawnPlayer(f, st, key) {
 
 /**
  * What a player brought in now has its base max HP, ATK and move speed multiplied by (足球-17): 1 + the level's
- * fraction × our lead, while we lead; null for anything else. @param {World} w @param {Content} c @param {string} key
+ * fraction × our lead, while we lead; any enemy's move speed by its 锦标 stadium's too (锦标-2: 冻人冬日); null for
+ * nothing. @param {World} w @param {Content} c @param {string} key
  * @returns {{ maxHp: number, atk: number, moveSpeed: number } | null}
  */
 export function catchUp(w, c, key) {
-  const f = c.level.football, st = w.football, up = f?.catchUp, lead = st ? st.home - st.away : 0;
-  if (!f || !st || !up || lead <= 0 || !drawnPlayer(f, st, key)) return null;
-  return { maxHp: 1 + up.maxHp * lead, atk: 1 + up.atk * lead, moveSpeed: 1 + up.moveSpeed * lead };
+  const f = c.level.football, st = w.football, up = f?.catchUp, lead = st ? st.home - st.away : 0, fast = st ? stadiumSpeed(w, c) : 1;
+  if (!f || !st || !up || lead <= 0 || !drawnPlayer(f, st, key)) return fast === 1 ? null : { maxHp: 1, atk: 1, moveSpeed: fast };
+  return { maxHp: 1 + up.maxHp * lead, atk: 1 + up.atk * lead, moveSpeed: (1 + up.moveSpeed * lead) * fast };
 }
 
 /**
@@ -288,6 +291,7 @@ export const footballStamps = (f, st) => f.stamps.filter((n) => st.home - st.awa
  */
 export function tickFootball(w, c) {
   expireBalls(w, c);
+  refereeStep(w, c);
   for (const b of w.units.filter((u) => u.ball?.hurt)) hurtStep(w, c, b);
   if (w.football?.hits) w.football.hits = w.football.hits.filter(([, , f]) => f >= w.frame);
   const balls = w.units.filter((u) => u.ball?.goal !== undefined);

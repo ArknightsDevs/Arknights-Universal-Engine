@@ -28,6 +28,38 @@ export function isPlayerKey(c, key) {
   return !!t && (Object.hasOwn(t, 'football') || Object.hasOwn(t, 'searchtarget'));
 }
 
+/**
+ * The stadium of a 锦标 match (锦标-2): the level's, or the one drawn from its stadiums; null for none.
+ * @param {World} w @param {Content} c @returns {import('./types.js').Stadium | null}
+ */
+export function stadiumOf(w, c) {
+  const cup = c.level.football?.cup;
+  return cup?.stadium ?? cup?.stadiums?.[w.football?.stadium ?? -1] ?? null;
+}
+
+/**
+ * The hidden groups the waves act with (波次-4, 锦标-2): the level's, and a drawn stadium's group (a fixed stadium's the
+ * level already has). @param {World} w @param {Content} c @returns {readonly string[]}
+ */
+export function actingGroups(w, c) {
+  const groups = c.level.hiddenGroups ?? [], g = c.level.football?.cup?.stadiums ? stadiumOf(w, c)?.group : undefined;
+  return g && !groups.includes(g) ? [...groups, g] : groups;
+}
+
+/**
+ * A kickoff in a 冻人冬日 stadium (锦标-2): every field tile (`tile_football`) is iced (足球-16).
+ * @param {World} w @param {Content} c
+ */
+export function stadiumKickoff(w, c) {
+  const ice = stadiumOf(w, c)?.ice, st = w.football;
+  if (ice === undefined || !st) return;
+  const m = c.level, cover = (st.cover ??= {});
+  for (let r = 0; r < m.height; r++) for (let col = 0; col < m.width; col++) if (m.tiles[r][col]?.key === 'tile_football') cover[String(r * m.width + col)] = ice;
+}
+
+/** What a stadium multiplies a new enemy's move speed by (锦标-2: 冻人冬日), 1 for none. @param {World} w @param {Content} c */
+export const stadiumSpeed = (w, c) => stadiumOf(w, c)?.moveMul ?? 1;
+
 /** The first wave of the level's penalty shootout, or −1 (锦标-4). @param {Content} c */
 export const penaltyStart = (c) => c.level.waves.findIndex((x) => x.penalty === true);
 

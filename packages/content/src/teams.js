@@ -1,7 +1,8 @@
 // 阵地足球's teams (docs/spec/football.md 足球-15): what a team's players do beyond the standard team's — 战术队 aims at
 // an open goal, 爱球会's forward carries the ball and its goalkeeper clears to a forward, 爱球会's muscleman goes for ours
 // near the ball, 球德联's shot hurts ours it rolls by and its goalkeeper rages, 战术队's muscleman goes for one of ours
-// that hit another player. The page markers (`aim`, `toForward`) are foes.js's FOE_EXTRAS.
+// that hit another player. The page markers (`aim`, `toForward`) are foes.js's FOE_EXTRAS. 阵地足球锦标's teams
+// (cup.md 锦标-3) are footballers.js's and blink.js's.
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').FoeContext} FoeContext @typedef {import('@aue/sim').Unit} Unit */
 
@@ -42,10 +43,18 @@ export const forwards = (ctx) => ctx.enemies().filter((u) => ctx.talentOf(u, 'fo
  * @param {FoeContext} ctx @param {number} radius
  */
 export function nearBall(ctx, radius) {
-  const ball = ctx.balls().toSorted((a, b) => dist2(ctx.self, a) - dist2(ctx.self, b) || a.id - b.id)[0];
-  if (!ball) return false;
-  const t = ctx.ours().filter((u) => ctx.stats(u).blockCnt > 0 && dist2(ball, u) <= radius * radius).toSorted((a, b) => dist2(ball, a) - dist2(ball, b) || a.id - b.id)[0];
+  const t = nearBallTarget(ctx, radius);
   return t ? ctx.chase(t.x, t.y) : false;
+}
+
+/**
+ * The one of ours that can block nearest the ball nearest this enemy, within `radius` of that ball, or null (足球-15,
+ * 锦标-3). @param {FoeContext} ctx @param {number} radius @returns {Unit | null}
+ */
+export function nearBallTarget(ctx, radius) {
+  const ball = ctx.balls().toSorted((a, b) => dist2(ctx.self, a) - dist2(ctx.self, b) || a.id - b.id)[0];
+  if (!ball) return null;
+  return ctx.ours().filter((u) => ctx.stats(u).blockCnt > 0 && dist2(ball, u) <= radius * radius).toSorted((a, b) => dist2(ball, a) - dist2(ball, b) || a.id - b.id)[0] ?? null;
 }
 
 /**
