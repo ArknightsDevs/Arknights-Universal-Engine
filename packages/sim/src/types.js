@@ -55,14 +55,15 @@
  * goals, the kickoff level of each lead ([lead, level] in order), each level's weights of the wave tags, the teams with
  * their weights and players by role (and elite players by role, when the level has them), the role of each name part
  * of the standard team's players, and what each goal of our lead adds to the players' max HP, ATK and move speed; a
- * 阵地足球锦标 level's manager (锦标-1: its 冻人冬日 stadium's enemy move speed) and its stadium, or the stadiums it
- * draws one of (锦标-2).
+ * 阵地足球锦标 level's settings (锦标-1): its manager's enemy move speed for its 冻人冬日 stadium, the lead that wins at
+ * once (−1 for none), the change to the deploy limit in a penalty shootout (锦标-4), the type of team it draws
+ * (锦标-6, −1 for none), and its stadium, or the stadiums it draws one of by their weights (锦标-2).
  * @typedef {{ time: number, wait: number, stamps: number[], ahead: [number, number][], weights: Record<string, number[]>,
  *   teams: { name: string, weight: number, players: Record<string, string>, elite?: Record<string, string> }[], roles: Record<string, string>,
- *   catchUp?: { maxHp: number, atk: number, moveSpeed: number }, cup?: { moveSpeed: number, stadium?: Stadium, stadiums?: Stadium[] } }} FootballRules
+ *   catchUp?: { maxHp: number, atk: number, moveSpeed: number }, cup?: { moveSpeed: number, mercy: number, kickerDelta?: number, teamType: number, stadium?: Stadium, stadiums?: Stadium[] } }} FootballRules
  * A 锦标 stadium (锦标-2): its name, the hidden group of the waves it enables, the ice it lays on every field tile at
- * each kickoff, what the enemies' move speed is multiplied by, its lightning.
- * @typedef {{ name: string, group?: string, ice?: number, moveMul?: number, thunder?: ThunderDef }} Stadium
+ * each kickoff, what the enemies' move speed is multiplied by, its lightning, its weight where one is drawn.
+ * @typedef {{ name: string, group?: string, ice?: number, moveMul?: number, thunder?: ThunderDef, weight?: number }} Stadium
  * 超强对流's lightning (锦标-2): seconds between a ball's warnings and from a warning to its bolt; the bolt's radius,
  * its physical damage to ours and to the enemies and its stun in seconds; the ball's burning after it — radius, arts
  * damage each second to ours and to the enemies, and how many seconds.

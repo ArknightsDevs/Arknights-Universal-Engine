@@ -705,6 +705,65 @@
                                 "type": "number",
                                 "minimum": 0,
                                 "maximum": 100
+                              },
+                              "stadiumType": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 5
+                              },
+                              "mercy": {
+                                "type": "integer",
+                                "minimum": -1,
+                                "maximum": 99
+                              },
+                              "teamType": {
+                                "type": "integer",
+                                "minimum": -1,
+                                "maximum": 9
+                              },
+                              "kickerDelta": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": -99,
+                                    "maximum": 99
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "stadiumWeights": {
+                                "anyOf": [
+                                  {
+                                    "anyOf": [
+                                      {
+                                        "type": "array",
+                                        "items": {
+                                          "$ref": "#/$defs/s43"
+                                        },
+                                        "minItems": 1,
+                                        "maxItems": 8
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                          "anyOf": [
+                                            {
+                                              "$ref": "#/$defs/s43"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "additionalProperties": false
@@ -729,10 +788,10 @@
             "type": "object",
             "properties": {
               "NORMAL": {
-                "$ref": "#/$defs/s43"
+                "$ref": "#/$defs/s44"
               },
               "FOUR_STAR": {
-                "$ref": "#/$defs/s43"
+                "$ref": "#/$defs/s44"
               }
             },
             "additionalProperties": false
@@ -742,7 +801,7 @@
             "additionalProperties": {
               "anyOf": [
                 {
-                  "$ref": "#/$defs/s51"
+                  "$ref": "#/$defs/s52"
                 },
                 {
                   "type": "null"
@@ -905,7 +964,7 @@
         "maxLength": 64
       },
       "additionalProperties": {
-        "$ref": "#/$defs/s51"
+        "$ref": "#/$defs/s52"
       }
     },
     "tokens": {
@@ -958,7 +1017,7 @@
               {
                 "type": "array",
                 "items": {
-                  "$ref": "#/$defs/s53"
+                  "$ref": "#/$defs/s54"
                 },
                 "minItems": 1,
                 "maxItems": 3
@@ -968,7 +1027,7 @@
                 "additionalProperties": {
                   "anyOf": [
                     {
-                      "$ref": "#/$defs/s53"
+                      "$ref": "#/$defs/s54"
                     },
                     {
                       "type": "null"
@@ -3104,7 +3163,36 @@
       },
       "additionalProperties": false
     },
-    "s47": {
+    "s43": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "s48": {
       "anyOf": [
         {
           "type": "array",
@@ -3131,17 +3219,17 @@
         }
       ]
     },
-    "s46": {
+    "s47": {
       "anyOf": [
         {
-          "$ref": "#/$defs/s47"
+          "$ref": "#/$defs/s48"
         },
         {
           "type": "null"
         }
       ]
     },
-    "s45": {
+    "s46": {
       "type": "object",
       "properties": {
         "mods": {
@@ -3160,20 +3248,20 @@
           }
         },
         "enemy": {
-          "$ref": "#/$defs/s46"
+          "$ref": "#/$defs/s47"
         },
         "exclude": {
-          "$ref": "#/$defs/s46"
+          "$ref": "#/$defs/s47"
         }
       },
       "additionalProperties": false
     },
-    "s44": {
+    "s45": {
       "anyOf": [
         {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/s45"
+            "$ref": "#/$defs/s46"
           },
           "minItems": 0,
           "maxItems": 16
@@ -3183,7 +3271,7 @@
           "additionalProperties": {
             "anyOf": [
               {
-                "$ref": "#/$defs/s45"
+                "$ref": "#/$defs/s46"
               },
               {
                 "type": "null"
@@ -3193,7 +3281,7 @@
         }
       ]
     },
-    "s50": {
+    "s51": {
       "type": "object",
       "additionalProperties": {
         "anyOf": [
@@ -3216,7 +3304,7 @@
         ]
       }
     },
-    "s49": {
+    "s50": {
       "anyOf": [
         {
           "type": "array",
@@ -3237,11 +3325,11 @@
           "maxItems": 2
         },
         {
-          "$ref": "#/$defs/s50"
+          "$ref": "#/$defs/s51"
         }
       ]
     },
-    "s48": {
+    "s49": {
       "type": "object",
       "properties": {
         "key": {
@@ -3258,7 +3346,7 @@
             {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/s49"
+                "$ref": "#/$defs/s50"
               },
               "minItems": 0,
               "maxItems": 32
@@ -3268,7 +3356,7 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "$ref": "#/$defs/s49"
+                    "$ref": "#/$defs/s50"
                   },
                   {
                     "type": "null"
@@ -3281,14 +3369,14 @@
       },
       "additionalProperties": false
     },
-    "s43": {
+    "s44": {
       "type": "object",
       "properties": {
         "enemyMul": {
-          "$ref": "#/$defs/s44"
+          "$ref": "#/$defs/s45"
         },
         "hiddenGroups": {
-          "$ref": "#/$defs/s47"
+          "$ref": "#/$defs/s48"
         },
         "replace": {
           "type": "object",
@@ -3305,12 +3393,12 @@
           }
         },
         "unsupported": {
-          "$ref": "#/$defs/s47"
+          "$ref": "#/$defs/s48"
         },
         "talentMul": {
           "anyOf": [
             {
-              "$ref": "#/$defs/s44"
+              "$ref": "#/$defs/s45"
             },
             {
               "type": "null"
@@ -3372,7 +3460,7 @@
                 {
                   "type": "array",
                   "items": {
-                    "$ref": "#/$defs/s48"
+                    "$ref": "#/$defs/s49"
                   },
                   "minItems": 0,
                   "maxItems": 32
@@ -3382,7 +3470,7 @@
                   "additionalProperties": {
                     "anyOf": [
                       {
-                        "$ref": "#/$defs/s48"
+                        "$ref": "#/$defs/s49"
                       },
                       {
                         "type": "null"
@@ -3400,7 +3488,7 @@
       },
       "additionalProperties": false
     },
-    "s52": {
+    "s53": {
       "type": "object",
       "properties": {
         "key": {
@@ -3423,12 +3511,12 @@
           "maximum": 1000000
         },
         "bb": {
-          "$ref": "#/$defs/s50"
+          "$ref": "#/$defs/s51"
         }
       },
       "additionalProperties": false
     },
-    "s51": {
+    "s52": {
       "type": "object",
       "properties": {
         "name": {
@@ -3511,7 +3599,7 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "$ref": "#/$defs/s50"
+                    "$ref": "#/$defs/s51"
                   },
                   {
                     "type": "null"
@@ -3602,7 +3690,7 @@
                 {
                   "type": "array",
                   "items": {
-                    "$ref": "#/$defs/s52"
+                    "$ref": "#/$defs/s53"
                   },
                   "minItems": 0,
                   "maxItems": 16
@@ -3612,7 +3700,7 @@
                   "additionalProperties": {
                     "anyOf": [
                       {
-                        "$ref": "#/$defs/s52"
+                        "$ref": "#/$defs/s53"
                       },
                       {
                         "type": "null"
@@ -3630,7 +3718,7 @@
       },
       "additionalProperties": false
     },
-    "s54": {
+    "s55": {
       "type": "object",
       "properties": {
         "level": {
@@ -3726,7 +3814,7 @@
       },
       "additionalProperties": false
     },
-    "s53": {
+    "s54": {
       "type": "object",
       "properties": {
         "maxLevel": {
@@ -3742,7 +3830,7 @@
             {
               "type": "array",
               "items": {
-                "$ref": "#/$defs/s54"
+                "$ref": "#/$defs/s55"
               },
               "minItems": 1,
               "maxItems": 8
@@ -3752,7 +3840,7 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "$ref": "#/$defs/s54"
+                    "$ref": "#/$defs/s55"
                   },
                   {
                     "type": "null"

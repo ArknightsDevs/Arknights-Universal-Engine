@@ -7025,7 +7025,11 @@
         "mugnfu": "muscleman"
       },
       "cup": {
-        "moveSpeed": 1.2
+        "moveSpeed": 1.2,
+        "stadiumType": 4,
+        "mercy": 5,
+        "kickerDelta": -4,
+        "teamType": -1
       }
     },
     "view": [

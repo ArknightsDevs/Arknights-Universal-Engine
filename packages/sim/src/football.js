@@ -155,13 +155,13 @@ const tagged = (c) => c.level.waves.some((x) => x.tag !== undefined);
 /**
  * 阵地足球's state at the start (足球-6): the team drawn by its weight among those that weigh more than 0 (随机-1) — in
  * a level without kickoff tags or teams none is drawn, the standard team (the first) plays —, no goals, the match's end,
- * a 锦标 stadium drawn among the level's, each as likely (锦标-2); the first kickoff comes with the first wave.
+ * a 锦标 stadium drawn among the level's by their weights (锦标-2); the first kickoff comes with the first wave.
  * @param {World} w @param {Content} c @returns {FootballState}
  */
 export function newFootball(w, c) {
   const f = /** @type {FootballRules} */ (c.level.football), live = f.teams.flatMap((t, i) => (t.weight > 0 ? [i] : []));
-  const team = tagged(c) && live.length > 0 ? live[weightedPick(w, live.map((i) => f.teams[i].weight))] : 0, n = f.cup?.stadiums?.length ?? 0;
-  return { team, home: 0, away: 0, kick: 0, until: secondsToFrames(f.time), ...(n > 0 ? { stadium: Math.floor(draw(w) * n) } : {}) };
+  const team = tagged(c) && live.length > 0 ? live[weightedPick(w, live.map((i) => f.teams[i].weight))] : 0, all = f.cup?.stadiums ?? [];
+  return { team, home: 0, away: 0, kick: 0, until: secondsToFrames(f.time), ...(all.length > 0 ? { stadium: weightedPick(w, all.map((s) => s.weight ?? 1)) } : {}) };
 }
 
 /**
@@ -199,16 +199,16 @@ export function kickoffWave(w, c, at) {
 const roleOf = (f, key) => Object.entries(f.roles).find(([part]) => key.includes(`_${part}`))?.[1] ?? null;
 
 /**
- * The enemy a wave's SPAWN brings in (足球-6): a player of the level's standard team is the drawn team's player of the
- * same role — an elite one (a difficulty's replacement, 关卡-2) the drawn team's elite player of that role —; anything
- * else as it is. @param {World} w @param {Content} c @param {string} key
+ * The enemy a wave's SPAWN brings in (足球-6, 锦标-6): a player of the level's standard team is the drawn team's player
+ * of the same role — an elite one (a difficulty's replacement, 关卡-2, or a `_2` the waves name) the drawn team's elite
+ * player of that role —; anything else as it is. @param {World} w @param {Content} c @param {string} key
  */
 export function teamKey(w, c, key) {
   const f = c.level.football, st = w.football;
   if (!f || !st) return key;
   const role = roleOf(f, key), team = f.teams[st.team];
   if (!role || !team?.players[role]) return key;
-  const elite = f.teams.some((t) => t.elite?.[role] === key);
+  const elite = key.endsWith('_2') || f.teams.some((t) => t.elite?.[role] === key);
   return (elite && team.elite?.[role]) || team.players[role];
 }
 

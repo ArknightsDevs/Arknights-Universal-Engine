@@ -119,8 +119,8 @@ function replacedSpawns(level, replace) {
 }
 
 /**
- * 阵地足球's players a level's spawns bring in (足球-6): for each role a spawn names — a standard player, or an elite
- * one —, every team's that may be drawn player of that role, or its elite one.
+ * 阵地足球's players a level's spawns bring in (足球-6, 锦标-6): for each role a spawn names — a standard player, or an
+ * elite one (its `_2`) —, every team's that may be drawn player of that role, or its elite one.
  * @param {import('@aue/sim').FootballRules | undefined} football @param {Set<string>} spawned @returns {string[]}
  */
 function teamPlayers(football, spawned) {
@@ -128,7 +128,7 @@ function teamPlayers(football, spawned) {
   const teams = football.teams, out = [];
   for (const [part, role] of Object.entries(football.roles)) {
     const named = [...spawned].filter((k) => k.includes(`_${part}`));
-    const elite = named.some((k) => teams.some((t) => t.elite?.[role] === k)), plain = named.some((k) => teams.some((t) => t.players[role] === k));
+    const elite = named.some((k) => k.endsWith('_2')), plain = named.some((k) => !k.endsWith('_2'));
     for (const t of teams.filter((x) => x.weight > 0)) out.push(...(plain ? [t.players[role]] : []), ...(elite && t.elite?.[role] ? [t.elite[role]] : []));
   }
   return out;

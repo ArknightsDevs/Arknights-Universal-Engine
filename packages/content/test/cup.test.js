@@ -12,12 +12,15 @@ import { ballBehaviors, ALOFT } from '../src/ball.js';
 
 const CUPS = Object.keys(LEVELS).filter((k) => k.startsWith('act1football_'));
 
-test('[锦标-1] [锦标-4] the 14 levels: the manager with its move speed, eight to deploy, no co-op teams; the penalty shootout from the wave written penaltystart', () => {
+test('[锦标-1] [锦标-4] [锦标-6] the 14 levels: the manager with its move speed, eight to deploy, the config mercy lead, kicker change and team type; the penalty shootout from the wave written penaltystart', () => {
   assert.equal(CUPS.length, 14);
+  const training = new Set(['act1football_sub-1-1', 'act1football_sub-1-2']), noPenalty = new Set(['act1football_01', 'act1football_02', 'act1football_03', 'act1football_04', ...training]);
   for (const id of CUPS) {
-    const lv = LEVELS[id].level;
-    assert.deepEqual(lv.football.cup, { moveSpeed: 1.2 }, id);
-    assert.deepEqual([lv.options.characterLimit, lv.football.teams.length], [8, 0], id);
+    const lv = LEVELS[id].level, { moveSpeed, mercy, kickerDelta, teamType } = lv.football.cup;
+    assert.deepEqual([moveSpeed, lv.options.characterLimit], [1.2, 8], id);
+    assert.equal(mercy, training.has(id) || id === 'act1football_tr01' ? -1 : 5, id);
+    assert.equal(kickerDelta, noPenalty.has(id) ? undefined : -4, id);
+    assert.deepEqual([teamType, lv.football.teams.length], training.has(id) ? [id.endsWith('1') ? 1 : 2, id.endsWith('1') ? 3 : 4] : [-1, 0], id);
   }
   const at = (/** @type {string} */ id) => LEVELS[id].level.waves.flatMap((/** @type {any} */ x, /** @type {number} */ i) => (x.penalty ? [i] : []));
   assert.deepEqual([at('act1football_01'), at('act1football_05'), at('act1football_06'), at('act1football_ex04')], [[], [11], [11], [10]]);

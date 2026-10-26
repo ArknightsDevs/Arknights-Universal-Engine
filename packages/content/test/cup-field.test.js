@@ -20,13 +20,13 @@ function run(w, c, n) {
   return events;
 }
 
-test('[锦标-2] each level\'s stadium as its page says, the waves\' group it enables; PF-S-1 and PF-S-2 draw one of five', () => {
+test('[锦标-2] each level\'s stadium by its config\'s stadium type, the waves\' group it enables; PF-S-1 and PF-S-2 draw one of five by weight', () => {
   const name = (/** @type {string} */ id) => levelAt(id, 'NORMAL').level.football?.cup?.stadium?.name;
   assert.deepEqual(['01', '02', '03', '04', '06', '07', 'ex02', 'ex03'].map((x) => name(`act1football_${x}`)), ['plain', 'whirlwind', 'thunder', 'winter', 'winter', 'smart', 'thunder', 'whirlwind']);
   assert.deepEqual([levelAt('act1football_02', 'NORMAL').level.hiddenGroups, levelAt('act1football_07', 'NORMAL').level.hiddenGroups], [['whirlwind'], ['catchball']]);
   assert.deepEqual(levelAt('act1football_04', 'NORMAL').level.football?.cup?.stadium, { name: 'winter', ice: -0.3, moveMul: 1.2 });
   const s1 = /** @type {any} */ (levelAt('act1football_sub-1-1', 'NORMAL'));
-  assert.deepEqual(s1.level.football.cup.stadiums.map((/** @type {any} */ x) => x.name), ['plain', 'whirlwind', 'thunder', 'winter', 'smart']);
+  assert.deepEqual(s1.level.football.cup.stadiums.map((/** @type {any} */ x) => x.name), ['plain', 'winter', 'thunder', 'smart', 'whirlwind']);
   const drawn = new Set();
   for (let seed = 1; seed <= 30; seed++) {
     const w = createWorld(/** @type {any} */ ({ ...s1, operators: {}, behaviors: {} }), { seed, players: 1 });
@@ -181,4 +181,19 @@ test('[锦标-2] 超强对流: 20 s after the ball came on, a warning; 2 s on, t
   const burned = run(w, c, secondsToFrames(10));
   assert.deepEqual(['near', 'mid', 'far'].map((k) => 1e5 - by(k).hp), [10000, 5000, 0], 'then 500 a second within 1.5, ten times');
   assert.ok(at(THUNDER_PHASE.over)(burned));
+});
+
+test('[锦标-6] 特训赛: a team of the level\'s type drawn by weight; the standard team\'s players the waves name become its, their `_2` its elite', async () => {
+  const c = await matchContent({ level: 'act1football_sub-1-2', difficulty: 'NORMAL', seed: 1, decks: [[]] }), teams = c.level.football?.teams ?? [];
+  assert.deepEqual(teams.map((t) => t.name), ['hurrier', 'kungfuer', 'superer', 'bigbroer']);
+  const drawn = new Set();
+  for (let seed = 1; seed <= 12; seed++) {
+    const w = createWorld(c, { seed, players: 1 }), team = teams[/** @type {number} */ (w.football?.team)];
+    drawn.add(team.name);
+    run(w, c, 30);
+    const players = w.units.filter((u) => u.kind === 1 && /_(mumssi|mubufn|mugnfu|mu[a-z]{3}[mbg])(_2)?$/.test(u.key) && !u.ball);
+    const ours = new Set([...Object.values(team.players), ...Object.values(team.elite ?? {})]);
+    assert.ok(players.length > 0 && players.every((u) => ours.has(u.key)), `seed ${seed}: ${players.map((u) => u.key)}`);
+  }
+  assert.ok(drawn.size >= 3, `more than one team comes up: ${[...drawn]}`);
 });

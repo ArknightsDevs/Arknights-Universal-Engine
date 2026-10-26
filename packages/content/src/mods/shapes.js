@@ -170,7 +170,8 @@ const difficulty = obj({ enemyMul, hiddenGroups: list(str, 0, 64), replace: dict
 const football = obj({
   time: num(1, 36000), wait: num(0, 3600), stamps: list(int(0, 999), 0, 8), ahead: list(list(int(0, 1e6), 2, 2), 1, 32), weights: dict(list(num(0, 1e6), 1, 64), 32),
   teams: list(obj({ name: str, weight: num(0, 1e6), players: dict(str, 8) }, { elite: dict(str, 8) }), 0, 16), roles: dict(str, 8),
-}, { catchUp: obj({ maxHp: num(0, 100), atk: num(0, 100), moveSpeed: num(0, 100) }), cup: obj({ moveSpeed: num(0, 100) }) });
+}, { catchUp: obj({ maxHp: num(0, 100), atk: num(0, 100), moveSpeed: num(0, 100) }), cup: obj({ moveSpeed: num(0, 100), stadiumType: int(0, 5), mercy: int(-1, 99), teamType: int(-1, 9) },
+  { kickerDelta: int(-99, 99), stadiumWeights: list(list(num(0, 1e6), 2, 2), 1, 8) }) });
 const device = obj({
   name: str, maxHp: num(1, 1e9), atk: num(0, 1e7), def: num(0, 1e6), res: num(-100, 100), blockCnt: int(0, 99), cost: int(0, 99), aspd: num(1, 1000), baseAttackTime: num(0.05, 600),
   tauntLevel: int(-10, 10), massLevel: int(0, 10), talentBb: bb, talents: list(bb, 0, 16),

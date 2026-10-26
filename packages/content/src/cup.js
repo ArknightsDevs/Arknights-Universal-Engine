@@ -1,6 +1,6 @@
-// 阵地足球锦标's stadiums (docs/spec/cup.md 锦标-2): each level's, as its stage page names it, and what each does in the
-// simulation — the hidden group of the level's waves it enables (龙卷风, 智能裁判官), 冻人冬日's ice on every field tile
-// and its enemies' move speed, 超强对流's lightning at its level. PF-S-1 and PF-S-2 draw one of the five at the start.
+// 阵地足球锦标's stadiums (docs/spec/cup.md 锦标-2): each level's, by its config's stadium type, and what each does in
+// the simulation — the hidden group of the level's waves it enables (龙卷风, 智能裁判官), 冻人冬日's ice on every field
+// tile and its enemies' move speed, 超强对流's lightning at its level. PF-S-1 and PF-S-2 draw one at the start.
 
 /** @typedef {import('@aue/sim').Stadium} Stadium @typedef {import('@aue/sim').ThunderDef} ThunderDef */
 
@@ -33,22 +33,32 @@ export const stadiums = (moveSpeed, level = 0) => Object.freeze({
   smart: { name: 'smart', group: 'catchball' },
 });
 
-/** Each level's stadium by its stage page (锦标-2); `random` for the two that draw one. */
-export const STADIUM_OF = Object.freeze({
-  act1football_tr01: 'plain', act1football_01: 'plain', act1football_02: 'whirlwind', act1football_03: 'thunder', act1football_04: 'winter',
-  act1football_05: 'plain', act1football_06: 'winter', act1football_07: 'smart', act1football_ex01: 'plain', act1football_ex02: 'thunder',
-  act1football_ex03: 'whirlwind', act1football_ex04: 'plain', 'act1football_sub-1-1': 'random', 'act1football_sub-1-2': 'random',
-});
+/**
+ * The stadium of each stadium type in a level's config (锦标-2): as the stage pages name the stadiums of the levels
+ * with each type — 1 PF-1, 2 PF-4 and PF-6, 3 PF-3 and PF-EX-2, 4 PF-7, 5 PF-2 and PF-EX-3.
+ */
+export const STADIUM_TYPE = Object.freeze({ 1: 'plain', 2: 'winter', 3: 'thunder', 4: 'smart', 5: 'whirlwind' });
+
+/** A stadium type's stadium among a level's (锦标-2). @param {Readonly<Record<string, Stadium>>} all @param {number} type */
+function stadiumOfType(all, type) {
+  const name = STADIUM_TYPE[/** @type {keyof typeof STADIUM_TYPE} */ (type)];
+  if (!name) throw new RangeError(`stadium type ${type} is not known`);
+  return all[name];
+}
 
 /**
- * A 锦标 level's 阵地足球 settings with its stadium (锦标-2): fixed, or the five to draw from; other levels as they are.
+ * A 锦标 level's 阵地足球 settings with its stadium (锦标-2): its stadium type's, or for type 0 the stadiums to draw
+ * from with their weights; other levels as they are.
  * @param {string} id @param {import('@aue/sim').FootballRules | undefined} f
  * @returns {import('@aue/sim').FootballRules | undefined}
  */
 export function withStadium(id, f) {
-  if (!f?.cup || !Object.hasOwn(STADIUM_OF, id)) return f;
-  const all = stadiums(f.cup.moveSpeed, THUNDER_LEVEL[/** @type {keyof typeof THUNDER_LEVEL} */ (id)] ?? 0), name = STADIUM_OF[/** @type {keyof typeof STADIUM_OF} */ (id)];
-  return { ...f, cup: { ...f.cup, ...(name === 'random' ? { stadiums: Object.values(all) } : { stadium: all[name] }) } };
+  if (!f?.cup) return f;
+  const { stadiumType, stadiumWeights, ...cup } = /** @type {any} */ (f.cup), all = stadiums(cup.moveSpeed, THUNDER_LEVEL[/** @type {keyof typeof THUNDER_LEVEL} */ (id)] ?? 0);
+  const picked = stadiumType === 0
+    ? { stadiums: /** @type {[number, number][]} */ (stadiumWeights).map(([type, weight]) => ({ ...stadiumOfType(all, type), weight })) }
+    : { stadium: stadiumOfType(all, stadiumType) };
+  return { ...f, cup: { ...cup, ...picked } };
 }
 
 /** The hidden group a level's fixed stadium enables (锦标-2), or null. @param {import('@aue/sim').FootballRules | undefined} f */

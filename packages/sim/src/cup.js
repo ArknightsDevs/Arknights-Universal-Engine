@@ -1,18 +1,14 @@
-// 阵地足球锦标 (docs/spec/cup.md): a 阵地足球 level with the event's manager (锦标-1) — no co-op teams, so the players
-// the waves name play; every player waits at a kickoff; no field bonus, so the 再部署惩罚 grows as anywhere; a side 5
-// goals ahead wins at once; at the match time the side ahead wins. A draw goes to the penalty shootout where the level
-// has one (锦标-4) — six rounds, ours first: our ball counts down and is kicked by what hit it; theirs a player kicks —
-// and is no win where it has none.
+// 阵地足球锦标 (docs/spec/cup.md): a 阵地足球 level with the event's manager (锦标-1) — the players the waves name play,
+// or a team of the level's type drawn (锦标-6); every player waits at a kickoff; no field bonus, so the 再部署惩罚 grows
+// as anywhere; a side as many goals ahead as the level's config says wins at once; at the match time the side ahead
+// wins. A draw goes to the penalty shootout where the level has one (锦标-4) — six rounds, ours first: our ball counts
+// down and is kicked by what hit it; theirs a player kicks — and is no win where it has none.
 import { secondsToFrames } from '@aue/math';
 import { kickSlide } from './displacement.js';
 import { FORCE_TO_SPEED } from './ball.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 
-/** The net goals that end a 锦标 match at once, for the side ahead (锦标-1: 速决规则). */
-export const MERCY_LEAD = 5;
-/** The kickers we may have on the field during a penalty shootout (锦标-4: 「选择4名点球手」). */
-export const KICKERS = 4;
 /** The rounds of a penalty shootout, ours and theirs in turn (锦标-4: 双方各罚3次). */
 export const ROUNDS = 6;
 
@@ -141,17 +137,17 @@ function penaltyStep(w, scored, clear) {
 }
 
 /**
- * A 锦标 match's end at a frame's end (锦标-1, 锦标-4): a side 5 net goals ahead wins at once; at the match time the
- * side ahead wins, a draw goes to the penalty shootout — the field cleared — where the level has one and is no win
- * where it has none. @param {World} w @param {Content} c @param {number} scored for which side a ball went in this frame:
+ * A 锦标 match's end at a frame's end (锦标-1, 锦标-4): a side the level's `mercy` net goals ahead wins at once (none
+ * for −1); at the match time the side ahead wins, a draw goes to the penalty shootout — the field cleared — where the
+ * level has one and is no win where it has none. @param {World} w @param {Content} c @param {number} scored for which side a ball went in this frame:
  * 1 us, 0 them, −1 none @param {() => void} clear clears the field (足球-7)
  */
 export function cupEnd(w, c, scored, clear) {
   const st = w.football;
   if (!st || w.result >= 0) return;
   if (st.pk) { penaltyStep(w, scored, clear); return; }
-  const lead = st.home - st.away;
-  if (Math.abs(lead) >= MERCY_LEAD) { end(w, lead > 0 ? 1 : 0); return; }
+  const lead = st.home - st.away, mercy = c.level.football?.cup?.mercy ?? -1;
+  if (mercy > 0 && Math.abs(lead) >= mercy) { end(w, lead > 0 ? 1 : 0); return; }
   if (w.frame + 1 < st.until) return;
   if (lead === 0 && penaltyStart(c) >= 0) {
     st.pk = { round: 0, begun: -1, ball: 0, kicked: false, counted: false };

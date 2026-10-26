@@ -50787,14 +50787,96 @@
           100
         ]
       },
-      "teams": [],
+      "teams": [
+        {
+          "name": "hurrier",
+          "weight": 10,
+          "players": {
+            "forward": "enemy_4025_muhrym",
+            "goalkeeper": "enemy_4026_muhryb",
+            "muscleman": "enemy_4027_muhryg"
+          },
+          "elite": {
+            "forward": "enemy_4025_muhrym_2",
+            "goalkeeper": "enemy_4026_muhryb_2",
+            "muscleman": "enemy_4027_muhryg_2"
+          }
+        },
+        {
+          "name": "kungfuer",
+          "weight": 10,
+          "players": {
+            "forward": "enemy_4028_mukfum",
+            "goalkeeper": "enemy_4029_mukfub",
+            "muscleman": "enemy_4030_mukfug"
+          },
+          "elite": {
+            "forward": "enemy_4028_mukfum_2",
+            "goalkeeper": "enemy_4029_mukfub_2",
+            "muscleman": "enemy_4030_mukfug_2"
+          }
+        },
+        {
+          "name": "superer",
+          "weight": 10,
+          "players": {
+            "forward": "enemy_4054_musupm",
+            "goalkeeper": "enemy_4055_musupb",
+            "muscleman": "enemy_4056_musupg"
+          },
+          "elite": {
+            "forward": "enemy_4054_musupm_2",
+            "goalkeeper": "enemy_4055_musupb_2",
+            "muscleman": "enemy_4056_musupg_2"
+          }
+        },
+        {
+          "name": "bigbroer",
+          "weight": 10,
+          "players": {
+            "forward": "enemy_4057_mugoam",
+            "goalkeeper": "enemy_4058_mugoab",
+            "muscleman": "enemy_4059_mugoag"
+          },
+          "elite": {
+            "forward": "enemy_4057_mugoam_2",
+            "goalkeeper": "enemy_4058_mugoab_2",
+            "muscleman": "enemy_4059_mugoag_2"
+          }
+        }
+      ],
       "roles": {
         "mumssi": "forward",
         "mubufn": "goalkeeper",
         "mugnfu": "muscleman"
       },
       "cup": {
-        "moveSpeed": 1.2
+        "moveSpeed": 1.2,
+        "stadiumType": 0,
+        "mercy": -1,
+        "stadiumWeights": [
+          [
+            1,
+            20
+          ],
+          [
+            2,
+            20
+          ],
+          [
+            3,
+            20
+          ],
+          [
+            4,
+            20
+          ],
+          [
+            5,
+            20
+          ]
+        ],
+        "teamType": 2
       }
     },
     "view": [
@@ -51900,6 +51982,536 @@
         }
       }
     },
+    "enemy_4025_muhrym": {
+      "name": "爱球会击球手",
+      "maxHp": 20000,
+      "atk": 800,
+      "def": 300,
+      "res": 20,
+      "moveSpeed": 2.2,
+      "baseAttackTime": 3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1.1,
+          "slapshot_force": 1
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "passtheball",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        },
+        {
+          "key": "slapshot",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 0.2,
+            "block_volume": 1,
+            "move_speed": 0.8,
+            "up_duration": 2
+          }
+        }
+      ]
+    },
+    "enemy_4025_muhrym_2": {
+      "name": "爱球会荣誉击球手",
+      "maxHp": 30000,
+      "atk": 900,
+      "def": 300,
+      "res": 20,
+      "moveSpeed": 2.2,
+      "baseAttackTime": 3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1.2,
+          "slapshot_force": 1
+        },
+        "searchBall": {
+          "range_radius": 3
+        }
+      },
+      "skills": [
+        {
+          "key": "passtheball",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        },
+        {
+          "key": "slapshot",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 0.2,
+            "block_volume": 1,
+            "move_speed": 0.8,
+            "up_duration": 2
+          }
+        }
+      ]
+    },
+    "enemy_4026_muhryb": {
+      "name": "爱球会守门员",
+      "maxHp": 30000,
+      "atk": 1200,
+      "def": 400,
+      "res": 20,
+      "moveSpeed": 3.2,
+      "baseAttackTime": 3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 3,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "clearance_force": 1.3,
+          "tile_col_end": 9,
+          "defence": 0.5
+        },
+        "searchBall": {
+          "range_radius": 2
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        },
+        {
+          "key": "clearance",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        }
+      ]
+    },
+    "enemy_4026_muhryb_2": {
+      "name": "爱球会荣誉守门员",
+      "maxHp": 40000,
+      "atk": 1500,
+      "def": 400,
+      "res": 20,
+      "moveSpeed": 3.2,
+      "baseAttackTime": 3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 3,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "clearance_force": 1.3,
+          "tile_col_end": 9,
+          "defence": 0.5
+        },
+        "searchBall": {
+          "range_radius": 2
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        },
+        {
+          "key": "clearance",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        }
+      ]
+    },
+    "enemy_4027_muhryg": {
+      "name": "爱球会击人手",
+      "maxHp": 20000,
+      "atk": 800,
+      "def": 500,
+      "res": 20,
+      "moveSpeed": 2.2,
+      "baseAttackTime": 3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1.2,
+          "slapshot_force": 2.8
+        },
+        "searchBall": {
+          "range_radius": 2
+        }
+      }
+    },
+    "enemy_4027_muhryg_2": {
+      "name": "爱球会荣誉击人手",
+      "maxHp": 30000,
+      "atk": 1000,
+      "def": 500,
+      "res": 20,
+      "moveSpeed": 2.2,
+      "baseAttackTime": 3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1.2,
+          "slapshot_force": 2.8
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      }
+    },
+    "enemy_4028_mukfum": {
+      "name": "球德联击球手",
+      "maxHp": 30000,
+      "atk": 1200,
+      "def": 500,
+      "res": 20,
+      "moveSpeed": 1,
+      "baseAttackTime": 5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1.35,
+          "slapshot_force": 1.5
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "passtheball",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        },
+        {
+          "key": "slapshot",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3,
+            "aoe_duration": 10,
+            "damage_duration": 1.5,
+            "ball_damage": 1000
+          }
+        }
+      ]
+    },
+    "enemy_4028_mukfum_2": {
+      "name": "球德联老牌击球手",
+      "maxHp": 42000,
+      "atk": 1400,
+      "def": 500,
+      "res": 20,
+      "moveSpeed": 1,
+      "baseAttackTime": 5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1.45,
+          "slapshot_force": 1.5
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "passtheball",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        },
+        {
+          "key": "slapshot",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3,
+            "aoe_duration": 10,
+            "damage_duration": 1.5,
+            "ball_damage": 1000
+          }
+        }
+      ]
+    },
+    "enemy_4029_mukfub": {
+      "name": "球德联守门员",
+      "maxHp": 30000,
+      "atk": 1700,
+      "def": 550,
+      "res": 20,
+      "moveSpeed": 1.5,
+      "baseAttackTime": 5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 3,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "clearance_force": 1.3,
+          "tile_col_end": 9,
+          "defence": 0.5
+        },
+        "searchBall": {
+          "range_radius": 1.5
+        },
+        "rage": {
+          "hp_ratio": 0.5,
+          "atk": 2,
+          "def": 2,
+          "rage_duration": 15
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        },
+        {
+          "key": "clearance",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        }
+      ]
+    },
+    "enemy_4029_mukfub_2": {
+      "name": "球德联老牌守门员",
+      "maxHp": 40000,
+      "atk": 2000,
+      "def": 550,
+      "res": 20,
+      "moveSpeed": 1.5,
+      "baseAttackTime": 5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 3,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "clearance_force": 1.4,
+          "tile_col_end": 9,
+          "defence": 0.5
+        },
+        "searchBall": {
+          "range_radius": 2
+        },
+        "rage": {
+          "hp_ratio": 0.5,
+          "atk": 2,
+          "def": 2,
+          "rage_duration": 20
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        },
+        {
+          "key": "clearance",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        }
+      ]
+    },
+    "enemy_4030_mukfug": {
+      "name": "球德联击人手",
+      "maxHp": 25000,
+      "atk": 1200,
+      "def": 500,
+      "res": 20,
+      "moveSpeed": 0.8,
+      "baseAttackTime": 5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "periodic_damage": {
+          "damage": 0
+        },
+        "Reborn": {
+          "duration": 20
+        },
+        "searchtarget": {
+          "range_radius": 2
+        }
+      }
+    },
+    "enemy_4030_mukfug_2": {
+      "name": "球德联老牌击人手",
+      "maxHp": 35000,
+      "atk": 1400,
+      "def": 500,
+      "res": 20,
+      "moveSpeed": 0.8,
+      "baseAttackTime": 5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "periodic_damage": {
+          "damage": 0
+        },
+        "Reborn": {
+          "duration": 20
+        },
+        "searchtarget": {
+          "range_radius": 2.5
+        }
+      }
+    },
     "enemy_4031_muftsn": {
       "name": "漏气甲虫球",
       "maxHp": 1000,
@@ -52023,6 +52635,552 @@
           "restitution_factor": 1,
           "value": 1500,
           "force": 260
+        }
+      }
+    },
+    "enemy_4054_musupm": {
+      "name": "魔球帮击球手",
+      "maxHp": 25000,
+      "atk": 800,
+      "def": 300,
+      "res": 20,
+      "moveSpeed": 0.8,
+      "baseAttackTime": 3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "epDamageResistance": 0,
+      "epResistance": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "blink": {
+          "min_dist": 0.7,
+          "max_dist": 2.5,
+          "blink_cd": 15
+        },
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1.2,
+          "slapshot_force": 1.2
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        },
+        {
+          "key": "passtheball",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        }
+      ]
+    },
+    "enemy_4054_musupm_2": {
+      "name": "魔球帮诡秘击球手",
+      "maxHp": 35000,
+      "atk": 1000,
+      "def": 300,
+      "res": 20,
+      "moveSpeed": 0.8,
+      "baseAttackTime": 3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "epDamageResistance": 0,
+      "epResistance": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "blink": {
+          "min_dist": 0.7,
+          "max_dist": 2.5,
+          "blink_cd": 10
+        },
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1.3,
+          "slapshot_force": 1.3
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        },
+        {
+          "key": "passtheball",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        }
+      ]
+    },
+    "enemy_4055_musupb": {
+      "name": "魔球帮守门员",
+      "maxHp": 35000,
+      "atk": 1300,
+      "def": 400,
+      "res": 20,
+      "moveSpeed": 1.8,
+      "baseAttackTime": 2.5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 3,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "epDamageResistance": 0,
+      "epResistance": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "blink": {
+          "min_dist": 0.7,
+          "max_dist": 2.5,
+          "blink_cd": 15
+        },
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "clearance_force": 1.4,
+          "tile_col_end": 9,
+          "defence": 0.5
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        },
+        {
+          "key": "clearance",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        }
+      ]
+    },
+    "enemy_4055_musupb_2": {
+      "name": "魔球帮诡秘守门员",
+      "maxHp": 45000,
+      "atk": 1600,
+      "def": 400,
+      "res": 20,
+      "moveSpeed": 1.8,
+      "baseAttackTime": 2.5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 3,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "epDamageResistance": 0,
+      "epResistance": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "blink": {
+          "min_dist": 0.7,
+          "max_dist": 2.5,
+          "blink_cd": 10
+        },
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "clearance_force": 1.5,
+          "tile_col_end": 9,
+          "defence": 0.5
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        },
+        {
+          "key": "clearance",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        }
+      ]
+    },
+    "enemy_4056_musupg": {
+      "name": "魔球帮击人手",
+      "maxHp": 22000,
+      "atk": 1000,
+      "def": 300,
+      "res": 20,
+      "moveSpeed": 1,
+      "baseAttackTime": 2,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "epDamageResistance": 0,
+      "epResistance": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "blink": {
+          "min_dist": 0.7,
+          "max_dist": 2.5,
+          "blink_cd": 15
+        },
+        "Reborn": {
+          "duration": 20
+        },
+        "searchtarget": {
+          "range_radius": 1.5
+        }
+      }
+    },
+    "enemy_4056_musupg_2": {
+      "name": "魔球帮诡秘击人手",
+      "maxHp": 32000,
+      "atk": 1200,
+      "def": 300,
+      "res": 20,
+      "moveSpeed": 1,
+      "baseAttackTime": 2,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "epDamageResistance": 0,
+      "epResistance": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "blink": {
+          "min_dist": 0.7,
+          "max_dist": 2.5,
+          "blink_cd": 10
+        },
+        "Reborn": {
+          "duration": 20
+        },
+        "searchtarget": {
+          "range_radius": 1.5
+        }
+      }
+    },
+    "enemy_4057_mugoam": {
+      "name": "门神会击球手",
+      "maxHp": 10000,
+      "atk": 400,
+      "def": 0,
+      "res": 0,
+      "moveSpeed": 0.7,
+      "baseAttackTime": 3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "epDamageResistance": 0,
+      "epResistance": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1,
+          "slapshot_force": 1
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        },
+        {
+          "key": "passtheball",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        }
+      ]
+    },
+    "enemy_4057_mugoam_2": {
+      "name": "门神会忠诚击球手",
+      "maxHp": 15000,
+      "atk": 600,
+      "def": 0,
+      "res": 0,
+      "moveSpeed": 0.7,
+      "baseAttackTime": 3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "epDamageResistance": 0,
+      "epResistance": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "football": {
+          "passing_force": 1,
+          "slapshot_force": 1
+        },
+        "searchBall": {
+          "range_radius": 2.5
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        },
+        {
+          "key": "passtheball",
+          "cooldown": 2,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {
+            "duration": 3
+          }
+        }
+      ]
+    },
+    "enemy_4058_mugoab": {
+      "name": "门神会守门员",
+      "maxHp": 60000,
+      "atk": 2500,
+      "def": 1200,
+      "res": 50,
+      "moveSpeed": 2,
+      "baseAttackTime": 3.5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 4,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "epDamageResistance": 0,
+      "epResistance": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 10
+        },
+        "football": {
+          "clearance_force": 2,
+          "tile_col_end": 9,
+          "defence": 0.5
+        },
+        "searchBall": {
+          "range_radius": 3
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        },
+        {
+          "key": "clearance",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        }
+      ]
+    },
+    "enemy_4058_mugoab_2": {
+      "name": "门神会全能守门员",
+      "maxHp": 70000,
+      "atk": 2700,
+      "def": 1300,
+      "res": 50,
+      "moveSpeed": 2,
+      "baseAttackTime": 3.5,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 4,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "epDamageResistance": 0,
+      "epResistance": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 10
+        },
+        "football": {
+          "clearance_force": 2,
+          "tile_col_end": 9,
+          "defence": 0.5
+        },
+        "searchBall": {
+          "range_radius": 3
+        }
+      },
+      "skills": [
+        {
+          "key": "slapshot",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        },
+        {
+          "key": "clearance",
+          "cooldown": 0,
+          "initCooldown": 0,
+          "sp": 0,
+          "bb": {}
+        }
+      ]
+    },
+    "enemy_4059_mugoag": {
+      "name": "门神会击人手",
+      "maxHp": 8000,
+      "atk": 240,
+      "def": 0,
+      "res": 0,
+      "moveSpeed": 0.9,
+      "baseAttackTime": 0.3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "epDamageResistance": 0,
+      "epResistance": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "searchtarget": {
+          "range_radius": 1.5
+        }
+      }
+    },
+    "enemy_4059_mugoag_2": {
+      "name": "门神会忠诚击人手",
+      "maxHp": 12000,
+      "atk": 350,
+      "def": 0,
+      "res": 0,
+      "moveSpeed": 0.9,
+      "baseAttackTime": 0.3,
+      "rangeRadius": -1,
+      "applyWay": "MELEE",
+      "motion": "WALK",
+      "massLevel": 0,
+      "levelType": "ELITE",
+      "lifePointReduce": 1,
+      "epDamageResistance": 0,
+      "epResistance": 0,
+      "immune": [
+        "silence"
+      ],
+      "talents": {
+        "Reborn": {
+          "duration": 20
+        },
+        "searchtarget": {
+          "range_radius": 1.5
         }
       }
     },
