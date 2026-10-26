@@ -276,7 +276,7 @@ function ballStep(c, t, dx, dy, w) {
  */
 export function stopSlide(t) {
   if (!t.slide) return;
-  t.slide = undefined;
+  delete t.slide;
   displace(t, t.x, t.y);
 }
 
