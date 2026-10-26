@@ -29,7 +29,8 @@ const moveTo = (cp, patrol) => ({ t: 'move', r: cp.row, c: cp.col, x: cp.col + (
  */
 function legsOfCheckpoint(cp) {
   switch (cp.type) {
-    case 'MOVE': return [moveTo(cp, false)];
+    // MAP_OFFSET_MOVE: a move on a map that may scroll (障碍漂航); on one that does not, a MOVE (路线-1)
+    case 'MOVE': case 'MAP_OFFSET_MOVE': return [moveTo(cp, false)];
     case 'PATROL_MOVE': return [moveTo(cp, true)];
     case 'WAIT_FOR_SECONDS': return [{ t: 'wait', frames: secondsToFrames(cp.time) }];
     case 'WAIT_CURRENT_FRAGMENT_TIME': return [{ t: 'until', frames: secondsToFrames(cp.time) }];

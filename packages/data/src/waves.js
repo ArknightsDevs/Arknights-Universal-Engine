@@ -84,8 +84,10 @@ export function extractWaves(wavesRaw, routeOf) {
       preDelay: asNumber(wave.preDelay ?? 0, `${wp}.preDelay`, 0, 1e6),
       postDelay: asNumber(wave.postDelay ?? 0, `${wp}.postDelay`, 0, 1e6),
       maxWait: asNumber(wave.maxTimeWaitingForNextWave ?? -1, `${wp}.maxTimeWaitingForNextWave`, -1, 1e6),
-      // 阵地足球's kickoff tag (足球-6), when the wave has one; other levels write words there (stage, bosswave…)
+      // 阵地足球's kickoff tag (足球-6), when the wave has one; other levels write words there (stage, bosswave…); a
+      // 阵地足球锦标 penalty shootout starts at the wave written penaltystart (锦标-4)
       ...(/^\d+$/.test(String(wave.advancedWaveTag ?? '')) ? { tag: asInt(Number(wave.advancedWaveTag), `${wp}.advancedWaveTag`, 0, 99) } : {}),
+      ...(wave.advancedWaveTag === 'penaltystart' ? { penalty: true } : {}),
       fragments: asArray(field(wave, 'fragments', wp), `${wp}.fragments`).map((fRaw, fi) => {
         const fp = `${wp}.fragments[${fi}]`, frag = asObject(fRaw, fp);
         const actions = asArray(field(frag, 'actions', fp), `${fp}.actions`).map((a, ai) => readAction(a, `${fp}.actions[${ai}]`, routeOf));

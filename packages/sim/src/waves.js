@@ -11,7 +11,7 @@ import { stageOf, startStage, resting } from './stage.js';
 import { spawnEnemy } from './spawn.js';
 import { defendStart, defendEnd, cutDefence, mayBegin } from './fortress.js';
 import { placeDevice, withdrawDevice } from './devices.js';
-import { placePredefined, isPredefinedOperator } from './predefined.js';
+import { placePredefined, isPredefinedOperator, withdrawPredefined } from './predefined.js';
 import { kickoffWave } from './football.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content */
@@ -141,7 +141,7 @@ function act(w, c, a, fragAt, wave) {
   } else if (a.type === 'WITHDRAW' && w.predefined.includes(a.key)) {
     w.predefined = w.predefined.filter((k) => k !== a.key);
     w.events.push({ type: 'predefine', key: a.key, on: 0 });
-    withdrawDevice(w, a.key);
+    if (isPredefinedOperator(c, a.key)) withdrawPredefined(w, c, a.key); else withdrawDevice(w, a.key);
   }
 }
 

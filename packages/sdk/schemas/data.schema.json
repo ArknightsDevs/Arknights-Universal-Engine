@@ -636,7 +636,7 @@
                             "items": {
                               "$ref": "#/$defs/s42"
                             },
-                            "minItems": 1,
+                            "minItems": 0,
                             "maxItems": 16
                           },
                           {
@@ -683,6 +683,24 @@
                                 "minimum": 0,
                                 "maximum": 100
                               },
+                              "moveSpeed": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 100
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "cup": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
                               "moveSpeed": {
                                 "type": "number",
                                 "minimum": 0,
@@ -2439,6 +2457,7 @@
           "enum": [
             "MOVE",
             "PATROL_MOVE",
+            "MAP_OFFSET_MOVE",
             "WAIT_CURRENT_FRAGMENT_TIME",
             "WAIT_FOR_SECONDS",
             "DISAPPEAR",
@@ -2542,6 +2561,7 @@
           "enum": [
             "SPAWN",
             "ACTIVATE",
+            "WITHDRAW",
             "NONE",
             "STORY"
           ]
@@ -2619,6 +2639,16 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dontBlockWave": {
+          "anyOf": [
+            {
+              "type": "boolean"
             },
             {
               "type": "null"
@@ -2716,6 +2746,16 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 99
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "penalty": {
+          "anyOf": [
+            {
+              "type": "boolean"
             },
             {
               "type": "null"

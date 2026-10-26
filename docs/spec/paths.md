@@ -40,6 +40,7 @@
 |---|---|
 | `MOVE` | 走到这一格，终点是格中心加上检查点的偏移（reachOffset，x 加到列、y 加到行） |
 | `PATROL_MOVE` | 同 MOVE，但是巡逻点（路线-3） |
+| `MAP_OFFSET_MOVE` | 同 MOVE（这种检查点用在会卷动的地图上，地图不卷动时就是走到这一格） |
 | `WAIT_FOR_SECONDS` | 原地停 n 秒（换算成帧，时间-2） |
 | `WAIT_CURRENT_FRAGMENT_TIME` | 停到这个敌人所在的出怪片段开始后第 n 秒（片段开始的帧加 n 秒的帧数） |
 | `DISAPPEAR` | 进入消失状态（路线-4）；时间大于 0 时接着停这么久 |
@@ -53,7 +54,7 @@
 - **一帧内连续执行**：消失、出现不占时间。到达一个点后，这一帧剩下的移动量继续用在下一段移动上；遇到等待时作废。
 - **无视停驻**：带标记 `noWait` 的敌人（净浊之焰，敌能-93）不受两种等待约束，到达等待点直接进入下一段。
 
-- 来源：[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)：MOVE「移动到指定位置后执行下一步」，WAIT_FOR_SECONDS「等待一定时间后执行下一步」，WAIT_CURRENT_FRAGMENT_TIME「当前兵团开始后时间达到一定值后执行下一步」，APPEAR_AT_POS「离开消失状态，瞬移到指定位置后执行下一步」，偏移量「不为0即可使敌人不走直线」；数据：level.routes[].checkpoints；帧的计法和偏移的坐标轴为推断 INF-0029
+- 来源：[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)：MOVE「移动到指定位置后执行下一步」，WAIT_FOR_SECONDS「等待一定时间后执行下一步」，WAIT_CURRENT_FRAGMENT_TIME「当前兵团开始后时间达到一定值后执行下一步」，APPEAR_AT_POS「离开消失状态，瞬移到指定位置后执行下一步」，偏移量「不为0即可使敌人不走直线」；数据：level.routes[].checkpoints；帧的计法和偏移的坐标轴为推断 INF-0029；`MAP_OFFSET_MOVE`：数据里 50 个关卡用到，除 PF-EX-1 外都是障碍漂航（act2multi_raft）的关卡，PRTS 的指令表没有列出，在不卷动的地图上当作 MOVE 为推断 INF-0662
 
 ### 路线-2 走一段路
 

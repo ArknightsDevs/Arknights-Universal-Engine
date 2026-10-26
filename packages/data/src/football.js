@@ -1,6 +1,7 @@
 // 阵地足球's settings (docs/spec/football.md 足球-1, 足球-6): a level whose tiles have both goals is 阵地足球; its kickoff
 // tables, teams, players' wait and match time come from the co-op battle table and the level's options, its stamps from
-// the missions' texts (「争取N个净胜球」).
+// the missions' texts (「争取N个净胜球」). A level with the 阵地足球锦标 manager among its runes is the event's (cup.md
+// 锦标-1): no co-op teams, the manager's enemy move speed of its 冻人冬日 stadium.
 import { asArray, asNumber, asObject, asString, field } from './validate.js';
 
 /** The goal tiles that make a level 阵地足球 (足球-1). */
@@ -67,6 +68,21 @@ function teamsOf(coop, has) {
   });
 }
 
+/** The 阵地足球锦标 manager's key in its `env_system_new` rune (锦标-1). */
+export const CUP_MANAGER = 'env_v074_football_cup_mgr';
+
+/**
+ * The 阵地足球锦标 manager of a level (锦标-1): its `env_system_new` rune keyed {@link CUP_MANAGER}, with its
+ * `move_speed`; none for another level. @param {unknown} raw level.runes @returns {{ cup?: { moveSpeed: number } }}
+ */
+function cupOf(raw) {
+  const rune = (Array.isArray(raw) ? raw : []).map((x, i) => asObject(x, `level.runes[${i}]`))
+    .find((r) => r.key === 'env_system_new' && asArray(r.blackboard ?? [], 'level.runes.blackboard').some((b) => asObject(b, 'blackboard').valueStr === CUP_MANAGER));
+  if (!rune) return {};
+  const speed = asArray(rune.blackboard, 'level.runes.blackboard').map((b) => asObject(b, 'blackboard')).find((b) => b.key === 'move_speed');
+  return { cup: { moveSpeed: speed ? asNumber(speed.value, `level.runes[${CUP_MANAGER}].move_speed`, 0, 100) : 1 } };
+}
+
 /** The global buff that strengthens the players by our lead (足球-17). */
 const CATCH_UP = 'cooperate_enemy_catch_up';
 
@@ -89,11 +105,12 @@ function catchUpOf(raw) {
 }
 
 /**
- * A 阵地足球 level's settings (足球-6, 足球-17), none for another level: the match time (`maxPlayTime`), the players'
- * wait at a kickoff, the stamps' net goals, the kickoff tables, the co-op teams with their elite players, the name part
- * of each player role, and what our lead adds to the players.
- * @param {{ key: string }[][]} tiles @param {{ options: unknown, globalBuffs?: unknown }} level the raw level's options and
- * global buffs @param {unknown} coop cooperate_battle_table.json @param {unknown} [missions]
+ * A 阵地足球 level's settings (足球-6, 足球-17, 锦标-1), none for another level: the match time (`maxPlayTime`), the
+ * players' wait at a kickoff, the stamps' net goals, the kickoff tables, the co-op teams with their elite players — none
+ * in a 锦标 level, whose waves name its players —, the name part of each player role, what our lead adds to the players,
+ * and the 锦标 manager.
+ * @param {{ key: string }[][]} tiles @param {{ options: unknown, globalBuffs?: unknown, runes?: unknown }} level the raw
+ * level's options, global buffs and runes @param {unknown} coop cooperate_battle_table.json @param {unknown} [missions]
  * @param {(key: string) => boolean} [has] whether the level's enemy references name a key
  * @returns {{ football?: Record<string, unknown> }}
  */
@@ -101,13 +118,13 @@ export function footballField(tiles, level, coop, missions, has = () => false) {
   if (!isFootball(tiles) || coop === undefined) return {};
   const c = asObject(coop, 'cooperate_battle_table'), p = 'cooperate_battle_table', options = asObject(level.options, 'level.options');
   const stamps = asArray(missions ?? [], 'missions').map(missionGoals).filter((n) => n !== null);
-  const roles = asObject(field(c, 'footballPlayersName', p), `${p}.footballPlayersName`);
+  const roles = asObject(field(c, 'footballPlayersName', p), `${p}.footballPlayersName`), cup = cupOf(level.runes);
   return { football: {
     time: asNumber(field(options, 'maxPlayTime', 'level.options'), 'level.options.maxPlayTime', 1, 1e6),
     wait: asNumber(field(c, 'footballPlayersWaitTimeOnWaveStart', p), `${p}.footballPlayersWaitTimeOnWaveStart`, 0, 1e6),
-    stamps, ahead: aheadOf(c), weights: weightsOf(c), teams: teamsOf(c, has),
+    stamps, ahead: aheadOf(c), weights: weightsOf(c), teams: cup.cup ? [] : teamsOf(c, has),
     roles: Object.fromEntries(Object.entries(roles).map(([k, v]) => [k, asString(v, `${p}.footballPlayersName.${k}`)])),
-    ...catchUpOf(level.globalBuffs),
+    ...catchUpOf(level.globalBuffs), ...cup,
   } };
 }
 

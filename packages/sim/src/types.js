@@ -18,7 +18,11 @@
  *   dontBlockWave?: boolean, hidden?: string, group?: string, pack?: string, weight?: number, unharmful?: boolean }} WaveAction
  */
 /** A fragment (波次-1, 波次-2). @typedef {{ preDelay: number, actions: WaveAction[] }} Fragment */
-/** A wave (波次-1…波次-3); `maxWait` is maxTimeWaitingForNextWave, −1 for none; `tag` 阵地足球's kickoff tag (足球-6). @typedef {{ preDelay: number, postDelay: number, maxWait: number, tag?: number, fragments: Fragment[] }} Wave */
+/**
+ * A wave (波次-1…波次-3); `maxWait` is maxTimeWaitingForNextWave, −1 for none; `tag` 阵地足球's kickoff tag (足球-6);
+ * `penalty` the first wave of a 阵地足球锦标 penalty shootout (锦标-4).
+ * @typedef {{ preDelay: number, postDelay: number, maxWait: number, tag?: number, penalty?: boolean, fragments: Fragment[] }} Wave
+ */
 /**
  * A level's own cards (关卡-7): its operator cards with their training, its token cards with their count, alias and
  * whether they are hidden at first (波次-9).
@@ -49,10 +53,11 @@
  * 阵地足球's settings (足球-6, 足球-17): the match time and the players' wait at a kickoff (seconds), the stamps' net
  * goals, the kickoff level of each lead ([lead, level] in order), each level's weights of the wave tags, the teams with
  * their weights and players by role (and elite players by role, when the level has them), the role of each name part
- * of the standard team's players, and what each goal of our lead adds to the players' max HP, ATK and move speed.
+ * of the standard team's players, and what each goal of our lead adds to the players' max HP, ATK and move speed; a
+ * 阵地足球锦标 level's manager (锦标-1: its 冻人冬日 stadium's enemy move speed).
  * @typedef {{ time: number, wait: number, stamps: number[], ahead: [number, number][], weights: Record<string, number[]>,
  *   teams: { name: string, weight: number, players: Record<string, string>, elite?: Record<string, string> }[], roles: Record<string, string>,
- *   catchUp?: { maxHp: number, atk: number, moveSpeed: number } }} FootballRules
+ *   catchUp?: { maxHp: number, atk: number, moveSpeed: number }, cup?: { moveSpeed: number } }} FootballRules
  * @typedef {{ kind: 'workshop' | 'lounge' | 'platform' | 'roadblock' | 'gym', modes: Record<string, number>[], boom?: number }} FacilityDef
  * @typedef {{ sp: 'sp' | 'sp2', hits: number, life: number }} BuilderDef
  * @typedef {{ range: string, cells: Cell[], branch: string, first: number, every: number }} RubbleDef
@@ -753,13 +758,13 @@
  *   the distance it began at, its frames left, whether it stopped (位移-4). A 静态刚体 keeps vx and vy at 0 and drops the
  *   slide when the force ends (位移-5)
  * @property {{ f: number, e: number, force: number, need: number, block: number, points: number, sum: number, ax: number, ay: number, touch: number[], bump?: number[], goal?: number, sel?: number, selUntil?: number,
- *   hurt?: { amount: number, every: number, next: number, until: number }, cover?: number }} [ball]
+ *   hurt?: { amount: number, every: number, next: number, until: number }, cover?: number, countdown?: number }} [ball]
  *   a ball's physics (足球-2): friction factor, restitution, default force, the damage that kicks it, the block count left
  *   that stops it, the points of its goal (足球-7); the damage and direction summed so far (足球-3); the units of ours it
  *   touched last frame (足球-4), the devices it bounced off this frame (足球-12); the goal it went into this frame (足球-5,
  *   SCORE_GOAL); the player holding it and the frame its hold ends (足球-9); the damage a shot gave it to deal around it,
  *   every so many frames, the next and the last frame (足球-15); the friction change it leaves on the tiles it enters
- *   (足球-16). Left out for other units
+ *   (足球-16); the frame its penalty countdown ends (锦标-4). Left out for other units
  * @property {{ block: number }} [spot] a 守门位's block for one of ours on its tile (足球-13). Left out for other units
  * @property {-1} [lr] an enemy faces left (敌能-90); left out while it faces right
  * @property {number} anim schema ANIM
@@ -914,8 +919,11 @@
  * 阵地足球's progress (足球-6, 足球-7): the team drawn (its index), our goals and theirs, the frame the current kickoff
  * began, the frame the match ends; the hits our operators dealt enemies this frame and the last ([enemy id, operator id,
  * frame], 足球-15).
- * The ice and slime on the field's tiles: their friction change by tile index (足球-16).
- * @typedef {{ team: number, home: number, away: number, kick: number, until: number, hits?: [number, number, number][], cover?: Record<string, number> }} FootballState
+ * The ice and slime on the field's tiles: their friction change by tile index (足球-16). A 锦标 penalty shootout
+ * (锦标-4): the round under way (0…5), the frame it began (−1 between rounds), the ball of the round once seen, whether
+ * it was kicked, whether our countdown is over.
+ * @typedef {{ team: number, home: number, away: number, kick: number, until: number, hits?: [number, number, number][], cover?: Record<string, number>,
+ *   pk?: { round: number, begun: number, ball: number, kicked: boolean, counted: boolean } }} FootballState
  */
 
 /**

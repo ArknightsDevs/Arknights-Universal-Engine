@@ -6,7 +6,7 @@ import { branchesOf, extractWaves, predefinesOf, stagesOf, maskCovers, levelCard
 import { devicesOf } from './devices.js';
 import { extractOptions } from './skeleton.js';
 import { enemyOf, sharedEnemies, damageTypeOf } from './enemies.js';
-import { footballField, footballPlayers } from './football.js';
+import { footballField, footballPlayers, CUP_MANAGER } from './football.js';
 
 /** @typedef {'NORMAL' | 'FOUR_STAR'} Difficulty */
 /** @typedef {{ mods: Record<string, number>, enemy?: string[], exclude?: string[] }} EnemyMul */
@@ -65,6 +65,12 @@ function ourRune(rune, key, bb, rp) {
 }
 
 /**
+ * Whether a rune is read by another clause, not a difficulty's (关卡-2): 合作-2's shared enemies, 锦标-1's manager.
+ * @param {string} key @param {Record<string, number | string>} bb
+ */
+const readElsewhere = (key, bb) => (key === 'env_gbuff_new_with_verify' && bb.key === 'cooperate_enemy_side_shared') || (key === 'env_system_new' && bb.key === CUP_MANAGER);
+
+/**
  * What the level's runes change at a difficulty (关卡-2).
  * @param {unknown} runesRaw level.runes @param {Difficulty} difficulty @returns {DifficultyRules}
  */
@@ -87,7 +93,7 @@ export function difficultyOf(runesRaw, difficulty) {
     else if (key === 'enemy_attribute_mul') out.enemyMul.push(mulOf(bb, MUL_KEYS.filter((k) => k in bb), num));
     else if (key === 'enemy_talent_blackb_mul') (out.talentMul ??= []).push(mulOf(bb, Object.keys(bb).filter((k) => k.includes('.')), num));
     else if (OUR_RUNES.includes(key)) (out.ours ??= []).push(ourRune(rune, key, bb, rp));
-    else if (!(key === 'env_gbuff_new_with_verify' && bb.key === 'cooperate_enemy_side_shared') && !KNOWN_RUNES.includes(key)) out.unsupported.push(key);
+    else if (!readElsewhere(key, bb) && !KNOWN_RUNES.includes(key)) out.unsupported.push(key);
   });
   out.hiddenGroups = out.hiddenGroups.filter((g) => !disabled.includes(g));
   return out;
@@ -226,7 +232,7 @@ export function extractLevel({ id, level, enemyDb, handbook, commit, view, stage
     return [asString(field(o, 'id', `level.enemyDbRefs[${i}]`), `level.enemyDbRefs[${i}].id`), o];
   }));
   // 阵地足球's teams field players the waves do not name (足球-6), their elite ones those the references name
-  const football = footballField(tiles, { options: field(lv, 'options', 'level'), globalBuffs: lv.globalBuffs }, coop, missions, (k) => refs.has(k));
+  const football = footballField(tiles, { options: field(lv, 'options', 'level'), globalBuffs: lv.globalBuffs, runes: lv.runes }, coop, missions, (k) => refs.has(k));
   const frags = [...waves.flatMap((w) => w.fragments), ...Object.values(branches).flat()];
   const spawned = frags.flatMap((f) => f.actions.filter((a) => a.type === 'SPAWN').map((a) => a.key));
   const keys = [...new Set([...spawned, ...Object.values(difficulties).flatMap((d) => Object.values(d.replace)), ...footballPlayers(football)])].toSorted();

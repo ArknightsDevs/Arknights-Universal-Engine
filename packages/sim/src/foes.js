@@ -163,6 +163,9 @@ export const BOLT_RADIUS = 0.3;
  *   — this frame and the last (足球-15)
  * @property {(name: string) => Record<string, number> | null} skillBb the blackboard of one of its skills by name, or null
  * @property {(d: number) => void} ballNeed changes this ball's kick threshold by d, not below 0 (足球-16)
+ * @property {(seconds: number) => void} countdown in our 锦标 penalty round, this ball holds what hits it for `seconds`
+ *   and is then kicked by it (锦标-4)
+ * @property {() => 'ours' | 'theirs' | null} penalty who kicks in the 锦标 penalty round under way, null outside one (锦标-4)
  * @property {(t: Unit, p: Payload) => void} hurl throws a homing skill projectile (敌能-83). Its speed is an enemy
  *   projectile's (攻击-3). `amount` is frozen as given. Arrival deals that as a skill hit, not an attack, then `status`
  *   when the target is still up

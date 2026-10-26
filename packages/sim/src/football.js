@@ -5,7 +5,7 @@
 import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { on } from './bus.js';
-import { makeBall, ballHit, FORCE_TO_SPEED, GOAL_TILES, goalOf, scored, clearLine, hurtStep } from './ball.js';
+import { makeBall, ballHit, chargeBall, kicker, FORCE_TO_SPEED, GOAL_TILES, goalOf, scored, clearLine, hurtStep } from './ball.js';
 import { kickSlide, stopSlide } from './displacement.js';
 import { displace, speedOf } from './routes.js';
 import { tileAt } from './level.js';
@@ -17,6 +17,7 @@ import { withdraw } from './deck.js';
 import { withdrawDevice } from './devices.js';
 import { makeSpot, expireBalls, goalOpen } from './pitch.js';
 import { turnLR } from './lr.js';
+import { isCup, isPlayerKey, cupEnd, penaltySide, penaltyWave, startCountdown } from './cup.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').FootballState} FootballState @typedef {import('./types.js').FootballRules} FootballRules */
@@ -37,10 +38,22 @@ function noteHit(w, t, by) {
 }
 
 /**
+ * What a hit on a ball does (足球-3, 锦标-4): while its penalty countdown runs it is summed and kicks nothing; in their
+ * penalty round ours count for nothing; else it may kick the ball at its force. @param {World} w @param {Unit} b
+ * @param {Unit | null} src @param {number} amount
+ */
+function hitBall(w, b, src, amount) {
+  if (b.ball?.countdown !== undefined) { chargeBall(b, src, amount); return; }
+  if (penaltySide(w) === 'theirs' && src && kicker(src)) return;
+  const dir = ballHit(b, src, amount);
+  if (dir && b.ball) kickSlide(b, dir[0], dir[1], b.ball.force * FORCE_TO_SPEED);
+}
+
+/**
  * The ball's hook (足球-2, 足球-3, 足球-12, 足球-15, 钩子-3), once per world in 阵地足球 or while it has a ball or a
  * device whose damage with no source is scaled — hooks are no state (ADR 0057): a hit on a ball deals it nothing, and
- * what it adds may kick the ball at its force; damage with no source to such a device is × its `envDamage`; a hit of an
- * operator's on another enemy is noted.
+ * what it adds may kick the ball at its force (hitBall); damage with no source to such a device is × its `envDamage`;
+ * a hit of an operator's on another enemy is noted.
  * @param {World} w @param {Content} c
  */
 export function ballHooks(w, c) {
@@ -52,9 +65,8 @@ export function ballHooks(w, c) {
       noteHit(w, b, ctx.credit);
       return;
     }
-    const dir = ballHit(b, ctx.source, ctx.amount);
+    hitBall(w, b, ctx.source, ctx.amount);
     ctx.amount = 0;
-    if (dir) kickSlide(b, dir[0], dir[1], b.ball.force * FORCE_TO_SPEED);
   }, { owner: OWNER });
 }
 
@@ -90,7 +102,7 @@ export function chaseStep(w, c, e, x, y) {
  * the enemy a 守门位.
  * @param {World} w @param {Content} c @param {Unit} e
  * @returns {Pick<import('./foes.js').FoeContext, 'ball' | 'balls' | 'freeBall' | 'holdBall' | 'kickBall' | 'goalTiles' | 'chase' | 'goalSpot' | 'carry'
- *   | 'goalOpen' | 'clearLine' | 'hits' | 'skillBb' | 'ballNeed'>}
+ *   | 'goalOpen' | 'clearLine' | 'hits' | 'skillBb' | 'ballNeed' | 'countdown' | 'penalty'>}
  */
 export function footballContext(w, c, e) {
   return {
@@ -117,6 +129,8 @@ export function footballContext(w, c, e) {
     clearLine: (x, y) => clearLine(w, c, e, { x, y }),
     hits: () => (w.football?.hits ?? []).filter(([, , f]) => f >= w.frame - 1).map(([target, source]) => ({ target, source })),
     skillBb: (name) => c.enemies[e.key]?.skills?.find((s) => s.key === name)?.bb ?? null,
+    countdown: (seconds) => startCountdown(w, e, seconds),
+    penalty: () => penaltySide(w),
   };
 }
 
@@ -161,12 +175,13 @@ export function kickoffLevel(f, lead) {
 /**
  * The wave of the next kickoff (足球-6): the level by our lead; a tag by that level's weights (随机-2); one of the
  * waves of that tag, each as likely (随机-1). In a level without kickoff tags, the wave after the last one (past the
- * last: none, the waves are over). The kickoff's frame is noted.
+ * last: none, the waves are over); in a 锦标 penalty shootout its next round's (锦标-4). The kickoff's frame is noted.
  * @param {World} w @param {Content} c @param {number} at the frame it begins
  */
 export function kickoffWave(w, c, at) {
   const f = /** @type {FootballRules} */ (c.level.football), st = /** @type {FootballState} */ (w.football);
   st.kick = at;
+  if (st.pk) return penaltyWave(w, c, at);
   if (!tagged(c)) return w.sched.wave + 1;
   const weights = f.weights[String(kickoffLevel(f, st.home - st.away))] ?? f.weights['0'];
   const tag = weightedPick(w, weights);
@@ -213,11 +228,12 @@ export function catchUp(w, c, key) {
 
 /**
  * A player brought in by a kickoff waits until the players' wait after it is over (足球-6): it does not walk, attack or
- * use its abilities (the buff `kickoff`) before the frame kickoff + wait. @param {World} w @param {Content} c @param {Unit} u
+ * use its abilities (the buff `kickoff`) before the frame kickoff + wait. A player of the drawn team; in 阵地足球锦标
+ * any player (锦标-1). @param {World} w @param {Content} c @param {Unit} u
  */
 export function kickoffWait(w, c, u) {
   const f = c.level.football, st = w.football;
-  if (!f || !st || u.ball || !drawnPlayer(f, st, u.key)) return;
+  if (!f || !st || u.ball || !(isCup(c) ? isPlayerKey(c, u.key) : drawnPlayer(f, st, u.key))) return;
   // it ticks this frame too (状态-3): free on the frame the wait is over
   const left = st.kick + secondsToFrames(f.wait) - w.frame + 1;
   if (left > 0) addBuff(u, makeBuff({ key: 'kickoff', src: u.id, left, flags: { kickoff: true, root: true, noAttack: true } }));
@@ -247,13 +263,27 @@ function clearField(w, c) {
   if (w.football) delete w.football.cover;
 }
 
+/**
+ * The goals of a frame counted (足球-7): each ball's points to the side that scored. For whom a ball went in — 1 us
+ * (into their goal), 0 them —, −1 for none. @param {FootballState} st @param {Unit[]} balls
+ */
+function goals(st, balls) {
+  let side = -1;
+  for (const b of balls) {
+    const points = b.ball?.points ?? 1, ours = b.ball?.goal === 1;
+    if (ours) st.home += points; else st.away += points;
+    side = Math.max(side, ours ? 1 : 0);
+  }
+  return side;
+}
+
 /** The stamps of a match (足球-7): the stamps' net goals it reached. @param {FootballRules} f @param {FootballState} st */
 export const footballStamps = (f, st) => f.stamps.filter((n) => st.home - st.away >= n).length;
 
 /**
  * The end of a frame of 阵地足球 (足球-5, 足球-7, 足球-14, 足球-15): a caught ball whose card's time is up comes back; a
  * shot's hurt goes on; the hits before this frame are forgotten; a ball that went into a goal leaves — in a match its points go to the side that scored and the field is cleared for the next
- * kickoff —; at the match's end the battle is over.
+ * kickoff —; at the match's end the battle is over (a 锦标 match's end: 锦标-1).
  * @param {World} w @param {Content} c
  */
 export function tickFootball(w, c) {
@@ -264,11 +294,9 @@ export function tickFootball(w, c) {
   for (const b of balls) leave(w, b);
   const st = w.football;
   if (!st) return;
-  for (const b of balls) {
-    const points = b.ball?.points ?? 1;
-    if (b.ball?.goal === 1) st.home += points; else st.away += points;
-  }
+  const side = goals(st, balls);
   if (balls.length > 0) clearField(w, c);
+  if (isCup(c)) { cupEnd(w, c, side, () => clearField(w, c)); return; }
   if (w.result < 0 && w.frame + 1 >= st.until) {
     w.result = 1;
     w.events.push({ type: 'end', result: 1 });

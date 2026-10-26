@@ -148,12 +148,22 @@ function dribbleUnderWay(ctx) {
 }
 
 /**
+ * A kick's hit and end, seconds from its start (足球-10): by KICK_TIMES, none listed at once; in their 锦标 penalty
+ * round at the touch (锦标-4: 「射门手将在靠近足球后立即踢出」). @param {FoeContext} ctx @param {string} skill
+ * @returns {readonly [number, number]}
+ */
+const kickTimes = (ctx, skill) => (ctx.penalty() === 'theirs' ? [0, 0] : KICK_TIMES[ctx.self.key]?.[skill] ?? [0, 0]);
+
+/**
  * Starts a kick (足球-10, 足球-15): the ball within reach stops and is held; the skill, its target and its scale are
- * noted, its hit and end by KICK_TIMES (none listed: at once). An 爱球会 forward's shot is a carry: `duration` seconds
+ * noted, its hit and end by KICK_TIMES (none listed, or their 锦标 penalty round: at once). In our 锦标 penalty round a
+ * goalkeeper only stops the ball. An 爱球会 forward's shot is a carry: `duration` seconds
  * on, for `up_duration` seconds. @param {FoeContext} ctx @param {Unit} b @param {Record<string, number>} bb @param {number} reach
  */
 function startKick(ctx, b, bb, reach) {
   const goalkeeper = typeof bb.clearance_force === 'number';
+  // our 锦标 penalty: their goalkeeper stops the ball and that is the round (锦标-4: 「失球！」)
+  if (goalkeeper && ctx.penalty() === 'ours') { ctx.holdBall(b, 1); return; }
   const { skill, to } = goalkeeper ? { skill: 'clearance', to: null } : forwardChoice(ctx);
   const st = ctx.state, shot = skill === 'slapshot' ? ctx.skillBb('slapshot') : null;
   st.set('ball', b.id);
@@ -165,7 +175,7 @@ function startKick(ctx, b, bb, reach) {
     ctx.holdBall(b, 1);
     return;
   }
-  const [h, e] = KICK_TIMES[ctx.self.key]?.[skill] ?? [0, 0], hit = ctx.frames(h), end = Math.max(hit + 1, ctx.frames(e));
+  const [h, e] = kickTimes(ctx, skill), hit = ctx.frames(h), end = Math.max(hit + 1, ctx.frames(e));
   const t = kickTarget(ctx, skill, to);
   ctx.holdBall(b, hit + 1);
   st.set('hit', ctx.frame + hit); st.set('end', ctx.frame + end);

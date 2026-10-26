@@ -14,6 +14,7 @@ import { foeLeave } from './talentfoe.js';
 import { noteExit } from './exits.js';
 import { shareLeave } from './talentaround.js';
 import { firstBlockLeave } from './talentfight.js';
+import { KICKERS } from './cup.js';
 import { dropRumble } from './loot.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
@@ -54,9 +55,10 @@ export function cardHidden(w, c, key) {
 
 /**
  * A seat's deploy limit (部署-2): the level's, changed by the seat's runes (符文-2) and the built 临时休息舱 (守御-5), not
- * below 0. @param {Content} c @param {number} seat @param {World} [w]
+ * below 0; in a 锦标 penalty shootout at most its kickers (锦标-4). @param {Content} c @param {number} seat @param {World} [w]
  */
-export const deployLimit = (c, seat, w) => Math.max(0, c.level.options.characterLimit + (c.level.options.characterLimitAdd?.[seat] ?? 0) + (w ? facilitySum(w, c, 'lounge', 'value_char') : 0));
+export const deployLimit = (c, seat, w) => Math.min(w?.football?.pk ? KICKERS : Infinity,
+  Math.max(0, c.level.options.characterLimit + (c.level.options.characterLimitAdd?.[seat] ?? 0) + (w ? facilitySum(w, c, 'lounge', 'value_char') : 0)));
 
 /** Whether a cut is for an operator record (部署-10): of its profession or one of its factions. @param {{ profession: string } | { power: string }} x @param {import('./types.js').OperatorDef} d */
 const cutFits = (x, d) => ('profession' in x ? d.profession === x.profession : (d.powers ?? []).includes(x.power));
@@ -169,8 +171,11 @@ export function giveCuts(w, c, u) {
   }
 }
 
-/** A card's 再部署惩罚 after its operator leaves (部署-3): one more, at most MAX_PENALTY; in 阵地足球 the same (足球-8). @param {World} w @param {{ penalty: number }} card */
-const nextPenalty = (w, card) => (w.football ? card.penalty : Math.min(MAX_PENALTY, card.penalty + 1));
+/**
+ * A card's 再部署惩罚 after its operator leaves (部署-3): one more, at most MAX_PENALTY; in 阵地足球 the same (足球-8), but
+ * one more again in 阵地足球锦标 (锦标-1: no field bonus). @param {World} w @param {Content} c @param {{ penalty: number }} card
+ */
+const nextPenalty = (w, c, card) => (w.football && !c.level.football?.cup ? card.penalty : Math.min(MAX_PENALTY, card.penalty + 1));
 
 /**
  * An operator leaves the field (部署-3, 撤退-1): a retreat returns ⌊min(paid × 返还倍率, initial cost)⌋ cost (without the
@@ -198,7 +203,7 @@ export function leaveField(w, c, u, retreated) {
   if (retreated) retreatGains(w, c, u, t);
   const first = retreated && !card.retreated ? t.firstRetreatRespawn : 1;
   const wait = retreated && w.fortress?.phase === 'rest' ? 0 : secondsToFrames((d.respawnTime ?? DEFAULT_RESPAWN) * respawnFactor(w, c) * first);
-  const penalty = nextPenalty(w, card), lock = u.ab['@devoured'], once = (retreated || card.retreated) && t.firstRetreatRespawn !== 1 ? { retreated: true } : {};
+  const penalty = nextPenalty(w, c, card), lock = u.ab['@devoured'], once = (retreated || card.retreated) && t.firstRetreatRespawn !== 1 ? { retreated: true } : {};
   p.cards[u.key] = lock !== undefined && !retreated ? { penalty, ready: w.frame, lock, ...once } : { penalty, ready: w.frame + wait, ...once };
   p.deployed = p.deployed.filter((k) => k !== u.key);
 }

@@ -68,7 +68,7 @@ export function goalkeepers(w) {
 /**
  * A goalkeeper stops a ball (足球-14): the ball leaves the field — hidden where it is, nothing touching it — and the
  * goalkeeper's seat holds it until the card's time is up, with the tile it was caught on; a predefined operator's
- * catch (波次-7, the level's own) is the first seat's.
+ * catch (波次-7, the level's own) is the first seat's. In a 锦标 penalty shootout no seat holds it (锦标-4).
  * @param {World} w @param {Unit} b @param {Unit} by
  */
 export function catchBall(w, b, by) {
@@ -76,6 +76,8 @@ export function catchBall(w, b, by) {
   if (!p || !b.ball) return;
   board(b);
   b.ball.touch = [];
+  // a 锦标 penalty: the ball caught is the round's end, no card (锦标-4)
+  if (w.football?.pk) return;
   (p.balls ??= []).push({ id: b.id, until: w.frame + secondsToFrames(CATCH_SECONDS), row: Math.round(by.y), col: Math.round(by.x) });
 }
 

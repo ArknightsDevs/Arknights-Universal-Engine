@@ -55,7 +55,7 @@ export function makeBall(u, p) {
 const len = (x, y) => Math.sqrt(x * x + y * y);
 
 /** Whether a unit is one of ours whose hits move a ball (足球-3): an operator or a device of ours. @param {Unit} u */
-const kicker = (u) => u.kind === KIND.OPERATOR || u.kind === KIND.DEVICE;
+export const kicker = (u) => u.kind === KIND.OPERATOR || u.kind === KIND.DEVICE;
 
 /**
  * The direction one hit adds (足球-3): from the source to the ball, or (1, 0) when they share a tile; a fifth of it
@@ -71,19 +71,27 @@ export function hitDirection(b, src) {
 }
 
 /**
- * A hit on a ball (足球-3): from one of ours, while the ball is neither in 失衡 nor hidden, the hit's direction and its
- * damage are added up; once the damage reaches the ball's threshold both start again and the kick's direction — the
- * sum as a unit vector, (1, 0) when the sum is nothing — is returned. Null when the hit kicks nothing.
- * @param {Unit} b @param {Unit | null} src @param {number} amount @returns {[number, number] | null}
+ * A hit summed on a ball (足球-3, 锦标-4): from one of ours, while the ball is neither in 失衡 nor hidden, the hit's
+ * direction and its damage are added up. Whether it was. @param {Unit} b @param {Unit | null} src @param {number} amount
  */
-export function ballHit(b, src, amount) {
+export function chargeBall(b, src, amount) {
   const s = b.ball;
-  if (!s || !src || !kicker(src) || b.slide || b.hidden || !(amount > 0)) return null;
+  if (!s || !src || !kicker(src) || b.slide || b.hidden || !(amount > 0)) return false;
   const [dx, dy] = hitDirection(b, src);
   s.ax += dx;
   s.ay += dy;
   s.sum += amount;
-  if (s.sum < s.need) return null;
+  return true;
+}
+
+/**
+ * A hit on a ball (足球-3): summed (chargeBall); once the damage reaches the ball's threshold both start again and the
+ * kick's direction — the sum as a unit vector, (1, 0) when the sum is nothing — is returned. Null when the hit kicks nothing.
+ * @param {Unit} b @param {Unit | null} src @param {number} amount @returns {[number, number] | null}
+ */
+export function ballHit(b, src, amount) {
+  const s = b.ball;
+  if (!s || !chargeBall(b, src, amount) || s.sum < s.need) return null;
   const d = len(s.ax, s.ay);
   /** @type {[number, number]} */
   const dir = d > 0 ? [s.ax / d, s.ay / d] : [1, 0];

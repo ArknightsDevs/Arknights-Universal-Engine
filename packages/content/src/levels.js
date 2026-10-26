@@ -12,6 +12,20 @@ import act1multiFortressRm01 from '../data/levels/act1multi_fortress_rm01.json' 
 import act1multiFortressHard01 from '../data/levels/act1multi_fortress_hard-01.json' with { type: 'json' };
 import act1multiFootball from '../data/levels/act1multi_football.json' with { type: 'json' };
 import act1multiFootballHard01 from '../data/levels/act1multi_football_hard-01.json' with { type: 'json' };
+import act1footballTr01 from '../data/levels/act1football_tr01.json' with { type: 'json' };
+import act1football01 from '../data/levels/act1football_01.json' with { type: 'json' };
+import act1football02 from '../data/levels/act1football_02.json' with { type: 'json' };
+import act1football03 from '../data/levels/act1football_03.json' with { type: 'json' };
+import act1football04 from '../data/levels/act1football_04.json' with { type: 'json' };
+import act1football05 from '../data/levels/act1football_05.json' with { type: 'json' };
+import act1football06 from '../data/levels/act1football_06.json' with { type: 'json' };
+import act1football07 from '../data/levels/act1football_07.json' with { type: 'json' };
+import act1footballEx01 from '../data/levels/act1football_ex01.json' with { type: 'json' };
+import act1footballEx02 from '../data/levels/act1football_ex02.json' with { type: 'json' };
+import act1footballEx03 from '../data/levels/act1football_ex03.json' with { type: 'json' };
+import act1footballEx04 from '../data/levels/act1football_ex04.json' with { type: 'json' };
+import act1footballSub11 from '../data/levels/act1football_sub-1-1.json' with { type: 'json' };
+import act1footballSub12 from '../data/levels/act1football_sub-1-2.json' with { type: 'json' };
 import { uncoveredAbilities, withFoeExtras } from './foes.js';
 import { profiledDevices, DEVICE_PROFILES } from './devices.js';
 import { CARRIED } from './carried.js';
@@ -25,6 +39,10 @@ export const LEVELS = Object.freeze({
   act1multi_01: act1multi01, act1multi_02: act1multi02, act1multi_06: act1multi06, 'act1multi_hard-02': act1multiHard02, act1multi_rm07: act1multiRm07,
   act2multi_rm01: act2multiRm01, act1multi_tr01: act1multiTr01, act1multi_tr02: act1multiTr02, act1multi_fortress_rm01: act1multiFortressRm01, 'act1multi_fortress_hard-01': act1multiFortressHard01,
   act1multi_football: act1multiFootball, 'act1multi_football_hard-01': act1multiFootballHard01,
+  act1football_tr01: act1footballTr01, act1football_01: act1football01, act1football_02: act1football02, act1football_03: act1football03,
+  act1football_04: act1football04, act1football_05: act1football05, act1football_06: act1football06, act1football_07: act1football07,
+  act1football_ex01: act1footballEx01, act1football_ex02: act1footballEx02, act1football_ex03: act1footballEx03,
+  act1football_ex04: act1footballEx04, 'act1football_sub-1-1': act1footballSub11, 'act1football_sub-1-2': act1footballSub12,
 });
 
 const PRTS = 'https://prts.wiki/index.php?title=';
@@ -155,7 +173,8 @@ function optionsAt(options, d) {
 }
 
 /** The levels being tested (关卡-8): they load with enemy abilities that have no behaviour yet, which do nothing there. */
-export const TESTING = Object.freeze(['act1multi_fortress_rm01', 'act1multi_fortress_hard-01', 'act1multi_football', 'act1multi_football_hard-01']);
+export const TESTING = Object.freeze(['act1multi_fortress_rm01', 'act1multi_fortress_hard-01', 'act1multi_football', 'act1multi_football_hard-01',
+  ...Object.keys(LEVELS).filter((k) => k.startsWith('act1football_'))]);
 
 /** Whether a level is being tested (关卡-8): one of TESTING, or its file says so. @param {string} id @param {any} raw */
 const beingTested = (id, raw) => TESTING.includes(id) || raw.testing === true;
