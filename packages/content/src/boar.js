@@ -2,7 +2,9 @@
 // of 移动速度 + `move_speed`, at most `trig_cnt` tries, those in its first `predelay` seconds failing —, and 晕眩, 冻结, 浮空 or
 // 束缚 end the charge with its layers. Moving on its own it rams each of ours on low ground that comes within 0.5
 // (`Crash`), and while it charges its normal attack hits once more, after which the charge ends (`FirstAttack`). Its
-// `Rush` and `FirstAttack` blackboards are this family's shape; the others are 敌能-19's and 敌能-7's.
+// `Rush` and `FirstAttack` blackboards are this family's shape; the others are 敌能-19's and 敌能-7's, and 赏金猎人“骑士”'s
+// `Rush` (敌能-95).
+import { knightShape } from './lancer.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').FoeContext} FoeContext */
 
@@ -28,11 +30,11 @@ const dashShape = (bb) => ['duration', 'move_speed', 'range_radius'].every((k) =
 export const boarFirst = (bb) => Object.keys(bb).length === 1 && typeof bb.atk_scale === 'number';
 
 /**
- * The shapes of the shared names this family reads (关卡-2): `Rush` 敌能-19's or 凶豕兽's, `FirstAttack` 敌能-7's
- * (`attack@first_atk_scale`) or 凶豕兽's, `Crash` 凶豕兽's; any other name passes. @param {string} k @param {Record<string, unknown>} bb
+ * The shapes of the shared names this family reads (关卡-2): `Rush` 敌能-19's, 凶豕兽's or 赏金猎人“骑士”'s (敌能-95),
+ * `FirstAttack` 敌能-7's (`attack@first_atk_scale`) or 凶豕兽's, `Crash` 凶豕兽's; any other name passes. @param {string} k @param {Record<string, unknown>} bb
  */
 export function boarOwns(k, bb) {
-  if (k === 'Rush') return dashShape(bb) || boarRush(bb);
+  if (k === 'Rush') return dashShape(bb) || boarRush(bb) || knightShape(bb);
   if (k === 'FirstAttack') return typeof bb['attack@first_atk_scale'] === 'number' || boarFirst(bb);
   if (k === 'Crash') return crashShape(bb);
   return true;

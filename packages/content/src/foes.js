@@ -38,7 +38,8 @@ import { sanktaBehaviors } from './sankta.js';
 import { periodicBehaviors } from './periodic.js';
 import { blockDamageBehaviors } from './blockdamage.js';
 import { mirrorBehaviors } from './mirror.js';
-import { lancerBehaviors } from './lancer.js';
+import { lancerBehaviors, knightShape, knightRush } from './lancer.js';
+import { evadeBehaviors, evadeOwns } from './evade.js';
 import { tyrantBehaviors } from './tyrant.js';
 import { pengBehaviors } from './peng.js';
 import { bombardBehaviors } from './bombard.js';
@@ -464,10 +465,15 @@ const FirstAttack = Object.freeze({
   hit: (ctx, target) => { if (boarFirst(ctx.bb) && boarRush(ctx.talent('Rush') ?? {})) boarHit(ctx, target); },
 });
 
-/** `Rush` by its shape (敌能-19, 敌能-92): 凶豕兽's charge, else 冲锋. @type {FoeBehavior} */
+/** `Rush` by its shape (敌能-19, 敌能-92, 敌能-95): 凶豕兽's charge, 赏金猎人“骑士”'s speed-up, else 冲锋. @type {FoeBehavior} */
 const Rush = Object.freeze({
   spawn: (ctx) => { if (boarRush(ctx.bb)) boarSpawn(ctx); },
-  tick: (ctx) => { if (boarRush(ctx.bb)) boarTick(ctx); else avengerBehaviors.Rush.tick?.(ctx); },
+  tick: (ctx) => {
+    if (boarRush(ctx.bb)) boarTick(ctx);
+    else if (knightShape(ctx.bb)) knightRush.tick?.(ctx);
+    else avengerBehaviors.Rush.tick?.(ctx);
+  },
+  hit: (ctx, target, dealt, ranged) => { if (knightShape(ctx.bb)) knightRush.hit?.(ctx, target, dealt, ranged); },
 });
 
 /** The 倍率 on a frozen target an `atkup` blackboard gives (敌能-27), or undefined. @param {Record<string, number>} bb */
@@ -628,6 +634,7 @@ export const foeBehaviors = Object.freeze({
   ...lootBehaviors,
   ...candycarBehaviors,
   ...rockmanBehaviors,
+  ...evadeBehaviors,
 });
 
 /**
@@ -731,7 +738,7 @@ const cartBoom = (k, bb) => k === 'boom' && cartShape(bb);
  * The shape checks of the shared names (关卡-2): each says whether a blackboard of its names is the shape its behaviour
  * understands, and passes every other name. In a list, so that each family adds one entry, not one more `&&`.
  */
-const SHAPE_OWNERS = Object.freeze([rebornShape, boarOwns, elementHitOwns, takeOffOwns, wineOwns, whipOwns, bornBugsOwns, radioOwns, shieldOwns, punchOwns, passiveOwns, defdownOwns, knightOwns, blinkOwns, healAuraOwns, vampireOwns, chargeAttackOwns, rebornOwns, faustOwns, shotbuffOwns, bornCarOwns, stunAttackOwns, bombdOwns]);
+const SHAPE_OWNERS = Object.freeze([rebornShape, boarOwns, elementHitOwns, takeOffOwns, wineOwns, whipOwns, bornBugsOwns, radioOwns, shieldOwns, punchOwns, passiveOwns, defdownOwns, knightOwns, blinkOwns, healAuraOwns, vampireOwns, chargeAttackOwns, rebornOwns, faustOwns, shotbuffOwns, bornCarOwns, stunAttackOwns, bombdOwns, evadeOwns]);
 
 /**
  * Whether an ability has what its behaviour needs (关卡-2). A shared talent name only counts when its blackboard is the
