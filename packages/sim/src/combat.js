@@ -643,7 +643,7 @@ function crit(op, out, k) {
  */
 export function operatorsAttack(w, c) {
   for (const op of w.units) {
-    if (op.kind !== KIND.OPERATOR || op.hp <= 0) continue;
+    if (op.kind !== KIND.OPERATOR || op.hp <= 0 || !w.units.includes(op)) continue;
     enforceCapacity(w, c, op);
     blockingImmunity(w, op, traitOf(c, op).immuneBlocking);
     traitWhiles(w, c, op);

@@ -99,7 +99,7 @@ export class LockstepHost {
   hello(seat, now) {
     this.rebase(now);
     this.connected.add(seat);
-    this.o.send(seat, { t: 'welcome', v: PROTOCOL_VERSION, seat, seed: this.o.seed, frame: this.sealed, ...this.state(), match: this.o.match ?? null, content: this.content });
+    this.o.send(seat, { t: 'welcome', v: PROTOCOL_VERSION, seat, seats: this.o.seats, seed: this.o.seed, frame: this.sealed, ...this.state(), match: this.o.match ?? null, content: this.content });
     this.broadcastControl();
   }
 
