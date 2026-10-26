@@ -187,6 +187,25 @@ test('[渲染-12] co-op goals by the viewer: their own goal and one of no single
   only.dispose();
 });
 
+test('[渲染-12] [渲染-26] 阵地足球: our goal takes the third co-op end marker, theirs the start marker; the 守门位, ice and slime their effects while they last', () => {
+  const lasting = () => ({ d: 0.5, ps: [sys({ loop: true, rate: C(5), bursts: [] })], tr: [] });
+  const data = { by: {}, named: { tile_start: 'red', tile_end_coop_1: 'blue1', tile_end_coop_3: 'blue3', football_spot: 'spot', football_ice: 'ice' },
+    fx: { red: lasting(), blue1: lasting(), blue3: lasting(), spot: lasting(), ice: lasting() } };
+  const tile = (/** @type {string} */ key) => ({ key, height: 'LOWLAND' });
+  const fx = createEffects({ data, textures: new Map() }, { width: 3, height: 2, tiles: [[tile('tile_allygoal'), tile('tile_football'), tile('tile_enemygoal')], [tile('tile_allygoal'), tile('tile_football'), tile('tile_enemygoal')]] });
+  const kinds = () => fx.live.filter((i) => !i.stopped).map((i) => Object.keys(data.fx).find((k) => data.fx[/** @type {keyof typeof data.fx} */ (k)] === i.e)).sort();
+  assert.deepEqual(kinds(), ['blue3', 'blue3', 'red', 'red'], 'a marker on each goal tile');
+  const drawn = fx.pitch({ spots: [3], cover: { 1: -0.3, 4: 0.3 }, kicks: [] });
+  assert.deepEqual([...drawn].sort(), ['ice', 'spot'], 'the slime has no effect in this pack: its square stays');
+  assert.deepEqual(kinds(), ['blue3', 'blue3', 'ice', 'red', 'red', 'spot']);
+  fx.pitch({ spots: [3], cover: { 1: -0.3, 4: 0.3 }, kicks: [] });
+  assert.equal(fx.field.size, 2, 'kept, not started again');
+  fx.pitch({ spots: [3], cover: {}, kicks: [] });
+  assert.deepEqual(kinds(), ['blue3', 'blue3', 'red', 'red', 'spot'], 'the ice gone: its effect stops');
+  fx.pitch(null);
+  assert.equal(fx.field.size, 0);
+  fx.dispose();
+});
 
 test('[渲染-25] a 炼金单元: its trail flies to the landing tile, its effects loop there, drift and grow with it, and stop at its end', () => {
   const tex = new Map([['a', new THREE.Texture()]]), lasting = () => ({ d: 0.5, ps: [sys({ loop: true, rate: C(5), bursts: [] })], tr: [] });

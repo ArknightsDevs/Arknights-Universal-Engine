@@ -1,6 +1,7 @@
 // 阵地足球's field marks (docs/spec/render.md 渲染-26): the 守门位's tiles and the ice and slime as flat translucent
-// squares on their tiles, drawn before the units like the range; and each ball's kick so far as an arrow from its centre
-// along the summed direction, a tile long at its threshold. Placeholders until the original art is in the assets.
+// squares on their tiles, drawn before the units like the range — those whose effects the pack has are drawn by the
+// effects instead —; and each ball's kick so far as an arrow from its centre along the summed direction, a tile long at
+// its threshold.
 import * as THREE from 'three';
 import { toThree, tileWorld } from './camera.js';
 
@@ -9,6 +10,8 @@ export const PITCH_MARKS = Object.freeze({
   spot: Object.freeze([0.16, 0.55, 1]), ice: Object.freeze([0.7, 0.93, 1]), slime: Object.freeze([0.6, 0.8, 0.2]), arrow: Object.freeze([1, 1, 1]), opacity: 0.45,
 });
 
+/** No kinds drawn by the effects. */
+const NONE = new Set();
 /** How far above its tile a mark lies, so it does not fight the ground. */
 const LIFT = 0.012;
 /** An arrow's width, in tiles. */
@@ -39,13 +42,16 @@ export function createPitchMarks(level) {
   };
   return {
     object: group,
-    /** Shows the marks (渲染-26); null for none. @param {PitchState | null} s */
-    show(s) {
+    /**
+     * Shows the marks (渲染-26); null for none. @param {PitchState | null} s
+     * @param {ReadonlySet<string>} [drawn] the kinds (`spot`, `ice`, `slime`) the effects draw
+     */
+    show(s, drawn = NONE) {
       for (const c of group.children) if (/** @type {THREE.Mesh} */ (c).geometry !== quad) /** @type {THREE.Mesh} */ (c).geometry.dispose();
       group.clear();
       if (!s) return;
-      for (const [k, v] of Object.entries(s.cover)) square(Number(k), v < 0 ? mats.ice : mats.slime);
-      for (const k of s.spots) square(k, mats.spot);
+      for (const [k, v] of Object.entries(s.cover)) if (!drawn.has(v < 0 ? 'ice' : 'slime')) square(Number(k), v < 0 ? mats.ice : mats.slime);
+      if (!drawn.has('spot')) for (const k of s.spots) square(k, mats.spot);
       for (const a of s.kicks) {
         const len = Math.hypot(a.ax, a.ay), share = Math.min(1, Math.max(0, a.share));
         if (!(len > 0) || !(share > 0)) continue;

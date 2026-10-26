@@ -103,6 +103,8 @@ test('[渲染-26] 阵地足球: a square on each 守门位 tile and each tile of
   assert.ok(Math.abs(meshes[3].scale.x - 0.5) < 1e-9, 'half its threshold: half a tile');
   m.show(null);
   assert.equal(m.count(), 0);
+  m.show({ spots: [7], cover: { 8: -0.3, 9: 0.3 }, kicks: [] }, new Set(['spot', 'ice']));
+  assert.deepEqual(m.object.children.map((q) => color(/** @type {THREE.Mesh} */ (q)).equals(want(PITCH_MARKS.slime))), [true], 'the kinds the effects draw: no square');
   m.dispose();
 });
 

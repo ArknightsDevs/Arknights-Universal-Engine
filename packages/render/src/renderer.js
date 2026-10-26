@@ -136,7 +136,8 @@ export function createBattleRenderer(o) {
     range: (keys, heal) => range.show(keys, heal),
     /** Shows the marked tiles (渲染-19); null for none. @param {readonly import('./tilemarks.js').TileMark[] | null} list */
     marks: (list) => marks.show(list),
-    /** Shows 阵地足球's field marks (渲染-26); null for none. @param {import('./pitchmarks.js').PitchState | null} s */ pitch: (s) => pitch.show(s),
+    /** Shows 阵地足球's field marks (渲染-26): the effects the pack has, squares for the rest; null for none. @param {import('./pitchmarks.js').PitchState | null} s */
+    pitch: (s) => pitch.show(s, effects?.pitch(s)),
     /** Shows the operator being placed (渲染-14); null for none. @param {import('./placing.js').Placing | null} p */
     placing: (p) => placing.set(p),
     render() {
