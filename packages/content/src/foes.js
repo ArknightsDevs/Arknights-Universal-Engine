@@ -46,6 +46,8 @@ import { pompeiiBehaviors, pompeiiOwns } from './pompeii.js';
 import { ninjaBehaviors, ninjaOwns } from './ninja.js';
 import { spearBehaviors, spearOwns } from './spear.js';
 import { catapultBehaviors, catapultOwns } from './catapult.js';
+import { plantBehaviors, plantOwns } from './plant.js';
+import { companionBehaviors, companionOwns } from './companion.js';
 import { tyrantBehaviors } from './tyrant.js';
 import { pengBehaviors } from './peng.js';
 import { bombardBehaviors } from './bombard.js';
@@ -333,6 +335,8 @@ export const foeBehaviors = Object.freeze({
   ...ninjaBehaviors,
   ...spearBehaviors,
   ...catapultBehaviors,
+  ...plantBehaviors,
+  ...companionBehaviors,
 });
 
 /**
@@ -436,7 +440,7 @@ const cartBoom = (k, bb) => k === 'boom' && cartShape(bb);
  * The shape checks of the shared names (关卡-2): each says whether a blackboard of its names is the shape its behaviour
  * understands, and passes every other name. In a list, so that each family adds one entry, not one more `&&`.
  */
-const SHAPE_OWNERS = Object.freeze([rebornShape, boarOwns, elementHitOwns, takeOffOwns, wineOwns, whipOwns, bornBugsOwns, radioOwns, shieldOwns, punchOwns, passiveOwns, defdownOwns, knightOwns, blinkOwns, healAuraOwns, vampireOwns, chargeAttackOwns, rebornOwns, faustOwns, shotbuffOwns, bornCarOwns, stunAttackOwns, bombdOwns, evadeOwns, carnivalOwns, heteroOwns, pompeiiOwns, ninjaOwns, spearOwns, catapultOwns]);
+const SHAPE_OWNERS = Object.freeze([rebornShape, boarOwns, elementHitOwns, takeOffOwns, wineOwns, whipOwns, bornBugsOwns, radioOwns, shieldOwns, punchOwns, passiveOwns, defdownOwns, knightOwns, blinkOwns, healAuraOwns, vampireOwns, chargeAttackOwns, rebornOwns, faustOwns, shotbuffOwns, bornCarOwns, stunAttackOwns, bombdOwns, evadeOwns, carnivalOwns, heteroOwns, pompeiiOwns, ninjaOwns, spearOwns, catapultOwns, plantOwns, companionOwns]);
 
 /** Shapes whole in themselves, whatever FOE_NEEDS lists for their name (关卡-2). @type {readonly ((k: string, bb: Record<string, unknown>) => boolean)[]} */
 const WHOLE_SHAPES = Object.freeze([nestPulseOwns, cartBoom, noPeriodic, (k, bb) => k === 'boom' && ballBoom(bb), (k, bb) => k === 'Shield' && heteroShield(bb), (k, bb) => k === 'defdown' && acidShape(bb)]);

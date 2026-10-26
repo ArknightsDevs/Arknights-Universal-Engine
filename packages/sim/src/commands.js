@@ -133,6 +133,9 @@ function builderProblem(w, c, seat, cmd) {
 /** A unit that takes its tile from operators (部署-1): an operator, or a device but a built platform (守御-5). @param {Content} c @param {import('./types.js').Unit} u */
 const holdsTile = (c, u) => u.kind === KIND.OPERATOR || (u.kind === KIND.DEVICE && !(facilityOf(c, u)?.kind === 'platform' && (u.fac?.level ?? 0) > 0));
 
+/** Whether a unit already holds a tile (部署-2). @param {World} w @param {Content} c @param {number} row @param {number} col */
+export const tileTaken = (w, c, row, col) => w.units.some((u) => holdsTile(c, u) && u.x === col && u.y === row);
+
 /**
  * The cost and the tile (部署-1, 部署-2): the cost of now, a tile the record may stand on, no operator there.
  * @param {World} w @param {Content} c @param {number} seat @param {DeployCommand} cmd @param {number} cost
@@ -140,7 +143,7 @@ const holdsTile = (c, u) => u.kind === KIND.OPERATOR || (u.kind === KIND.DEVICE 
 function placeProblem(w, c, seat, cmd, cost) {
   if (w.players[seat].cost < cost) return 'not enough cost';
   if (!fits(c, c.operators[cmd.op], cmd.row, cmd.col)) return 'tile not buildable for this operator';
-  if (w.units.some((u) => holdsTile(c, u) && u.x === cmd.col && u.y === cmd.row)) return 'tile occupied';
+  if (tileTaken(w, c, cmd.row, cmd.col)) return 'tile occupied';
   return null;
 }
 

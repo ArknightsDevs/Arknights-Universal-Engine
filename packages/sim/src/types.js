@@ -880,8 +880,9 @@
 
 /**
  * An operator's card in a player's deck (部署-3): the 再部署惩罚 layers it has (0–2) and the frame it may be deployed
- * again from; `lock`, the enemy that devoured it (吞噬, 敌能-30) — locked while that enemy is on the field.
- * @typedef {{ penalty: number, ready: number, lock?: number, retreated?: boolean }} Card
+ * again from; `lock`, the enemy that devoured it (吞噬, 敌能-30) — locked while that enemy is on the field —, and
+ * `facing`, the direction of one an enemy carries off, to put it back so (敌能-109).
+ * @typedef {{ penalty: number, ready: number, lock?: number, facing?: import('./dir.js').Dir, retreated?: boolean }} Card
  */
 /**
  * A summon's card in a player's deck (召唤-4): copies held, the frame it may be deployed from, copies cooling (队列).

@@ -202,9 +202,20 @@ export function leaveField(w, c, u, retreated) {
   if (retreated) retreatGains(w, c, u, t);
   const first = retreated && !card.retreated ? t.firstRetreatRespawn : 1;
   const wait = retreated && w.fortress?.phase === 'rest' ? 0 : secondsToFrames((d.respawnTime ?? DEFAULT_RESPAWN) * respawnFactor(w, c) * first);
-  const penalty = nextPenalty(w, c, card), lock = u.ab['@devoured'], once = (retreated || card.retreated) && t.firstRetreatRespawn !== 1 ? { retreated: true } : {};
-  p.cards[u.key] = lock !== undefined && !retreated ? { penalty, ready: w.frame, lock, ...once } : { penalty, ready: w.frame + wait, ...once };
+  const penalty = nextPenalty(w, c, card), once = (retreated || card.retreated) && t.firstRetreatRespawn !== 1 ? { retreated: true } : {};
+  p.cards[u.key] = { penalty, ...lockOf(w, u, retreated, wait), ...once };
   p.deployed = p.deployed.filter((k) => k !== u.key);
+}
+
+/**
+ * A card's time and lock as its operator leaves (敌能-30, 敌能-109): devoured or carried off, not retreated, it may be
+ * deployed now but is locked by that enemy — a carried one's direction kept —; otherwise it waits `wait` frames.
+ * @param {World} w @param {Unit} u @param {boolean} retreated @param {number} wait
+ */
+function lockOf(w, u, retreated, wait) {
+  const lock = u.ab['@devoured'];
+  if (lock === undefined || retreated) return { ready: w.frame + wait };
+  return { ready: w.frame, lock, ...(u.ab['@carried'] === 1 ? { facing: u.dir } : {}) };
 }
 
 /**

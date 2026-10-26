@@ -9,6 +9,10 @@ const PRTS = 'https://prts.wiki/index.php?title=';
  * @type {Readonly<Record<string, { talents?: Record<string, Record<string, number | string>>, skills?: Record<string, Record<string, number | string>>, source: string }>>}
  */
 export const FOE_EXTRAS = Object.freeze({
+  // 暴走食人花: 普通攻击……攻击不造成伤害但会强制击倒目标……进入消化模式并强制触发技能【消化】
+  enemy_10003_trwlpl_2: { skills: { Devour: { plant: 1 } }, source: `${PRTS}%E6%9A%B4%E8%B5%B0%E9%A3%9F%E4%BA%BA%E8%8A%B1&oldid=435572` },
+  // 沉眠伴随兽: 尽可能将目标按原部署方向部署在自身所在格内并使其晕眩3秒
+  enemy_10107_mjcdog_2: { skills: { GetChar: { stun: 3 } }, source: `${PRTS}%E6%B2%89%E7%9C%A0%E4%BC%B4%E9%9A%8F%E5%85%BD&oldid=435658` },
   // 冰原卫法者/冰原御法者: 死亡爆炸（爆炸半径1.65，延迟1.2秒，……法术溅射伤害并施加持续5秒寒冷，不可对空）
   enemy_1191_krgrg: { talents: { boom: { radius: 1.65, delay: 1.2, arts: 1, air: 0, sourced: 1 } }, source: `${PRTS}%E5%86%B0%E5%8E%9F%E5%8D%AB%E6%B3%95%E8%80%85&oldid=435604` },
   enemy_1191_krgrg_2: { talents: { boom: { radius: 1.65, delay: 1.2, arts: 1, air: 0, sourced: 1 } }, source: `${PRTS}%E5%86%B0%E5%8E%9F%E5%BE%A1%E6%B3%95%E8%80%85&oldid=435605` },
