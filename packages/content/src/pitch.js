@@ -2,6 +2,7 @@
 // block it gives one of ours on its tile — read here, so that `aura` is not 敌能-28's supply cart; and the ball card, a
 // level token whose device brings a caught ball back on our half.
 import { sarkazBehaviors } from './sarkaz.js';
+import { danceAura, danceTick } from './carnival.js';
 
 /** @typedef {import('@aue/sim').FoeBehavior} FoeBehavior @typedef {import('@aue/sim').OperatorDef} OperatorDef @typedef {import('@aue/sim').DeviceDef} DeviceDef */
 
@@ -9,11 +10,13 @@ import { sarkazBehaviors } from './sarkaz.js';
 export const spotAura = (bb) => typeof bb.block_cnt === 'number' && 'sp' in bb && 'value' in bb && Object.keys(bb).length === 3;
 
 /**
- * `aura` by its shape (足球-13, 敌能-28): a 守门位's makes the enemy one at its spawn; any other is 敌能-28's.
+ * `aura` by its shape (足球-13, 敌能-98, 敌能-28): a 守门位's makes the enemy one at its spawn; 领舞者's is its 初始模式
+ * beat; any other is 敌能-28's.
  * @type {FoeBehavior}
  */
 const aura = Object.freeze({
   ...sarkazBehaviors.aura,
+  tick: (ctx) => { if (danceAura(ctx.bb)) danceTick(ctx, 0); else sarkazBehaviors.aura.tick?.(ctx); },
   spawn: (ctx) => {
     if (spotAura(ctx.bb)) ctx.goalSpot(/** @type {number} */ (ctx.bb.block_cnt));
     else sarkazBehaviors.aura.spawn?.(ctx);
