@@ -9,6 +9,14 @@ const PRTS = 'https://prts.wiki/index.php?title=';
  * @type {Readonly<Record<string, { talents?: Record<string, Record<string, number | string>>, skills?: Record<string, Record<string, number | string>>, source: string }>>}
  */
 export const FOE_EXTRAS = Object.freeze({
+  // 冰原卫法者/冰原御法者: 死亡爆炸（爆炸半径1.65，延迟1.2秒，……法术溅射伤害并施加持续5秒寒冷，不可对空）
+  enemy_1191_krgrg: { talents: { boom: { radius: 1.65, delay: 1.2, arts: 1, air: 0, sourced: 1 } }, source: `${PRTS}%E5%86%B0%E5%8E%9F%E5%8D%AB%E6%B3%95%E8%80%85&oldid=435604` },
+  enemy_1191_krgrg_2: { talents: { boom: { radius: 1.65, delay: 1.2, arts: 1, air: 0, sourced: 1 } }, source: `${PRTS}%E5%86%B0%E5%8E%9F%E5%BE%A1%E6%B3%95%E8%80%85&oldid=435605` },
+  // 投矛的士兵/投矛的勇士: 初始模式……不会攻击飞行单位
+  enemy_10155_mntjsd: { talents: { noFly: {} }, skills: { change: { spear: 1 } }, source: `${PRTS}%E6%8A%95%E7%9F%9B%E7%9A%84%E5%A3%AB%E5%85%B5&oldid=436689` },
+  enemy_10155_mntjsd_2: { talents: { noFly: {} }, skills: { change: { spear: 1 } }, source: `${PRTS}%E6%8A%95%E7%9F%9B%E7%9A%84%E5%8B%87%E5%A3%AB&oldid=436690` },
+  // 注亡拟嗣: 攻击附加攻击力60%的侵蚀损伤
+  enemy_2024_synut: { talents: { EpDamage: { el: 2 } }, source: `${PRTS}%E6%B3%A8%E4%BA%A1%E6%8B%9F%E5%97%A3&oldid=437089` },
   // 酸液源石虫: 普通攻击不会攻击飞行单位；普通攻击附加1层持续时间无限的【源石虫酸液】：防御力-10（可无限叠加）
   enemy_1004_mslime: { talents: { defdown: { acid: 1 }, noFly: {} }, source: `${PRTS}%E9%85%B8%E6%B6%B2%E6%BA%90%E7%9F%B3%E8%99%AB&oldid=442831` },
   // “庞贝”: 可同时攻击4个目标，不会攻击飞行单位；被阻挡时每10秒对半径1.4范围内的所有我方单位造成1000预计算的无途径法术溅射伤害

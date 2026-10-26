@@ -35,6 +35,7 @@ import { stealthed, liftoffRefused } from './targeting.js';
  * @property {string[]} [tags]
  * @property {boolean} [canDodge]
  * @property {boolean} [hpLoss] @property {boolean} [noHurtSp] gives no 受击回复 (技能-2: 敌能-103's burn)
+ * @property {boolean} [dodged] set by the 伤判 when the hit was dodged or missed (伤害-8; 敌能-2's `landed`)
  * @property {boolean} [sourceless] 无来源 though credited to its source: the events see no source, the kill is its source's,
  *   without the source's penetration and multiplier (伤害-7)
  * @property {number} [stopAt] this hit does not take the target below this HP (敌能-46: 无法致死 stops at 1)
@@ -259,6 +260,7 @@ function reachable(e) {
 
 /** A dodge or a miss (伤害-8): the `dodge` event (钩子-3), and one more on the target's `dodges` tracker (职业-26). @param {World} w @param {Unit} u @param {Unit | null} src @param {Damage} dmg */
 function dodged(w, u, src, dmg) {
+  dmg.dodged = true;
   emit(w, 'dodge', { source: src, target: u, dmg });
   const t = tracker(u, 'dodges');
   if (t) count(t, 1);

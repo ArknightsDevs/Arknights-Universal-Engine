@@ -196,12 +196,12 @@ function ridesOn(w, c, h, dmg, dealt) {
 
 /**
  * 敌能-46: bleed applies when a normal attack connects, including a hit that took no HP. Splash is not that attack.
- * @param {World} w @param {Content} c @param {{ src: Unit | null, t: Unit, load: Load, dealt: number }} hit
+ * @param {World} w @param {Content} c @param {{ src: Unit | null, t: Unit, load: Load, dealt: number, missed: boolean }} hit
  */
 function foeConnect(w, c, hit) {
-  const { src, t, load, dealt } = hit;
+  const { src, t, load, dealt, missed } = hit;
   if (!src || src.kind !== KIND.ENEMY || (load.hit ?? 'main') !== 'main') return;
-  foeLanded(w, c, src, t, { dealt, ranged: !!load.ranged, skill: !!load.skill });
+  foeLanded(w, c, src, t, { dealt, ranged: !!load.ranged, skill: !!load.skill, missed });
 }
 
 /**
@@ -212,7 +212,7 @@ function foeConnect(w, c, hit) {
 function oneHit(w, c, src, t, load) {
   const el = /** @type {import('./elements.js').Element | ''} */ (load.element), op = src && src.kind === KIND.OPERATOR ? src : null;
   const alive = t.hp > 0, dmg = hitDamage(w, c, op, t, load), dealt = dealDamage(w, src, t, dmg, c);
-  foeConnect(w, c, { src, t, load, dealt });
+  foeConnect(w, c, { src, t, load, dealt, missed: dmg.dodged === true });
   if (op) traitDealt(w, c, op, t, { dmg, taken: dealt });
   if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
   if (op && alive && t.hp <= 0) traitKill(w, c, op, t);

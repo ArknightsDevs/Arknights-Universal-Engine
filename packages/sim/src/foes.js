@@ -183,8 +183,9 @@ export const BOLT_RADIUS = 0.3;
  * @property {(ctx: FoeContext) => void} [death]
  * @property {(ctx: FoeContext, target: Unit, dealt: number, ranged: boolean) => void} [hit] a hit of its normal attack
  *   dealt damage (`ranged`: it came by a projectile)
- * @property {(ctx: FoeContext, target: Unit, how: { dealt: number, ranged: boolean, skill: boolean }) => void} [landed]
- *   a normal attack's hit connected (`dealt` may be 0; `skill`: the skill's attack). Splash does not (敌能-46)
+ * @property {(ctx: FoeContext, target: Unit, how: { dealt: number, ranged: boolean, skill: boolean, missed: boolean }) => void} [landed]
+ *   a normal attack's hit connected (`dealt` may be 0; `skill`: the skill's attack; `missed`: it was dodged or missed,
+ *   伤害-8). Splash does not (敌能-46)
  * @property {(ctx: FoeContext) => boolean} [fatal] its HP ran out: true when the ability keeps it on the field, its HP
  *   above 0
  * @property {(ctx: FoeContext) => void} [unbalanceEnd] 失衡 ended this turn, after the slide settled (敌能-2)
@@ -620,7 +621,7 @@ export function foeHit(w, c, e, t, how) {
 /**
  * A normal attack's hit connected (敌能-46): abilities' `landed`, also when the hit took no HP. Splash does not.
  * @param {World} w @param {Content} c @param {Unit} e @param {Unit} t
- * @param {{ dealt: number, ranged: boolean, skill: boolean }} how
+ * @param {{ dealt: number, ranged: boolean, skill: boolean, missed: boolean }} how
  */
 export function foeLanded(w, c, e, t, how) {
   each(w, c, e, 'landed', (b, ctx) => b.landed?.(ctx, t, how));
