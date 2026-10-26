@@ -841,7 +841,7 @@
  * A burn zone sets `arts` (flat arts each tick) and `pad` (added to the radius for the ally collider); 污染秽蚀 leaves
  * both off. Its source's id, the frame it was placed, frames until the next tick, frames of life left.
  * @typedef {{ x: number, y: number, radius: number, low: number, high: number, air: boolean, open: boolean, wide: boolean,
- *   src: number, placed: number, next: number, life: number, arts?: number, pad?: number }} Zone
+ *   src: number, placed: number, next: number, life: number, arts?: number, pad?: number, pure?: number }} Zone
  */
 /**
  * An enemy another brings in after a delay (敌能-22): its key, where it appears, the route and leg it goes on with, the
@@ -881,8 +881,9 @@
 /**
  * An operator's card in a player's deck (部署-3): the 再部署惩罚 layers it has (0–2) and the frame it may be deployed
  * again from; `lock`, the enemy that devoured it (吞噬, 敌能-30) — locked while that enemy is on the field —, and
- * `facing`, the direction of one an enemy carries off, to put it back so (敌能-109).
- * @typedef {{ penalty: number, ready: number, lock?: number, facing?: import('./dir.js').Dir, retreated?: boolean }} Card
+ * `facing`, the direction of one an enemy carries off, to put it back so (敌能-109); `seal`, the frame an enemy's 源石封印
+ * on it ends (敌能-110).
+ * @typedef {{ penalty: number, ready: number, lock?: number, facing?: import('./dir.js').Dir, seal?: number, retreated?: boolean }} Card
  */
 /**
  * A summon's card in a player's deck (召唤-4): copies held, the frame it may be deployed from, copies cooling (队列).
@@ -902,7 +903,7 @@
  * holds one (足球-14).
  * @typedef {{ life: number, cost: number, costTimer: number, deployed: string[], cards: Record<string, Card>, revive: number, downs: number,
  *   ask: number, askCd: number, summons?: Record<string, SummonCard>, cut?: number, cuts?: Record<string, number>, once?: string[], last?: string,
- *   slain?: Record<string, string[]>, loot?: Record<string, LootPile>, balls?: { id: number, until: number, row: number, col: number }[] }} Player
+ *   slain?: Record<string, string[]>, loot?: Record<string, LootPile>, balls?: { id: number, until: number, row: number, col: number }[], costLock?: number }} Player
  */
 
 /**

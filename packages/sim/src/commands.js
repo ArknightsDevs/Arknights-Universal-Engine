@@ -93,7 +93,7 @@ function operatorProblem(w, c, seat, cmd) {
   if (d.builder) return builderProblem(w, c, seat, cmd);
   if (d.rumble) return rumbleProblem(w, c, seat, cmd);
   if (p.deployed.includes(cmd.op)) return 'already deployed';
-  return limitProblem(w, c, seat, d, cmd) ?? (w.frame < cardOf(p, cmd.op).ready ? 'redeploying' : null) ?? (cardLocked(w, cardOf(p, cmd.op)) ? 'devoured' : null) ?? placeProblem(w, c, seat, cmd, deployCost(c, p, cmd.op, w));
+  return limitProblem(w, c, seat, d, cmd) ?? (w.frame < cardOf(p, cmd.op).ready ? 'redeploying' : null) ?? (cardLocked(w, cardOf(p, cmd.op)) ? 'devoured' : null) ?? ((cardOf(p, cmd.op).seal ?? 0) > w.frame ? 'sealed' : null) ?? placeProblem(w, c, seat, cmd, deployCost(c, p, cmd.op, w));
 }
 
 /**

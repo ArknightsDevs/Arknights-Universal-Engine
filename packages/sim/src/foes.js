@@ -24,6 +24,7 @@ import { bringIn, hatch } from './broods.js';
 import { takeBranch } from './spawn.js';
 import { devour } from './deck.js';
 import { carryOff, putBack, unlock } from './carry.js';
+import { lockCost, sealCard } from './seals.js';
 import { blightContext, tickBlight } from './blight.js';
 import { atPoint } from './tactical.js';
 import { on } from './bus.js';
@@ -117,6 +118,9 @@ export const BOLT_RADIUS = 0.3;
  *   `seconds`, or only has its card unlocked when the tile cannot hold it (敌能-109); whether it went back
  * @property {(wait: boolean) => void} unlock the card this enemy locked is unlocked, its 再部署时间 starting now with
  *   `wait` (敌能-108)
+ * @property {(seconds: number) => void} lockCost every player's cost stops regenerating for `seconds` (敌能-110)
+ * @property {(seconds: number) => void} sealCard each player's costliest card waiting to be deployed is sealed for
+ *   `seconds` (敌能-110)
  * @property {(t: Unit, key: string, init: { mods?: Record<string, number>, flags?: Record<string, boolean>, value?: number, prio?: number, act?: string, restore?: number }) => void} lend
  *   gives a unit a buff of a key that lasts while it is given again each turn (敌能-25): it ends within two frames of the
  *   last. `prio` and `act` are kept from the first time it is given
@@ -126,8 +130,9 @@ export const BOLT_RADIUS = 0.3;
  * @property {(u: Unit | null) => boolean} defaultAlly the unit is still on the field and is a 默认类 ally (敌能-54)
  * @property {() => void} fly its own motion becomes flying and the move it is on is planned again (路线-2, 敌能-34)
  * @property {() => void} attackAgain its next attack may start at once: the attack cooldown is cleared (敌能-44, 攻击-2)
- * @property {(o: { x: number, y: number, radius: number, life: number, low: number, high: number, air?: boolean, open?: boolean, wide?: boolean, arts?: number, pad?: number }) => void} zone
- *   places a zone (污染秽蚀 敌能-46; a 燃烧区域 when `arts` is set, 敌能-60)
+ * @property {(o: { x: number, y: number, radius: number, life: number, low: number, high: number, air?: boolean, open?: boolean, wide?: boolean, arts?: number, pad?: number, pure?: number }) => void} zone
+ *   places a zone (污染秽蚀 敌能-46; a 燃烧区域 when `arts` is set, 敌能-60; one of sourceless true damage when `pure` is set,
+ *   敌能-111)
  * @property {(t: Unit, damage: number, seconds: number) => void} bleed gives or refreshes 逐腐 bleed (敌能-46)
  * @property {(u: Unit) => boolean} onLow whether a unit's tile is 低地 (敌能-46)
  * @property {() => void} ground a flying unit's own motion becomes ground (`WALK`) and the move it is on drops its plan
@@ -311,7 +316,7 @@ function contextOf(w, c, e, of) {
  * The rest of an ability's context (敌能-2, 敌能-49). Split so `contextOf` stays within the line limit.
  * @param {World} w @param {Content} c @param {Unit} e @param {Record<string, number>} ab
  * @returns {Pick<FoeContext, 'setHp' | 'resetSkills' | 'onWay' | 'detour' | 'release' | 'placeDevice' | 'summon' | 'draw' | 'remove'
- *   | 'devour' | 'carryOff' | 'putBack' | 'unlock' | 'lend' | 'around' | 'enemies' | 'fly' | 'attackAgain' | 'ammoOf' | 'spendAmmo' | 'renew' | 'ours' | 'place' | 'steady' | 'behind'
+ *   | 'devour' | 'carryOff' | 'putBack' | 'unlock' | 'lockCost' | 'sealCard' | 'lend' | 'around' | 'enemies' | 'fly' | 'attackAgain' | 'ammoOf' | 'spendAmmo' | 'renew' | 'ours' | 'place' | 'steady' | 'behind'
  *   | 'course' | 'open' | 'planted' | 'summonNext' | 'grantLoot' | 'hurl'>}
  */
 function lateContext(w, c, e, ab) {
@@ -329,6 +334,8 @@ function lateContext(w, c, e, ab) {
     carryOff: (t) => carryOff(c, e, t),
     putBack: (seconds) => putBack(w, c, e, seconds),
     unlock: (wait) => { unlock(w, c, e, wait); },
+    lockCost: (seconds) => { lockCost(w, seconds); },
+    sealCard: (seconds) => { sealCard(w, c, seconds); },
     lend: (t, key, init) => { lend(e, t, key, init); },
     around: (t, area) => around(w, e, t, area),
     enemies: () => w.units.filter((u) => u.kind === KIND.ENEMY && u.base.neutral !== true && u.hp > 0),

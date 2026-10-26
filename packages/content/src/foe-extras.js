@@ -9,6 +9,14 @@ const PRTS = 'https://prts.wiki/index.php?title=';
  * @type {Readonly<Record<string, { talents?: Record<string, Record<string, number | string>>, skills?: Record<string, Record<string, number | string>>, source: string }>>}
  */
 export const FOE_EXTRAS = Object.freeze({
+  // 活性态萨卡兹术师结晶: 不会攻击飞行单位
+  enemy_10079_mpmage_2: { talents: { noFly: {} }, source: `${PRTS}%E6%B4%BB%E6%80%A7%E6%80%81%E8%90%A8%E5%8D%A1%E5%85%B9%E6%9C%AF%E5%B8%88%E7%BB%93%E6%99%B6&oldid=435961` },
+  // 神勇的帕拉杜利斯: 冲锋 — 仅未被阻挡、且移动方向同一行/列的前方存在非飞行我方单位时可触发
+  enemy_10163_mnctur_2: { skills: { rush: { charge: 1 } }, source: `${PRTS}%E7%A5%9E%E5%8B%87%E7%9A%84%E5%B8%95%E6%8B%89%E6%9D%9C%E5%88%A9%E6%96%AF&oldid=443405` },
+  // “与我无关”: 燃烧弹 — 在自身所在位置释放一个碰撞半径1.5的燃烧区域弹道
+  enemy_1285_sgwlf: { skills: { FireBottle: { radius: 1.5 } }, source: `${PRTS}%E2%80%9C%E4%B8%8E%E6%88%91%E6%97%A0%E5%85%B3%E2%80%9D&oldid=440870` },
+  // 伊斯贝塔: 被雪崩唤醒（出场）
+  enemy_10145_xdrock: { skills: { start: { rock: 1 } }, source: `${PRTS}%E4%BC%8A%E6%96%AF%E8%B4%9D%E5%A1%94&oldid=436931` },
   // 暴走食人花: 普通攻击……攻击不造成伤害但会强制击倒目标……进入消化模式并强制触发技能【消化】
   enemy_10003_trwlpl_2: { skills: { Devour: { plant: 1 } }, source: `${PRTS}%E6%9A%B4%E8%B5%B0%E9%A3%9F%E4%BA%BA%E8%8A%B1&oldid=435572` },
   // 沉眠伴随兽: 尽可能将目标按原部署方向部署在自身所在格内并使其晕眩3秒

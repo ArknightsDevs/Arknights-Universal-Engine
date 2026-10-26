@@ -18,6 +18,7 @@ import { ballHooks, newFootball, tickFootball } from './football.js';
 import { noteExit } from './exits.js';
 import { applyCommand } from './commands.js';
 import { leaveField, startCost, costRate } from './deck.js';
+import { costLocked } from './seals.js';
 import { coolSummons, dismissSummons, expireSummons } from './summons.js';
 import { tickRevival, tickRequests, neutralDown } from './coop.js';
 import { tickBuffs } from './buffs.js';
@@ -84,6 +85,7 @@ export function createWorld(c, o) {
 function gainCost(w, c) {
   const { maxCost, costIncreaseTime } = c.level.options;
   w.players.forEach((p, seat) => {
+    if (costLocked(w, p)) return;
     p.costTimer -= costRate(w, c, seat);
     if (p.costTimer > 0) return;
     p.costTimer += secondsToFrames(costIncreaseTime);

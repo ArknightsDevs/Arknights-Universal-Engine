@@ -48,6 +48,13 @@ import { spearBehaviors, spearOwns } from './spear.js';
 import { catapultBehaviors, catapultOwns } from './catapult.js';
 import { plantBehaviors, plantOwns } from './plant.js';
 import { companionBehaviors, companionOwns } from './companion.js';
+import { crystalBehaviors, crystalOwns } from './crystal.js';
+import { chargeBehaviors, chargeOwns, chargeShape, chargeRush } from './charge.js';
+import { bottleBehaviors, bottleOwns } from './firebottle.js';
+import { broBehaviors, broOwns, broShield } from './bigbro.js';
+import { avalancheBehaviors, avalancheOwns } from './avalanche.js';
+import { crossBehaviors, crossOwns } from './crossroad.js';
+import { absentBehaviors, absentOwns } from './absent.js';
 import { tyrantBehaviors } from './tyrant.js';
 import { pengBehaviors } from './peng.js';
 import { bombardBehaviors } from './bombard.js';
@@ -157,6 +164,13 @@ const FirstAttack = Object.freeze({
     return { ...mods, type: 'arts', scale: ctx.bb['attack@first_atk_scale'], cross: true };
   },
   hit: (ctx, target) => { if (boarFirst(ctx.bb) && boarRush(ctx.talent('Rush') ?? {})) boarHit(ctx, target); },
+});
+
+/** `rush` by its shape (敌能-53, 敌能-112): 神勇的帕拉杜利斯's charge, else 萨卡兹穿刺手's speed-up. @type {FoeBehavior} */
+const rush = Object.freeze({
+  targets: (ctx, cands) => (chargeShape(ctx.bb) ? chargeRush.targets?.(ctx, cands) ?? cands : cands),
+  tick: (ctx) => { if (chargeShape(ctx.bb)) chargeRush.tick?.(ctx); else lancerBehaviors.rush.tick?.(ctx); },
+  hit: (ctx, target, dealt, ranged) => { if (!chargeShape(ctx.bb)) lancerBehaviors.rush.hit?.(ctx, target, dealt, ranged); },
 });
 
 /** `Rush` by its shape (敌能-19, 敌能-92, 敌能-95): 凶豕兽's charge, 赏金猎人“骑士”'s speed-up, else 冲锋. @type {FoeBehavior} */
@@ -337,6 +351,14 @@ export const foeBehaviors = Object.freeze({
   ...catapultBehaviors,
   ...plantBehaviors,
   ...companionBehaviors,
+  ...crystalBehaviors,
+  ...chargeBehaviors,
+  ...bottleBehaviors,
+  ...broBehaviors,
+  ...avalancheBehaviors,
+  ...crossBehaviors,
+  ...absentBehaviors,
+  rush,
 });
 
 /**
@@ -440,10 +462,11 @@ const cartBoom = (k, bb) => k === 'boom' && cartShape(bb);
  * The shape checks of the shared names (关卡-2): each says whether a blackboard of its names is the shape its behaviour
  * understands, and passes every other name. In a list, so that each family adds one entry, not one more `&&`.
  */
-const SHAPE_OWNERS = Object.freeze([rebornShape, boarOwns, elementHitOwns, takeOffOwns, wineOwns, whipOwns, bornBugsOwns, radioOwns, shieldOwns, punchOwns, passiveOwns, defdownOwns, knightOwns, blinkOwns, healAuraOwns, vampireOwns, chargeAttackOwns, rebornOwns, faustOwns, shotbuffOwns, bornCarOwns, stunAttackOwns, bombdOwns, evadeOwns, carnivalOwns, heteroOwns, pompeiiOwns, ninjaOwns, spearOwns, catapultOwns, plantOwns, companionOwns]);
+const SHAPE_OWNERS = Object.freeze([rebornShape, boarOwns, elementHitOwns, takeOffOwns, wineOwns, whipOwns, bornBugsOwns, radioOwns, shieldOwns, punchOwns, passiveOwns, defdownOwns, knightOwns, blinkOwns, healAuraOwns, vampireOwns, chargeAttackOwns, rebornOwns, faustOwns, shotbuffOwns, bornCarOwns, stunAttackOwns, bombdOwns, evadeOwns, carnivalOwns, heteroOwns, pompeiiOwns, ninjaOwns, spearOwns, catapultOwns, plantOwns, companionOwns, crystalOwns, chargeOwns, bottleOwns, broOwns, avalancheOwns, crossOwns, absentOwns]);
 
 /** Shapes whole in themselves, whatever FOE_NEEDS lists for their name (关卡-2). @type {readonly ((k: string, bb: Record<string, unknown>) => boolean)[]} */
-const WHOLE_SHAPES = Object.freeze([nestPulseOwns, cartBoom, noPeriodic, (k, bb) => k === 'boom' && ballBoom(bb), (k, bb) => k === 'Shield' && heteroShield(bb), (k, bb) => k === 'defdown' && acidShape(bb)]);
+const WHOLE_SHAPES = Object.freeze([nestPulseOwns, cartBoom, noPeriodic, (k, bb) => k === 'boom' && ballBoom(bb), (k, bb) => k === 'Shield' && heteroShield(bb), (k, bb) => k === 'defdown' && acidShape(bb),
+  (k, bb) => k === 'rush' && chargeShape(bb), (k, bb) => k === 'Shield' && broShield(bb)]);
 
 /** FOE_NEEDS's keys all numbers, a `Boom` with `heal_scale` its page marker (敌能-58). @param {string} k @param {Record<string, unknown>} bb */
 const needsMet = (k, bb) => (healBoom(k, bb) ? typeof bb.page === 'number' : (FOE_NEEDS[/** @type {keyof typeof FOE_NEEDS} */ (k)] ?? []).every((n) => typeof bb[n] === 'number'));

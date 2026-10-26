@@ -179,7 +179,8 @@ function startKick(ctx, b, bb, reach) {
   const st = ctx.state, shot = skill === 'slapshot' ? ctx.skillBb('slapshot') : null;
   st.set('ball', b.id);
   st.set('reach', reach);
-  if (typeof shot?.up_duration === 'number') {
+  // their 锦标 penalty: no carry, the touch is the shot (锦标-4)
+  if (typeof shot?.up_duration === 'number' && ctx.penalty() !== 'theirs') {
     const from = ctx.frame + ctx.frames(shot.duration ?? 0);
     st.set('dFrom', from);
     st.set('dTo', from + ctx.frames(shot.up_duration));
