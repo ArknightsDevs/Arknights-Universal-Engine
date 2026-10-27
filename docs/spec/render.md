@@ -275,3 +275,8 @@
 
 - 来源：设计决定：原版的守门员部署位有「蓝色光芒的地块」（[PRTS「促融共竞」oldid=377839](https://prts.wiki/index.php?title=%E4%BF%83%E8%9E%8D%E5%85%B1%E7%AB%9E&oldid=377839)「在我方球门前面会出现若干蓝色光芒的地块，这是'''守门员部署位'''」「当玩家准备踢球时，球的当前动量和方向将会被标出来」）；守门位、冰面与黏液的特效取自维护者另行准备的素材（ADR 0018：守门位自身的特效，冰面、黏液为球场地块切换到第 1、2 种状态时的特效），方片的颜色是没有特效时的占位；箭头还是占位
 
+### 渲染-27 锦标的落雷
+
+- 超强对流球场（锦标-2）的球：落雷预警开始时，特效包有预警特效（`named` 的 `thunder_warn`）就在球上一直播放它，跟着球走；落雷时预警停下，在球的位置播放落雷特效（`thunder_hit`），并开始在球上播放灼烧特效（`thunder_burn`），跟着球走，直到灼烧结束。页面按世界的 `thunder` 事件（球、阶段：预警、落雷、结束）给出。特效包没有某一种时不画那一种。
+
+- 来源：游戏数据 battle/buff_template_data.json 的 `[env]world_cup_thunder_thunder_`（`overrideEffectKey` map_V074_lightning_start）与 `[env]world_cup_football_trigger_`（`_effectKey` map_V074_lightning_hit、`overrideEffectKey` map_V074_lightning_Buff_01）；特效取自维护者另行准备的素材（ADR 0018）

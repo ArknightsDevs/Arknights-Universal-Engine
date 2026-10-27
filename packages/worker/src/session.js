@@ -2,7 +2,7 @@
 // state posted to the main thread after each frame time. Everything that touches the platform comes in through `io`,
 // so the session runs the same in a Worker and in a Node test.
 import { serverMessageProblem, PROTOCOL_VERSION } from '@aue/schema';
-import { toView, stateHash, contentHash, fortress, football } from '@aue/sim';
+import { toView, stateHash, contentHash, fortress, football, cup } from '@aue/sim';
 import { LockstepClient } from '@aue/net';
 import { marksFor } from './marks.js';
 import { operatorCards, summonCards } from './cards.js';
@@ -41,9 +41,10 @@ const FRAME_MS = 1000 / 30, RECONNECT_MS = 1000;
  * 阵地足球's state the page shows (足球-6, 足球-7, 足球-3, 足球-14, 足球-16): the team drawn (its name), our goals and
  * theirs, the frame the match ends, the stamps; each ball on the field with what it summed toward its kick (the damage,
  * its threshold and the direction); the balls each seat holds with the frame its card's time is up; the ice and slime
- * by tile index; the tiles of the 守门位 (row × width + col).
+ * by tile index; the tiles of the 守门位 (row × width + col); in a 锦标 match its stadium's name (锦标-2) and, in a penalty
+ * shootout, the round under way and whose it is (锦标-4).
  * @typedef {{ team: string, home: number, away: number, until: number, stamps: number, balls: { id: number, sum: number, need: number, ax: number, ay: number }[],
- *   held: { until: number }[][], cover: Record<string, number>, spots: number[] }} FootballStatus
+ *   held: { until: number }[][], cover: Record<string, number>, spots: number[], stadium?: string, pk?: { round: number, side: 'ours' | 'theirs' } }} FootballStatus
  */
 /**
  * The match's state the page shows besides the view (合作-6, 波次-2, 结束-1): the current wave, the current stage, the
@@ -70,7 +71,14 @@ const footballOf = (w, c) => {
     balls: w.units.flatMap((u) => (u.ball && !u.hidden ? [{ id: u.id, sum: u.ball.sum, need: u.ball.need, ax: u.ball.ax, ay: u.ball.ay }] : [])),
     held: w.players.map((p) => (p.balls ?? []).map((b) => ({ until: b.until }))), cover: { ...f.cover },
     spots: w.units.flatMap((u) => (u.spot && !u.hidden ? [Math.round(u.y) * c.level.width + Math.round(u.x)] : [])),
+    ...cupOf(w, c),
   };
+};
+
+/** A 锦标 match's stadium and penalty round (锦标-2, 锦标-4), nothing outside one. @param {import('@aue/sim').World} w @param {import('@aue/sim').Content} c */
+const cupOf = (w, c) => {
+  const st = cup.isCup(c) ? cup.stadiumOf(w, c) : null, side = cup.penaltySide(w), pk = w.football?.pk;
+  return { ...(st ? { stadium: st.name } : {}), ...(side && pk ? { pk: { round: pk.round, side } } : {}) };
 };
 
 /** @param {import('@aue/sim').World} w @param {import('@aue/sim').Content} c @returns {Status} */

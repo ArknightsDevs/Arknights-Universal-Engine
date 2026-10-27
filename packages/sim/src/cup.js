@@ -59,7 +59,7 @@ export const stadiumSpeed = (w, c) => stadiumOf(w, c)?.moveMul ?? 1;
 /** The first wave of the level's penalty shootout, or −1 (锦标-4). @param {Content} c */
 export const penaltyStart = (c) => c.level.waves.findIndex((x) => x.penalty === true);
 
-/** Who kicks in the penalty round under way (锦标-4): even rounds us, odd ones them; null outside a shootout. @param {World} w */
+/** Who kicks in the penalty round under way (锦标-4): even rounds us, odd ones them; null outside a shootout. @param {World} w @returns {'ours' | 'theirs' | null} */
 export const penaltySide = (w) => (w.football?.pk ? (w.football.pk.round % 2 === 0 ? 'ours' : 'theirs') : null);
 
 /** Ends the battle (结束-1) for us (1) or not (0). @param {World} w @param {0 | 1} result */

@@ -232,3 +232,24 @@ test('[渲染-25] a 炼金单元: its trail flies to the landing tile, its effec
   assert.equal(none.pots.length, 0, 'no throw in the pack: nothing');
   fx.dispose(); none.dispose();
 });
+
+test('[渲染-27] 锦标 lightning on a ball: its warning kept on the ball, then the bolt and the burning until it is over', () => {
+  const lasting = () => ({ d: 0.5, ps: [sys({ loop: true, rate: C(5), bursts: [] })], tr: [] });
+  const data = { by: {}, named: { thunder_warn: 'warn', thunder_hit: 'hit', thunder_burn: 'burn' }, fx: { warn: lasting(), hit: { d: 0.5, ps: [sys()], tr: [] }, burn: lasting() } };
+  const fx = createEffects({ data, textures: new Map([['a', new THREE.Texture()]]) }, { width: 4, height: 2 });
+  const ball = { id: 5, kind: KIND.ENEMY, owner: -1, x: 1, y: 0, z: 0, dir: DIR.RIGHT, hp: 1, maxHp: 1, anim: 0, sp: -1, spCost: 0, skill: 0, skillLeft: -1, status: 0 };
+  const cam = new THREE.PerspectiveCamera();
+  cam.updateMatrixWorld();
+  const on = () => fx.live.filter((i) => !i.stopped).map((i) => Object.keys(data.fx).find((k) => data.fx[/** @type {keyof typeof data.fx} */ (k)] === i.e)).sort();
+  fx.update(/** @type {any} */ ({ frame: 1, players: [], units: [ball] }), { 5: 'ball' }, [{ type: 'thunder', id: 5, phase: 0 }]);
+  assert.deepEqual(on(), ['warn']);
+  const o0 = fx.storms.get(5)?.inst.R.o[0] ?? 0;
+  fx.update(/** @type {any} */ ({ frame: 2, players: [], units: [{ ...ball, x: 2 }] }), {}, []);
+  fx.step(0.1, cam);
+  assert.ok((fx.storms.get(5)?.inst.R.o[0] ?? 0) > o0, 'the warning follows the ball');
+  fx.update(/** @type {any} */ ({ frame: 3, players: [], units: [{ ...ball, x: 2 }] }), {}, [{ type: 'thunder', id: 5, phase: 1 }]);
+  assert.deepEqual(on(), ['burn', 'hit'], 'the bolt: the warning stops');
+  fx.update(/** @type {any} */ ({ frame: 4, players: [], units: [{ ...ball, x: 2 }] }), {}, [{ type: 'thunder', id: 5, phase: 2 }]);
+  assert.deepEqual([on().includes('burn'), fx.storms.size], [false, 0], 'over');
+  fx.dispose();
+});

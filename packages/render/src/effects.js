@@ -7,7 +7,8 @@
 // Besides the attacks (渲染-12): the start and end tiles carry their marker effects, a unit its statuses' effects for as
 // long as it has them, and deploying and dying play theirs. A thrown 炼金单元 (渲染-25) flies to where it lands and plays
 // its effects there until it ends. 阵地足球's goals carry markers of their own, its 守门位 and ice and slime theirs
-// (渲染-26). Effects keep battle time: they follow 2× and pause.
+// (渲染-26); a 锦标 ball lightning is coming to carries its warning, then the bolt and the burning (渲染-27). Effects keep
+// battle time: they follow 2× and pause.
 import * as THREE from 'three';
 import { KIND, DIR, SKILL_STATE, STATUS_BIT } from '@aue/schema';
 import { toThree, tileWorld } from './camera.js';
@@ -98,6 +99,7 @@ class Effects {
     /** @type {Record<string, string>} effects by role */ this.named = pack.data.named ?? {};
     /** @type {Map<string, { inst: FxInstance, id: number, lift: number }>} a unit's status effects by `id:bit` */ this.statuses = new Map();
     /** @type {Map<string, FxInstance>} 阵地足球's field effects by `kind:tile` (渲染-26) */ this.field = new Map();
+    /** @type {Map<number, { inst: FxInstance, id: number, lift: number }>} the lightning's lasting effect on each ball (渲染-27) */ this.storms = new Map();
     this.leads = new Map(Object.keys(pack.data.fx).map((k) => [k, effectLead(pack.data.fx[k])]));
     /** @type {FxInstance[]} */ this.live = [];
     /** @type {Flight[]} */ this.flights = [];
@@ -326,7 +328,22 @@ class Effects {
       else if (e.type === 'hit' || e.type === 'heal') this.hit(id, target);
       else if (e.type === 'deploy' || e.type === 'death') this.role(String(e.type), id);
       else if (e.type === 'alchemy') this.alchemy(e);
+      else if (e.type === 'thunder') this.thunder(id, Number(e.phase));
     }
+  }
+
+  /**
+   * Lightning on a 锦标 ball (渲染-27): its warning from the warning on, kept on the ball; at the bolt the warning stops,
+   * the bolt plays at the ball and its burning starts, kept on it until it is over. @param {number} id @param {number} phase 0 warn, 1 strike, 2 over
+   */
+  thunder(id, phase) {
+    const at = this.places.get(id), was = this.storms.get(id);
+    if (was) { was.inst.stop(); this.storms.delete(id); }
+    if (!at) return;
+    if (phase === 1) this.play(this.named.thunder_hit, at.feet, { facing: 1, dir: [1, 0, 0] }, 'start');
+    const n = phase === 0 ? this.named.thunder_warn : phase === 1 ? this.named.thunder_burn : undefined;
+    const lift = LIFT[this.pack.data.fx[n ?? '']?.sl] ?? 0, inst = n ? this.play(n, this.lifted(at.feet, lift), { facing: 1, dir: [1, 0, 0] }, 'loop') : null;
+    if (inst) this.storms.set(id, { inst, id, lift });
   }
 
   /** Advances the effects by dt seconds of battle time and draws them for the camera. @param {number} dt @param {THREE.Camera} camera */
@@ -335,7 +352,7 @@ class Effects {
     this.up = cam.up;
     this.fly(dt);
     this.potsStep(dt);
-    for (const s of this.statuses.values()) { const at = this.places.get(s.id); if (at) s.inst.R = { ...s.inst.R, o: this.lifted(at.feet, s.lift) }; }
+    for (const s of [...this.statuses.values(), ...this.storms.values()]) { const at = this.places.get(s.id); if (at) s.inst.R = { ...s.inst.R, o: this.lifted(at.feet, s.lift) }; }
     this.live = this.live.filter((i) => {
       i.step(dt);
       if (i.done) { this.object.remove(i.group); i.dispose(); return false; }
@@ -346,7 +363,7 @@ class Effects {
 
   count() { return this.live.length; }
 
-  dispose() { for (const i of this.live) i.dispose(); this.live = []; this.flights = []; this.pots = []; this.statuses.clear(); this.field.clear(); this.object.clear(); }
+  dispose() { for (const i of this.live) i.dispose(); this.live = []; this.flights = []; this.pots = []; this.statuses.clear(); this.field.clear(); this.storms.clear(); this.object.clear(); }
 }
 
 /**
