@@ -41,6 +41,7 @@ test('events: well formed ones pass; unknown types, wrong types and extra fields
     'version 8: a wave, a predefined unit, the end');
   assert.deepEqual(eventProblems({ type: 'stage', index: 1, on: 0, stamps: 2 }), [], 'version 8: a co-op stage');
   assert.deepEqual(eventProblems({ type: 'attack', id: 1, target: 2, wind: 12, face: 1 }), [], 'version 9: an attack with its wind-up; version 13 adds whether it faces');
+  assert.deepEqual(eventProblems({ type: 'score', id: 1, goal: 1 }), [], 'version 14: a goal in 阵地足球');
   assert.deepEqual([eventProblems({ type: 'fortress', wave: 1, phase: FORTRESS_PHASE.rest, until: 900 }), eventProblems({ type: 'facility', id: 4, level: 2 })], [[], []],
     "version 11: [守御-1] 堡垒守御's phases, [守御-3] a facility's level");
   assert.deepEqual(eventProblems({ type: 'attack', id: 1, target: 2 }), ['attack.wind is not a number', 'attack.face is not a number']);
@@ -89,13 +90,13 @@ test('client messages: generated well-formed deploys are accepted', () => {
 });
 
 test('snapshot envelope v13', () => {
-  assert.equal(snapshotProblem({ v: 19, frame: 0, data: {} }), null, 'version 19: 轰隆隆先生 cards');
-  assert.equal(snapshotProblem({ v: 18, frame: 0, data: {} }), 'snapshot version 18, expected 19');
+  assert.equal(snapshotProblem({ v: 20, frame: 0, data: {} }), null, 'version 20: a ball\'s physics');
+  assert.equal(snapshotProblem({ v: 19, frame: 0, data: {} }), 'snapshot version 19, expected 20');
   assert.equal(snapshotProblem([]), 'snapshot is not an object');
-  assert.equal(snapshotProblem({ v: 20, frame: 0, data: {} }), 'snapshot version 20, expected 19');
-  assert.equal(snapshotProblem({ v: 19, frame: -1, data: {} }), 'snapshot.frame out of range');
-  assert.equal(snapshotProblem({ v: 19, frame: 0, data: [] }), 'snapshot.data is not an object');
-  assert.equal(snapshotProblem({ v: 19, frame: 0 }), 'missing field data');
+  assert.equal(snapshotProblem({ v: 21, frame: 0, data: {} }), 'snapshot version 21, expected 20');
+  assert.equal(snapshotProblem({ v: 20, frame: -1, data: {} }), 'snapshot.frame out of range');
+  assert.equal(snapshotProblem({ v: 20, frame: 0, data: [] }), 'snapshot.data is not an object');
+  assert.equal(snapshotProblem({ v: 20, frame: 0 }), 'missing field data');
 });
 
 test('server messages: well-formed ones pass; broken ones are reported, never thrown', () => {
