@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { secondsToFrames } from '@aue/math';
-import { createWorld, step, damage, deployProblem, displacement, attrs } from '@aue/sim';
+import { createWorld, step, damage, deployProblem, displacement, attrs, cup } from '@aue/sim';
 import { LEVELS, matchContent } from '../src/index.js';
 import { ballBehaviors, ALOFT } from '../src/ball.js';
 
@@ -123,6 +123,7 @@ test('[锦标-4] a draw at PF-6\'s three seconds: the shootout begins with our r
   assert.equal(w.sched.wave, 11, 'the wave written penaltystart');
   const b = penaltyBall(w);
   assert.ok(b && b.ball?.countdown === (w.football?.pk?.begun ?? 0) + secondsToFrames(10), 'our ball counts down ten seconds');
+  assert.equal(cup.countdownEnd(w), b.ball?.countdown, 'the frame it is over, for the battle UI');
   const free = [[2, 4], [2, 6], [3, 4], [6, 4], [6, 6]];
   free.slice(0, 4).forEach(([row, col], i) => run(w, c, 1, [[0, { type: 'deploy', op: `${DECK[i]}#0`, row, col, dir: 0 }]]));
   assert.equal(w.units.filter((u) => u.kind === 0).length, 4);
@@ -173,9 +174,12 @@ test('[锦标-4] six rounds, then the side with more goals in all wins; with non
   const { c, w } = await pf6();
   const events = run(w, c, 30 * 120);
   assert.deepEqual(events.filter((e) => e.type === 'penalty' && Number(e.goal) >= 0).map((e) => e.round), [0, 1, 2, 3, 4, 5]);
+  assert.deepEqual(events.filter((e) => e.type === 'penalty' && e.goal === -1).map((e) => e.round), [1, 2, 3, 4, 5], 'the first began before; no seventh begins');
+  assert.equal(w.football?.pk?.begun, -1);
   assert.deepEqual(events.filter((e) => e.type === 'end').map((e) => e.result), [0]);
   const st = /** @type {any} */ (w.football);
   assert.ok(st.away > st.home, `their goals ${st.away}, ours ${st.home}`);
+  assert.deepEqual(st.pk.shots, events.filter((e) => e.type === 'penalty' && Number(e.goal) >= 0).map((e) => e.goal), 'each round\'s result noted in order');
 });
 
 test('[锦标-5] 充能飘浮球 is aloft — 近地悬浮, an air unit — while it rolls faster than its min_speed, and lands as it slows', () => {

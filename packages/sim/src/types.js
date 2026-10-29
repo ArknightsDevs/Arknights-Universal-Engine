@@ -942,9 +942,10 @@
  * frame], 足球-15).
  * The ice and slime on the field's tiles: their friction change by tile index (足球-16). A 锦标 penalty shootout
  * (锦标-4): the round under way (0…5), the frame it began (−1 between rounds), the ball of the round once seen, whether
- * it was kicked, whether our countdown is over. The 锦标 stadium drawn (its index, 锦标-2).
+ * it was kicked, whether our countdown is over, the results of the rounds over (1 in, 0 out). The 锦标 stadium drawn
+ * (its index, 锦标-2).
  * @typedef {{ team: number, home: number, away: number, kick: number, until: number, hits?: [number, number, number][], cover?: Record<string, number>,
- *   pk?: { round: number, begun: number, ball: number, kicked: boolean, counted: boolean }, stadium?: number }} FootballState
+ *   pk?: { round: number, begun: number, ball: number, kicked: boolean, counted: boolean, shots: number[] }, stadium?: number }} FootballState
  */
 
 /**
