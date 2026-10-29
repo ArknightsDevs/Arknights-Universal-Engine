@@ -43,6 +43,7 @@ const HUD = {
     score: { ally: '@panel_root/group_ally', enemy: '@panel_root/group_enemy', draw: '@panel_root/group_draw', ourKick: '@panel_root/group_penalty',
       theirKick: '@panel_root/group_penalty_enemy', success: '@panel_root/group_penalty_success', clip: { node: '@', clip: 'score' } },
     done: { clip: { node: '@', clip: 'done' } },
+    icons: { cup_teamicon_1: 'sprite/cup_teamicon_1', cup_teamicon_3: 'sprite/cup_teamicon_3' },
   },
 };
 const clip = (/** @type {number} */ length) => ({ wrap: 0, length, curves: [] });
@@ -58,7 +59,7 @@ const setup = () => {
 const flush = () => new Promise((r) => setTimeout(r, 0));
 /** Plays `t` seconds of the UI in steps, the clips' ends handled. @param {ReturnType<typeof setup>} ui @param {number} t */
 const play = async (ui, t) => { for (let i = 0; i < Math.round(t / 0.1); i++) { ui.tick(0.1); await flush(); } };
-const cupOf = (/** @type {Partial<import('../src/index.js').CupTask>} */ o = {}) => ({ ours: '罗德岛队', theirs: '业余组', wait: 0, pk: null, code: 'PF-1', over: false, ...o });
+const cupOf = (/** @type {Partial<import('../src/index.js').CupTask>} */ o = {}) => ({ ours: '罗德岛队', theirs: '业余组', wait: 0, pk: null, over: false, ...o });
 /** @param {ReturnType<typeof createCupHud>} h */
 const screens = (h) => /** @type {any} */ (/** @type {any} */ (h).screens());
 /** @param {any} s @param {string} path */
@@ -73,15 +74,16 @@ test('[界面-42] a penalty round\'s banner by whose kick and whether it went in
 test('[界面-42] the top bar: the sides\' names and goals, the time; the match\'s start banner first, the kickoff count-down; a goal\'s banner after it', async () => {
   const ui = setup(), h = /** @type {NonNullable<ReturnType<typeof createCupHud>>} */ (createCupHud(ui));
   assert.equal(h.screens(), null, 'nothing open before a score');
-  h.update({ home: 0, away: 0, left: 299.2, cup: cupOf({ wait: 2.5 }) });
+  h.update({ home: 0, away: 0, left: 299.2, cup: cupOf({ wait: 2.5, icons: { ours: 'cup_teamicon_1', theirs: 'cup_teamicon_3' } }) });
   const s = screens(h), top = s.top;
+  assert.deepEqual([at(top, 'group_my/team_icon').sprite, at(top, 'group_enemy/team_icon').sprite], ['sprite/cup_teamicon_1', 'sprite/cup_teamicon_3'], 'the sides\' team icons');
   const text = (/** @type {string} */ path) => at(top, path).txt;
   assert.deepEqual([text('group_my/text_team_name'), text('group_enemy/text_team_name'), text('group_my/text_score'), text('count_down/bg/text_count_down')],
     ['罗德岛队', '业余组', '0', '05:00']);
   const kick = at(top, 'game_start_count_down');
   assert.deepEqual([kick.active, text('game_start_count_down/text_countdown'), text('game_start_count_down/text_countdown/text_unit')], [true, '00:03', 's'], '准备开球 00:03s');
   const match = at(s.stage, 'container_game_start');
-  assert.deepEqual([s.stage.root.active, match.active, at(s.stage, 'container_game_start/group_middle/part_maininfo/stage/text_stage').txt], [true, true, 'PF-1']);
+  assert.deepEqual([s.stage.root.active, match.active, at(s.stage, 'container_game_start/group_middle/part_maininfo/stage/text_stage').txt], [true, true, '1'], 'STAGE.1');
   h.update({ home: 1, away: 0, left: 290, cup: cupOf({ wait: 0 }) });
   await play(ui, 0.5);
   assert.equal(kick.active, false, 'the wait over: its hide clip played, then gone');
@@ -103,7 +105,8 @@ test('[界面-42] the shootout: 平局！, its start banner, 本方点球, then 
   assert.equal(shown(s), 'draw', '平局！ first');
   assert.deepEqual([at(s.top, 'group_my/part_penalty').active, at(s.top, 'group_enemy/part_penalty').active, pen.active], [true, true, false], 'the marks shown; no round yet');
   await play(ui, 1.6);
-  assert.deepEqual([shown(s), s.stage.root.active, at(s.stage, 'container_penalty_start').active], ['', true, true], 'then 点球 决胜！');
+  assert.deepEqual([shown(s), s.stage.root.active, at(s.stage, 'container_penalty_start').active, at(s.stage, 'container_penalty_start/group_middle/part_maininfo/stage/text_stage').txt],
+    ['', true, true, '2'], 'then 点球 决胜！, STAGE.2');
   await play(ui, 2.1);
   assert.equal(shown(s), 'ourKick', 'then 本方点球, before the round');
   await play(ui, 1.6);

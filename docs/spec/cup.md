@@ -66,7 +66,7 @@
 
 锦标关卡的阵地足球设置另带两项活动数据（活动表 `activity_table` 的 ACT_FOOTBALL 活动）：
 
-- **双方队名**（`cup.sides`）：这一关在活动的关卡附加数据（`stageAdditionDataMap`）里的我方与对方队名，如「罗德岛队」对「业余组」。
+- **双方队名与队徽**（`cup.sides`、`cup.icons`）：这一关在活动的关卡附加数据（`stageAdditionDataMap`）里的我方与对方队名，如「罗德岛队」对「业余组」，和双方的队徽编号（如 `act1football_teamicon_1` 对 `act1football_teamicon_3`，界面-42 用它取队徽图）。
 - **训练效果**（`cup.relics`）：活动的 `trapRuneDataDict` 里以 `<活动>_relic_` 开头的每一项：编号、解锁它的关卡（关卡附加数据里 `unlockBuffDesc` 与它的描述相同的那一关，PF-S-1、PF-S-2）、那一关给它的名字（体能充沛、技艺精湛）与描述，以及它的符文，按座位符文的格式（同步-9：`key`、职业掩码、黑板）。玩家已解锁的训练效果作为座位符文交给对局（符文-1）：体能充沛是 `char_respawntime_mul`（再部署时间 × 0.7，符文-2），技艺精湛是 `env_gbuff_new` 的 `modify_sp[born]`（初始技力 +10）。解锁与否由平台记录，引擎只提供数据。
 
-- 来源：数据：`activity_table.json` 的 `activity.ACT_FOOTBALL.act1football.stageAdditionDataMap`（`selfTeamName`、`enemyTeamName`，act1football_s01「体能充沛」「所有干员的再部署时间-30%」、act1football_s02「技艺精湛」「所有干员的初始技力+10」）与 `trapRuneDataDict` 的 `act1football_relic_01`、`act1football_relic_02`；PF-3 攻略录像（哔哩哔哩 BV1DxEm6vEtx P4）编队界面的「“体能充沛”已生效」
+- 来源：数据：`activity_table.json` 的 `activity.ACT_FOOTBALL.act1football.stageAdditionDataMap`（`selfTeamName`、`enemyTeamName`、`selfTeamIcon`、`enemyTeamIcon`，act1football_s01「体能充沛」「所有干员的再部署时间-30%」、act1football_s02「技艺精湛」「所有干员的初始技力+10」）与 `trapRuneDataDict` 的 `act1football_relic_01`、`act1football_relic_02`；PF-3 攻略录像（哔哩哔哩 BV1DxEm6vEtx P4）编队界面的「“体能充沛”已生效」

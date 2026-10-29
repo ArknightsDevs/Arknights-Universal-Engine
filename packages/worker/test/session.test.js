@@ -82,13 +82,15 @@ test('[足球-6] [足球-14] in 阵地足球 the status has the match: the team,
 test('[锦标-2] [锦标-4] [锦标-7] [界面-42] a 锦标 match\'s status: its stadium, the sides, the kickoff wait; in a penalty shootout the round, whose, whether under way, the results', () => {
   const c = /** @type {any} */ (tinyContent());
   c.level.football = { time: 300, wait: 3, stamps: [1], ahead: [[0, 0]], weights: { 0: [1] }, teams: [{ name: 'normal', weight: 1, players: {} }], roles: {},
-    cup: { moveSpeed: 1.2, mercy: -1, stadium: { name: 'winter', moveMul: 1, ice: 0.3 }, sides: { ours: '罗德岛队', theirs: '业余组' } } };
+    cup: { moveSpeed: 1.2, mercy: -1, stadium: { name: 'winter', moveMul: 1, ice: 0.3 }, sides: { ours: '罗德岛队', theirs: '业余组' },
+      icons: { ours: 'act1football_teamicon_1', theirs: 'act1football_teamicon_3' } } };
   const r = rig(c);
   r.session.start({ url: 'ws://x', seat: 0, key: 'k' });
   r.t.run(500, (now) => r.host.tick(now));
   const st = r.posts.filter((p) => p.type === 'frame').at(-1).status;
   const w = /** @type {import('@aue/sim').World} */ (r.session.client.world), fs = /** @type {any} */ (w.football);
   assert.deepEqual([st.football.stadium, st.football.sides, st.football.ready], ['winter', { ours: '罗德岛队', theirs: '业余组' }, fs.kick + 90]);
+  assert.deepEqual(st.football.icons, { ours: 'act1football_teamicon_1', theirs: 'act1football_teamicon_3' });
   assert.equal(st.football.pk, undefined, 'no shootout yet');
   fs.pk = { round: 1, begun: -1, ball: 0, kicked: false, counted: false, shots: [1] };
   r.t.run(200, (now) => r.host.tick(now));

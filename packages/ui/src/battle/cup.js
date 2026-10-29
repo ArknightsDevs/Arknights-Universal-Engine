@@ -7,11 +7,12 @@ import { clockText } from './coop.js';
 /** @typedef {import('../node.js').UiNode} UiNode */
 /** @typedef {import('../screen.js').Screen} Screen */
 /**
- * 阵地足球锦标's part of the score (界面-42): the two sides' names; the seconds left of the players' wait after the last
- * kickoff (≤ 0: none); in the penalty shootout the round (0…5), whether it is under way, the seconds left of our kick's
- * countdown (< 0: none) and the results of the rounds over (1 in, 0 out), null before it; the level's code; whether
- * the match is over.
- * @typedef {{ ours: string, theirs: string, wait: number, pk: { round: number, on: boolean, left: number, shots: number[] } | null, code: string, over: boolean }} CupTask
+ * 阵地足球锦标's part of the score (界面-42): the two sides' names and team icons (the event's icon names, none to keep
+ * the pack's own); the seconds left of the players' wait after the last kickoff (≤ 0: none); in the penalty shootout
+ * the round (0…5), whether it is under way, the seconds left of our kick's countdown (< 0: none) and the results of the
+ * rounds over (1 in, 0 out), null before it; whether the match is over.
+ * @typedef {{ ours: string, theirs: string, icons?: { ours: string, theirs: string }, wait: number, pk: { round: number, on: boolean, left: number, shots: number[] } | null,
+ *   over: boolean }} CupTask
  */
 /** @typedef {import('./coop.js').FootballTask & { cup: CupTask }} CupScore */
 
@@ -83,19 +84,31 @@ function banners0() {
 }
 
 /**
- * The top bar (界面-42): each side's name and goals — a goal plays its score's clip —, the match's time.
+ * The top bar (界面-42): each side's name, team icon and goals — a goal plays its score's clip —, the match's time.
  * @param {ReturnType<typeof cupScreens>} s @param {CupScore} f @param {CupScore | null} was
  */
 function showTop(s, f, was) {
-  const t = s.hud.top;
-  for (const [side, name, goals, before] of /** @type {const} */ ([[t.ally, f.cup.ours, f.home, was?.home], [t.enemy, f.cup.theirs, f.away, was?.away]])) {
+  const t = s.hud.top, icons = f.cup.icons;
+  for (const [side, name, icon, goals, before] of /** @type {const} */ ([[t.ally, f.cup.ours, icons?.ours, f.home, was?.home], [t.enemy, f.cup.theirs, icons?.theirs, f.away, was?.away]])) {
     const n = s.at(s.top, side.name), sc = s.at(s.top, side.score);
     if (n) setText(n, name);
+    teamIcon(s, side.icon, icon);
     if (sc) setText(sc, String(goals));
     if (before !== undefined && goals > before && side.scored) void s.top.anim.play(s.at(s.top, side.scored.node), side.scored.clip);
   }
   const timer = s.at(s.top, t.timer);
   if (timer) setText(timer, clockText(f.left));
+}
+
+/**
+ * A side's team icon (界面-42): the event's icon of that name when the pack has it, else the pack's own.
+ * @param {ReturnType<typeof cupScreens>} s @param {string | undefined} ref @param {string | undefined} icon
+ */
+function teamIcon(s, ref, icon) {
+  const n = s.at(s.top, ref), key = icon ? s.hud.icons?.[icon] : undefined;
+  if (!n || !key || n.sprite === key) return;
+  n.sprite = key;
+  n.paintKey = '';
 }
 
 /**
@@ -177,7 +190,7 @@ function marks(s, f, was) {
  */
 function banners(s, f, was) {
   const pk = f.cup.pk;
-  if (!was) s.queue.add(() => stageBanner(s, 'match', f.cup.code));
+  if (!was) s.queue.add(() => stageBanner(s, 'match'));
   if (was && !pk && (f.home > was.home || f.away > was.away)) s.queue.add(() => scoreBanner(s, f.home > was.home ? 'ally' : 'enemy'));
   if (pk) penaltyBanners(s, f, pk, was?.cup.pk ?? null);
   if (f.cup.over && was && !was.cup.over) s.queue.add(() => finish(s));
@@ -193,7 +206,7 @@ function penaltyBanners(s, f, pk, pkWas) {
   const begins = !pkWas && pk.shots.length === 0, from = pkWas ? pkWas.shots.length : pk.shots.length;
   if (begins) {
     s.queue.add(() => scoreBanner(s, 'draw'));
-    s.queue.add(() => stageBanner(s, 'penalty', f.cup.code));
+    s.queue.add(() => stageBanner(s, 'penalty'));
   }
   for (let i = from; i < pk.shots.length; i++) { const k = shotBanner(i, pk.shots[i]); s.queue.add(() => scoreBanner(s, k)); }
   const next = pk.shots.length;
@@ -201,15 +214,16 @@ function penaltyBanners(s, f, pk, pkWas) {
 }
 
 /**
- * The start banner's match or shootout group (界面-42), its stage code filled; its clip once, then hidden.
- * @param {ReturnType<typeof cupScreens>} s @param {'match' | 'penalty'} k @param {string} code
+ * The start banner's match or shootout group (界面-42), its stage numbered — the match 1, the shootout 2 (「STAGE.1」
+ * 「STAGE.2」); its clip once, then hidden.
+ * @param {ReturnType<typeof cupScreens>} s @param {'match' | 'penalty'} k
  */
-function stageBanner(s, k, code) {
+function stageBanner(s, k) {
   const c = s.hud.stage[k], n = c ? s.at(s.stage, c.node) : null;
   if (!c || !n) return Promise.resolve();
   for (const other of ['match', 'penalty']) { const m = s.at(s.stage, s.hud.stage[other]?.node); if (m) m.active = m === n; }
   const text = s.stage.one('text_stage', n);
-  if (text) setText(text, code);
+  if (text) setText(text, k === 'match' ? '1' : '2');
   s.stage.root.active = true;
   return s.stage.anim.play(n, c.clip).then(() => { n.active = false; s.stage.root.active = false; });
 }
