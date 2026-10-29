@@ -2,18 +2,21 @@
 // penalty count-downs, the penalty marks, the start and score banners one after another, the finish panel.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createUi, createCupHud, countText, shotBanner } from '../src/index.js';
+import { createUi, createCupHud, shotBanner } from '../src/index.js';
 import { fakeDocument, fakeHost } from './dom.js';
 
 /** @typedef {import('../src/node.js').PackNode} PackNode */
 /** @param {string} name @param {PackNode[]} [children] @param {Record<string, any>} [comps] @param {boolean} [active] @returns {PackNode} */
 const N = (name, children = [], comps = {}, active = true) => ({ name, active, comps, children });
-const T = (/** @type {string} */ name) => N(name, [], { text: { text: '', size: 20, style: 0, align: 4, line: 1, best: 0, min: 2, max: 40, rich: 0, hwrap: 0, color: [1, 1, 1, 1], font: '' } });
+const TEXT = { text: { text: '', size: 20, style: 0, align: 4, line: 1, best: 0, min: 2, max: 40, rich: 0, hwrap: 0, color: [1, 1, 1, 1], font: '' } };
+const T = (/** @type {string} */ name, /** @type {PackNode[]} */ children = []) => N(name, children, TEXT);
+/** A count-down: its time and its unit after it. */
+const count = () => T('text_countdown', [T('text_unit')]);
 const marks = () => N('part_penalty', [N('item_01'), N('item_02'), N('item_03')], {}, false);
 const side = (/** @type {string} */ name) => N(name, [T('text_team_name'), T('text_score'), N('team_icon'), marks()]);
 const TOP = N('football_cup_battle_ui_topbar', [N('football_battle_ui_topbar', [N('pane_football_status', [
-  N('penalty_count_down', [N('penalty_my', [T('text_countdown')]), N('penalty_enemy')], {}, false),
-  N('game_start_count_down', [T('text_countdown')], {}, false),
+  N('penalty_count_down', [N('penalty_my', [count()]), N('penalty_enemy')], {}, false),
+  N('game_start_count_down', [count()], {}, false),
   N('container_info', [side('group_my'), side('group_enemy'), N('count_down', [N('bg', [T('text_count_down')])])]),
 ])])]);
 const group = (/** @type {string} */ name) => N(name, [N('bg'), N('text')], {}, false);
@@ -60,9 +63,10 @@ const cupOf = (/** @type {Partial<import('../src/index.js').CupTask>} */ o = {})
 const screens = (h) => /** @type {any} */ (/** @type {any} */ (h).screens());
 /** @param {any} s @param {string} path */
 const at = (s, path) => /** @type {any} */ (s.one(path));
+/** The score banner's group shown, '' for none. @param {any} s */
+const shown = (s) => (s.score.root.active ? Object.keys(s.groups).find((k) => s.groups[k].active) ?? '' : '');
 
-test('[界面-42] the score functions: a count-down in whole seconds up; a penalty round\'s banner by whose kick and whether it went in', () => {
-  assert.deepEqual([countText(2.1), countText(3), countText(-1)], ['3', '3', '0']);
+test('[界面-42] a penalty round\'s banner by whose kick and whether it went in', () => {
   assert.deepEqual([shotBanner(0, 1), shotBanner(0, 0), shotBanner(1, 0), shotBanner(1, 1)], ['ally', 'enemy', 'success', 'enemy']);
 });
 
@@ -75,7 +79,7 @@ test('[界面-42] the top bar: the sides\' names and goals, the time; the match\
   assert.deepEqual([text('group_my/text_team_name'), text('group_enemy/text_team_name'), text('group_my/text_score'), text('count_down/bg/text_count_down')],
     ['罗德岛队', '业余组', '0', '05:00']);
   const kick = at(top, 'game_start_count_down');
-  assert.deepEqual([kick.active, text('game_start_count_down/text_countdown')], [true, '3'], '准备开球 with its seconds');
+  assert.deepEqual([kick.active, text('game_start_count_down/text_countdown'), text('game_start_count_down/text_countdown/text_unit')], [true, '00:03', 's'], '准备开球 00:03s');
   const match = at(s.stage, 'container_game_start');
   assert.deepEqual([s.stage.root.active, match.active, at(s.stage, 'container_game_start/group_middle/part_maininfo/stage/text_stage').txt], [true, true, 'PF-1']);
   h.update({ home: 1, away: 0, left: 290, cup: cupOf({ wait: 0 }) });
@@ -83,44 +87,55 @@ test('[界面-42] the top bar: the sides\' names and goals, the time; the match\
   assert.equal(kick.active, false, 'the wait over: its hide clip played, then gone');
   assert.equal(s.score.root.active, false, 'the goal waits for the start banner');
   await play(ui, 1.6);
-  assert.deepEqual([s.stage.root.active, s.score.root.active, s.groups.ally.active], [false, true, true], '进球！ after it');
+  assert.deepEqual([s.stage.root.active, shown(s)], [false, 'ally'], '进球！ after it');
   await play(ui, 1.6);
-  assert.equal(s.score.root.active, false);
+  assert.equal(shown(s), '');
   h.update({ home: 1, away: 1, left: 280, cup: cupOf() });
-  assert.deepEqual([s.score.root.active, s.groups.enemy.active, s.groups.ally.active], [true, true, false], '失球！');
+  assert.equal(shown(s), 'enemy', '失球！');
 });
 
-test('[界面-42] the shootout: 平局！ then its start banner, each round\'s kick, our count-down, the marks in or out with their banners; 比赛结束 at the end', async () => {
+test('[界面-42] the shootout: 平局！, its start banner, 本方点球, then the round with our count-down; each round\'s mark and result, then whose kick is next', async () => {
   const ui = setup(), h = /** @type {NonNullable<ReturnType<typeof createCupHud>>} */ (createCupHud(ui));
   h.update({ home: 1, away: 1, left: 1, cup: cupOf() });
-  const s = screens(h);
+  const s = screens(h), pen = at(s.top, 'penalty_count_down');
   await play(ui, 2.1);
+  h.update({ home: 1, away: 1, left: 0, cup: cupOf({ pk: { round: 0, on: false, left: -1, shots: [] } }) });
+  assert.equal(shown(s), 'draw', '平局！ first');
+  assert.deepEqual([at(s.top, 'group_my/part_penalty').active, at(s.top, 'group_enemy/part_penalty').active, pen.active], [true, true, false], 'the marks shown; no round yet');
+  await play(ui, 1.6);
+  assert.deepEqual([shown(s), s.stage.root.active, at(s.stage, 'container_penalty_start').active], ['', true, true], 'then 点球 决胜！');
+  await play(ui, 2.1);
+  assert.equal(shown(s), 'ourKick', 'then 本方点球, before the round');
+  await play(ui, 1.6);
   h.update({ home: 1, away: 1, left: 0, cup: cupOf({ pk: { round: 0, on: true, left: 9.5, shots: [] } }) });
-  const pen = at(s.top, 'penalty_count_down');
-  assert.deepEqual([pen.active, at(s.top, 'penalty_my').active, at(s.top, 'penalty_enemy').active, at(s.top, 'penalty_my/text_countdown').txt], [true, true, false, '10']);
-  assert.deepEqual([s.score.root.active, s.groups.draw.active], [true, true], '平局！ first');
-  assert.deepEqual([at(s.top, 'group_my/part_penalty').active, at(s.top, 'group_enemy/part_penalty').active], [true, true], 'the marks shown');
-  await play(ui, 1.6);
-  assert.deepEqual([s.score.root.active, s.stage.root.active, at(s.stage, 'container_penalty_start').active], [false, true, true], 'then 点球 决胜！');
-  await play(ui, 2.1);
-  assert.deepEqual([s.score.root.active, s.groups.ourKick.active], [true, true], 'then 本方点球');
-  await play(ui, 1.6);
-  const was = s.top.anim.playing.length;
+  assert.deepEqual([pen.active, at(s.top, 'penalty_my').active, at(s.top, 'penalty_enemy').active, at(s.top, 'penalty_my/text_countdown').txt], [true, true, false, '00:10'], 'the round: 00:10s');
+  assert.equal(shown(s), '', 'no banner as it begins');
   h.update({ home: 2, away: 1, left: 0, cup: cupOf({ pk: { round: 1, on: false, left: -1, shots: [1] } }) });
   assert.ok(s.top.anim.playing.some((/** @type {any} */ p) => p.s === at(s.top, 'group_my/part_penalty/item_03')), 'our mark nearest the middle plays');
-  assert.ok(s.top.anim.playing.length > was);
-  assert.deepEqual([s.groups.ally.active, s.score.root.active], [true, true], 'ours in: 进球！');
+  assert.equal(shown(s), 'ally', 'ours in: 进球！');
   await play(ui, 0.5);
   assert.equal(pen.active, false, 'between rounds the count-down goes');
+  await play(ui, 1.1);
+  assert.equal(shown(s), 'theirKick', '对方点球 after 进球！');
+  await play(ui, 1.6);
   h.update({ home: 2, away: 1, left: 0, cup: cupOf({ pk: { round: 1, on: true, left: -1, shots: [1] } }) });
   assert.deepEqual([pen.active, at(s.top, 'penalty_my').active, at(s.top, 'penalty_enemy').active], [true, false, true], '部署守门员以阻止对方进球');
-  await play(ui, 1.1);
-  assert.deepEqual([s.groups.theirKick.active], [true], '对方点球 after 进球！');
-  await play(ui, 1.6);
   h.update({ home: 2, away: 1, left: 0, cup: cupOf({ pk: { round: 2, on: false, left: -1, shots: [1, 0] } }) });
-  assert.deepEqual([s.groups.success.active], [true], 'theirs kept out: 成功！');
-  h.update({ home: 2, away: 1, left: 0, cup: cupOf({ pk: { round: 2, on: false, left: -1, shots: [1, 0] }, over: true }) });
+  assert.equal(shown(s), 'success', 'theirs kept out: 成功！');
+  await play(ui, 1.6);
+  assert.equal(shown(s), 'ourKick');
+});
+
+test('[界面-42] a shootout first seen midway: its marks, none of its past banners; the sixth round over: its result, no kick banner; 比赛结束 at the end', async () => {
+  const ui = setup(), h = /** @type {NonNullable<ReturnType<typeof createCupHud>>} */ (createCupHud(ui));
+  h.update({ home: 3, away: 2, left: 0, cup: cupOf({ pk: { round: 5, on: true, left: -1, shots: [1, 1, 0, 0, 1] } }) });
+  const s = screens(h);
+  assert.equal(at(s.top, 'group_enemy/part_penalty').active, true);
+  await play(ui, 2.1);
+  assert.equal(shown(s), '', 'no 平局！ nor past results');
+  h.update({ home: 3, away: 3, left: 0, cup: cupOf({ pk: { round: 6, on: false, left: -1, shots: [1, 1, 0, 0, 1, 1] }, over: true }) });
+  assert.equal(shown(s), 'enemy', 'theirs in: 失球！');
   assert.equal(s.done.root.active, false, 'the finish panel waits its turn');
   await play(ui, 1.6);
-  assert.equal(s.done.root.active, true, '比赛结束');
+  assert.deepEqual([shown(s), s.done.root.active], ['', true], '比赛结束, no kick banner before it');
 });

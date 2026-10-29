@@ -110,6 +110,8 @@ async function pf6() {
   const c = await matchContent({ level: 'act1football_06', difficulty: 'NORMAL', seed: 3, decks: [DECK.map((id) => ({ id, build: BUILD }))] });
   const w = createWorld(c, { seed: 3, players: 1 });
   const events = run(w, c, secondsToFrames(3) + 2);
+  // the first round's ball comes after the banners' gap (锦标-4)
+  events.push(...run(w, c, cup.FIRST_GAP));
   w.players[0].cost = 99;
   return { c, w, events };
 }
@@ -121,6 +123,7 @@ test('[锦标-4] a draw at PF-6\'s three seconds: the shootout begins with our r
   const { c, w, events } = await pf6();
   assert.deepEqual(events.filter((e) => e.type === 'penalty'), [{ type: 'penalty', round: 0, goal: -1 }]);
   assert.equal(w.sched.wave, 11, 'the wave written penaltystart');
+  assert.equal(w.football?.pk?.begun, secondsToFrames(3) + cup.FIRST_GAP, 'the first round begins the banners\' gap after the match time');
   const b = penaltyBall(w);
   assert.ok(b && b.ball?.countdown === (w.football?.pk?.begun ?? 0) + secondsToFrames(10), 'our ball counts down ten seconds');
   assert.equal(cup.countdownEnd(w), b.ball?.countdown, 'the frame it is over, for the battle UI');
@@ -149,8 +152,10 @@ test('[锦标-4] a round with no kick ends at the countdown; their round: our hi
   const end = /** @type {number} */ (penaltyBall(w).ball?.countdown);
   const events = run(w, c, end - w.frame + 2);
   assert.deepEqual(events.filter((e) => e.type === 'penalty').map((e) => [e.round, e.goal]), [[0, 0], [1, -1]], 'missed: their round next');
-  run(w, c, 2);
+  assert.equal(penaltyBall(w), undefined, 'their round waits for the banners');
+  run(w, c, cup.NEXT_GAP);
   const b = penaltyBall(w), spots = w.units.filter((u) => u.spot);
+  assert.ok(b, `their ball ${cup.NEXT_GAP} frames on`);
   spots.forEach((s, i) => {
     w.players[0].cost = 99;
     run(w, c, 1, [[0, { type: 'deploy', op: `${DECK[i]}#0`, row: Math.round(s.y), col: Math.round(s.x), dir: 0 }]]);

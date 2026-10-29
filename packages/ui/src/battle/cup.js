@@ -15,8 +15,8 @@ import { clockText } from './coop.js';
  */
 /** @typedef {import('./coop.js').FootballTask & { cup: CupTask }} CupScore */
 
-/** A count-down's text: whole seconds, rounded up. @param {number} s */
-export const countText = (s) => String(Math.max(0, Math.ceil(s)));
+/** The rounds of a penalty shootout (锦标-4: 双方各罚3次). */
+const ROUNDS = 6;
 
 /**
  * The score banner's group for a penalty round over (界面-42): ours in 进球！, ours out 失球！, theirs out 成功！, theirs
@@ -133,8 +133,10 @@ function penaltyCount(s, pk, pkWas) {
  */
 function overlay(s, n, c, o) {
   if (!n) return;
-  const count = s.at(s.top, c.count);
-  if (o.on && count && o.count >= 0) setText(count, countText(o.count));
+  const count = s.at(s.top, c.count), unit = count ? s.top.one('text_unit', count) : null;
+  // minutes and seconds with the unit after them, 「00:10s」
+  if (o.on && count && o.count >= 0) setText(count, clockText(o.count));
+  if (unit) setText(unit, 's');
   if (o.on === o.was) return;
   const id = (s.seq.get(n) ?? 0) + 1;
   s.seq.set(n, id);
@@ -182,17 +184,20 @@ function banners(s, f, was) {
 }
 
 /**
- * The shootout's banners (界面-42): as it begins the draw and its start banner; each round over its result; each round
- * as it begins whose kick it is.
+ * The shootout's banners (界面-42): as it begins the draw and its start banner; each round over its result; then whose
+ * kick the next round is — the round begins once they are over (锦标-4).
  * @param {ReturnType<typeof cupScreens>} s @param {CupScore} f @param {NonNullable<CupTask['pk']>} pk @param {CupTask['pk']} pkWas
  */
 function penaltyBanners(s, f, pk, pkWas) {
-  if (!pkWas) {
+  // a shootout first seen midway (a reconnect): what is past is not shown again
+  const begins = !pkWas && pk.shots.length === 0, from = pkWas ? pkWas.shots.length : pk.shots.length;
+  if (begins) {
     s.queue.add(() => scoreBanner(s, 'draw'));
     s.queue.add(() => stageBanner(s, 'penalty', f.cup.code));
   }
-  for (let i = pkWas?.shots.length ?? 0; i < pk.shots.length; i++) { const k = shotBanner(i, pk.shots[i]); s.queue.add(() => scoreBanner(s, k)); }
-  if (pk.on && !(pkWas?.on && pkWas.round === pk.round)) s.queue.add(() => scoreBanner(s, pk.round % 2 === 0 ? 'ourKick' : 'theirKick'));
+  for (let i = from; i < pk.shots.length; i++) { const k = shotBanner(i, pk.shots[i]); s.queue.add(() => scoreBanner(s, k)); }
+  const next = pk.shots.length;
+  if (next < ROUNDS && (begins || next > from)) s.queue.add(() => scoreBanner(s, next % 2 === 0 ? 'ourKick' : 'theirKick'));
 }
 
 /**

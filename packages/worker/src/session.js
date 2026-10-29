@@ -43,8 +43,8 @@ const FRAME_MS = 1000 / 30, RECONNECT_MS = 1000;
  * its threshold and the direction); the balls each seat holds with the frame its card's time is up; the ice and slime
  * by tile index; the tiles of the 守门位 (row × width + col); in a 锦标 match its stadium's name (锦标-2), the two sides'
  * names (锦标-7), the frame the players' wait after the last kickoff is over (足球-6) and, in a penalty shootout, the
- * round and whose it is, whether it is under way, the frame our kick's countdown is over (−1 for none) and the results
- * of the rounds over (锦标-4) — what 阵地足球锦标's battle UI shows (界面-42).
+ * round and whose it is, whether it is under way (past its gap), the frame our kick's countdown is over (−1 for none)
+ * and the results of the rounds over (锦标-4) — what 阵地足球锦标's battle UI shows (界面-42).
  * @typedef {{ round: number, side: 'ours' | 'theirs', on: boolean, until: number, shots: number[] }} PenaltyStatus
  * @typedef {{ team: string, home: number, away: number, until: number, stamps: number, balls: { id: number, sum: number, need: number, ax: number, ay: number }[],
  *   held: { until: number }[][], cover: Record<string, number>, spots: number[], stadium?: string, sides?: { ours: string, theirs: string }, ready?: number,
@@ -88,7 +88,7 @@ const cupOf = (w, c) => {
   if (!cup.isCup(c) || !f || !fs) return {};
   const st = cup.stadiumOf(w, c), side = cup.penaltySide(w), pk = fs.pk, sides = f.cup?.sides;
   return { ...(st ? { stadium: st.name } : {}), ...(sides ? { sides: { ...sides } } : {}), ready: football.waitOver(f, fs),
-    ...(side && pk ? { pk: { round: pk.round, side, on: pk.begun >= 0, until: cup.countdownEnd(w), shots: [...pk.shots] } } : {}) };
+    ...(side && pk ? { pk: { round: pk.round, side, on: pk.begun >= 0 && w.frame >= pk.begun, until: cup.countdownEnd(w), shots: [...pk.shots] } } : {}) };
 };
 
 /** @param {import('@aue/sim').World} w @param {import('@aue/sim').Content} c @returns {Status} */

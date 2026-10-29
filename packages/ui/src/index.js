@@ -36,7 +36,7 @@ export { createUnitBars } from './battle/unitbars.js';
 export { createStart } from './battle/start.js';
 export { createBanner, bannerTitle, holdText } from './battle/banner.js';
 export { createGoalBanner } from './battle/goal.js';
-export { createCupHud, countText, shotBanner } from './battle/cup.js';
+export { createCupHud, shotBanner } from './battle/cup.js';
 export { createResting, restText } from './battle/resting.js';
 /** @typedef {import('./battle/resting.js').Resting} Resting */
 /** @typedef {import('./battle/coop.js').FortressTask} FortressTask */
