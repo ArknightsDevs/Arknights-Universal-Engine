@@ -1,6 +1,7 @@
 // 阵地足球锦标's battle UI (docs/spec/ui.md 界面-42): the pack's own top bar in place of the co-op top bar's football
 // panel — the two sides' names and goals, the match's time, the kickoff and penalty count-downs, the penalty marks —, its
-// start banner (the match, the shootout), its score banner and its finish panel. The banners play one after another.
+// start banner (the match, the shootout), its score banner and its finish panel. The banners play one after another,
+// each with the event's sound as it begins.
 import { refNode, setText } from '../node.js';
 import { clockText } from './coop.js';
 
@@ -18,6 +19,16 @@ import { clockText } from './coop.js';
 
 /** The rounds of a penalty shootout (锦标-4: 双方各罚3次). */
 const ROUNDS = 6;
+
+/**
+ * Each banner's sound bank (界面-42): the match's start, the shootout's start, the draw, a goal or a save for us, a goal
+ * against us, our kick and theirs.
+ */
+export const CUP_SOUNDS = Object.freeze({
+  match: 'battle.ON_ACT1FOOTBALL_MATCHSTART', penalty: 'battle.ON_ACT1FOOTBALL_PENALTYKICK_BANNER', draw: 'battle.ON_ACT1FOOTBALL_DRAW',
+  ally: 'battle.ON_ACT1FOOTBALL_WINSCORE', success: 'battle.ON_ACT1FOOTBALL_WINSCORE', enemy: 'battle.ON_ACT1FOOTBALL_LOSESCORE',
+  ourKick: 'battle.ON_ACT1FOOTBALL_PENALTYKICK', theirKick: 'battle.ON_ACT1FOOTBALL_PENALTYKICK_OTHER',
+});
 
 /**
  * The score banner's group for a penalty round over (界面-42): ours in 进球！, ours out 失球！, theirs out 成功！, theirs
@@ -64,7 +75,7 @@ function cupScreens(ui, hud) {
   stage.root.active = false;
   score.root.active = false;
   done.root.active = false;
-  return { hud, top, stage, score, done, at, groups, kick, pen, queue: banners0(), seq: /** @type {Map<UiNode, number>} */ (new Map()) };
+  return { hud, top, stage, score, done, at, groups, kick, pen, queue: banners0(), seq: /** @type {Map<UiNode, number>} */ (new Map()), sound: ui.ctx.sound };
 }
 
 /** A queue that plays one banner at a time. */
@@ -225,6 +236,7 @@ function stageBanner(s, k) {
   const text = s.stage.one('text_stage', n);
   if (text) setText(text, k === 'match' ? '1' : '2');
   s.stage.root.active = true;
+  s.sound?.(CUP_SOUNDS[k]);
   return s.stage.anim.play(n, c.clip).then(() => { n.active = false; s.stage.root.active = false; });
 }
 
@@ -237,6 +249,8 @@ function scoreBanner(s, k) {
   if (!g || !c) return Promise.resolve();
   for (const n of Object.values(s.groups)) if (n) n.active = n === g;
   s.score.root.active = true;
+  const bank = /** @type {Record<string, string>} */ (CUP_SOUNDS)[k];
+  if (bank) s.sound?.(bank);
   return s.score.anim.play(s.at(s.score, c.node), c.clip).then(() => { g.active = false; s.score.root.active = false; });
 }
 

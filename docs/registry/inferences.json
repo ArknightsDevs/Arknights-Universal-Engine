@@ -4751,5 +4751,12 @@
     "statement": "点球决胜的第一轮在比赛时间到之后 203 帧开始，此后每一轮在上一轮结束之后 83 帧开始；这是比赛界面在其间依次播放的横幅的时长（「平局！」、点球开场、「本方点球」；一轮的结果、下一轮谁点球）。",
     "basis": "关卡数据里点球波次和它们的动作都没有延迟。PF-6 录像里比赛时间到之后约 7 秒、此后每轮之间约 3 秒，下一轮的球与球员才出现，其间部署费用照常增长（对局没有暂停），时长与界面包里比分横幅片段（1.383 秒）、开场横幅片段（4 秒）依次播完的时长一致：1.383 + 4 + 1.383 = 6.77 秒，2 × 1.383 = 2.77 秒。录像以 0.5 秒取帧，又有倍速切换，只能对到半秒。",
     "status": "待查证"
+  },
+  {
+    "id": "INF-0694",
+    "clause": "界面-41",
+    "statement": "阵地足球与阵地足球锦标的横幅音效在横幅出现时播放：阵地足球的「进球！」「失球！」配 battle.ON_COOPERATE_ALLY_SCORED / ENEMY_SCORED；锦标的比赛开场配 MATCHSTART、点球开场配 PENALTYKICK_BANNER、「平局！」配 DRAW、「进球！」「成功！」配 WINSCORE、「失球！」配 LOSESCORE、「本方点球」「对方点球」配 PENALTYKICK、PENALTYKICK_OTHER",
+    "basis": "audio_data.json 有这些音效库，库名与片段名（act1football_b_ui_matchstart、_draw、_winscore、_losescore、_penaltykick、_penaltykick_banner；act1multi_b_ui_winscore、_losescore）与横幅一一对应，但由游戏代码在什么时机播放没有资料；按名字配给对应的横幅，在横幅出现时播放；「成功！」（挡下对方点球）对我方有利，配 WINSCORE",
+    "status": "待查证"
   }
 ]
