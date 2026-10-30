@@ -2,7 +2,7 @@
 // penalty count-downs, the penalty marks, the start and score banners one after another, the finish panel.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createUi, createCupHud, shotBanner } from '../src/index.js';
+import { createUi, createCupHud, shotBanner, CUP_SOUNDS } from '../src/index.js';
 import { fakeDocument, fakeHost } from './dom.js';
 
 /** @typedef {import('../src/node.js').PackNode} PackNode */
@@ -50,9 +50,9 @@ const clip = (/** @type {number} */ length) => ({ wrap: 0, length, curves: [] })
 const CLIPS = Object.fromEntries([['score_add', 0.3], ['penalty_win', 0.3], ['penalty_lose', 0.3], ['penalty_mode_on', 0.5], ['kick_show', 0.3], ['kick_off', 0.3],
   ['pen_show', 0.3], ['pen_off', 0.3], ['stage', 2], ['score', 1.5], ['done', 2]].map(([k, l]) => [k, clip(/** @type {number} */ (l))]));
 
-const setup = () => {
+const setup = (/** @type {((bank: string) => void) | undefined} */ sound = undefined) => {
   const pack = { version: 1, ref: [1920, 1080], sprites: {}, clips: CLIPS, screens: { 'cup.topbar': TOP, 'cup.stage': STAGE, 'cup.score': SCORE, 'cup.done': DONE }, hud: HUD };
-  const ui = createUi({ pack: /** @type {any} */ (pack), host: fakeHost(fakeDocument()) });
+  const ui = createUi({ pack: /** @type {any} */ (pack), host: fakeHost(fakeDocument()), sound });
   ui.resize(1920, 1080);
   return ui;
 };
@@ -141,4 +141,26 @@ test('[界面-42] a shootout first seen midway: its marks, none of its past bann
   assert.equal(s.done.root.active, false, 'the finish panel waits its turn');
   await play(ui, 1.6);
   assert.deepEqual([shown(s), s.done.root.active], ['', true], '比赛结束, no kick banner before it');
+});
+
+test('[界面-42] each banner plays its sound as it begins, in the banners’ order: the start, a goal, the draw, the shootout, the kicks and their results', async () => {
+  /** @type {string[]} */
+  const heard = [];
+  const ui = setup((b) => heard.push(b)), h = /** @type {NonNullable<ReturnType<typeof createCupHud>>} */ (createCupHud(ui));
+  h.update({ home: 0, away: 0, left: 299, cup: cupOf() });
+  assert.deepEqual(heard, [CUP_SOUNDS.match], 'the start banner at once');
+  h.update({ home: 1, away: 0, left: 290, cup: cupOf() });
+  assert.equal(heard.length, 1, 'the goal waits for the start banner');
+  await play(ui, 2.1);
+  h.update({ home: 1, away: 1, left: 1, cup: cupOf() });
+  await play(ui, 3.2);
+  h.update({ home: 1, away: 1, left: 0, cup: cupOf({ pk: { round: 0, on: false, left: -1, shots: [] } }) });
+  await play(ui, 5.3);
+  h.update({ home: 1, away: 1, left: 0, cup: cupOf({ pk: { round: 1, on: false, left: -1, shots: [0] } }) });
+  await play(ui, 3.2);
+  h.update({ home: 1, away: 1, left: 0, cup: cupOf({ pk: { round: 2, on: false, left: -1, shots: [0, 0] } }) });
+  await play(ui, 1.6);
+  assert.deepEqual(heard, ['battle.ON_ACT1FOOTBALL_MATCHSTART', 'battle.ON_ACT1FOOTBALL_WINSCORE', 'battle.ON_ACT1FOOTBALL_LOSESCORE', 'battle.ON_ACT1FOOTBALL_DRAW',
+    'battle.ON_ACT1FOOTBALL_PENALTYKICK_BANNER', 'battle.ON_ACT1FOOTBALL_PENALTYKICK', 'battle.ON_ACT1FOOTBALL_LOSESCORE', 'battle.ON_ACT1FOOTBALL_PENALTYKICK_OTHER',
+    'battle.ON_ACT1FOOTBALL_WINSCORE', 'battle.ON_ACT1FOOTBALL_PENALTYKICK'], 'ours out: 失球！; theirs out: 成功！ (for us)');
 });
