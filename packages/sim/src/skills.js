@@ -248,12 +248,21 @@ export function activate(w, c, op, reason = 'auto', free = false) {
   holdFlags(op, def, kind);
   const held = openSkillText(w, c, op);
   openSkillText2(w, c, op);
-  if (def.alchemy) throwAlchemy(w, c, op, def.alchemy);
+  throwGeneric(w, c, op, def);
   grantSummons(w, c, op, 'start');
   emit(w, 'skillStart', { unit: op, reason });
   if (kind === 'instant') settleInstant(w, c, op, held);
   // After an instant skill's own end, so that end is not the switch and this request is still there for the flush (职业-15).
   if (def.doll === 'start') st.dollPending = true;
+}
+
+/**
+ * The 炼金单元 a skill throws as it starts (技能-13) — unless it has a behaviour of its own (技能-6), which throws its own or none:
+ * the generic one as well would hurt twice.
+ * @param {World} w @param {Content} c @param {Unit} op @param {SkillDef} def
+ */
+function throwGeneric(w, c, op, def) {
+  if (def.alchemy && !ownsSkill(c, def.id)) throwAlchemy(w, c, op, def.alchemy);
 }
 
 /**

@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
 import { createWorld, step, stateHash, bus } from '../src/index.js';
-import { kindOf } from '../src/skills.js';
+import { kindOf, GENERIC } from '../src/skills.js';
 import { forceSp } from '../src/sp.js';
 import { makeEnemy, makeOperator } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
@@ -78,6 +78,20 @@ test('[技能-13] [伤害-7] the damage has no source but is credited to its thr
   step(w, c, [[0, { type: 'retreat', unit: op.id }]]);
   run(w, c, 30);
   assert.deepEqual(seen.slice(1), [{ source: null, credit: null, type: 'arts', amount: 25, sourceless: true }], 'its thrower gone: no one is credited');
+});
+
+test('[技能-13] [技能-6] a skill with a behaviour of its own throws no generic 炼金单元; one that only gives its start timing does', () => {
+  /** @param {Record<string, any> | null} behavior */
+  const thrown = (behavior) => {
+    const { w, c, foe, cast } = arena(sk({ at: 'enemy', seconds: 3, radius: 1, scale: 0.5 }), { noAttack: true });
+    if (behavior) c.behaviors = { ...c.behaviors, skills: { ...c.behaviors?.skills, throw: behavior } };
+    foe(1, 2);
+    cast();
+    return w.alchemy?.length ?? 0;
+  };
+  assert.equal(thrown(null), 1, 'no behaviour: the generic one');
+  assert.equal(thrown({ ...GENERIC, trigger: () => 'ready' }), 1, 'a start timing only: still the generic one');
+  assert.equal(thrown({ start() {} }), 0, 'a behaviour of its own does the throwing, as a kit does');
 });
 
 test('[技能-13] with no enemy in range it lands on the farthest tile straight ahead; a heavy enemy takes more and its own slow', () => {
