@@ -14,6 +14,7 @@ import { gainSp } from './sp.js';
 import { draw } from './rng.js';
 import { heal } from './damage.js';
 import { vsHeal } from './vs.js';
+import { inflictTalent } from './status.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./types.js').Buff} Buff @typedef {import('./skills.js').AttackMods} AttackMods */
@@ -77,8 +78,8 @@ export function funnelScale(w, c, a, t) {
 /**
  * What an operator's deployment talents do as it is deployed (部署-8), each in order: SP — a whole number from the
  * lower bound to below the upper, one draw (随机-1) when they differ — up to the skill's cap; a heal of every operator
- * on the field (any player's); shield layers. A shield that breaks remembers which talent it is, so the layer can stack
- * and grant SP (干员-14).
+ * on the field (any player's); shield layers; a status the operator holds from then on (干员-14). A shield that breaks remembers
+ * which talent it is, so the layer can stack and grant SP (干员-14). Last, the status of a 「部署后N秒内」 timed talent, for its seconds (部署-7).
  * @param {World} w @param {Content} c @param {Unit} op
  */
 export function deployTalents(w, c, op) {
@@ -91,7 +92,18 @@ export function deployTalents(w, c, op) {
       for (const u of w.units) if (u.kind === KIND.OPERATOR && u.hp > 0) w.events.push({ type: 'heal', id: op.id, target: u.id, amount: heal(w, op, u, amount * vsHeal(w, c, op, u)) });
     }
     if (t.shield) addBuff(op, makeBuff({ key: 'deployShield', src: op.id, shieldHits: t.shield, ...(t.break ? { tag: 'shieldBreak', n: i } : {}) }));
+    if (t.status) inflictTalent(w, op, op, t.status);
   }
+  duringStatuses(w, c, op);
+}
+
+/**
+ * The status of each 「部署后N秒内」 timed talent, for its seconds (部署-7): the talent's buff only holds modifiers and has no step to
+ * give a status, so it is given with the deployment.
+ * @param {World} w @param {Content} c @param {Unit} op
+ */
+function duringStatuses(w, c, op) {
+  for (const t of c.operators[op.key].timedTalents ?? []) if (t.kind === 'during' && t.status) inflictTalent(w, op, op, t.status, { seconds: t.seconds });
 }
 
 /**

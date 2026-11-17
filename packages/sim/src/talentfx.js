@@ -9,6 +9,7 @@ import { makeBuff, addBuff, removeBuff, retune, setLeft, count as countUp } from
 import { gainSp, forceSp } from './sp.js';
 import { draw } from './rng.js';
 import { dealDamage, heal } from './damage.js';
+import { inflictTalent } from './status.js';
 import { reachKeys } from './reach.js';
 import { inKeys } from './targeting.js';
 import { tileOf } from './body.js';
@@ -24,6 +25,16 @@ import { fightSkillStart, critGrowth } from './talentfight.js';
 const stepped = (mods, n) => Object.fromEntries(Object.entries(mods).map(([k, v]) => [k, k.endsWith('Mul') ? 1 + (v - 1) * n : v * n]));
 
 /**
+ * The modifiers of a stack at n steps (职业-25): the step's × n, and at the most steps its `full` ones more (干员-33).
+ * @param {TalentStack} s @param {number} n
+ */
+function stackMods(s, n) {
+  const mods = stepped(s.mods, n);
+  if (s.full && n >= s.max) for (const [k, v] of Object.entries(s.full)) mods[k] = (mods[k] ?? 0) + v;
+  return mods;
+}
+
+/**
  * One event for a talent's steps (职业-25): the buff `stack:<n>` counts the events (its `n`); its steps are the count
  * over `every`, at most `max`, its modifiers the step's × the steps; with `seconds`, the buff lasts that long from this
  * event.
@@ -32,10 +43,24 @@ const stepped = (mods, n) => Object.fromEntries(Object.entries(mods).map(([k, v]
 function stepUp(op, s, i) {
   const key = `stack:${i}`, b = op.buffs.find((x) => x.key === key), count = (b?.n ?? 0) + 1, steps = Math.min(s.max, Math.floor(count / (s.every ?? 1)));
   const left = s.seconds ? secondsToFrames(s.seconds) : -1;
-  if (!b) { addBuff(op, makeBuff({ key, src: op.id, n: count, value: steps, left, mods: stepped(s.mods, steps) })); return; }
+  if (!b) { addBuff(op, makeBuff({ key, src: op.id, n: count, value: steps, left, mods: stackMods(s, steps) })); return; }
   countUp(b, 1);
   if (s.seconds) setLeft(b, left);
-  if (b.value !== steps) retune(op, b, steps, stepped(s.mods, steps));
+  if (b.value !== steps) retune(op, b, steps, stackMods(s, steps));
+}
+
+/**
+ * A kill's step (职业-25) and, once there is a step, the status the steps give (干员-20, `gives`): the operator holds it for the
+ * steps' time — set again by each step — or, without a time, for good; tagged with the stack's key.
+ * @param {World} w @param {Unit} op @param {TalentStack} s @param {number} i
+ */
+function killStep(w, op, s, i) {
+  stepUp(op, s, i);
+  const key = `stack:${i}`, steps = op.buffs.find((x) => x.key === key)?.value ?? 0;
+  if (!s.gives || steps < 1) return;
+  const held = op.buffs.find((x) => x.key === s.gives?.key && x.tag === key);
+  if (!held) inflictTalent(w, op, op, s.gives, { tag: key, ...(s.seconds ? { seconds: s.seconds } : {}) });
+  else if (s.seconds) setLeft(held, secondsToFrames(s.seconds));
 }
 
 /**
@@ -46,10 +71,10 @@ function stepUp(op, s, i) {
  */
 export function talentKill(w, c, op) {
   const t = traitOf(c, op);
-  t.stacks.forEach((s, i) => { if (s.on === 'kill' && !s.summons) stepUp(op, s, i); });
+  t.stacks.forEach((s, i) => { if (s.on === 'kill' && !s.summons) killStep(w, op, s, i); });
   const owner = op.summoner !== undefined ? w.units.find((u) => u.id === op.summoner && u.hp > 0) : undefined;
-  if (owner) traitOf(c, owner).stacks.forEach((s, i) => { if (s.on === 'kill' && s.summons) stepUp(owner, s, i); });
-  if (op.summoner === undefined) t.stacks.forEach((s, i) => { if (s.on === 'kill' && s.summons) stepUp(op, s, i); });
+  if (owner) traitOf(c, owner).stacks.forEach((s, i) => { if (s.on === 'kill' && s.summons) killStep(w, owner, s, i); });
+  if (op.summoner === undefined) t.stacks.forEach((s, i) => { if (s.on === 'kill' && s.summons) killStep(w, op, s, i); });
   if (t.whiles.some((x) => x.when === 'noKills')) tally(op, 'kills');
   if (op.skill?.active && t.talentSp.some((x) => x.on === 'skillKills')) tally(op, 'skillKills');
   for (const x of t.talentSp) if (x.on === 'kill' && op.skill) gainSp(op.skill, x.sp ?? 0);

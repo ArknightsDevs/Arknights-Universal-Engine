@@ -197,7 +197,7 @@ test('[干员-13] timed parts: 每在场上停留 … 最多叠加, 在战场停
     c('在战场停留15秒后，攻击力+18%且获得抵抗', { atk: 0.18, interval: 15, one_minus_status_resistance: -0.5 }),
     c('部署后60秒内技力自然回复速度+0.5/秒', { sp_recovery_per_sec: 0.5, duration: 60 }),
   ], [
-    { kind: 'stack', seconds: 20, max: 5, mods: { atkPct: 0.05, defPct: 0.04 } }, { kind: 'after', seconds: 15, max: 1, mods: { atkPct: 0.18, statusResFlat: -0.5 } },
+    { kind: 'stack', seconds: 20, max: 5, mods: { atkPct: 0.05, defPct: 0.04 } }, { kind: 'after', seconds: 15, max: 1, mods: { atkPct: 0.18 }, status: { key: 'buffres', value: 0.5 } },
     { kind: 'during', seconds: 60, max: 1, mods: { spRecoveryFlat: 0.5 } },
   ]);
   assert.deepEqual([c('每在场上停留20秒，攻击力+5%', { interval: 20, atk: 0.05 }), c('在战场停留15秒后，仅一次使场上所有重装干员攻击力+8%', { interval: 15, atk: 0.08 })], [null, null]);
@@ -304,21 +304,20 @@ test('[干员-18] target parts: the target the talent names and what it gets aga
   assert.deepEqual((await atE2('char_363_toddi')).talentTrait.vs, [{ when: 'tag', tag: 'sarkaz', atk: 1.45 }], '熔泉');
 });
 
-test('[干员-19] hit parts: a status at a chance or on every hit, the first hit on each enemy, 法术脆弱, lower 法术抗性, 灼痕; arts damage on each hit, two targets', async () => {
+test('[干员-19] hit parts: a status at a chance or on every hit, the first hit on each enemy, lower 法术抗性; arts damage on each hit, two targets', async () => {
   const h = (/** @type {string} */ d, /** @type {Record<string, number>} */ bb) => hitPart(talent(d, bb));
   assert.deepEqual([
     h('攻击时有23%的几率使目标束缚1.5秒', { prob: 0.23, duration: 1.5 }), h('攻击时有40%的几率对攻击目标造成2秒的停顿', { 'attack@prob': 0.4, 'attack@sluggish': 2 }),
     h('攻击时对攻击目标造成0.6秒的停顿', { sluggish: 0.6 }), h('攻击使目标的特殊能力失效，持续6秒', { duration: 6 }),
     h('对每个敌人首次造成伤害时，使其战栗5秒', { not_combat: 5 }), h('对每个敌人首次造成伤害后，使目标的特殊能力失效，持续7秒', { silence: 7 }),
-    h('攻击敌人时对目标施加14%的【法术脆弱】，持续5秒', { 'weak[magic][limit]': 5, damage_scale: 1.14 }), h('攻击使目标法术抗性-23%，持续1秒', { duration: 1, magic_resistance: -0.23 }),
+    h('攻击使目标法术抗性-23%，持续1秒', { duration: 1, magic_resistance: -0.23 }),
     h('攻击时有25%的几率使目标法术抗性-25%，持续3秒', { prob: 0.25, magic_resistance: -0.25, duration: 3 }),
-    h('造成伤害时有30%概率对敌人施加灼痕效果：攻击力-22%、32%的【法术脆弱】，不可叠加持续6秒', { prob: 0.3, atk: -0.22, damage_scale: 1.32, duration: 6 }),
+    h('攻击敌人时对目标施加14%的【法术脆弱】，持续5秒', { 'weak[magic][limit]': 5, damage_scale: 1.14 }),
   ], [
     { status: { key: 'root', seconds: 1.5 }, prob: 0.23 }, { status: { key: 'sluggish', seconds: 2 }, prob: 0.4 }, { status: { key: 'sluggish', seconds: 0.6 } },
     { status: { key: 'silence', seconds: 6 } }, { status: { key: 'disarmedCombat', seconds: 5 }, first: true }, { status: { key: 'silence', seconds: 7 }, first: true },
-    { status: { key: 'artsFragile', seconds: 5, value: 0.14 } }, { debuff: { seconds: 1, mods: { resPct: -0.23 } } },
-    { debuff: { seconds: 3, mods: { resPct: -0.25 } }, prob: 0.25 }, { prob: 0.3, debuff: { seconds: 6, mods: { atkPct: -0.22, artsTakenMul: 1.32 } } },
-  ]);
+    { debuff: { seconds: 1, mods: { resPct: -0.23 } } }, { debuff: { seconds: 3, mods: { resPct: -0.25 } }, prob: 0.25 }, null,
+  ], 'a 脆弱 that a hit gives is read in talentstatus.js (干员-19)');
   assert.deepEqual([h('攻击时有20%的几率使目标束缚4秒，不以束缚状态的敌人为攻击目标', { prob: 0.2, duration: 4 }), h('攻击时有20%的几率使目标束缚4秒', { duration: 4 })], [null, null]);
   assert.deepEqual([attackPart(talent('攻击额外造成攻击力20%的法术伤害', { 'attack@atk_scale_1': 0.2 })), attackPart(talent('攻击时同时攻击两个目标', { 'attack@max_target': 2 }))],
     [{ extraArts: 0.2 }, { targets: 2 }]);
@@ -368,7 +367,7 @@ test('[干员-20] stacking parts: steps for kills (a summon\'s too), after so ma
     s('造成20次伤害后，获得38%物理闪避', { prob: 0.38, trigger_damage_count: 20 }), s('每次造成伤害使自身10秒内防御力+30，攻击速度+3，最多可叠加3层', { def: 30, attack_speed: 3, max_stack_cnt: 3, duration: 10 }),
   ], [
     { on: 'kill', mods: { hpFlat: 50 }, max: 30 }, { on: 'kill', mods: { aspd: 6 }, max: 6 }, { on: 'kill', mods: { aspd: 3 }, max: 12 },
-    { on: 'kill', summons: true, mods: { atkPct: 0.02 }, max: 18 }, { on: 'kill', every: 5, max: 1, mods: { aspd: 15, statusResFlat: -0.5 } },
+    { on: 'kill', summons: true, mods: { atkPct: 0.02 }, max: 18 }, { on: 'kill', every: 5, max: 1, mods: { aspd: 15 }, gives: { key: 'buffres', value: 0.5 } },
     { on: 'dealt', phys: true, every: 30, max: 1, mods: { atkPct: 0.18 } }, { on: 'dealt', every: 20, max: 1, mods: { dodgePhys: 0.38 } },
     { on: 'dealt', seconds: 10, max: 3, mods: { defFlat: 30, aspd: 3 } },
   ]);
@@ -401,10 +400,10 @@ test('[干员-22] aura parts: in range with a condition on the unit, around the 
     a('攻击范围内敌人的物理和法术命中率降低10%', { damage_hitrate_physical: -0.1, damage_hitrate_magical: -0.1 }).range,
     a('自身攻击力-5%，但攻击范围内的友方干员受到的治疗效果提升17%', { atk: -0.05, heal_scale: 1.17 }).range,
   ], [
-    [{ side: 'enemy', ranged: false, mods: { dmgTakenMul: 1.33 }, when: { when: 'hpBelow', value: 0.4 } }],
+    [{ side: 'enemy', ranged: false, mods: {}, status: { key: 'fragile', value: 1.33 - 1 }, when: { when: 'hpBelow', value: 0.4 } }],
     [{ side: 'ally', ranged: false, mods: { physTakenMul: 0.84, artsTakenMul: 0.84 }, when: { when: 'hpAbove', value: 0.7 } }],
-    [{ side: 'enemy', ranged: false, mods: { dmgTakenMul: 1.18 }, when: { when: 'blocked' } }], [{ side: 'enemy', ranged: false, mods: { dmgTakenMul: 1.18 }, when: { when: 'normal' } }],
-    [{ side: 'enemy', ranged: false, mods: { artsTakenMul: 1.22 }, when: { when: 'flying' } }], [{ side: 'enemy', ranged: false, mods: { hitRateMul: 0.9 } }],
+    [{ side: 'enemy', ranged: false, mods: {}, status: { key: 'fragile', value: 1.18 - 1 }, when: { when: 'blocked' } }], [{ side: 'enemy', ranged: false, mods: {}, status: { key: 'fragile', value: 1.18 - 1 }, when: { when: 'normal' } }],
+    [{ side: 'enemy', ranged: false, mods: {}, status: { key: 'artsFragile', value: 1.22 - 1 }, when: { when: 'flying' } }], [{ side: 'enemy', ranged: false, mods: { hitRateMul: 0.9 } }],
     [{ side: 'ally', ranged: false, mods: { healingTakenMul: 1.17 } }],
   ]);
   const cross = RANGES['x-5'], square = RANGES['x-4'];
@@ -464,7 +463,7 @@ test('[干员-9] [干员-19] [干员-21] team talents of the holder\'s skill; th
     t('技能开启时，所有【医疗】和【辅助】干员获得抵抗', { one_minus_status_resistance: -0.5, max_hp: 0 }),
   ], [
     { when: 'field', all: true, bb: { hp_recovery_per_sec: 25 }, skill: false }, { when: 'field', power: 'student', bb: { attack_speed: 24 }, skill: true },
-    { when: 'field', professions: ['MEDIC', 'SUPPORT'], bb: {}, mods: { statusResFlat: -0.5 }, skill: true },
+    { when: 'field', professions: ['MEDIC', 'SUPPORT'], bb: {}, status: { key: 'buffres', value: 0.5 }, skill: true },
   ]);
   assert.equal(t('技能开启时，所有【医疗】和【萨卡兹】干员获得抵抗', { one_minus_status_resistance: -0.5 }), null, 'a profession and a faction together');
   assert.deepEqual(attackPart(talent('攻击溅射范围内有大于或等于3个敌人时，使当次攻击造成的伤害提升至125%（+5%）', { damage_scale: 1.25, min_target_cnt: 3 })), { packed: { cnt: 3, atk: 1.25 } });
@@ -539,7 +538,7 @@ test('[干员-26] the damage by its source and 抵挡: 伤害抵挡, 远程物�
     t('在场时，所有【深海猎人】干员攻击力+10%且获得某种效果', { atk: 0.1 }),
   ], [
     { when: 'field', all: true, bb: {}, mods: { 'from:sarkaz': 0.85 } }, { when: 'field', power: 'abyssal', bb: {}, mods: { hpRegenRatio: 0.025, 'fromPA:seamonster': 0.75 } },
-    { when: 'field', power: 'kjerag', bb: {}, mods: { statusResFlat: -0.5 }, after: 10 }, null,
+    { when: 'field', power: 'kjerag', bb: {}, status: { key: 'buffres', value: 0.5 }, after: 10 }, null,
   ]);
   assert.deepEqual(auraParts(talent('部署后，嘉辛塔自身与周围八格的友方单位获得15%（+2%）的对空庇护', { damage_resistance: 0.15 }), RANGES).range.map((r) => [r.mods, r.area?.length]), [[{ airTakenMul: 0.85 }, 9]]);
   assert.deepEqual(specialParts(talent('有23%（+3%）的几率抵挡物理和法术伤害。周围四格内的友方单位获得一半该效果', { 'moeshd_t_1[self].prob': 0.23, 'moeshd_t_1[aura].prob': 0.115 })),

@@ -78,12 +78,25 @@ function classOf(key) {
 /** A key whose value above 1 is a multiplier (a 脆弱, a damage ×): the share above 1 rises, not the whole. @param {string} key */
 const isMultiplier = (key) => /(?:^|[.@[\]])(?:damage_scale|ep_damage_scale|atk_scale|scale_delta_to_one)$/u.test(key);
 
+/** 「该伤害提升至原本的M倍」: M is how much the talent's own damage grows in one case, a ratio of its damage and not a damage (仇白 LOR-X). */
+const OF_ORIGINAL = /提升至原本的(\d+(?:\.\d+)?)倍/gu;
+
+/**
+ * The keys of a talent whose value is the M of 「提升至原本的M倍」 in its text (技能-17): they are ratios of the talent's damage, so a
+ * rise of the damage leaves them as they are.
+ * @param {Talent} c @returns {Set<string>}
+ */
+function ratioKeys(c) {
+  const ms = new Set([...(c.description ?? '').matchAll(OF_ORIGINAL)].map((m) => Number(m[1])));
+  return new Set(Object.keys(c.bb).filter((k) => ms.has(c.bb[k])));
+}
+
 /**
  * A talent's blackboard with a rise applied (技能-17): the keys of the rise's kind × `by` (a multiplier's share above 1 × `by`;
- * a chance at most 1), or with `to` the chances `by`; the other keys as they are.
- * @param {Record<string, number>} bb @param {Rise} rise @returns {Record<string, number>}
+ * a chance at most 1), or with `to` the chances `by`; the other keys as they are, and the `ratio` keys (ratioKeys) always.
+ * @param {Record<string, number>} bb @param {Rise} rise @param {Set<string>} [ratio] @returns {Record<string, number>}
  */
-function risenBb(bb, rise) {
+function risenBb(bb, rise, ratio = new Set()) {
   // a talent that is nothing but a chance (可颂's 抵挡) has the chance as its effect
   const onlyChance = !Object.keys(bb).some((k) => classOf(k) === 'effect');
   /** @type {Record<string, number>} */
@@ -91,7 +104,7 @@ function risenBb(bb, rise) {
   for (const [key, v] of Object.entries(bb)) {
     const kind = classOf(key), mine = kind === rise.kind || (rise.kind === 'effect' && kind === 'chance' && onlyChance);
     if (rise.how === 'to') out[key] = kind === 'chance' ? rise.by : v;
-    else if (!mine) out[key] = v;
+    else if (!mine || ratio.has(key)) out[key] = v;
     else if (kind === 'chance') out[key] = Math.min(1, v * rise.by);
     else out[key] = isMultiplier(key) && v > 1 ? 1 + (v - 1) * rise.by : v * rise.by;
   }
@@ -108,7 +121,9 @@ export function risenTalents(talents, rises) {
   const shown = talents.filter((c) => !c.hidden);
   return talents.map((c) => {
     const mine = rises.filter((r) => shown[r.slot] === c);
-    return mine.length ? { ...c, bb: mine.reduce((bb, r) => risenBb(bb, r), c.bb) } : c;
+    if (!mine.length) return c;
+    const ratio = ratioKeys(c);
+    return { ...c, bb: mine.reduce((bb, r) => risenBb(bb, r, ratio), c.bb) };
   });
 }
 

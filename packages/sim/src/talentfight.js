@@ -8,7 +8,7 @@ import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune, setLeft, stamp } from './buffs.js';
 import { gainSp } from './sp.js';
 import { knockDown } from './damage.js';
-import { inflict } from './status.js';
+import { inflict, statusMods, heldKey } from './status.js';
 import { tileOf } from './body.js';
 import { reachKeys } from './reach.js';
 import { inKeys, hostile, selectable, stealthed } from './targeting.js';
@@ -19,7 +19,7 @@ import { RIDER } from './talentfoe.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Buff} Buff */
-/** @typedef {{ src: number, value: number, mods: Record<string, number>, flags?: Record<string, boolean> }} Want */
+/** @typedef {{ src: number, value: number, mods: Record<string, number>, flags?: Record<string, boolean>, status?: import('./status.js').StatusKey }} Want */
 
 /** A step's modifiers × n: a product's (…Mul) share above 1 × n, the others × n. @param {Record<string, number>} mods @param {number} n */
 const stepped = (mods, n) => Object.fromEntries(Object.entries(mods).map(([k, v]) => [k, k.endsWith('Mul') ? 1 + (v - 1) * n : v * n]));
@@ -125,20 +125,22 @@ export function statusSteps(c, src, target, status, step) {
 /**
  * The 脆弱 of a source growing with the time an enemy stays in its range (职业-34: `stayVuln`): each enemy with a tile in
  * its range is marked as it comes in (buff `stay:<source id>`, gone as it leaves) and takes × `base` — × `max` once it
- * has stayed `after` seconds — as the aura buff `stayVuln:<source id>`.
+ * has stayed `after` seconds — as the status 脆弱 (`fragile`) that the aura `stayVuln:<source id>` holds (部署-6), its strength the
+ * share above 1.
  * @param {World} w @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
  */
 export function stayVuln(w, c, src, units, want) {
   const x = traitOf(c, src).stayVuln;
   if (!x) return;
-  const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src), mark = `stay:${src.id}`;
+  const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src), mark = `stay:${src.id}`, held = heldKey(`stayVuln:${src.id}`);
   for (const u of units) {
     if (!hostile(u)) continue;
     const m = u.buffs.find((b) => b.key === mark);
     if (!inKeys(u, keys, grid)) { if (m) removeBuff(u, m); continue; }
     if (!m) addBuff(u, makeBuff({ key: mark, src: src.id, n: w.frame }));
     const k = m && w.frame - m.n >= secondsToFrames(x.after) ? x.max : x.base;
-    want.get(u)?.set(`stayVuln:${src.id}`, { src: src.id, value: k, mods: { dmgTakenMul: k } });
+    const v = k - 1;
+    want.get(u)?.set(held, { src: src.id, value: v, mods: statusMods('fragile', v), status: 'fragile' });
   }
 }
 

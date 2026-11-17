@@ -2,7 +2,7 @@
 // slower attack for a stronger one or a wider range, modifiers until hurt, around a skill, at low SP or with enemies
 // around, a random gain, heals for enemies falling, buffs and stuns on deployment, what its heals leave, a field regen,
 // a floor on its damage, attacks on 隐匿 enemies — as additions to the trait (职业-31).
-import { whomOf } from './talents.js';
+import { whomOf, resistOf } from './talents.js';
 import { plainOf, byEnd, all } from './talentparts.js';
 
 /** @typedef {import('./talents.js').Talent} Talent @typedef {import('@aue/sim').TraitDef} TraitDef */
@@ -31,12 +31,14 @@ const MORE = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>, m: R
   [/^在战场时全体友方单位每秒恢复相当于\S+?攻击力\d+(?:\.\d+)?%的生命$/u, (bb) => (all([bb.atk_to_hp_recovery_ratio]) ? { fieldRegen: bb.atk_to_hp_recovery_ratio } : null)],
   [/^在治疗目标后使其获得\d+(?:\.\d+)?秒抵抗$/u, (bb) => {
     const seconds = num(bb, 'status_resistance[limit]');
-    return all([seconds, bb.one_minus_status_resistance]) ? { healGives: { seconds: /** @type {number} */ (seconds), mods: { statusResFlat: bb.one_minus_status_resistance } } } : null;
+    const status = resistOf(bb);
+    return all([seconds]) && status ? { healGives: { seconds: /** @type {number} */ (seconds), mods: {}, status } } : null;
   }],
   [/^治疗的目标获得\d+(?:\.\d+)?秒抵抗[，,]若目标生命值高于\d+(?:\.\d+)?%则改为\d+(?:\.\d+)?秒抵抗$/u, (bb) => {
     const seconds = num(bb, 'status_resistance[limit]'), high = byEnd(bb, '[special].status_resistance[limit]');
-    return all([seconds, high, bb.hp_ratio, bb.one_minus_status_resistance]) ? { healGives: { seconds: /** @type {number} */ (seconds),
-      mods: { statusResFlat: bb.one_minus_status_resistance }, above: bb.hp_ratio, aboveSeconds: /** @type {number} */ (high) } } : null;
+    const status = resistOf(bb);
+    return all([seconds, high, bb.hp_ratio]) && status ? { healGives: { seconds: /** @type {number} */ (seconds),
+      mods: {}, status, above: bb.hp_ratio, aboveSeconds: /** @type {number} */ (high) } } : null;
   }],
   [/^治疗地面单位[，,]元素损伤回复量提高\d+(?:\.\d+)?%$/u, (bb) => (all([bb.ep_heal_scale]) ? { groundEpHeal: bb.ep_heal_scale } : null)],
   [/^可以攻击隐匿敌人[，,]并且攻击范围内存在(?:拥有)?隐匿敌人时[，,]攻击力[+＋]\d+(?:\.\d+)?%$/u, (bb) => (all([bb.atk])

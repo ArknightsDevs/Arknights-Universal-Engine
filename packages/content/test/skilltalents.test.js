@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { register } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { oracleDir } from '@aue/testkit';
-import { createWorld, step, attrs, traits, bus } from '@aue/sim';
+import { createWorld, step, attrs, traits, bus, status } from '@aue/sim';
 import { tinyContent, oneWave, spawnAt } from '@aue/testkit';
 import { loadTraining, operatorAt, matchContent, loadKits } from '../src/index.js';
 import { risesOf } from '../src/talentscale.js';
@@ -19,9 +19,9 @@ before(() => {
   register(new URL('hook.js', compat), { data: { root: pathToFileURL(`${oracleDir()}/`).href, compat } });
 });
 
-/** The record of an operator at elite 2, skill level 7. @param {string} id @param {number} skill */
-async function record(id, skill) {
-  return /** @type {any} */ (operatorAt(await loadTraining(id), { elite: 2, level: 1, potential: 6, trust: 0, skill, skillLevel: 7 }));
+/** The record of an operator at elite 2, skill level 7 — `build` changes that (a module, a level). @param {string} id @param {number} skill @param {Record<string, number>} [build] */
+async function record(id, skill, build = {}) {
+  return /** @type {any} */ (operatorAt(await loadTraining(id), { elite: 2, level: 1, potential: 6, trust: 0, skill, skillLevel: 7, ...build }));
 }
 /** The rises of a real skill (level 7). @param {string} id @param {number} skill */
 async function risesAt(id, skill) {
@@ -55,7 +55,7 @@ test('[技能-17] the rises a description says: times a key, a chance made that 
 test('[技能-17] the talent fields while a skill runs, on real data: in-range modifiers, chances, a status\'s time, what a talent adds to the trait', async () => {
   const swire = await record('char_308_swire', 1), lisa = await record('char_358_lisa', 2), franka = await record('char_106_franka', 1);
   assert.deepEqual([swire.rangeTalents[0].mods.atkPct, swire.skillTalents.rangeTalents[0].mods.atkPct], [0.12, 0.12 * 2.7], '+12% × 2.7');
-  assert.deepEqual([lisa.rangeTalents[0].mods.dmgTakenMul, lisa.skillTalents.rangeTalents[0].mods.dmgTakenMul], [1.23, 1 + 0.23 * 1.7], 'a 脆弱 of 1.23: the 0.23 × 1.7');
+  assert.deepEqual([lisa.rangeTalents[0].status.value, lisa.skillTalents.rangeTalents[0].status.value], [1.23 - 1, 1 + (1.23 - 1) * 1.7 - 1], 'a 脆弱 of 1.23: the 0.23 × 1.7');
   assert.equal(lisa.skillTalents.fieldTalents, undefined, 'the first talent is not the one raised');
   assert.deepEqual([franka.critTalents[0].prob, franka.skillTalents.critTalents[0].prob], [0.2, 0.5]);
   assert.equal((await record('char_346_aosta', 1)).skillTalents.talentTrait.onHit[0].dot.scale, 0.4, '0.2 × 2');
@@ -169,11 +169,12 @@ test('[技能-17] 乌尔比安 S2: the heal she gets as she is hit is the risen 
 /**
  * A still dummy (no 防御, a great deal of HP) at (row, col) `dummy` of the tiny level and an operator at (row, col) `at` of it, its
  * skill ready to start (`start`); `during` is the damage of each of its hits while the skill runs. `plain` takes the record's
- * `skillTalents` away, so the same skill runs without raising its talents — the control of the same seed. `tweak` changes the operator.
- * @param {string} id @param {number} skill @param {[number, number]} at @param {[number, number]} dummy @param {{ plain?: boolean, tweak?: (op: any) => any }} [o]
+ * `skillTalents` away, so the same skill runs without raising its talents — the control of the same seed. `tweak` changes the operator,
+ * `build` the training (a module, a level).
+ * @param {string} id @param {number} skill @param {[number, number]} at @param {[number, number]} dummy @param {{ plain?: boolean, tweak?: (op: any) => any, build?: Record<string, number> }} [o]
  */
-async function duel(id, skill, at, dummy, { plain = false, tweak = (op) => op } = {}) {
-  const c = /** @type {any} */ (tinyContent()), { skillTalents, ...rest } = await record(id, skill);
+async function duel(id, skill, at, dummy, { plain = false, tweak = (op) => op, build = {} } = {}) {
+  const c = /** @type {any} */ (tinyContent()), { skillTalents, ...rest } = await record(id, skill, build);
   c.operators.op = tweak({ ...(plain ? rest : { ...rest, skillTalents }), cost: 0 });
   c.enemies = { dummy: { name: 'dummy', maxHp: 1e9, atk: 0, def: 0, res: 0, moveSpeed: 1, massLevel: 1 } };
   c.level.waves = [oneWave([spawnAt(0, 'dummy')])];
@@ -228,4 +229,56 @@ test('[技能-17] a part of the trait scaled by the enemies in range is retuned 
   d.run(30 * 60);
   assert.ok(!d.sk.active);
   assert.equal(mods(), 0.1, 'back to 10%');
+});
+
+test('[技能-17] [职业-28] 仇白 LOR-X at 问雪 level 10: the later arts damage with both statuses is the risen 48% × the module\'s 1.2, not 1.2 risen too', async () => {
+  const t = await loadTraining('char_4082_qiubai'), module = t.modules.findIndex((m) => m.type === 'LOR-X');
+  const build = { level: 70, skillLevel: 10, module, moduleLevel: 3 };
+  const rec = await record('char_4082_qiubai', 2, build);
+  assert.deepEqual([rec.talentTrait.vs[0].arts, rec.talentTrait.vs[0].both, rec.skillTalents.talentTrait.vs[0].arts, rec.skillTalents.talentTrait.vs[0].both], [0.48, 1.2, 0.96, 1.2],
+    'the skill doubles the damage (第一天赋的伤害提升至2倍), not the module\'s 提升至原本的1.2倍');
+  const d = await duel('char_4082_qiubai', 2, [1, 0], [1, 3], { build });
+  const dummy = /** @type {Unit} */ (d.w.units.find((u) => u.key === 'dummy'));
+  const hold = () => { for (const s of /** @type {const} */ (['sluggish', 'root'])) if (!dummy.buffs.some((b) => b.key === s)) status.applyStatus(dummy, s, {}); };
+  /** @type {Set<number>} the damage of each hit and rider, in the skill and out of it */
+  const inSkill = new Set(), outside = new Set();
+  bus.on(d.w, 'damaged', (k) => { if (k.source === d.op) (d.sk.active ? inSkill : outside).add(Math.round(k.amount)); });
+  hold();
+  d.run(30 * 3);
+  const plainAtk = attrs.statsOf(d.op).atk;
+  assert.ok(outside.has(Math.round(plainAtk * 0.48 * 1.2)), `outside the skill: ${[...outside]}`);
+  d.start();
+  hold();
+  d.run(30 * 5);
+  const atk = attrs.statsOf(d.op).atk;
+  assert.ok(d.sk.active && atk > plainAtk, 'the skill runs');
+  assert.ok(inSkill.has(Math.round(atk * 0.96 * 1.2)), `risen damage × 1.2: ${atk * 0.96 * 1.2} in ${[...inSkill]}`);
+  assert.equal(inSkill.has(Math.round(atk * 0.96 * 2.4)), false, 'not × 2.4');
+});
+
+test('[技能-17] [部署-6] 铃兰 S3: the 脆弱 she holds on a 停顿 enemy is the risen one while the skill runs, retuned in place, the plain one before and after', async () => {
+  const d = await duel('char_358_lisa', 2, [0, 2], [0, 4]);
+  const dummy = /** @type {Unit} */ (d.w.units.find((u) => u.key === 'dummy'));
+  status.applyStatus(dummy, 'sluggish', {});
+  const fragile = () => dummy.buffs.filter((b) => b.key === 'fragile').map((b) => Math.round(b.value * 1e6) / 1e6);
+  d.run(3);
+  assert.deepEqual(fragile(), [0.23], 'plain: 脆弱 1.23');
+  d.start();
+  d.run(3);
+  assert.ok(d.sk.active);
+  assert.deepEqual(fragile(), [1 + 0.23 * 1.7 - 1].map((v) => Math.round(v * 1e6) / 1e6), 'the skill: the share above 1 × 1.7, one status');
+  for (let i = 0; i < 30 * 60 && d.sk.active; i++) d.run(1);
+  d.run(3);
+  assert.deepEqual([d.sk.active, fragile()], [false, [0.23]], 'back to the plain one');
+});
+
+test('[技能-17] [干员-19] 焰影苇草 S3: while the skill runs every hit leaves the 法术脆弱 (the chance is 100%), its attack lowered too', async () => {
+  const d = await duel('char_1020_reed2', 2, [0, 2], [0, 4]);
+  const dummy = /** @type {Unit} */ (d.w.units.find((u) => u.key === 'dummy'));
+  const mine = () => [...new Set(dummy.buffs.filter((b) => b.key === 'artsFragile').map((b) => Math.round(b.value * 1e6) / 1e6))];
+  d.start();
+  d.run(30 * 3);
+  assert.ok(d.sk.active);
+  assert.deepEqual(mine(), [0.32], 'the 法术脆弱 of the talent, strength 1.32 − 1');
+  assert.ok(dummy.buffs.some((b) => (b.mods.atkPct ?? 0) === -0.22), '攻击力 −22%');
 });

@@ -52,9 +52,9 @@ test('[干员-33] talents on statuses and stances: steps for 停顿 dealt, 脆�
   ], [
     { trait: { stacks: [{ on: 'status', status: 'sluggish', max: 18, mods: { aspd: 1 } }] } },
     { trait: { stayVuln: { base: 1.12, after: 7, max: 1.16 } } },
-    { range: [{ side: 'enemy', ranged: false, when: { when: 'sluggish' }, mods: { dmgTakenMul: 1.23 } }] },
-    { trait: { onHit: [{ status: { key: 'cold', seconds: 1 } }] }, range: [{ side: 'enemy', ranged: false, when: { when: 'coldOnly' }, mods: { dmgTakenMul: 1.27 } },
-      { side: 'enemy', ranged: false, when: { when: 'frozen' }, mods: { dmgTakenMul: 1.54 } }] },
+    { range: [{ side: 'enemy', ranged: false, when: { when: 'sluggish' }, mods: {}, status: { key: 'fragile', value: 1.23 - 1 } }] },
+    { trait: { onHit: [{ status: { key: 'cold', seconds: 1 } }] }, range: [{ side: 'enemy', ranged: false, when: { when: 'coldOnly' }, mods: {}, status: { key: 'fragile', value: 1.27 - 1 } },
+      { side: 'enemy', ranged: false, when: { when: 'frozen' }, mods: {}, status: { key: 'fragile', value: 1.54 - 1 } }] },
     { range: [{ side: 'enemy', ranged: false, mods: {}, flags: { unstealth: true } }] },
     { trait: { combo: { hits: 5, gap: 1.5, max: 3, mods: { atkPct: 0.07 } } } },
     { trait: { nonLethal: { seconds: 10, sp: 2 } } },

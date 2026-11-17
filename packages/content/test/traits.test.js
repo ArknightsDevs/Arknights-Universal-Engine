@@ -224,8 +224,9 @@ test('[职业-7] [职业-17] [职业-18] the modules\' lasting modifiers, a skil
   const wh = async (/** @type {string} */ name, /** @type {string} */ type) => (await withModule(name, type)).whiles;
   const always = (/** @type {Record<string, number>} */ mods) => [{ when: 'always', mods }];
   assert.deepEqual(await Promise.all([wh('寻澜', 'AGE-X'), wh('杰克', 'FGT-X'), wh('瑕光', 'GUA-Y'), wh('石英', 'CRU-X'), wh('锡兰', 'WAH-X')]), [
-    always({ taunt: -1 }), always({ dodgePhys: 0.15 }), always({ dmgTakenMul: 0.85 }), always({ healingTakenMul: 1.2 }), always({ taunt: -1, statusResMul: 0.5 }),
+    always({ taunt: -1 }), always({ dodgePhys: 0.15 }), always({ dmgTakenMul: 0.85 }), always({ healingTakenMul: 1.2 }), always({ taunt: -1 }),
   ]);
+  assert.deepEqual((await withModule('锡兰', 'WAH-X')).selfStatus, { key: 'buffres', value: 0.5 }, 'WAH-X: 自身获得抵抗 is the status, not a modifier');
   assert.deepEqual(await Promise.all([wh('W', 'ART-Y'), wh('刻刀', 'SWO-Y'), wh('艾雅法拉', 'CCR-X'), wh('泥岩', 'UNY-X')]), [
     always({ defIgnoreFlat: 100 }), always({ defIgnoreFlat: 70 }), always({ resIgnoreFlat: 10 }), always({ blockedTakenMul: 0.85 }),
   ]);

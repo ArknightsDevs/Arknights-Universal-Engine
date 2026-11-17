@@ -92,6 +92,8 @@ Buff 的行为（触发时、到期时做什么）按行为键查找，不存在
 
 脆弱、法术脆弱、元素脆弱、虚弱必须给出强度 v。没有给出持续时间的状态没有结束时间。
 
+干员的天赋给抵抗、脆弱、法术脆弱、元素脆弱时，给的就是这些状态，不是同名的修饰器（干员-9、干员-11、干员-13、干员-14、干员-19、干员-20、干员-22、干员-30、干员-33、干员-34）：只有一个来源时数值同修饰器一样，几个来源（天赋、命中、技能）给同一个单位时按「效果取最高」（状态-2）只取最强的一条，不再相加（抵抗会加到 0，一减状态抵抗率到下限 0.001，衰减率 ×1000）或相乘；`beforeStatus`、`statusApplied` 照常发。光环持有的状态的给法见 部署-6（推断 INF-1481）。
+
 两类寒冷都带标记 `cold`（异常效果寒冷）；它们的攻击速度 −30 只在这个标记生效时计入（状态-7）。
 
 由标记得出的状态：
@@ -103,7 +105,7 @@ Buff 的行为（触发时、到期时做什么）按行为键查找，不存在
 
 隐匿失效（反隐）不是这个目录里的状态：技能的攻击使目标隐匿失效（凛御银灰二技能「使其{cold}秒内寒冷且隐匿失效」）时，给目标一个带标记 `unstealth` 的 Buff（技能-9，索敌-2），不另有状态。
 
-- 来源：[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223)（晕眩、寒冷、冻结、沉睡、束缚、停顿、脆弱、法术脆弱、元素脆弱、虚弱、抵抗、浮空、缚地、恐惧、麻痹）；[PRTS「异常效果」oldid=440606](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=440606)（无敌：「受到的伤害与元素值变为0」；禁疗：「受到的治疗量变为0」；沉默；战栗 DISARMED_COMBAT：「若状态机处于COMBAT则无法触发普通攻击」「打断当前正在进行的普通攻击的效果为相关Buff操控，非异常效果战栗本身的效果」「战栗虽然能在实质上阻止敌方单位在阻挡状态下发动攻击」，抗性键 disarmedCombatImmune；战栗不在可抵抗状态之列；COMBAT 状态即敌人被阻挡、只作用于敌人为推断 INF-0141）；[PRTS「可抵抗状态」oldid=429763](https://prts.wiki/index.php?title=%E5%8F%AF%E6%8A%B5%E6%8A%97%E7%8A%B6%E6%80%81&oldid=429763)（晕眩、寒冷、冻结、恐惧、诱导、麻痹）；[PRTS「常见同名状态」oldid=417450](https://prts.wiki/index.php?title=%E5%B8%B8%E8%A7%81%E5%90%8C%E5%90%8D%E7%8A%B6%E6%80%81&oldid=417450)（效果取最高）；[PRTS「异常效果」oldid=422666](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=422666)（寒冷是一项异常效果，COLD：「攻击速度降低；在特定条件下转变为冻结」）
+- 来源：[PRTS「术语释义」oldid=440223](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=440223)（晕眩、寒冷、冻结、沉睡、束缚、停顿、脆弱、法术脆弱、元素脆弱、虚弱、抵抗、浮空、缚地、恐惧、麻痹）；[PRTS「异常效果」oldid=440606](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=440606)（无敌：「受到的伤害与元素值变为0」；禁疗：「受到的治疗量变为0」；沉默；战栗 DISARMED_COMBAT：「若状态机处于COMBAT则无法触发普通攻击」「打断当前正在进行的普通攻击的效果为相关Buff操控，非异常效果战栗本身的效果」「战栗虽然能在实质上阻止敌方单位在阻挡状态下发动攻击」，抗性键 disarmedCombatImmune；战栗不在可抵抗状态之列；COMBAT 状态即敌人被阻挡、只作用于敌人为推断 INF-0141）；[PRTS「可抵抗状态」oldid=429763](https://prts.wiki/index.php?title=%E5%8F%AF%E6%8A%B5%E6%8A%97%E7%8A%B6%E6%80%81&oldid=429763)（晕眩、寒冷、冻结、恐惧、诱导、麻痹）；[PRTS「常见同名状态」oldid=417450](https://prts.wiki/index.php?title=%E5%B8%B8%E8%A7%81%E5%90%8C%E5%90%8D%E7%8A%B6%E6%80%81&oldid=417450)（效果取最高）；[PRTS「异常效果」oldid=422666](https://prts.wiki/index.php?title=%E5%BC%82%E5%B8%B8%E6%95%88%E6%9E%9C&oldid=422666)（寒冷是一项异常效果，COLD：「攻击速度降低；在特定条件下转变为冻结」）；天赋的抵抗、脆弱：[PRTS「术语释义」revid 448536](https://prts.wiki/index.php?title=%E6%9C%AF%E8%AF%AD%E9%87%8A%E4%B9%89&oldid=448536) 抵抗「减半效果为令一减状态抵抗率×0.5（最终乘算），同名效果取最高」、脆弱与法术脆弱「（同名效果取最高）」，[PRTS「铃兰」revid 446568](https://prts.wiki/index.php?title=%E9%93%83%E5%85%B0&oldid=446568) 备注「停顿检测：每帧检测一次单位是否持有停顿Buff，并以此施加/结束目标身上的天赋脆弱效果」，[PRTS「灵知」revid 446550](https://prts.wiki/index.php?title=%E7%81%B5%E7%9F%A5&oldid=446550) 备注「脆弱效果会在敌人每次异常效果发生变化后解除，并立即依据持有的寒冷/冻结重新施加」；取自 Stronghold v0.4.0 的 `server/sim/content/kits/ops/chess_char_5_10-lisa.js`、`chess_char_6_16-halo2.js`、`chess_char_6_08-reed2.js`（GPL-3.0-or-later）：铃兰、溯光星源、焰影苇草的脆弱同为 `fragile` / `artsFragile` 状态，强度 `damage_scale` − 1，作旁证
 
 ### 状态-6 寒冷叠成冻结
 

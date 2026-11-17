@@ -12,6 +12,7 @@ import { aroundParts } from './talentaround.js';
 import { healParts } from './talentheal.js';
 import { fightParts } from './talentfight.js';
 import { lastParts } from './talentlast.js';
+import { hitStatuses, selfStatus } from './talentstatus.js';
 import { dollOf } from './doll.js';
 import { risesOf, risenTalents, skillTalentsFrom, talentArea } from './talentscale.js';
 import rangeTable from '../data/ranges.json' with { type: 'json' };
@@ -206,7 +207,7 @@ function talentTraitOf(talents) {
     ...listed('nextAttack', special.flatMap((p) => p.nextAttack ?? [])), ...listed('vs', [...talents.map(targetPart).filter((p) => p !== null), ...special.flatMap((p) => p.vs ?? [])]),
     ...listed('prefer', special.flatMap((p) => p.prefer ?? [])), ...listed('burstOn', special.flatMap((p) => p.burstOn ?? [])),
     ...listed('pulses', special.flatMap((p) => p.pulses ?? [])), ...listed('fieldBuffs', special.flatMap((p) => p.fieldBuffs ?? [])),
-    ...listed('onHit', [...talents.map(hitPart).filter((p) => p !== null), ...special.flatMap((p) => p.onHit ?? [])]), ...(extraArts > 0 ? { extraArts } : {}), ...(targets > 0 ? { targets } : {}),
+    ...listed('onHit', [...talents.map(hitPart).filter((p) => p !== null), ...talents.flatMap(hitStatuses), ...special.flatMap((p) => p.onHit ?? [])]), ...(extraArts > 0 ? { extraArts } : {}), ...(targets > 0 ? { targets } : {}),
     ...listed('stacks', [...talents.map(stackPart).filter((p) => p !== null), ...special.flatMap((p) => p.stacks ?? [])]), ...listed('talentSp', talents.flatMap(spParts)), ...(grit ? { grit } : {}), ...listed('auras', auras),
     ...(packed ? { packed } : {}),
   };
@@ -238,7 +239,7 @@ function talentFields(t, b, mod, rises = []) {
       ...talents.flatMap((c) => aroundParts(c)?.range ?? []), ...talents.flatMap((c) => healParts(c)?.range ?? []),
       ...talents.flatMap((c) => fightParts(c)?.range ?? []), ...talents.flatMap((c) => lastParts(c)?.range ?? [])]],
     ['critTalents', [...talents.map(critPart).filter((p) => p !== null), ...talents.flatMap((c) => fightParts(c)?.crit ?? []), ...talents.flatMap((c) => lastParts(c)?.crit ?? [])]], ['timedTalents', talents.map(timedPart).filter((p) => p !== null)],
-    ['deployTalents', talents.map(deployPart).filter((p) => p !== null)]];
+    ['deployTalents', [...talents.map(deployPart).filter((p) => p !== null), ...talents.map(selfStatus).filter((s) => s !== null).map((status) => ({ status }))]]];
   const aspd = talents.find((x) => Number.isFinite(x.bb.attack_speed_ally) && Number.isFinite(x.bb.attack_speed_enemy))?.bb;
   const fields = { ...(Object.keys(talentBb).length ? { talentBb } : {}), ...(Object.keys(talentMods).length ? { talentMods } : {}), ...Object.fromEntries(lists.filter(([, v]) => v.length > 0)),
     ...(talentTrait ? { talentTrait } : {}),

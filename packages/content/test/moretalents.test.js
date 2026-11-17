@@ -60,7 +60,7 @@ test('[干员-30] talents on kills near it, its deployment, its heals, 隐匿 en
   ], [
     { downHeal: [{ where: 'around', share: 0.14 }] }, { downHeal: [{ where: 'blocked', share: 0.18 }] },
     { deployBuff: { profession: 'MEDIC', seconds: 17, mods: { atkPct: 0.12, defFlat: 120 } } }, { fieldRegen: 0.055 },
-    { healGives: { seconds: 4, mods: { statusResFlat: -0.5 } } }, { healGives: { seconds: 4, mods: { statusResFlat: -0.5 }, above: 0.75, aboveSeconds: 6 } },
+    { healGives: { seconds: 4, mods: {}, status: { key: 'buffres', value: 0.5 } } }, { healGives: { seconds: 4, mods: {}, status: { key: 'buffres', value: 0.5 }, above: 0.75, aboveSeconds: 6 } },
     { groundEpHeal: 1.23 }, { seeStealth: true, whiles: [{ when: 'stealthEnemies', mods: { atkPct: 0.2 } }] },
     { minDamage: { scale: 0.33 } }, { minDamage: { scale: 0.25, front: 0.4 } }, { deployStun: { seconds: 4, radius: 1 } },
     { deployBlast: { scale: 0.8, stun: 3, again: 'kazimierz' } },

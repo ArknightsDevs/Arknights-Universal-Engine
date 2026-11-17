@@ -77,6 +77,13 @@ export const STATUS = Object.freeze({
 /** @typedef {keyof typeof STATUS} StatusKey */
 
 /**
+ * The modifiers a status has at a strength (状态-5): its catalogue's, at the status's own value when none is given. An
+ * aura that holds a status keeps them in step with its strength (部署-6).
+ * @param {StatusKey} key @param {number} [value] @returns {Record<string, number>}
+ */
+export const statusMods = (key, value) => STATUS[key].mods(value ?? STATUS[key].value ?? 0);
+
+/**
  * @typedef {object} StatusOptions
  * @property {Unit | null} [src] the unit that applies it
  * @property {number} [seconds] how long, as the data writes it (no seconds and no frames: no end)
@@ -218,6 +225,23 @@ export function inflict(w, target, key, o = {}) {
   if (k.cancel || target.hp <= 0 || (frames <= 0 && frames !== -1)) return null;
   return giveStatus(target, key, { ...o, frames, seconds: undefined, value: k.strength }, w);
 }
+
+/**
+ * A status a talent gives (干员-6, 干员-9…, 状态-5), as it is given in a battle — `inflict`, from the unit that has the talent —:
+ * its key and strength (the status's own when the talent gives none), for the seconds in `o` or for good.
+ * @param {import('./types.js').World} w @param {Unit} target @param {Unit | null} src @param {import('./types.js').TalentStatus} s
+ * @param {StatusOptions} [o] @returns {Buff | null}
+ */
+export const inflictTalent = (w, target, src, s, o = {}) => inflict(w, target, s.key, { ...o, src, ...(s.value !== undefined ? { value: s.value } : {}) });
+
+/** How the tag of a status an aura holds begins (部署-6). */
+export const HELD = 'held:';
+/**
+ * The key of a status an aura wants of a unit, and the tag of the status the sync then gives (部署-6): `held:` before the aura's own
+ * key. The same string both ways, so the sync finds the want of a status it holds without cutting the tag each frame.
+ * @param {string} key
+ */
+export const heldKey = (key) => HELD + key;
 
 /** 麻痹 loses a layer every this many frames at a 综合抵抗衰减率 of 1 (状态-8: 10 s). */
 export const PALSY_DECAY_FRAMES = secondsToFrames(10);

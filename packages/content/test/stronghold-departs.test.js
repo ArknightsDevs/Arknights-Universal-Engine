@@ -105,7 +105,7 @@ test('[职业-32] 新约能天使的铳弹协约 (DIF-0076): she carries it from
 test('[部署-6] 海霓的测绘器材的奇用 (DIF-0077): a normal enemy in range has the 脆弱 for her first attack', async () => {
   const a = await arena({ id: 'char_4079_haini' });
   a.run(1);
-  close(/** @type {any} */ (buffOf(a.foe(), 'range:')).mods.dmgTakenMul, 1.16, 'the 脆弱');
+  close(/** @type {any} */ (buffOf(a.foe(), 'fragile')).mods.dmgTakenMul, 1.16, 'the 脆弱, a status the range talent holds');
   a.run(70);
   close(a.log.hits[0][1], a.op().base.atk * 1.16, 'the first hit');
 });
@@ -146,11 +146,11 @@ test('[干员-31] 薄绿的地质学者 (DIF-0082): the ally on the next tile ge
   assert.equal(buffOf(a.op(), 'range:'), undefined);
 });
 
-test('[职业-34] 溯光星源的能源解析 (DIF-0083): the 脆弱 is a buff on the enemy from the first frame, never a status', async () => {
+test('[职业-34] 溯光星源的能源解析 (DIF-0083): the 脆弱 is a status on the enemy from the first frame', async () => {
   const a = await arena({ id: 'char_1047_halo2' });
   a.run(1);
-  close(/** @type {any} */ (buffOf(a.foe(), 'stayVuln:')).mods.dmgTakenMul, 1.1, 'the 脆弱');
+  close(/** @type {any} */ (buffOf(a.foe(), 'fragile')).mods.dmgTakenMul, 1.1, 'the 脆弱');
   a.run(80);
   close(a.log.hits[0][1], a.op().base.atk * 1.1, 'the first hit');
-  assert.ok(!a.log.statuses.includes('fragile'));
+  assert.ok(a.log.statuses.includes('fragile'), 'given as the status, same name highest (干员-9)');
 });

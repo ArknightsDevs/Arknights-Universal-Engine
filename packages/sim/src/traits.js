@@ -5,7 +5,7 @@ import { FPS, secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff } from './buffs.js';
-import { inflict } from './status.js';
+import { inflict, inflictTalent } from './status.js';
 import { dealDamage, heal } from './damage.js';
 import { draw } from './rng.js';
 import { dealEpFrom } from './elements.js';
@@ -42,7 +42,7 @@ export const defaultTrait = (position) => ({
   minDamage: null, deployStun: null, deployBlast: null, fieldBuffs: [], shareGain: null, stackShare: null, healShare: 0, healMore: 0, statusHeal: null, lowHeal: null,
   overhealBarrier: null, healBarrier: null, skillEndHeal: null, resistRegen: 0, overflowBarrier: 0, sameTarget: null, skipStatus: '', attackerMods: null, hitStatusPlus: 0,
   energyScale: 1, kindStack: null, slainKinds: false, skillStrike: null, spendBoost: null, stayVuln: null, combo: null, nonLethal: null, chargedRider: 0, fieldVs: null,
-  powerAttacks: null, timedBlast: null, firstBlock: null, bb: {},
+  powerAttacks: null, timedBlast: null, firstBlock: null, selfStatus: null, bb: {},
 });
 
 /**
@@ -265,7 +265,7 @@ export function traitSkip(w, c, op) {
 /**
  * A newly deployed operator's trait (职业-4, 职业-10): its lasting modifiers and flags as a buff, its upkeep —
  * the HP drain each second, the cost it consumes — as buffs without an end — unless its behaviour owns them (职业-6),
- * then its talents' trackers and their buffs on its life (职业-26, 职业-27), then its behaviour's deploy.
+ * the status it holds (`selfStatus`), then its talents' trackers and their buffs on its life (职业-26, 职业-27), then its behaviour's deploy.
  * @param {World} w @param {Content} c @param {Unit} op
  */
 export function traitDeploy(w, c, op) {
@@ -275,6 +275,7 @@ export function traitDeploy(w, c, op) {
     if (t.hpDrain > 0) addBuff(op, makeBuff({ key: 'drain', src: op.id, every: FPS, fixed: true, value: t.hpDrain }));
     if (t.costDrain) addBuff(op, makeBuff({ key: 'upkeep', src: op.id, every: secondsToFrames(t.costDrain.every), fixed: true, value: t.costDrain.cost }));
   }
+  if (t.selfStatus) inflictTalent(w, op, op, t.selfStatus);
   trackTime(w, c, op);
   lifeDeploy(w, c, op);
   behaviorOf(c, op)?.deploy?.(contextOf(w, c, op));

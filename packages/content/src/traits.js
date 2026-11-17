@@ -3,6 +3,7 @@
 // defaults of its position (M4).
 
 import rangeTable from '../data/ranges.json' with { type: 'json' };
+import { resistOf } from './talents.js';
 
 /** @typedef {import('@aue/sim').TraitDef} TraitDef @typedef {import('@aue/sim').OperatorDef} OperatorDef */
 
@@ -271,10 +272,11 @@ export const BRANCHES = Object.freeze(/** @type {Record<string, Branch>} */ ({
   ringhealer: { trait: (_bb, own) => ({ heal: true, targets: own?.['attack@max_target'] ?? 3 }) },
   watchman: healer(1),
   // heal_scale for a target outside range 2-3 (职业-11)
-  // WAH-X: 抵抗 (one_minus_status_resistance) and 嘲讽等级 + taunt_level (职业-18)
+  // WAH-X: 嘲讽等级 + taunt_level (职业-18), and the status 抵抗 (one_minus_status_resistance) from the deployment (职业-10) — the same status
+  // as a talent's, so that 同名效果取最高 holds between them
   healer: { trait: (bb) => ({
     heal: true, targets: 1, zone: { cells: cellsOf('2-3'), scale: bb.heal_scale ?? 0.8, outside: true },
-    ...whileOf('always', { taunt: bb.taunt_level, statusResMul: bb.one_minus_status_resistance === undefined ? undefined : 1 + bb.one_minus_status_resistance }),
+    ...whileOf('always', { taunt: bb.taunt_level }), ...(resistOf(bb) ? { selfStatus: resistOf(bb) } : {}),
   }) },
   // jumps among max_target operators in the 3 × 3 around each, 75 % of the heal before (职业-11)
   // XAH-X: the jumps and their 倍率 of the module's own data (0.85: 15 % less a jump; 职业-23)

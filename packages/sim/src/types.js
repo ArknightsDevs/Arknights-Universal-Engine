@@ -433,8 +433,8 @@
  * @property {{ profession: string, seconds: number, mods: Record<string, number> } | null} deployBuff as it is deployed,
  *   `mods` for `seconds` on each operator of `profession` on the field (职业-31)
  * @property {number} fieldRegen while it is on the field, every friendly unit gains 生命回复速度 of this share of its attack (职业-31)
- * @property {{ seconds: number, mods: Record<string, number>, above?: number, aboveSeconds?: number } | null} healGives what
- *   its heals leave on the one healed for some seconds (职业-31)
+ * @property {{ seconds: number, mods: Record<string, number>, status?: TalentStatus, above?: number, aboveSeconds?: number } | null} healGives what
+ *   its heals leave on the one healed for some seconds (职业-31): modifiers, or a status
  * @property {number} groundEpHeal × the 元素损伤 its heals restore on a unit on a 低地 tile (职业-31)
  * @property {boolean} seeStealth its attack can select 隐匿 enemies (职业-31)
  * @property {{ scale: number, front?: number } | null} minDamage the least damage of its attacks' hits after the defences, × its
@@ -485,6 +485,7 @@
  * @property {{ after: number, scale: number, fragile: { value: number, seconds: number } } | null} timedBlast `after` seconds from
  *   its deployment, physical damage and 脆弱 on the enemies around it, then it retreats (职业-35)
  * @property {{ cost: number, sleep: number } | null} firstBlock the first enemy it blocks gives `cost` and sleeps (职业-35)
+ * @property {TalentStatus | null} selfStatus the status it holds from its deployment, as a talent's (职业-10: 疗养师 WAH-X 「自身获得抵抗」)
  * @property {Record<string, number>} bb the trait's blackboard, for its behaviour
  */
 /**
@@ -525,9 +526,11 @@
 /**
  * A talent's steps (干员-20, 职业-25): for its kills (its summons' too with `summons`) or the damage it deals (physical
  * only with `phys`), a step every `every` of them (1 by default), at most `max` steps, each with `mods`; the steps last
- * `seconds` from the last one when it has them; for an enemy's burst of `el` in its attack range (`burst`, 职业-29).
+ * `seconds` from the last one when it has them; for an enemy's burst of `el` in its attack range (`burst`, 职业-29). `gives`:
+ * a status the operator holds from its first step on, for the steps' time or for good (干员-20); `full`: more modifiers while
+ * every step is taken (干员-33).
  * @typedef {{ on: 'kill' | 'dealt' | 'burst' | 'status', mods: Record<string, number>, max: number, every?: number, seconds?: number, phys?: boolean, summons?: boolean, el?: string,
- *   shared?: boolean, status?: string }} TalentStack
+ *   shared?: boolean, status?: string, gives?: TalentStatus, full?: Record<string, number> }} TalentStack
  */
 /**
  * SP a talent gives on an event (干员-21, 职业-25): `sp` to the operator — or, on a heal, to the one healed —, `other`
@@ -545,6 +548,12 @@
  * @typedef {{ status?: { key: import('./status.js').StatusKey, seconds: number, value?: number }, debuff?: { seconds: number, mods: Record<string, number> },
  *   dot?: { amount?: number, scale?: number, seconds: number }, prob?: number, first?: boolean, when?: 'unblocked' | 'beyondRange', during?: number,
  *   ep?: { el: string, amount: number } }} TalentHit
+ */
+/**
+ * A status a talent gives where it gives no modifiers (干员-6, 干员-9, 干员-11, 干员-13, 干员-14, 干员-19, 干员-20, 干员-33): its
+ * key (状态-5) and strength — the status's own (抵抗: 0.5) when none is given. The status keeps the same-name rule of its own
+ * kind (状态-2), whoever gives it.
+ * @typedef {{ key: import('./status.js').StatusKey, value?: number }} TalentStatus
  */
 /**
  * Modifiers or flags an operator's trait gives other units (职业-20): the enemies it blocks (`blocked`), those its own
@@ -609,7 +618,7 @@
  * @typedef {{ when: 'blocked' | 'flying' | 'skillGround' | 'hpBelow' | 'heavy' | 'front' | 'near' | 'burst' | 'onGround' | 'skill' | 'elite'
  *   | 'unblocked' | 'notOwnBlocked' | 'hpAbove' | 'light' | 'tag' | 'rangedFoe' | 'status' | 'abnormal' | 'hpFull' | 'still' | 'statusAny' | 'first' | 'burstOf' | 'slainKind' | 'hpRatioAtMostOwn',
  *   atk?: number, dmg?: number, heal?: number, ep?: number, value?: number, noDodge?: boolean, tag?: string, status?: string, defFlat?: number, defPct?: number,
- *   statuses?: string[], seen?: string, on?: 'attack' | 'damage', inflict?: { key: string, seconds: number }, steal?: { atk: number, max: number }, sp?: number,
+ *   statuses?: string[], both?: number, seen?: string, on?: 'attack' | 'damage', inflict?: { key: string, seconds: number }, steal?: { atk: number, max: number }, sp?: number,
  *   mark?: { seconds: number, dmg?: number, arts?: number }, arts?: number, later?: boolean,
  *   el?: string, post?: boolean, burstDot?: number, epDot?: { el: string, scale: number, seconds: number } }} VsScale
  */
@@ -667,8 +676,9 @@
  */
 /**
  * A deployment talent (部署-8): SP between `sp[0]` and below `sp[1]`, a heal of every operator (`value` HP or `scale` × the
- * attack), shield layers. `break` is what each broken layer does (干员-14): stacked `mods`, at most `max`, and `sp`.
- * @typedef {{ sp?: [number, number], heal?: { value: number } | { scale: number }, shield?: number,
+ * attack), shield layers, a `status` it holds for good. `break` is what each broken layer does (干员-14): stacked `mods`, at most
+ * `max`, and `sp`.
+ * @typedef {{ sp?: [number, number], heal?: { value: number } | { scale: number }, shield?: number, status?: TalentStatus,
  *   break?: { mods?: { atkPct?: number, defPct?: number }, max?: number, sp?: number } }} DeployTalent
  */
 /**
@@ -680,8 +690,9 @@
  */
 /**
  * A timed talent (部署-7): from deployment, a step of `mods` every `seconds` up to `max` steps ('stack'), the mods once
- * after `seconds` ('after'), or the mods for `seconds` ('during').
- * @typedef {{ kind: 'stack' | 'after' | 'during', seconds: number, max: number, mods: Record<string, number> }} TimedTalent
+ * after `seconds` ('after'), or the mods for `seconds` ('during'); `status`: the status the operator holds from the first
+ * step on ('after', 'stack'), as it is given then, or for `seconds` from deployment ('during').
+ * @typedef {{ kind: 'stack' | 'after' | 'during', seconds: number, max: number, mods: Record<string, number>, status?: TalentStatus }} TimedTalent
  */
 /**
  * A chance talent (攻击-4): on each attack, with chance `prob`, the attack's 倍率 × `scale`, and maybe a stun of `stun`
@@ -694,18 +705,19 @@
 /**
  * An in-range talent (部署-6): modifiers for the enemies, or the (ranged, melee, of a profession) operators, in the
  * holder's attack range — or on the tiles of `area` around it, turned with it with `rotate` —, those for which `when`
- * holds when it has one; not the holder with `others`; only while `srcWhen` holds on the holder (职业-32).
- * @typedef {{ side: 'enemy' | 'ally', ranged: boolean, mods: Record<string, number>, melee?: boolean, profession?: string, professions?: string[], area?: Cell[],
+ * holds when it has one; not the holder with `others`; only while `srcWhen` holds on the holder (职业-32). `status`: a
+ * status the aura holds on each of them in place of modifiers (`mods` then empty).
+ * @typedef {{ side: 'enemy' | 'ally', ranged: boolean, mods: Record<string, number>, status?: TalentStatus, melee?: boolean, profession?: string, professions?: string[], area?: Cell[],
  *   rotate?: boolean, others?: boolean, srcWhen?: WhileMods['when'], flags?: Record<string, boolean>, during?: number,
  *   when?: { when: 'hpBelow' | 'hpAbove' | 'blocked' | 'normal' | 'flying' | 'epHalf' | 'hpRatioAtMostSrc' | 'sameDir' | 'maxHpHighest' | 'sluggish' | 'coldOnly' | 'frozen', value?: number } }} RangeTalent
  */
 /**
  * A team talent (部署-5): for the operators of a profession, of one of several (`professions`), of a faction, or every
- * friendly unit (`all`), its blackboard and the modifiers of its effects; `max`: of several such talents, the strongest
- * (同类效果取最高); `skill`: only while its holder's skill runs (true) or does not (false); `after`: only once its holder has
+ * friendly unit (`all`), its blackboard and the modifiers of its effects, or a status it holds on each (`status`); `max`: of
+ * several such talents, the strongest (同类效果取最高); `skill`: only while its holder's skill runs (true) or does not (false); `after`: only once its holder has
  * been on the field that many seconds.
  * @typedef {({ profession: string } | { professions: string[] } | { power: string } | { all: true })
- *   & { bb: Record<string, number>, mods?: Record<string, number>, max?: boolean, skill?: boolean, after?: number, maxCost?: number }} TeamTalent
+ *   & { bb: Record<string, number>, mods?: Record<string, number>, status?: TalentStatus, max?: boolean, skill?: boolean, after?: number, maxCost?: number }} TeamTalent
  */
 /**
  * Behaviours by key (ADR 0054, 0055): what a skill or a buff does beyond its data. Content brings them; the default is

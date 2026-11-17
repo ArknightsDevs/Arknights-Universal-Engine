@@ -8,6 +8,7 @@ import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
 import { makeBuff, addBuff, removeBuff, retune } from './buffs.js';
+import { inflict, statusMods, heldKey, HELD, STATUS } from './status.js';
 import { inKeys, hostile } from './targeting.js';
 import { reachKeys } from './reach.js';
 import { traitOf, dollNow, summonHeld, traitRegen } from './traits.js';
@@ -24,8 +25,10 @@ import { talentsNow, sameMods, tunedFor } from './skilltalents.js';
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /**
  * What an aura gives one unit: its source, its strength (to see a change), its modifiers and flags; a 鼓舞's ratio; `tune`, that a
- * change of its modifiers with the same strength is a change too (技能-17).
- * @typedef {{ src: number, value: number, mods: Record<string, number>, flags?: Record<string, boolean>, ratio?: number, tune?: true }} Want
+ * change of its modifiers with the same strength is a change too (技能-17); `status`, that it is the status of that key — held by
+ * the aura at that strength, its modifiers the status's own (部署-6).
+ * @typedef {{ src: number, value: number, mods: Record<string, number>, flags?: Record<string, boolean>, ratio?: number, tune?: true,
+ *   status?: import('./status.js').StatusKey }} Want
  */
 
 /** The keys of the aura buffs. */
@@ -36,8 +39,12 @@ const AURA_KEYS = /^(?:aura|field|range|doll|mod|ally|inspire|alchemy|aspd|field
  * @param {string} key
  */
 export const isAuraKey = (key) => AURA_KEYS.test(key);
-/** Whether a buff is an aura's. @param {{ key: string }} b */
-const isAura = (b) => isAuraKey(b.key);
+
+/**
+ * What an aura that holds a status wants of a unit (部署-6): the status at its strength — its own when the talent gives none —,
+ * its modifiers the status's. It is made once for a talent each frame, not for each unit: wants are only read. @param {Unit} src @param {import('./types.js').TalentStatus} s @returns {Want}
+ */
+const heldWant = (src, s) => ({ src: src.id, value: s.value ?? STATUS[s.key].value ?? 0, mods: statusMods(s.key, s.value), status: s.key });
 
 /**
  * An aura's share of its source's attack now (职业-13): its skill's `attack@atk_to_hp_recovery_ratio` (or the same key
@@ -79,15 +86,15 @@ function fieldRegen(c, src, ops, want) {
 
 /**
  * The regen of a talent for those with 抵抗 (职业-33: `resistRegen`): every friendly unit with a tile in the source's
- * attack range whose 状态抵抗 is lowered (`statusResFlat` below 0) gains 生命回复速度 of this share of the source's attack
- * (buff `resistRegen:<source id>`).
+ * attack range that holds the status 抵抗 (`buffres`, from any source) gains 生命回复速度 of this share of the source's
+ * attack (buff `resistRegen:<source id>`).
  * @param {Content} c @param {Unit} src @param {Unit[]} ops @param {Map<Unit, Map<string, Want>>} want
  */
 function resistRegen(c, src, ops, want) {
   const share = traitOf(c, src).resistRegen;
   if (!(share > 0)) return;
   const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src), amount = share * statsOf(src).atk;
-  for (const u of ops) if ((statsOf(u).sum.statusResFlat ?? 0) < 0 && inKeys(u, keys, grid)) want.get(u)?.set(`resistRegen:${src.id}`, { src: src.id, value: amount, mods: { hpRegen: amount } });
+  for (const u of ops) if (holdsStatus(u, 'buffres') && inKeys(u, keys, grid)) want.get(u)?.set(`resistRegen:${src.id}`, { src: src.id, value: amount, mods: { hpRegen: amount } });
 }
 
 /**
@@ -102,20 +109,44 @@ export const teamFits = (t, d) => ('all' in t ? true : 'professions' in t ? t.pr
 const sizeOf = (mods) => Object.values(mods).reduce((n, v) => n + Math.abs(v), 0);
 
 /**
+ * Whether a team talent of a source holds now (部署-5): one of its skill only while that runs (or does not), one with `after` once the
+ * source has been on the field that many seconds. @param {World} w @param {Unit} src @param {import('./types.js').TeamTalent} t
+ */
+const fieldOn = (w, src, t) => (t.skill === undefined || t.skill === !!src.skill?.active) && (t.after === undefined || w.frame - src.born >= secondsToFrames(t.after));
+
+/**
+ * The key of a team talent's buff (部署-5): one of 同类效果取最高 shares `field:max:<its keys>` with the others that have those keys, any
+ * other is its own. @param {Unit} src @param {import('./types.js').TeamTalent} t @param {number} i @param {Record<string, number>} mods
+ */
+const fieldKey = (src, t, i, mods) => (t.max ? `field:max:${Object.keys(mods).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join(',')}` : `field:${src.id}:${i}`);
+
+/**
+ * The key a team talent's status is wanted under (部署-5): one of 同类效果取最高 shares `field:max:status:<its key>` with the others that give
+ * that status — the key of its modifiers would be empty for a talent that has none, and two such talents would overwrite each
+ * other —, any other is its own. @param {Unit} src @param {import('./types.js').TeamTalent} t @param {number} i @param {import('./types.js').TalentStatus} s
+ */
+const fieldStatusKey = (src, t, i, s) => heldKey(t.max ? `field:max:status:${s.key}` : `field:${src.id}:${i}:status`);
+
+/**
  * The on-field team talents of one source (部署-5): every operator on the field the talent is for, any player's — its
  * attribute keys' and its effects' modifiers, a buff `field:<source id>:<n>`; one of 同类效果取最高 (`max`) a buff
- * `field:max:<its keys>` shared by every such talent with those keys, the strongest kept; one of the source's skill only
- * while that runs (or does not); one with `after` once the source has been on the field that many seconds.
+ * `field:max:<its keys>` shared by every such talent with those keys, the strongest kept; one with a status holds it on
+ * each (heldWant), a `max` one the strongest of that status; one of the source's skill only while that runs (or does not); one with `after` once the source has
+ * been on the field that many seconds.
  * @param {World} w @param {Content} c @param {Unit} src @param {Unit[]} ops @param {Map<Unit, Map<string, Want>>} want
  */
 function fieldTalents(w, c, src, ops, want) {
   (c.operators[src.key].fieldTalents ?? []).forEach((t, i) => {
-    if ((t.skill !== undefined && t.skill !== !!src.skill?.active) || (t.after !== undefined && w.frame - src.born < secondsToFrames(t.after))) return;
-    const mods = { ...statMods(t.bb), ...t.mods }, size = sizeOf(mods), key = t.max ? `field:max:${Object.keys(mods).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join(',')}` : `field:${src.id}:${i}`;
+    if (!fieldOn(w, src, t)) return;
+    const mods = { ...statMods(t.bb), ...t.mods }, plain = Object.keys(mods).length > 0, size = sizeOf(mods), key = fieldKey(src, t, i, mods);
+    const held = t.status ? heldWant(src, t.status) : null, heldAt = t.status ? fieldStatusKey(src, t, i, t.status) : '';
+    /** Whether a unit's wants have a stronger one of a `max` talent under the key already. @param {Map<string, Want>} have @param {string} k @param {number} v */
+    const beaten = (have, k, v) => !!t.max && (have.get(k)?.value ?? -1) >= v;
     for (const u of ops) {
-      const w = want.get(u);
-      if (!w || !teamFits(t, c.operators[u.key]) || (t.max && (w.get(key)?.value ?? -1) >= size)) continue;
-      w.set(key, { src: src.id, value: t.max ? size : 0, mods });
+      const have = want.get(u);
+      if (!have || !teamFits(t, c.operators[u.key])) continue;
+      if (plain && !beaten(have, key, size)) have.set(key, { src: src.id, value: t.max ? size : 0, mods });
+      if (held && !beaten(have, heldAt, held.value)) have.set(heldAt, held);
     }
   });
 }
@@ -237,9 +268,12 @@ function rangeTalents(w, c, src, units, want) {
   const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src);
   talents.forEach((t, i) => {
     if ((t.srcWhen && !holdsWhen(w, c, src, t.srcWhen)) || (t.during !== undefined && w.frame - src.born >= secondsToFrames(t.during))) return;
+    // one want for every unit of the talent: a want is only read
+    const at = `range:${src.id}:${i}`, key = t.status ? heldKey(at) : at;
+    const give = t.status ? heldWant(src, t.status) : { src: src.id, value: 0, mods: t.mods, ...(t.flags ? { flags: t.flags } : {}), ...tunedFor(d) };
     for (const u of units) {
       const there = t.area ? onArea(src, u, t.area, t.rotate) : inKeys(u, keys, grid);
-      if (there && rangeFits(w, c, src, t, u)) want.get(u)?.set(`range:${src.id}:${i}`, { src: src.id, value: 0, mods: t.mods, ...(t.flags ? { flags: t.flags } : {}), ...tunedFor(d) });
+      if (there && rangeFits(w, c, src, t, u)) want.get(u)?.set(key, give);
     }
   });
 }
@@ -392,18 +426,44 @@ export function auras(w, c) {
   }
   for (const src of units) if (src.kind === KIND.DEVICE) deviceAura(c, src, units, want);
   for (const a of w.alchemy ?? []) alchemyAura(c, a, units, want);
-  for (const u of w.units) sync(u, want.get(u) ?? new Map());
+  for (const u of w.units) sync(w, u, want.get(u) ?? new Map());
 }
 
 /**
- * A unit's aura buffs as they should be: the ones it should have added or retuned, the others removed.
- * @param {Unit} u @param {Map<string, Want>} want by buff key
+ * Whether a buff of a unit is an aura's that is no longer wanted: a status an aura holds (its tag begins `held:`, 部署-6) when
+ * no want of the key it is tagged with asks for that status; a plain aura buff (by its key) when no want of its key asks for a
+ * buff. Any other buff is not the aura's. A unit that holds no status of an aura costs only a look at each buff's tag and key.
+ * @param {import('./types.js').Buff} b @param {Map<string, Want>} want
  */
-function sync(u, want) {
-  for (const b of u.buffs.filter((x) => isAura(x) && !want.has(x.key))) removeBuff(u, b);
+function stale(b, want) {
+  if (b.tag.startsWith(HELD)) return want.get(b.tag)?.status !== b.key;
+  if (!isAuraKey(b.key)) return false;
+  const x = want.get(b.key);
+  return x === undefined || x.status !== undefined;
+}
+
+/**
+ * What an aura wants of a unit that does not hold it yet: a buff — or, for a held status, the status as it is given in a
+ * battle (状态-5: `beforeStatus` and `statusApplied` run, and a handler that cancels it has it asked for again at the next
+ * frame), tagged with the want's key (heldKey).
+ * @param {World} w @param {Unit} u @param {string} key @param {Want} x
+ */
+function hold(w, u, key, x) {
+  if (!x.status) addBuff(u, makeBuff({ key, src: x.src, value: x.value, mods: x.mods, ...(x.flags ? { flags: x.flags } : {}) }));
+  else inflict(w, u, x.status, { src: w.units.find((y) => y.id === x.src) ?? null, value: x.value, tag: key });
+}
+
+/**
+ * A unit's aura buffs as they should be: the ones it should have added or retuned, the others removed. A status an aura
+ * holds is the unit's status of that key (tagged with the want's key, heldKey), so it follows the same-name rule of its kind next to
+ * the others of its key (状态-2).
+ * @param {World} w @param {Unit} u @param {Map<string, Want>} want by buff key
+ */
+function sync(w, u, want) {
+  for (const b of u.buffs.filter((x) => stale(x, want))) removeBuff(u, b);
   for (const [key, x] of want) {
-    const b = u.buffs.find((y) => y.key === key);
-    if (!b) addBuff(u, makeBuff({ key, src: x.src, value: x.value, mods: x.mods, ...(x.flags ? { flags: x.flags } : {}) }));
+    const b = x.status ? u.buffs.find((y) => y.tag === key && y.key === x.status) : u.buffs.find((y) => y.key === key);
+    if (!b) hold(w, u, key, x);
     else if (b.value !== x.value || (x.tune && !sameMods(b.mods, x.mods))) retune(u, b, x.value, x.mods);
   }
 }

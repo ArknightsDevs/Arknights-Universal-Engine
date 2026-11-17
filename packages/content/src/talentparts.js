@@ -2,7 +2,7 @@
 // a condition holds, its 倍率 against some targets, and what its attacks' hits give their targets — as additions to its
 // trait (职业-18, 职业-17, 职业-20) that the simulation merges into the trait (职业-24).
 import { skills } from '@aue/sim';
-import { selfClause, TAGS, powerOf } from './talents.js';
+import { selfClause, TAGS, powerOf, resistOf, fragileOf } from './talents.js';
 
 /** @typedef {import('./talents.js').Talent} Talent @typedef {import('@aue/sim').WhileMods} WhileMods @typedef {import('@aue/sim').VsScale} VsScale */
 /** @typedef {import('@aue/sim').TalentHit} TalentHit */
@@ -48,7 +48,7 @@ const SELF_WHEN = Object.freeze(/** @type {[RegExp, (m: RegExpExecArray, bb: Rec
   [/^部署后第(\d)次开启技能之前[，,]?/u, (m, bb) => ({ when: 'fewStarts', value: bb.cnt ?? Number(m[1]) })],
   [/^首次释放技能后后续技能期间/u, () => ({ when: 'laterSkill' })],
   [/^生命值(高于|低于)\d+(?:\.\d+)?%时[，,]?/u, (m, bb) => (has(bb, 'hp_ratio') ? { when: m[1] === '高于' ? 'hpAbove' : 'hpBelow', value: bb.hp_ratio } : null)],
-  [/^(\d+(?:\.\d+)?)秒内没有主动攻击过[，,]?/u, (m, bb) => ({ when: 'idle', value: firstKey(bb, ['delay', 'attack@delay']) ?? Number(m[1]) })],
+  [/^(?:如果)?(\d+(?:\.\d+)?)秒内没有主动攻击过[，,]?/u, (m, bb) => ({ when: 'idle', value: firstKey(bb, ['delay', 'attack@delay']) ?? Number(m[1]) })],
   [/^自身未进行攻击时[，,]?/u, (_m, bb) => (has(bb, 'delay') ? { when: 'idle', value: bb.delay } : null)],
   [/^最近(\d+(?:\.\d+)?)秒内未受到?伤害时[，,]?/u, (m, bb) => ({ when: 'unhurt', value: firstKey(bb, ['delay', 'interval']) ?? Number(m[1]), fresh: true })],
   [/^身侧或身后存在高台时[，,]?/u, (_m, bb) => ({ when: 'highSide', value: bb.cnt ?? 1 })],
@@ -76,13 +76,13 @@ const attrMods = (k, v) => skills.statMods({ [k]: v });
 /** @typedef {{ mods: Record<string, number>, flags?: Record<string, boolean> }} Gain */
 /**
  * The clauses after a condition that are flags or whole-number changes (干员-17): 获得迷彩 (`camou`), 阻挡数降至0, 攻击间隔略微
- * 缩短 / 增大 (`base_attack_time`), 不容易成为敌人的目标 / 受到敌人（的）攻击 (`taunt_level`); 「每次受到攻击时对目标造成相当于
+ * 缩短 / 增大 (`base_attack_time`; a module's wording says 「小幅度」 or nothing for 「略微」), 不容易成为敌人的目标 / 受到敌人（的）攻击 (`taunt_level`); 「每次受到攻击时对目标造成相当于
  * <name>攻击力N%的法术伤害」 (`atk_scale` as `counterArts`, 干员-25), 「攻击无视目标的物理闪避」 (`ignoreDodgePhys`, 干员-26).
  */
 const STATE = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>) => Gain | null][]} */ ([
   [/^获得迷彩$/u, () => ({ mods: {}, flags: { camou: true } })],
   [/^阻挡数降至0$/u, () => ({ mods: { blockCntMul: 0 } })],
-  [/^攻击间隔略微(?:缩短|增大)$/u, (bb) => (has(bb, 'base_attack_time') ? { mods: { batFlat: bb.base_attack_time } } : null)],
+  [/^攻击间隔(?:略微|小幅度)?(?:缩短|增大)$/u, (bb) => (has(bb, 'base_attack_time') ? { mods: { batFlat: bb.base_attack_time } } : null)],
   [/^(?:自身)?不容易(?:成为敌人的目标|受到敌人的?攻击)$/u, (bb) => (has(bb, 'taunt_level') ? { mods: { taunt: bb.taunt_level } } : null)],
   [/^每次受到攻击时对(?:目标|攻击者)造成相当于\S+?攻击力\d+(?:\.\d+)?%的法术伤害$/u, (bb) => (has(bb, 'atk_scale') ? { mods: { counterArts: bb.atk_scale } } : null)],
   [/^攻击无视目标的物理闪避$/u, () => ({ mods: {}, flags: { ignoreDodgePhys: true } })],
@@ -105,7 +105,8 @@ function gainOf(rest, bb) {
  * in the blackboard; null otherwise. @param {string} clause @param {Record<string, number>} bb
  */
 function condMods(clause, bb) {
-  const p = selfClause(clause, bb);
+  // after a condition 「提升N」 says what 「+N」 does (蜜蜡 module: 技能未开启时，最大生命值提升15%)
+  const p = selfClause(clause.replace(/(?<=[^\d+＋])(?:提升|提高)(?=\d)/u, '+'), bb);
   if (!p || !p.keys.every((k) => has(bb, k))) return null;
   if (Object.keys(p.mods).length) return p.mods;
   const mods = Object.assign({}, ...p.keys.map((k) => attrMods(k, bb[k])));
@@ -235,10 +236,6 @@ const HITS = Object.freeze(/** @type {[RegExp, (m: RegExpExecArray, bb: Record<s
     const h = statusHit(m[1], bb);
     return h ? { ...h, first: true } : null;
   }],
-  [/^攻击敌人时对目标施加\d+(?:\.\d+)?%的【法术脆弱】，持续\d+(?:\.\d+)?秒$/u, (_m, bb) => {
-    const seconds = firstKey(bb, ['weak[magic][limit]', 'duration']);
-    return has(bb, 'damage_scale') && seconds !== undefined ? { status: { key: 'artsFragile', seconds, value: Math.round((bb.damage_scale - 1) * 1e9) / 1e9 } } : null;
-  }],
   [/^攻击(?:时有\d+(?:\.\d+)?%的几率)?使目标法术抗性[-－]\d+(?:\.\d+)?%，持续\d+(?:\.\d+)?秒$/u, (m, bb) => {
     const chance = m[0].includes('几率'), prob = probOf(bb);
     if (!has(bb, 'magic_resistance') || !has(bb, 'duration') || (chance && prob === undefined)) return null;
@@ -248,16 +245,13 @@ const HITS = Object.freeze(/** @type {[RegExp, (m: RegExpExecArray, bb: Record<s
   [/^攻击使目标在\d+(?:\.\d+)?秒内每秒受到\d+点法术伤害$/u, (_m, bb) => (has(bb, 'damage') && has(bb, 'duration') ? { dot: { amount: bb.damage, seconds: bb.duration } } : null)],
   [/^攻击使未被阻挡的敌人流血[，,]每秒受到相当于.+?攻击力\d+(?:\.\d+)?%的法术伤害[，,]持续\d+(?:\.\d+)?秒$/u,
     (_m, bb) => (has(bb, 'atk_scale') && has(bb, 'duration') ? { dot: { scale: bb.atk_scale, seconds: bb.duration }, when: 'unblocked' } : null)],
-  [/^造成伤害时有\d+(?:\.\d+)?%概率对敌人施加灼痕效果：攻击力[-－]\d+(?:\.\d+)?%、\d+(?:\.\d+)?%的【法术脆弱】，不可叠加持续\d+(?:\.\d+)?秒$/u, (_m, bb) => {
-    const ok = ['prob', 'atk', 'damage_scale', 'duration'].every((k) => has(bb, k));
-    return ok ? { prob: bb.prob, debuff: { seconds: bb.duration, mods: { atkPct: bb.atk, artsTakenMul: bb.damage_scale } } } : null;
-  }],
 ]));
 
 /**
  * The hit part of a talent (干员-19): its first sentence is one of HITS — a status at a chance or on every hit, 失去特殊
- * 能力, the first hit on each enemy's status, 法术脆弱, a lower 法术抗性 for some seconds (at a chance or not), 灼痕 —
- * with the keys it needs; no later sentence speaking of an 效果. Null otherwise; hidden talents have none.
+ * 能力, the first hit on each enemy's status, a lower 法术抗性 for some seconds (at a chance or not) — with the keys it
+ * needs; no later sentence speaking of an 效果. Null otherwise; hidden talents have none. (The hits that give a 脆弱:
+ * talentstatus.js.)
  * @param {Talent} c @returns {TalentHit | null}
  */
 export function hitPart(c) {
@@ -328,8 +322,8 @@ const STACKS = Object.freeze(/** @type {[RegExp, (m: RegExpExecArray, bb: Record
   }],
   [/^.+?与"[^"]+"击杀一名敌人时[，,].+?获得\d+(?:\.\d+)?%攻击力[，,]最多可?叠加\d+层$/u,
     (_m, bb) => (has(bb, 'atk') && has(bb, 'max_stack_cnt') ? { on: 'kill', summons: true, mods: { atkPct: bb.atk }, max: bb.max_stack_cnt } : null)],
-  [/^击杀\d+个敌人后获得攻击速度[+＋]\d+和抵抗$/u, (_m, bb) => (['times', 'attack_speed', 'one_minus_status_resistance'].every((k) => has(bb, k))
-    ? { on: 'kill', every: bb.times, max: 1, mods: { aspd: bb.attack_speed, statusResFlat: bb.one_minus_status_resistance } } : null)],
+  [/^击杀\d+个敌人后获得攻击速度[+＋]\d+和抵抗$/u, (_m, bb) => (['times', 'attack_speed'].every((k) => has(bb, k)) && resistOf(bb)
+    ? { on: 'kill', every: bb.times, max: 1, mods: { aspd: bb.attack_speed }, gives: /** @type {import('@aue/sim').TalentStatus} */ (resistOf(bb)) } : null)],
   [/^累计造成\d+次物理伤害后[，,](.+)$/u, (m, bb) => {
     const mods = clausesMods(m[1], bb);
     return mods && has(bb, 'count') ? { on: 'dealt', phys: true, every: bb.count, max: 1, mods } : null;
@@ -437,30 +431,34 @@ export function gritPart(c) {
 /** @typedef {import('@aue/sim').RangeTalent} RangeTalent @typedef {import('@aue/sim').ModuleAura} ModuleAura */
 /** 庇护 of a share (干员-22): the physical and arts damage taken × (1 − it). @param {number} v */
 const shelter = (v) => ({ physTakenMul: 1 - v, artsTakenMul: 1 - v });
-/** What an in-range effect gives (干员-22): 脆弱, 【法术脆弱】 (`damage_scale`), 庇护 (`damage_resistance`); null without the key. @param {string} word @param {Record<string, number>} bb */
+/**
+ * What an in-range effect gives (干员-22): the status 脆弱 or 【法术脆弱】 (`damage_scale`, fragileOf: held by the aura, 部署-6)
+ * or 庇护 (`damage_resistance`, modifiers); null without the key. @param {string} word @param {Record<string, number>} bb
+ * @returns {{ mods: Record<string, number>, status?: import('@aue/sim').TalentStatus } | null}
+ */
 function effectMods(word, bb) {
-  if (word === '庇护') return has(bb, 'damage_resistance') ? shelter(bb.damage_resistance) : null;
-  if (!has(bb, 'damage_scale')) return null;
-  return word === '脆弱' ? { dmgTakenMul: bb.damage_scale } : { artsTakenMul: bb.damage_scale };
+  if (word === '庇护') return has(bb, 'damage_resistance') ? { mods: shelter(bb.damage_resistance) } : null;
+  const status = fragileOf(word === '脆弱' ? word : '法术脆弱', bb.damage_scale);
+  return status ? { mods: {}, status } : null;
 }
 
 /** The in-range talents with a condition on the unit (干员-22) and what each gives. */
 const RANGED = Object.freeze(/** @type {[RegExp, (m: RegExpExecArray, bb: Record<string, number>) => RangeTalent | null][]} */ ([
   [/^攻击范围内的(敌人|友军)生命值?(少于|低于|大于|高于)\d+%时[，,](?:令|使)其获得\d+(?:\.\d+)?%的(脆弱|庇护)(?:效果)?$/u, (m, bb) => {
-    const mods = effectMods(m[3], bb), below = m[2] === '少于' || m[2] === '低于';
-    return mods && has(bb, 'hp_ratio') ? { side: m[1] === '敌人' ? 'enemy' : 'ally', ranged: false, mods, when: { when: below ? 'hpBelow' : 'hpAbove', value: bb.hp_ratio } } : null;
+    const effect = effectMods(m[3], bb), below = m[2] === '少于' || m[2] === '低于';
+    return effect && has(bb, 'hp_ratio') ? { side: m[1] === '敌人' ? 'enemy' : 'ally', ranged: false, ...effect, when: { when: below ? 'hpBelow' : 'hpAbove', value: bb.hp_ratio } } : null;
   }],
   [/^攻击范围内被阻挡的敌人获得\d+(?:\.\d+)?%的(脆弱|【法术脆弱】)效果$/u, (m, bb) => {
-    const mods = effectMods(m[1], bb);
-    return mods ? { side: 'enemy', ranged: false, mods, when: { when: 'blocked' } } : null;
+    const effect = effectMods(m[1], bb);
+    return effect ? { side: 'enemy', ranged: false, ...effect, when: { when: 'blocked' } } : null;
   }],
   [/^攻击范围内的非精英和领袖敌人获得\d+(?:\.\d+)?%的(脆弱|【法术脆弱】)效果$/u, (m, bb) => {
-    const mods = effectMods(m[1], bb);
-    return mods ? { side: 'enemy', ranged: false, mods, when: { when: 'normal' } } : null;
+    const effect = effectMods(m[1], bb);
+    return effect ? { side: 'enemy', ranged: false, ...effect, when: { when: 'normal' } } : null;
   }],
   [/^攻击范围内的所有空中单位获得\d+(?:\.\d+)?%的(脆弱|【法术脆弱】)效果$/u, (m, bb) => {
-    const mods = effectMods(m[1], bb);
-    return mods ? { side: 'enemy', ranged: false, mods, when: { when: 'flying' } } : null;
+    const effect = effectMods(m[1], bb);
+    return effect ? { side: 'enemy', ranged: false, ...effect, when: { when: 'flying' } } : null;
   }],
   [/^攻击范围内敌人的物理和法术命中率降低\d+(?:\.\d+)?%$/u, (_m, bb) => (has(bb, 'damage_hitrate_physical') && bb.damage_hitrate_physical === bb.damage_hitrate_magical
     ? { side: 'enemy', ranged: false, mods: { hitRateMul: 1 + bb.damage_hitrate_physical } } : null)],
@@ -578,13 +576,16 @@ const TIME = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>) => P
   }],
   [/^若\d+(?:\.\d+)?秒内未主动攻击[，,]获得相当于生命上限\d+(?:\.\d+)?%的屏障[，,]失去屏障后重新计时$/u,
     (bb) => (all([bb.interval, bb.shield]) ? { idleShield: { value: bb.interval, share: bb.shield } } : null)],
-  [/^有\d+(?:\.\d+)?%的概率闪避敌人的近战物理攻击[，,]成功闪避后自己的下一次攻击攻击力[+＋]\d+(?:\.\d+)?%$/u, (bb) => {
+  [/^有\d+(?:\.\d+)?%的概率闪避敌人的近战物理攻击[，,]成功闪避后自(?:己的|身)下一次攻击攻击力[+＋]\d+(?:\.\d+)?%$/u, (bb) => {
     const prob = byEnd(bb, 'prob'), atk = byEnd(bb, '.atk');
     return all([prob, atk]) ? { whiles: [{ when: 'always', mods: { dodgeMelee: /** @type {number} */ (prob) } }], nextAttack: [{ when: 'dodged', atk: /** @type {number} */ (atk) }] } : null;
   }],
   [/^触发闪避时[，,]下次攻击变为二连击并攻击所有阻挡的敌人$/u, () => ({ nextAttack: [{ when: 'dodged', times: 2, blocked: true }] })],
-  [/^触发闪避时[，,]下次攻击攻击力提升至\d+(?:\.\d+)?[%％]并变为二连击[，,]且攻击所有阻挡的敌人$/u,
-    (bb) => (has(bb, 'atk_scale') ? { nextAttack: [{ when: 'dodged', scale: bb.atk_scale, times: 2, blocked: true }] } : null)],
+  [/^触发闪避时[，,]下次攻击攻击力提升至\d+(?:\.\d+)?[%％]并变为二连击[，,]且攻击所有阻挡的敌人$/u, (bb) => {
+    // the module's key is `attack@atkscale_t1+.atk_scale`
+    const scale = byEnd(bb, '.atk_scale') ?? bb.atk_scale;
+    return scale !== undefined && Number.isFinite(scale) ? { nextAttack: [{ when: 'dodged', scale, times: 2, blocked: true }] } : null;
+  }],
 ]));
 
 /**
@@ -635,8 +636,11 @@ const FOES = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>, m: R
     ? { hurtSleeping: true, vs: [{ when: 'status', status: 'sleep', defPct: bb.def_penetrate }] } : null)],
   [/^优先攻击【([^】]+)】单位[，,]且攻击【\1】时攻击力(?:提升至|[+＋])\d+(?:\.\d+)?%$/u, (bb, m) => (Object.hasOwn(TAGS, m[1]) && all([bb.atk_scale])
     ? { prefer: [{ tag: TAGS[m[1]] }], vs: [{ when: 'tag', tag: TAGS[m[1]], atk: bb.atk_scale }] } : null)],
-  [/^攻击处于(停顿)、(束缚)的敌人时[，,]额外造成相当于攻击力\d+(?:\.\d+)?%的法术伤害$/u, (bb, m) => (all([bb.atk_scale])
-    ? { vs: [{ when: 'statusAny', statuses: [FOE_STATUS[m[1]], FOE_STATUS[m[2]]], on: 'damage', arts: bb.atk_scale, later: true }] } : null)],
+  [/^攻击处于(停顿)、(束缚)的敌人时[，,]额外造成相当于攻击力\d+(?:\.\d+)?%的法术伤害(?:[，,](目标同时处于停顿和束缚时该伤害提升至原本的)\d+(?:\.\d+)?倍)?$/u, (bb, m) => {
+    const arts = byEnd(bb, 'atk_scale_t') ?? bb.atk_scale, both = m[3] ? bb.value : undefined;
+    return all([arts]) && (!m[3] || all([both]))
+      ? { vs: [{ when: 'statusAny', statuses: [FOE_STATUS[m[1]], FOE_STATUS[m[2]]], on: 'damage', arts: /** @type {number} */ (arts), later: true, ...(both === undefined ? {} : { both }) }] } : null;
+  }],
   [/^自身可以攻击沉睡的敌人[，,]且攻击非移动敌人时对其额外造成相当于攻击力\d+(?:\.\d+)?%的法术伤害[，,]在场时沉睡中的敌人每秒受到\S+?攻击力\d+(?:\.\d+)?%的法术伤害$/u,
     (bb) => (all([bb.extra_atk_scale, bb.damage_atk_scale])
       ? { hurtSleeping: true, vs: [{ when: 'still', on: 'damage', arts: bb.extra_atk_scale }], sleepDot: bb.damage_atk_scale } : null)],

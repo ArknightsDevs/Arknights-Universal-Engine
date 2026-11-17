@@ -139,7 +139,7 @@ function stolenTurn(w, op, s) {
 }
 
 /**
- * The 停顿/束缚 check a moment after a hit (职业-28: buff act `foeLater`): when it ends, its operator with HP deals the
+ * The 停顿/束缚 check a moment after a hit (职业-28: buff act `foeLater`; × `both` when the target holds every status of `statuses`): when it ends, its operator with HP deals the
  * target that still has HP arts damage of its 倍率's `arts` × its attack (a rider's) when the 倍率's condition holds.
  * @param {Content} c @param {(w: World, c: Content, at: { op: Unit, t: Unit }, v: VsScale) => boolean} holds
  * @returns {Record<string, import('./buffs.js').Behavior>}
@@ -149,7 +149,8 @@ export function foeBehaviors(c, holds) {
     foeLater: { expire: (w, u, b) => {
       const op = w.units.find((x) => x.id === b.src && x.hp > 0), v = op ? traitOf(c, op).vs[b.value] : undefined;
       if (!op || !v?.arts || u.hp <= 0 || !holds(w, c, { op, t: u }, v)) return;
-      creditedDamage(w, c, op, u, { type: 'arts', amount: statsOf(op).atk * v.arts, tags: [RIDER] });
+      const both = v.both !== undefined && (v.statuses ?? []).every((k) => hasStatus(u, k));
+      creditedDamage(w, c, op, u, { type: 'arts', amount: statsOf(op).atk * v.arts * (both ? v.both ?? 1 : 1), tags: [RIDER] });
     } },
   };
 }

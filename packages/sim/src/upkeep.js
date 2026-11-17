@@ -6,6 +6,7 @@ import { dealDamage } from './damage.js';
 import { withdraw } from './deck.js';
 import { emit } from './bus.js';
 import { paidStack } from './riders.js';
+import { inflictTalent } from './status.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /** @typedef {import('./buffs.js').Behavior} Behavior */
@@ -35,17 +36,18 @@ export function upkeepBehaviors(c) {
 export const MAX_TIMED = 4;
 
 /**
- * The timed talents' steps (部署-7): each `seconds`, an 'after' talent's buff takes its modifiers once; a 'stack' one's
- * goes up a step to its `max`, the modifiers × the steps.
+ * The timed talents' steps (部署-7): each `seconds`, an 'after' talent's buff takes its modifiers once — and the operator gets
+ * its status, for good —; a 'stack' one's goes up a step to its `max`, the modifiers × the steps.
  * @param {Content} c @returns {Record<string, Behavior>}
  */
 export function timedBehaviors(c) {
   /** @type {Behavior} */
-  const step = { tick: (_w, u, b) => {
+  const step = { tick: (w, u, b) => {
     const t = c.operators[u.key]?.timedTalents?.[Number(b.key.slice(6))];
     if (!t || b.value >= t.max) return;
     const n = b.value + 1;
     retune(u, b, n, Object.fromEntries(Object.entries(t.mods).map(([k, v]) => [k, v * n])));
+    if (t.status && n === 1) inflictTalent(w, u, u, t.status);
   } };
   return Object.fromEntries(Array.from({ length: MAX_TIMED }, (_, i) => [`timed:${i}`, step]));
 }

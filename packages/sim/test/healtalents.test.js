@@ -7,7 +7,6 @@ import { tinyContent } from '@aue/testkit';
 import { createWorld, step } from '../src/index.js';
 import { makeOperator } from '../src/units.js';
 import { statsOf } from '../src/attrs.js';
-import { addBuff, makeBuff } from '../src/buffs.js';
 import { heal } from '../src/damage.js';
 import { inflict } from '../src/status.js';
 import { auras } from '../src/aura.js';
@@ -100,11 +99,11 @@ test('[职业-33] heals at the skill\'s end: itself and the lowest of those in r
   assert.deepEqual([g.hp, a.hp - before[0], b.hp - before[1], d.hp - before[2], full.hp], [950, 0, 50, 50, statsOf(full).maxHp]);
 });
 
-test('[职业-33] [部署-6] a regen for those with 抵抗 in range; more heal taken for the one with the highest maximum HP in range', () => {
+test('[职业-33] [部署-6] a regen for those with the status 抵抗 in range; more heal taken for the one with the highest maximum HP in range', () => {
   const { w, c, put } = arena({ talentTrait: { resistRegen: 0.07 }, rangeTalents: [{ side: 'ally', ranged: false, when: { when: 'maxHpHighest' }, mods: { healingTakenMul: 1.18 } }] },
     { tank: { maxHp: 3000 } });
   const [plain, resist, tank] = [put('sniper', 1, 2), put('sniper', 1, 3), put('tank', 2, 2)];
-  addBuff(resist, makeBuff({ key: 'res', src: resist.id, mods: { statusResFlat: -0.5 } }));
+  inflict(w, resist, 'buffres', { src: resist }); // the status 抵抗 itself, from any source
   auras(w, c);
   const regen = (/** @type {Unit} */ u) => u.buffs.find((b) => b.key.startsWith('resistRegen:'))?.mods;
   assert.deepEqual([regen(plain), regen(resist), statsOf(plain).healingTakenMul, statsOf(tank).healingTakenMul], [undefined, { hpRegen: 0.07 * 50 }, 1, 1], 'the tank not in range');

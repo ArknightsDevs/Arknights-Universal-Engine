@@ -9,7 +9,7 @@ import { makeBuff, addBuff, setLeft, stamp } from './buffs.js';
 import { gainSp } from './sp.js';
 import { draw } from './rng.js';
 import { dealDamage, heal } from './damage.js';
-import { inflict } from './status.js';
+import { inflict, inflictTalent } from './status.js';
 import { tileOf } from './body.js';
 import { tileAt } from './level.js';
 import { hostile, stealthed } from './targeting.js';
@@ -107,16 +107,23 @@ export function dealtSp(w, c, op) {
 }
 
 /**
- * What a healer's heal leaves on the one healed (职业-31: `healGives`): its modifiers for its seconds — `aboveSeconds`
- * when the HP before the heal was above `above` of the maximum — as the buff `healGives:<healer id>`, its time set again.
- * @param {Content} c @param {Unit} a @param {Unit} u @param {number} ratio the HP before the heal over the maximum
+ * What a healer's heal leaves on the one healed (职业-31: `healGives`): its modifiers — the buff `healGives:<healer id>` — or its
+ * status — the status of its kind, tagged `healGives:<healer id>`, given in the battle `w` — for its seconds (`aboveSeconds`
+ * when the HP before the heal was above `above` of the maximum), the time set again by each heal.
+ * @param {Content} c @param {Unit} a @param {Unit} u @param {number} ratio the HP before the heal over the maximum @param {World} [w]
  */
-export function healGives(c, a, u, ratio) {
+export function healGives(c, a, u, ratio, w) {
   const x = traitOf(c, a).healGives;
   if (!x || u.hp <= 0) return;
-  const key = `healGives:${a.id}`, left = secondsToFrames(x.above !== undefined && ratio > x.above ? x.aboveSeconds ?? x.seconds : x.seconds), b = u.buffs.find((y) => y.key === key);
-  if (b) setLeft(b, left);
-  else addBuff(u, makeBuff({ key, src: a.id, left, mods: { ...x.mods } }));
+  const key = `healGives:${a.id}`, left = secondsToFrames(x.above !== undefined && ratio > x.above ? x.aboveSeconds ?? x.seconds : x.seconds);
+  if (Object.keys(x.mods).length > 0) {
+    const b = u.buffs.find((y) => y.key === key);
+    if (b) setLeft(b, left);
+    else addBuff(u, makeBuff({ key, src: a.id, left, mods: { ...x.mods } }));
+  }
+  const held = x.status ? u.buffs.find((y) => y.key === x.status?.key && y.tag === key) : undefined;
+  if (held) setLeft(held, left);
+  else if (x.status && w) inflictTalent(w, u, a, x.status, { tag: key, frames: left });
 }
 
 /** × a healer's 元素损伤 heal on a unit (职业-31): its `groundEpHeal` on a unit on a 低地 tile. @param {Content} c @param {Unit} a @param {Unit} u */

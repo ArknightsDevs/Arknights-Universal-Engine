@@ -66,7 +66,7 @@ function onHeal(w, c, ctx) {
   try {
     const t = traitOf(c, a), max = statsOf(u).maxHp, ratio = u.hp / max;
     if (t.lowHeal && ratio < t.lowHeal.below) ctx.amount += t.lowHeal.value;
-    healGives(c, a, u, ratio);
+    healGives(c, a, u, ratio, w);
     barriers(w, c, a, u, Math.max(0, u.hp + ctx.amount - max));
     if (t.healShare > 0 && u !== a) w.events.push({ type: 'heal', id: a.id, target: a.id, amount: heal(w, a, a, t.healShare * ctx.amount) });
   } finally {

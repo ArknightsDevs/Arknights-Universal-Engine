@@ -64,10 +64,11 @@ const AROUND = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>, m:
     return power && all([bb.def, bb.hp_recovery_per_sec_by_max_hp_ratio, bb.interval]) ? { trait: { fieldBuffs: [{ power, mods: { defFlat: bb.def, hpRegenRatio: bb.hp_recovery_per_sec_by_max_hp_ratio },
       flags: { 'immune:freeze': true }, after: bb.interval, afterMul: 2 }] } } : null;
   }],
-  [/^在场时自身防御力[+＋]\d+[，,]自己身后的如果是【([^】]+)】或【([^】]+)】干员也能享受到相同效果$/u, (bb, m) => {
-    const professions = [professionNamed(m[1]), professionNamed(m[2])];
+  [/^在场时自身防御力[+＋]\d+[，,]自己身后的(?:如果是【([^】]+)】或【([^】]+)】)?干员也能享受到相同效果$/u, (bb, m) => {
+    // 拜松 module: 「自己身后的干员」 without the professions is every operator behind
+    const professions = m[1] ? [professionNamed(m[1]), professionNamed(m[2])] : [];
     return professions.every((p) => p) && all([bb.def]) ? { trait: { whiles: [{ when: 'always', mods: { defFlat: bb.def } }] },
-      range: [{ side: 'ally', ranged: false, area: [{ row: 0, col: -1 }], rotate: true, professions: /** @type {string[]} */ (professions), mods: { defFlat: bb.def } }] } : null;
+      range: [{ side: 'ally', ranged: false, area: [{ row: 0, col: -1 }], rotate: true, ...(professions.length ? { professions: /** @type {string[]} */ (professions) } : {}), mods: { defFlat: bb.def } }] } : null;
   }],
   [/^攻击力[+＋]\d+(?:\.\d+)?%[，,]当场地中存在水地形时改为攻击力[+＋]\d+(?:\.\d+)?%$/u, (bb) => {
     const common = byEnd(bb, '[common].atk'), map = byEnd(bb, '[map].atk');

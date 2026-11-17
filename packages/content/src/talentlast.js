@@ -2,7 +2,7 @@
 // a chance growing with ammo spent, stronger attacks after the first skill, buffs and auras for some seconds after the
 // deployment, a blast and a retreat after a while, a gain for the first enemy blocked, hits that weaken 法抗 or add
 // 元素损伤 for a while — as additions to the trait (职业-35), chance talents (攻击-4) and in-range talents (部署-6).
-import { whomOf } from './talents.js';
+import { whomOf, fragileOf } from './talents.js';
 import { plainOf, byEnd, all } from './talentparts.js';
 
 /** @typedef {import('./talents.js').Talent} Talent @typedef {import('@aue/sim').TraitDef} TraitDef @typedef {import('@aue/sim').RangeTalent} RangeTalent */
@@ -26,8 +26,9 @@ const LAST = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>, m: R
     ? { trait: { fieldBuffs: [{ melee: true, during: bb.duration, mods: { atkPct: bb.atk, defPct: bb.def } }] } } : null)],
   [/^部署后\d+(?:\.\d+)?秒内攻击范围内所有友方远程位单位更不容易被攻击且敌方空中单位获得\d+(?:\.\d+)?%的脆弱效果$/u, (bb) => {
     const taunt = byEnd(bb, '.taunt_level');
-    return all([bb.duration, bb.damage_scale, taunt]) ? { range: [{ side: 'ally', ranged: true, during: bb.duration, mods: { taunt: /** @type {number} */ (taunt) } },
-      { side: 'enemy', ranged: false, when: { when: 'flying' }, during: bb.duration, mods: { dmgTakenMul: bb.damage_scale } }] } : null;
+    const status = fragileOf('脆弱', bb.damage_scale);
+    return all([bb.duration, taunt]) && status ? { range: [{ side: 'ally', ranged: true, during: bb.duration, mods: { taunt: /** @type {number} */ (taunt) } },
+      { side: 'enemy', ranged: false, when: { when: 'flying' }, during: bb.duration, mods: {}, status }] } : null;
   }],
   [/^部署经过\d+(?:\.\d+)?秒后[，,]对周围8格内的所有敌人造成相当于攻击力\d+(?:\.\d+)?%的物理伤害[，,]并令其获得\d+(?:\.\d+)?秒\d+(?:\.\d+)?%的脆弱效果[，,]之后自身强制退出战场$/u, (bb) => {
     const seconds = num(bb, 'weak[limit]');
@@ -39,8 +40,9 @@ const LAST = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>, m: R
     ? { trait: { onHit: [{ during: bb.duration, debuff: { seconds: bb.buff_duration, mods: { resMul: 1 + bb.magic_resistance } } }], prefer: [{ lacksHit: true, during: bb.duration }] } } : null)],
   [/^部署后\d+(?:\.\d+)?秒内攻击附带\d+点凋亡损伤[，,]并使攻击范围内的所有敌人受到\d+(?:\.\d+)?%的【法术脆弱】和【元素脆弱】$/u, (bb) => {
     const amount = num(bb, 'attack@dark_damage_value');
-    return amount !== undefined && all([bb.duration, bb.damage_scale]) ? { trait: { onHit: [{ during: bb.duration, ep: { el: 'DARK', amount } }] },
-      range: [{ side: 'enemy', ranged: false, during: bb.duration, mods: { artsTakenMul: bb.damage_scale, elementalTakenMul: bb.damage_scale } }] } : null;
+    const arts = fragileOf('法术脆弱', bb.damage_scale), element = fragileOf('元素脆弱', bb.damage_scale);
+    return amount !== undefined && all([bb.duration]) && arts && element ? { trait: { onHit: [{ during: bb.duration, ep: { el: 'DARK', amount } }] },
+      range: [{ side: 'enemy', ranged: false, during: bb.duration, mods: {}, status: arts }, { side: 'enemy', ranged: false, during: bb.duration, mods: {}, status: element }] } : null;
   }],
 ]));
 

@@ -4,12 +4,12 @@
 // a faction, gains for spending cost, steps for 停顿 dealt, 脆弱 growing with the time in range or by status, 隐匿
 // undone, steps for a run of attacks, blows that leave 重伤, a stance by 起飞, riders at full charge — as additions to
 // the trait (职业-34), chance talents (攻击-4) and in-range talents (部署-6).
-import { whomOf } from './talents.js';
+import { whomOf, fragileOf } from './talents.js';
 import { plainOf, byEnd, all } from './talentparts.js';
 
 /** @typedef {import('./talents.js').Talent} Talent @typedef {import('@aue/sim').TraitDef} TraitDef @typedef {import('@aue/sim').RangeTalent} RangeTalent */
 /** @typedef {import('@aue/sim').CritTalent} CritTalent */
-/** @typedef {{ trait?: Partial<TraitDef>, range?: RangeTalent[], crit?: CritTalent[] }} FightParts */
+/** @typedef {{ trait?: Partial<TraitDef>, range?: RangeTalent[], crit?: CritTalent[] }} FightParts @typedef {import('@aue/sim').TalentStatus} TalentStatus */
 
 /** A number of the blackboard, when it is one. @param {Record<string, number>} bb @param {string} k */
 const num = (bb, k) => (Number.isFinite(bb[k]) ? bb[k] : undefined);
@@ -27,7 +27,7 @@ const FIGHT = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>, m: 
     ? { trait: { onHit: [{ when: 'beyondRange', prob: bb.buff_prob, status: { key: 'stun', seconds: bb.stun } }] } } : null)],
   [/^敌人攻击\S+?后[，,]攻击力下降\d+(?:\.\d+)?%[，,]持续\d+(?:\.\d+)?秒$/u, (bb) => (all([bb.atk, bb.duration])
     ? { trait: { attackerMods: { seconds: bb.duration, mods: { atkPct: bb.atk } } } } : null)],
-  [/^稍微延长特性停顿的持续时间$/u, (bb) => (all([bb.sluggish]) ? { trait: { hitStatusPlus: bb.sluggish } } : null)],
+  [/^(?:略微|稍微|更加|进一步|更进一步)?延长特性停顿的持续时间$/u, (bb) => (all([bb.sluggish]) ? { trait: { hitStatusPlus: bb.sluggish } } : null)],
   [/^储存的攻击能量造成的伤害提升至\d+(?:\.\d+)?%$/u, (bb) => (all([bb.atk_scale]) ? { trait: { energyScale: bb.atk_scale } } : null)],
   [/^每次攻击时有\d+(?:\.\d+)?%概率触发下列效果之一[：:]攻击变为二连击[；;]目标晕眩\d+(?:\.\d+)?秒[；;]攻击无视目标防御力的\d+(?:\.\d+)?%$/u, (bb) => (all([bb.prob, bb.stun, bb.def_penetrate])
     ? { crit: [{ prob: bb.prob, scale: 1, pick: [{ times: 2 }, { stun: bb.stun }, { ignoreDef: bb.def_penetrate }] }] } : null)],
@@ -44,17 +44,22 @@ const FIGHT = Object.freeze(/** @type {[RegExp, (bb: Record<string, number>, m: 
   }],
   [/^通过部署、开启技能、使用装备应变消耗费用后[，,]攻击力[+＋]\d+(?:\.\d+)?%[，,]使攻击范围内的敌人晕眩\d+(?:\.\d+)?秒$/u, (bb) => (all([bb.atk, bb.max_stack_cnt, bb.stun])
     ? { trait: { spendBoost: { max: bb.max_stack_cnt, mods: { atkPct: bb.atk }, stun: bb.stun } } } : null)],
-  [/^对敌人造成停顿效果时[，,]自身的攻击速度[+＋]\d+[，,]最多叠加\d+次$/u, (bb) => (all([bb.attack_speed, bb.max_stack_cnt])
-    ? { trait: { stacks: [{ on: 'status', status: 'sluggish', max: bb.max_stack_cnt, mods: { aspd: bb.attack_speed } }] } } : null)],
+  [/^对敌人造成停顿效果时[，,](?:使)?自身的攻击速度[+＋]\d+[，,]最多叠加\d+次(?:[；;]叠满后使自身攻击力[+＋](\d+(?:\.\d+)?)%)?$/u, (bb, m) => (all([bb.attack_speed, bb.max_stack_cnt])
+    ? { trait: { stacks: [{ on: 'status', status: 'sluggish', max: bb.max_stack_cnt, mods: { aspd: bb.attack_speed }, ...(m[1] ? { full: { atkPct: Math.round(Number(m[1]) * 10) / 1000 } } : {}) }] } } : null)],
   [/^攻击范围内的敌人受到\d+(?:\.\d+)?%的脆弱效果[，,]敌人在\S+?的攻击范围内停留超过\d+(?:\.\d+)?秒后[，,]脆弱效果提升至\d+(?:\.\d+)?%$/u, (bb) => {
     const base = byEnd(bb, '].damage_scale'), after = byEnd(bb, '].interval'), max = byEnd(bb, '].damage_scale_max');
     return all([base, after, max]) ? { trait: { stayVuln: { base: /** @type {number} */ (base), after: /** @type {number} */ (after), max: /** @type {number} */ (max) } } } : null;
   }],
-  [/^攻击范围内被停顿的敌人在下一瞬间起还会受到等长时间的\d+(?:\.\d+)?%的脆弱效果$/u, (bb) => (all([bb.damage_scale])
-    ? { range: [{ side: 'enemy', ranged: false, when: { when: 'sluggish' }, mods: { dmgTakenMul: bb.damage_scale } }] } : null)],
-  [/^攻击造成\d+(?:\.\d+)?秒寒冷[；;]范围内寒冷的敌人受到\d+(?:\.\d+)?%的脆弱[，,]范围内冻结的敌人脆弱效果提升至2倍$/u, (bb) => (all([bb.cold, bb.damage_scale_cold, bb.damage_scale_freeze])
-    ? { trait: { onHit: [{ status: { key: 'cold', seconds: bb.cold } }] }, range: [{ side: 'enemy', ranged: false, when: { when: 'coldOnly' }, mods: { dmgTakenMul: bb.damage_scale_cold } },
-      { side: 'enemy', ranged: false, when: { when: 'frozen' }, mods: { dmgTakenMul: bb.damage_scale_freeze } }] } : null)],
+  [/^攻击范围内被停顿的敌人在下一瞬间起还会受到等长时间的\d+(?:\.\d+)?%的脆弱效果(?:和(\d+(?:\.\d+)?)[%％]虚弱效果)?$/u, (bb, m) => {
+    const status = fragileOf('脆弱', bb.damage_scale), when = { when: /** @type {const} */ ('sluggish') };
+    if (!status) return null;
+    const weak = m[1] ? [{ side: /** @type {const} */ ('enemy'), ranged: false, when, mods: { atkMul: Math.round((1 - Number(m[1]) / 100) * 1e9) / 1e9 } }] : [];
+    return { range: [{ side: 'enemy', ranged: false, when, mods: {}, status }, ...weak] };
+  }],
+  [/^攻击造成\d+(?:\.\d+)?秒寒冷[；;]范围内寒冷的敌人受到\d+(?:\.\d+)?%的脆弱[，,]范围内冻结的敌人脆弱效果提升至2倍$/u, (bb) => (all([bb.cold]) && fragileOf('脆弱', bb.damage_scale_cold) && fragileOf('脆弱', bb.damage_scale_freeze)
+    ? { trait: { onHit: [{ status: { key: 'cold', seconds: bb.cold } }] }, range: [
+      { side: 'enemy', ranged: false, when: { when: 'coldOnly' }, mods: {}, status: /** @type {TalentStatus} */ (fragileOf('脆弱', bb.damage_scale_cold)) },
+      { side: 'enemy', ranged: false, when: { when: 'frozen' }, mods: {}, status: /** @type {TalentStatus} */ (fragileOf('脆弱', bb.damage_scale_freeze)) }] } : null)],
   [/^攻击范围内敌人的隐匿效果失效$/u, () => ({ range: [{ side: 'enemy', ranged: false, mods: {}, flags: { unstealth: true } }] })],
   [/^非技能期间[，,]连续攻击\d+次后自身获得攻击力[+＋]\d+(?:\.\d+)?%$/u, (bb, _m, c) => {
     const max = /最多(\d+)层/u.exec(c.description ?? ''), gap = num(bb, 'attack@clear_attackcount_time');

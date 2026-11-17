@@ -23,11 +23,12 @@ test('[干员-34] talents in time and on the field: a faction\'s 倍率, ammo, t
     { crit: [{ prob: 0.23, scale: 1, times: 2, ammoProb: 0.05, sp: 1 }] },
     { trait: { powerAttacks: { count: 50, scale: 1.2 } } },
     { trait: { fieldBuffs: [{ melee: true, during: 20, mods: { atkPct: 0.2, defPct: 0.2 } }] } },
-    { range: [{ side: 'ally', ranged: true, during: 20, mods: { taunt: -1 } }, { side: 'enemy', ranged: false, when: { when: 'flying' }, during: 20, mods: { dmgTakenMul: 1.25 } }] },
+    { range: [{ side: 'ally', ranged: true, during: 20, mods: { taunt: -1 } }, { side: 'enemy', ranged: false, when: { when: 'flying' }, during: 20, mods: {}, status: { key: 'fragile', value: 1.25 - 1 } }] },
     { trait: { timedBlast: { after: 3, scale: 4, fragile: { value: 0.3, seconds: 8 } } } },
     { trait: { firstBlock: { cost: 4, sleep: 8 } } },
     { trait: { onHit: [{ during: 20, debuff: { seconds: 10, mods: { resMul: 0.75 } } }], prefer: [{ lacksHit: true, during: 20 }] } },
-    { trait: { onHit: [{ during: 40, ep: { el: 'DARK', amount: 60 } }] }, range: [{ side: 'enemy', ranged: false, during: 40, mods: { artsTakenMul: 1.1, elementalTakenMul: 1.1 } }] },
+    { trait: { onHit: [{ during: 40, ep: { el: 'DARK', amount: 60 } }] }, range: [{ side: 'enemy', ranged: false, during: 40, mods: {}, status: { key: 'artsFragile', value: 1.1 - 1 } },
+      { side: 'enemy', ranged: false, during: 40, mods: {}, status: { key: 'elemFragile', value: 1.1 - 1 } }] },
   ]);
   assert.deepEqual([l('首次阻挡敌人时立即获得4点部署费用，并使该敌人沉睡8秒', {}), l('在场时，所有【先锋】干员攻击生命比例不高于自身的敌人时攻击力提升至112%', { talent_atk_scale: 1.12 })],
     [null, null], 'without its key; a profession for a faction');
