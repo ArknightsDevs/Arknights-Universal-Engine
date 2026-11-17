@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
 import { createWorld, step, setAtkCd } from '../src/index.js';
-import { kindOf, makeSkillState, statMods, skillMods, STAT_KEYS, beforeAttack, setTimeLeft } from '../src/skills.js';
+import { kindOf, makeSkillState, statMods, skillMods, STAT_KEYS, beforeAttack, attackMods, setTimeLeft, GENERIC, isGeneric, ownsSkill } from '../src/skills.js';
 import { gainSp, forceSp, timeSp, hurtSp } from '../src/sp.js';
 import { makeEnemy } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
@@ -218,6 +218,37 @@ test('[技能-5] the blackboard: attribute keys as mods, attack keys as the mods
   run(v.w, v.c, 1, [[0, { type: 'skill', unit: v.guard.id }]]);
   assert.equal(v.w.players[0].cost - before, 6, 'a duration skill\'s cost comes when it starts (香草)');
   assert.equal(statsOf(v.guard).atk, 60, 'and its attack +20 % for the duration');
+});
+
+test('[技能-6] a behaviour counts as the skill\'s own unless it is the generic one with at most a trigger', () => {
+  const own = (/** @type {Record<string, any>} */ b) => { const c = /** @type {any} */ ({ behaviors: { skills: { id: b } } }); return ownsSkill(c, 'id'); };
+  /** @type {import('../src/skills.js').SkillBehavior[]} */
+  const generic = [GENERIC, { ...GENERIC }, { ...GENERIC, trigger: 'attack' }, { ...GENERIC, trigger: () => 'ready' }];
+  /** @type {import('../src/skills.js').SkillBehavior[]} */
+  const real = [
+    { ...GENERIC, end() { /* a function of its own */ } }, { ...GENERIC, start() { /* the same */ } }, { ...GENERIC, tick() { /* a member the generic lacks */ } },
+    { ...GENERIC, range: () => null }, { start: GENERIC.start }, { end: GENERIC.end, trigger: 'attack' }, { trigger: 'attack' }, {},
+  ];
+  assert.deepEqual(generic.map((b) => isGeneric(b)), [true, true, true, true]);
+  assert.deepEqual(real.map((b) => isGeneric(b)), real.map(() => false));
+  assert.deepEqual([own({ ...GENERIC, trigger: 'attack' }), own({ ...GENERIC, end() { /* its own */ } })], [false, true]);
+  assert.equal(ownsSkill(/** @type {any} */ ({ behaviors: { skills: {} } }), 'id'), false, 'none registered');
+  assert.equal(ownsSkill(/** @type {any} */ ({}), 'id'), false, 'no behaviours at all');
+});
+
+test('[技能-5] [技能-6] a passive skill with a behaviour that only gives the start timing keeps the generic hit extras; a real one does not', () => {
+  const run = (/** @type {import('../src/skills.js').SkillBehavior | undefined} */ behavior) => {
+    const c = /** @type {any} */ (tinyContent());
+    c.level.waves = [];
+    c.operators.guard.skill = sk({ id: 'passive', type: 'PASSIVE', sp: 'none', cost: 0, duration: -1, bb: {}, extra: { attack: { displace: { pull: false, force: 2 } } } });
+    if (behavior) c.behaviors = { skills: { passive: behavior } };
+    const w = createWorld(c, { seed: 1, players: 1 });
+    step(w, c, [[0, { type: 'deploy', op: 'guard', row: 1, col: 1, dir: 0 }]]);
+    return attackMods(w, c, /** @type {Unit} */ (w.units.find((u) => u.key === 'guard'))).displace?.force;
+  };
+  assert.equal(run(undefined), 2, 'every attack of a passive skill carries what the description says it does');
+  assert.equal(run({ ...GENERIC, trigger: 'attack' }), 2, 'only a trigger: the same');
+  assert.equal(run({ ...GENERIC, end() { /* its own */ } }), undefined, 'a behaviour of its own: the attack is the plain one');
 });
 
 test('[技能-6] a behaviour by skill id: its trigger, start, tick, attack and end, acting only through the context', () => {

@@ -6,7 +6,7 @@ import { DIR, KIND } from '@aue/schema';
 import { tinyContent } from '@aue/testkit';
 import { createWorld, step, bus } from '../src/index.js';
 import { statsOf } from '../src/attrs.js';
-import { kindOf } from '../src/skills.js';
+import { kindOf, GENERIC } from '../src/skills.js';
 import { forceSp } from '../src/sp.js';
 import { inflict } from '../src/status.js';
 import { makeEnemy } from '../src/units.js';
@@ -220,6 +220,28 @@ test('[技能-16] a skill id with a behaviour of its own is not also struck from
   const e = foe(w, c, 2, 1);
   arm(w, c, op);
   assert.equal(e.hp, 1e9);
+});
+
+test('[技能-16] [技能-6] 德克萨斯 skchr_texas_2: a behaviour that only gives the start timing is not a special one — the strike still comes; a real one stops it', () => {
+  /** @param {import('../src/skills.js').SkillBehavior} behavior @returns {[number, boolean]} the enemy's loss, whether the skill is still running */
+  const struck = (behavior) => {
+    const { w, c, op } = field(striking({}, { id: 'skchr_texas_2' }), { prep: (cc) => { cc.behaviors = { skills: { skchr_texas_2: behavior } }; } });
+    const e = foe(w, c, 2, 1);
+    arm(w, c, op);
+    return [lost(e), !!op.skill?.active];
+  };
+  const hit = statsOf(field(striking({})).op).atk * 2;
+  assert.deepEqual(struck({ ...GENERIC, trigger: 'ready' }), [hit, false], 'only a trigger: the strike, and an instant skill ends in its frame');
+  assert.deepEqual(struck({ ...GENERIC, end(ctx, reason) { GENERIC.end(ctx, reason); } })[0], 0, 'its own end: no strike');
+  const every = { at: /** @type {const} */ ('every'), scale: 2, type: /** @type {const} */ ('arts'), where: /** @type {const} */ ('attack'), every: { seconds: 1, first: 0.67 } };
+  const volleys = (/** @type {import('../src/skills.js').SkillBehavior} */ behavior) => {
+    const { w, c } = field(sk({ id: 'skchr_texas_2', type: 'PASSIVE', sp: 'none', duration: 3, extra: { bursts: [every], hitScale: 'attack' } }), { prep: (cc) => { cc.operators.guard.res = 0; cc.behaviors = { skills: { skchr_texas_2: behavior } }; } });
+    const e = foe(w, c, 2, 1);
+    for (let i = 0; i < 60; i++) step(w, c, []);
+    return lost(e) > 0;
+  };
+  assert.equal(volleys({ ...GENERIC, trigger: 'ready' }), true, 'the volleys of a running skill come too');
+  assert.equal(volleys({ ...GENERIC, tick() { /* its own */ } }), false);
 });
 
 test('[技能-16] a left-facing operator: the stored cells turn with it', () => {

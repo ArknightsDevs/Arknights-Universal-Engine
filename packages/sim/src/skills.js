@@ -127,6 +127,28 @@ export const GENERIC = Object.freeze({
   end(ctx) { ctx.removeBuff(ctx.self, 'skill'); },
 });
 
+/**
+ * Whether a registered behaviour is, in effect, the generic one (技能-6): every key is the generic's own — the same function —
+ * except `trigger`, which only says when the skill starts (技能-3) and gives no effect to do twice. A key the generic has and the
+ * behaviour lacks, or one the generic does not have, makes it a behaviour of its own.
+ * @param {SkillBehavior} b
+ */
+export function isGeneric(b) {
+  const own = /** @type {Record<string, unknown>} */ (b), generic = /** @type {Record<string, unknown>} */ (GENERIC);
+  for (const k of new Set([...Object.keys(own), ...Object.keys(generic)])) if (k !== 'trigger' && own[k] !== generic[k]) return false;
+  return true;
+}
+
+/**
+ * Whether the content runs this skill itself (技能-6): a behaviour is registered for its id and it is not just the generic one
+ * with a `trigger`. Then what the description reads (技能-9, 技能-14, 技能-15, 技能-16) is left to that behaviour.
+ * @param {Content} c @param {string} id
+ */
+export function ownsSkill(c, id) {
+  const own = c.behaviors?.skills;
+  return !!own && Object.hasOwn(own, id) && !isGeneric(own[id]);
+}
+
 /** @param {Content} c @param {Unit} op @returns {SkillDef} */
 const defOf = (c, op) => /** @type {SkillDef} */ (c.operators[op.key].skill);
 
@@ -138,7 +160,7 @@ const defOf = (c, op) => /** @type {SkillDef} */ (c.operators[op.key].skill);
  */
 function bbOf(def, c) {
   // 技能-15: a cost gained bit by bit from the plain `cost` is not also gained at the start — unless the id has a behaviour of its own (技能-6), as 技能-15 then does nothing
-  if (def.extra?.costGain?.plain && behaviorOf(c, def.id) === GENERIC) return Object.fromEntries(Object.entries(def.bb).filter(([k]) => k !== 'cost'));
+  if (def.extra?.costGain?.plain && !ownsSkill(c, def.id)) return Object.fromEntries(Object.entries(def.bb).filter(([k]) => k !== 'cost'));
   return def.spend ? Object.fromEntries(Object.entries(def.bb).filter(([k]) => k !== 'cost')) : def.bb;
 }
 /** @param {Content} c @param {string} id @returns {SkillBehavior} */
@@ -347,7 +369,7 @@ export function attackMods(w, c, op) {
   const st = op.skill, plain = { scale: 1, times: 1, targets: 1, skill: false };
   if (!st) return plain;
   const kind = timingOf(w, c, op).kind;
-  if (st.active && kind === 'passive' && behaviorOf(c, st.id) === GENERIC) return pushed(w, c, op, hitExtra(plain, defOf(c, op)));
+  if (st.active && kind === 'passive' && !ownsSkill(c, st.id)) return pushed(w, c, op, hitExtra(plain, defOf(c, op)));
   if (!st.active || kind === 'instant' || kind === 'passive') return plain;
   const def = defOf(c, op), mods = withExtra(skillMods(def.bb, def.extra?.hitScale, def.extra?.scaleKey), def), beh = behaviorOf(c, st.id);
   return pushed(w, c, op, beh.attack ? beh.attack(contextOf(w, c, op), mods) : mods);

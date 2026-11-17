@@ -1,7 +1,7 @@
 // 炼金单元 (docs/spec/skills.md 技能-13): what a 炼金师's skill throws — a spot on the ground that lasts its seconds and
 // keeps the thrower's attack as it was then. Every interval the ground enemies within its radius take arts damage of no
-// source; while they are in it they, and the friendly units in it, have its modifiers (aura.js gives those); it can
-// drift away from its thrower and grow. It stays when its thrower leaves the field.
+// source, credited to the thrower (伤害-7); while they are in it they, and the friendly units in it, have its modifiers
+// (aura.js gives those); it can drift away from its thrower and grow. It stays when its thrower leaves the field.
 import { KIND } from '@aue/schema';
 import { FPS, secondsToFrames, hypot } from '@aue/math';
 import { statsOf } from './attrs.js';
@@ -82,15 +82,17 @@ export const groundFoe = (u) => hostile(u) && u.hp > 0 && !statsOf(u).flying;
 
 /**
  * One 炼金单元's damage this frame (技能-13): every `interval` seconds from its landing, each ground enemy in it takes
- * arts damage of its attack × `scale` × `dmgMul` — one of 重量 at least `heavy.weight` its `heavy.scale` more —, of no source.
+ * arts damage of its attack × `scale` × `dmgMul` — one of 重量 at least `heavy.weight` its `heavy.scale` more —, of no source
+ * but credited to the thrower while it is on the field (伤害-7): its kills, `credit` on the events. One that left credits no one.
  * @param {World} w @param {Content} c @param {Alchemy} a @param {AlchemyDef} def
  */
 function alchemyHits(w, c, a, def) {
   const t = w.frame - a.born, every = Math.max(1, secondsToFrames(def.interval ?? 1));
   if (t <= 0 || t % every !== 0) return;
+  const thrower = w.units.find((x) => x.id === a.src) ?? null;
   for (const u of w.units.filter((x) => groundFoe(x) && inAlchemy(a, def, x))) {
     const heavy = def.heavy && statsOf(u).massLevel >= def.heavy.weight ? def.heavy.scale ?? 0 : 0, scale = (def.scale ?? 0) + heavy;
-    if (scale > 0) dealDamage(w, null, u, { type: 'arts', amount: a.atk * scale * (def.dmgMul ?? 1), sourceless: true }, c);
+    if (scale > 0) dealDamage(w, thrower, u, { type: 'arts', amount: a.atk * scale * (def.dmgMul ?? 1), sourceless: true }, c);
   }
 }
 

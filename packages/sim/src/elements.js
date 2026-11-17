@@ -142,11 +142,14 @@ export function epRegenAll(w) {
 /**
  * Burst damage (元素-4): 无来源, credited to the burst's source (伤害-7 `sourceless`); dodged as any hit of its type (元素-3:
  * the official bursts deal it with no cancellation mask), with no source whose hit rate or `ignoreDodgePhys` could count;
- * dealt with the content, so the target's 伤判 runs the content's behaviours on it as on any hit (伤害-8).
+ * dealt with the content, so the target's 伤判 runs the content's behaviours on it as on any hit (伤害-8). Tagged `burst`, so
+ * a hook can tell it from a talent's damage during a burst (also sourceless and credited, 职业-29). The tag changes no number:
+ * `from:` multipliers read the tags of the source enemy's record, not the hit's, and there is no source here; only the tag
+ * `rider` (riders.js, talentfoe.js) and the content's own tags are read off a hit's.
  * @param {World} w @param {Unit} u @param {import('./types.js').DamageType} type @param {number} amount
  * @param {{ src: Unit | null, c: Content | undefined }} by the burst's source and the content
  */
-const burstHit = (w, u, type, amount, by) => { dealDamage(w, by.src, u, { type, amount, sourceless: true }, by.c); };
+const burstHit = (w, u, type, amount, by) => { dealDamage(w, by.src, u, { type, amount, sourceless: true, tags: ['burst'] }, by.c); };
 
 /** The source of a burst buff while it is on the field, or null. @param {World} w @param {Buff} b */
 const sourceOf = (w, b) => (b.src >= 0 ? w.units.find((x) => x.id === b.src) ?? null : null);

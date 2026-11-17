@@ -9,7 +9,7 @@ import { makeBuff, addBuff } from '../src/buffs.js';
 import { enemyAttack } from '../src/combat.js';
 import { dealDamage } from '../src/damage.js';
 import { epOf } from '../src/elements.js';
-import { endSkill, attackMods } from '../src/skills.js';
+import { endSkill, attackMods, GENERIC } from '../src/skills.js';
 import { skillCounter, openSkillText } from '../src/skilltext.js';
 import { forceSp } from '../src/sp.js';
 import { makeEnemy, makeOperator } from '../src/units.js';
@@ -186,6 +186,29 @@ test('[技能-14] a registered behaviour is not also done from the description',
   const op = deploy(w, c);
   arm(w, c, op);
   assert.equal(barrier(op), undefined);
+});
+
+test('[技能-14] [技能-6] 薄绿 skchr_mint_2: a behaviour that only gives the start timing is not a special one — the end burst still fires; a real one stops it', () => {
+  // the end sentence of 薄绿's second skill, with hand-made numbers
+  const burst = { at: /** @type {const} */ ('end'), scale: 1.5, type: /** @type {const} */ ('arts'), where: /** @type {const} */ ('attack') };
+  const mint = () => sk({ id: 'skchr_mint_2', bb: { atk: 0.5, atk_scale: 1.5 }, extra: { bursts: [burst] } });
+  /** @param {import('../src/skills.js').SkillBehavior | undefined} behavior the skill's registered behaviour @returns {[number, number]} the enemy's loss at the end, the attack the skill gave */
+  const ended = (behavior) => {
+    const { w, c } = field(mint(), (cc) => { if (behavior) cc.behaviors = { skills: { skchr_mint_2: behavior } }; });
+    const op = deploy(w, c), e = foe(w, c, 2, 1);
+    op.atkCd = 1e6; // no attack of its own: only the burst hits
+    arm(w, c, op);
+    const given = statsOf(op).atk;
+    endSkill(w, c, op, 'duration');
+    return [1e9 - e.hp, given];
+  };
+  const burstDamage = 75 * 1.5; // 50 attack, +50% from the skill's own buff
+  assert.deepEqual(ended(undefined), [burstDamage, 75], 'no behaviour: the burst, and the generic attack buff');
+  assert.deepEqual(ended({ ...GENERIC, trigger: 'attack' }), [burstDamage, 75], 'only a trigger: the same');
+  assert.deepEqual(ended({ ...GENERIC, trigger: () => 'ready' }), [burstDamage, 75], 'a trigger given as a function too');
+  assert.deepEqual(ended({ ...GENERIC, end(ctx, reason) { GENERIC.end(ctx, reason); } })[0], 0, 'its own end: the kit owns the skill, no burst');
+  assert.deepEqual(ended({ ...GENERIC, tick() { /* its own */ } })[0], 0, 'a member the generic has not: no burst');
+  assert.deepEqual(ended({ trigger: 'attack' })[0], 0, 'a trigger without the generic start and end is a behaviour of its own: it replaces them');
 });
 
 test('[技能-14] a start burst hits the level range, flying included, and a far enemy stays', () => {

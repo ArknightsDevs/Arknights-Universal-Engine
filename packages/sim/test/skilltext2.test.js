@@ -239,3 +239,17 @@ test('[技能-15] [技能-5] a registered behaviour is not also done from the de
   run(w, c, secondsToFrames(3));
   assert.equal(p.cost, start + 1, 'nothing bit by bit');
 });
+
+test('[技能-15] [技能-6] a behaviour that only gives the start timing is not a special one: HP lost, the hold on attacks and the cost bit by bit come, the plain cost not also at the start', () => {
+  const extra = { stopAttack: {}, selfLoss: { ratio: 0.5 }, costGain: { every: 0.5, cost: 1, steps: 6, plain: true } };
+  const { w, c } = field(sk({ id: 'timed', bb: { cost: 1 }, extra }), (cc) => {
+    cc.behaviors = { skills: { timed: { ...GENERIC, trigger: 'ready' } } };
+  });
+  const op = deploy(w, c);
+  const p = w.players[0], start = p.cost;
+  arm(w, c, op);
+  assert.deepEqual([op.hp, !!buffOf(op, 'skillStop'), !!buffOf(op, 'skillCostGain'), p.cost], [500, true, true, start], 'the flat cost is not also given at the start');
+  run(w, c, secondsToFrames(3));
+  assert.equal(p.cost, start + 6, 'bit by bit');
+  assert.equal(buffOf(op, 'skillStop'), undefined, 'and the hold goes with the skill');
+});

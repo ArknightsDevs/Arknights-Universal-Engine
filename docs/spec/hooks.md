@@ -55,7 +55,7 @@
 | `beforeStatus` | 战斗中施加一个状态之前（状态-5）；寒冷变为冻结（状态-6）时，这条冻结另有一次 | `source`、`target`、`status`、`frames`（−1 为无期限；改为 0 或更少则不施加）、`strength`（状态的数值）、`cancel` |
 | `statusApplied` | 战斗中的状态施加上之后（状态-5）；寒冷变为冻结时是冻结的，不是那条寒冷的；被取消的、被拒绝的、没有时间的没有 | `source`、`target`、`status`（施加上的状态；敌方寒冷与敌方冻结写作 `cold`、`freeze`）、`frames`（这一次的帧数，−1 为无期限，是 `beforeStatus` 之后、抵抗之前的）、`strength`、`entered`（目标此前没有这个状态） |
 
-伤害信息 `dmg` 用 Stronghold 内容接口的字段名（ADR 0012）：`type`、`amount`、`mul`、`cancel`、`calculation`（已经算好：`precomputed` 不发 `damageCalculate`，`resolved` 同）、四项穿透，以及来源标记——`isAttack`（一次攻击的命中，含溅射与跳跃）、`isSkill`（技能运行时或技能造成）、`isSplash`（溅射，余震也算）、`isProjectile`、`tags`（跳跃为 `chain`，余震为 `aftershock`；余震不算攻击的命中）、`hpLoss`（生命流失）。伤害开始结算时补齐缺省的字段：`mul` 为 1，`tags` 为空，`cancel` 为否，四项穿透为 0。
+伤害信息 `dmg` 用 Stronghold 内容接口的字段名（ADR 0012）：`type`、`amount`、`mul`、`cancel`、`calculation`（已经算好：`precomputed` 不发 `damageCalculate`，`resolved` 同）、四项穿透，以及来源标记——`isAttack`（一次攻击的命中，含溅射与跳跃）、`isSkill`（技能运行时或技能造成）、`isSplash`（溅射，余震也算）、`isProjectile`、`tags`（跳跃为 `chain`，余震为 `aftershock`，元素爆发自己的伤害为 `burst`，元素-4；余震不算攻击的命中）、`hpLoss`（生命流失）。伤害开始结算时补齐缺省的字段：`mul` 为 1，`tags` 为空，`cancel` 为否，四项穿透为 0。
 
 - 来源：设计决定，见 [ADR 0057](../adr/0057-hook-bus-and-timers.md)；事件名、时机与上下文同 Stronghold 的钩子（`docs/SIM.md` §5，`server/sim/damage.js` 的伤害与治疗流程，GPL-3.0-or-later）；`damageCalculate`、`damageApplying`、`damageApplied` 取自 Stronghold v0.4.0 的 `server/sim/attack/hit.js`、`attack/health.js`，`statusApplied` 与寒冷变为冻结时的 `beforeStatus` 取自 `server/sim/battle/status.js`，`ammoUsed` 取自 `server/sim/skills.js`（GPL-3.0-or-later）；`healHit` 是引擎自己的事件，时机同 Stronghold v0.3.1 `server/sim/ai.js` 的 doHeal 在治疗与治疗链之后调用技能的 `onHit`（GPL-3.0-or-later）；引擎里这几个事件的次序与 Stronghold 的不同处见 DIF-0051、DIF-0053，`damageApplying` 的伤害含引擎自己的几步见推断 INF-1111
 

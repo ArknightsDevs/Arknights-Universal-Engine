@@ -1,13 +1,14 @@
 // What a skill's description does besides what 技能-9 and 技能-14 read (docs/spec/skills.md 技能-15): no new attacks while
 // it runs (or for its first seconds, or for some seconds after it ends), cost bit by bit while it runs, HP lost as it
 // starts, and statuses — after a hit, for some — on enemies as it starts. A skill id that already has its own behaviour is
-// left alone (技能-6), as for 技能-14: doing it again would stack.
+// left alone (技能-6), as for 技能-14: doing it again would stack. A behaviour that only gives the start's timing is not one.
 import { decimalOf, secondsToFrames } from '@aue/math';
 import { statsOf } from './attrs.js';
 import { addBuff, count, makeBuff, removeBuff } from './buffs.js';
 import { targetsOf } from './combat.js';
 import { dealDamage } from './damage.js';
 import { reachKeys } from './reach.js';
+import { ownsSkill } from './skills.js';
 import { strikeOn } from './strike.js';
 import { inflict } from './status.js';
 import { hostile, inKeys } from './targeting.js';
@@ -26,8 +27,8 @@ const STOP = 'skillStop', AFTER = 'skillStopAfter', GAIN = 'skillCostGain';
  * @param {Content} c @param {Unit} op @returns {Extra | null}
  */
 function extraOf(c, op) {
-  const def = c.operators[op.key]?.skill, own = c.behaviors?.skills;
-  return def?.extra && !(own && Object.hasOwn(own, def.id)) ? def.extra : null;
+  const def = c.operators[op.key]?.skill;
+  return def?.extra && !ownsSkill(c, def.id) ? def.extra : null;
 }
 
 /** A buff that holds back new attacks (职业-13: `noAttack`); −1 frames for no end of its own. @param {Unit} op @param {string} key @param {number} frames */

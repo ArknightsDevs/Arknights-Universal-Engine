@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
-import { createWorld, step } from '../src/index.js';
+import { createWorld, step, bus } from '../src/index.js';
 import { makeEnemy, makeOperator } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
 import { statsOf } from '../src/attrs.js';
@@ -100,6 +100,19 @@ test('[职业-29] elemental damage each second while a 凋亡 burst lasts, from 
   creditedDamage(w, c, op, again, { type: 'phys', amount: 100, isAttack: true });
   foeLeave(w, op);
   assert.equal(again.buffs.some((b) => b.key.startsWith('burstDot:')), false, 'and with the operator');
+});
+
+test('[元素-4] [职业-29] the burst\'s own damage carries the tag `burst`, a talent\'s damage during the burst does not; neither changes a number', () => {
+  const { w, c, op, foe, frames } = arena({ trait: { epRider: { el: 'DARK', ratio: 100 } }, talentTrait: { vs: [{ when: 'burstOf', el: 'DARK', on: 'attack', post: true, burstDot: 0.4 }] } });
+  const e = foe(2, 4);
+  /** @type {any[]} */
+  const seen = [];
+  bus.on(w, 'damaged', (k) => { if (k.target === e) seen.push({ type: k.type, amount: k.amount, tags: [...k.dmg.tags], source: k.source, credit: k.credit }); });
+  creditedDamage(w, c, op, e, { type: 'phys', amount: 100, isAttack: true });
+  frames(30);
+  const burst = seen.filter((x) => x.tags.includes('burst')), talent = seen.filter((x) => x.type === 'elemental' && !x.tags.includes('burst'));
+  assert.deepEqual(burst.map((x) => [x.type, x.amount, x.tags, x.source, x.credit === op]), [['elemental', 800, ['burst'], null, true]], 'the 凋亡 second on another unit: 800 elemental, sourceless, credited');
+  assert.deepEqual(talent.map((x) => [x.amount, x.tags, x.source, x.credit === op]), [[0.4 * 50, [], null, true]], 'the talent\'s: the same shape, no tag');
 });
 
 test('[职业-29] 元素损伤 over time on the first attack on each enemy: at once and each second for 5 s — six times —, not again', () => {

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
-import { createWorld, step, stateHash } from '../src/index.js';
+import { createWorld, step, stateHash, bus } from '../src/index.js';
 import { kindOf } from '../src/skills.js';
 import { forceSp } from '../src/sp.js';
 import { makeEnemy, makeOperator } from '../src/units.js';
@@ -64,6 +64,20 @@ test('[技能-13] a skill that throws a 炼金单元 is instant; it lands on the
   assert.equal(hp - e.hp, 25, 'a second on: 50 (the attack as it threw) × 0.5, arts');
   run(w, c, 61);
   assert.deepEqual([hp - e.hp, w.alchemy?.length, statsOf(e).atk], [75, 0, 100], 'three ticks, then gone with its modifiers');
+});
+
+test('[技能-13] [伤害-7] the damage has no source but is credited to its thrower while it is on the field', () => {
+  const { w, c, op, foe, cast } = arena(sk({ at: 'enemy', seconds: 3, radius: 1, scale: 0.5 }), { noAttack: true });
+  const e = foe(1, 2);
+  /** @type {any[]} */
+  const seen = [];
+  bus.on(w, 'damaged', (k) => { if (k.target === e) seen.push({ source: k.source, credit: k.credit, type: k.type, amount: k.amount, sourceless: k.dmg.sourceless }); });
+  cast();
+  run(w, c, 30);
+  assert.deepEqual(seen, [{ source: null, credit: op, type: 'arts', amount: 25, sourceless: true }], 'a second on: no source, the operator\'s credit, the same number');
+  step(w, c, [[0, { type: 'retreat', unit: op.id }]]);
+  run(w, c, 30);
+  assert.deepEqual(seen.slice(1), [{ source: null, credit: null, type: 'arts', amount: 25, sourceless: true }], 'its thrower gone: no one is credited');
 });
 
 test('[技能-13] with no enemy in range it lands on the farthest tile straight ahead; a heavy enemy takes more and its own slow', () => {

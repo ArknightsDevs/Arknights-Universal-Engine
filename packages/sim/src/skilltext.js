@@ -1,7 +1,8 @@
 // What a skill's description does besides its attacks (docs/spec/skills.md 技能-14): a counter while it runs, a barrier
 // gained as it starts, a burst at the end — and at the start, 技能-16: strike.js —, a self-stun at the end, a non-medic healing a
 // friendly unit.
-// A skill id that already has its own behaviour is left alone (技能-6): doing it again would stack.
+// A skill id that already has its own behaviour is left alone (技能-6): doing it again would stack. One that only says when the
+// skill starts (a `trigger`) has no effect of its own, so it is not left alone.
 import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
@@ -9,6 +10,7 @@ import { addBuff, makeBuff, removeBuff, stamp } from './buffs.js';
 import { heal, setShield } from './damage.js';
 import { dealEpFrom } from './elements.js';
 import { reachKeys } from './reach.js';
+import { ownsSkill } from './skills.js';
 import { strikeOn } from './strike.js';
 import { inflict } from './status.js';
 import { inKeys, rangeKeys, sortHealTargets } from './targeting.js';
@@ -27,8 +29,6 @@ const NEAR = 1.5 * 1.5;
 /** @param {Content} c @param {Unit} op @returns {SkillDef | null} */
 const defOf = (c, op) => c.operators[op.key]?.skill ?? null;
 
-/** A skill the content already runs itself (技能-6). @param {Content} c @param {string} id */
-const owned = (c, id) => !!(c.behaviors?.skills && Object.hasOwn(c.behaviors.skills, id));
 
 /** @param {Content} c */
 const gridOf = (c) => ({ rows: c.level.height, cols: c.level.width });
@@ -87,7 +87,7 @@ function strike(w, c, op, e, x) {
 /** The counter while this skill is up (技能-14), or null. @param {Content} c @param {Unit} op @returns {Counter | null} */
 function readyCounter(c, op) {
   const def = defOf(c, op), x = def?.extra?.counter;
-  if (!def || !x || !op.skill?.active || op.hp <= 0 || owned(c, def.id)) return null;
+  if (!def || !x || !op.skill?.active || op.hp <= 0 || ownsSkill(c, def.id)) return null;
   return x;
 }
 
@@ -165,7 +165,7 @@ function healAllies(w, c, op, h) {
  */
 export function openSkillText(w, c, op) {
   const def = defOf(c, op);
-  if (!def || owned(c, def.id) || op.hp <= 0 || !def.extra) return 0;
+  if (!def || ownsSkill(c, def.id) || op.hp <= 0 || !def.extra) return 0;
   const x = def.extra;
   let held = 0;
   if (x.barrier) giveBarrier(op, x.barrier);
@@ -181,7 +181,7 @@ export function openSkillText(w, c, op) {
  */
 export function healSkillAllies(w, c, op) {
   const def = defOf(c, op), h = def?.extra?.allyHeal;
-  if (!def || !h || h.on !== 'attack' || !op.skill?.active || op.hp <= 0 || owned(c, def.id)) return;
+  if (!def || !h || h.on !== 'attack' || !op.skill?.active || op.hp <= 0 || ownsSkill(c, def.id)) return;
   healAllies(w, c, op, h);
 }
 
@@ -192,7 +192,7 @@ export function healSkillAllies(w, c, op) {
  */
 export function closeSkillText(w, c, op, reason) {
   const def = defOf(c, op);
-  if (!def || owned(c, def.id)) return;
+  if (!def || ownsSkill(c, def.id)) return;
   removeBuff(op, 'counterCd');
   if (op.hp <= 0 || reason === 'death' || !def.extra) return;
   const x = def.extra;
