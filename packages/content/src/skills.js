@@ -7,6 +7,9 @@ import rangeTable from '../data/ranges.json' with { type: 'json' };
 import { textExtra } from './skilltext.js';
 import { textExtra2 } from './skilltext2.js';
 import { hitStatusOf } from './hitstatus.js';
+import { scaleKeyOf, pushOnAttack } from './attackscale.js';
+import { batModsOf } from './batmode.js';
+import { namedStatMods } from './statkeys.js';
 
 /** @typedef {import('@aue/sim').SkillDef} SkillDef @typedef {import('@aue/sim').SkillBehavior} SkillBehavior */
 
@@ -40,7 +43,7 @@ export function skillDefOf(id, level) {
   return {
     id, type, sp, cost: level.spData.spCost, init: level.spData.initSp, charges: Math.max(1, level.spData.maxChargeTime),
     duration: level.duration, ammo: level.durationType === 'AMMO', bb,
-    stoppable: level.stoppable ?? CLOSABLE.test(level.description ?? ''), ...rangeOf(level), ...extraOf(level, ownMods(level, bb, allies.keys)),
+    stoppable: level.stoppable ?? CLOSABLE.test(level.description ?? ''), ...rangeOf(level), ...extraOf(level, ownMods(level, bb, allies.keys, id)),
     ...foreverOf(level), ...spendOf(level, bb), ...(allies.def ? { allies: allies.def } : {}), ...alchemyOf(level, bb),
     ...dollSwitchOf(level),
   };
@@ -197,10 +200,11 @@ const OWN = Object.freeze(/** @type {Record<string, [string, string?]>} */ ({ at
 
 /**
  * The modifiers a description changes of the generic effect's (技能-5): a key it gives other units (技能-11) is none of
- * the operator's — its modifier 0 —; `atk`, `def` or `max_hp` shown without a percent (「生命上限+{max_hp}」) is 直接加算.
- * @param {SkillLevel} level @param {Record<string, number>} bb @param {string[]} others @returns {Record<string, number>}
+ * the operator's — its modifier 0 —; `atk`, `def` or `max_hp` shown without a percent (「生命上限+{max_hp}」) is 直接加算; the
+ * attributes a namespaced key gives it (statkeys.js) and the way `base_attack_time` changes its interval (batmode.js).
+ * @param {SkillLevel} level @param {Record<string, number>} bb @param {string[]} others @param {string} id the skill's id @returns {Record<string, number>}
  */
-function ownMods(level, bb, others) {
+function ownMods(level, bb, others, id) {
   /** @type {Record<string, number>} */
   const mods = {}, raw = level.description ?? '';
   for (const k of others) if (OWN[k]) mods[OWN[k][0]] = 0;
@@ -209,7 +213,7 @@ function ownMods(level, bb, others) {
     const shown = [...raw.matchAll(new RegExp(`\\{-?${k}(?::([^}]*))?\\}`, 'g'))];
     if (shown.length && shown.every((m) => !(m[1] ?? '').includes('%'))) Object.assign(mods, { [pct]: 0, [flat]: bb[k] });
   }
-  return mods;
+  return Object.assign(mods, batModsOf(id, bb), namedStatMods(textOf(level), bb));
 }
 
 /** Chinese numerals of extra targets and hits (技能-9). */
@@ -267,7 +271,7 @@ function effectPhraseOf(s, bb) {
  * A push or pull a sentence says the skill's hits make (技能-9): an optional way along the operator's facing (「往攻击方向」
  * 「朝部署方向」「向前」), a 力度 word, and 推开、推动、弹开、击退 (a push) or 拖拽、牵引、拉至面前 (a pull).
  */
-const DISPLACE = /(往攻击方向|朝部署方向|向前)?(微小力|小力|中等力度|中力|较大力|大力|特大力)地?(往攻击方向|朝部署方向|向前)?(推开|推动|弹开|击退|拖拽至面前|牵引至面前|拉至面前)/u;
+const DISPLACE = /(往攻击方向|朝部署方向|向前)?(微小力|小力|中等力度|中力|较大力度|较大力|大力|特大力)地?(往攻击方向|朝部署方向|向前)?(推开|推动|弹开|击退|拖拽至面前|牵引至面前|拉至面前)/u;
 
 /** An attribute a hit lowers for some seconds (技能-9): its word, its key, its modifier as a share and as a number. */
 const DEBUFF_ATTR = Object.freeze([['防御力', 'def', 'defPct', 'defFlat'], ['移动速度', 'move_speed', 'movePct', 'movePct'], ['攻击速度', 'attack_speed', 'aspd', 'aspd'], ['攻击力', 'atk', 'atkPct', 'atkFlat']]);
@@ -313,10 +317,11 @@ function extraOf(level, own) {
   // kindOf gets the fields it gets from skillDefOf (what the level gives, and the text's heal of allies on attack), so the kind here is the skill's own
   const kind = skills.kindOf(/** @type {SkillDef} */ (/** @type {unknown} */ ({ type: level.skillType, ammo: level.durationType === 'AMMO', duration: level.duration, bb,
     ...foreverOf(level), ...alchemyOf(level, bb), ...dollSwitchOf(level), extra: { ...texts, ...texts2 } })));
-  const attack = Object.assign({}, ...parts.map((p) => p.attack ?? {}), hitStatusOf(said, bb, kind), hit.debuff ? { hitDebuff: hit.debuff } : {});
+  const attack = pushOnAttack(level, DISPLACE, Object.assign({}, ...parts.map((p) => p.attack ?? {}), hitStatusOf(said, bb, kind), hit.debuff ? { hitDebuff: hit.debuff } : {}));
   const has = (/** @type {object} */ o) => Object.keys(o).length > 0;
   const extra = { ...(has(mods) ? { mods } : {}), ...(has(flags) ? { flags } : {}), ...(has(attack) ? { attack } : {}), ...texts };
   Object.assign(extra, texts2);
+  Object.assign(extra, scaleKeyOf(level, bb, extra.hitScale === 'attack')); // 技能-5: which key is the attack's multiplier
   return has(extra) ? { extra } : {};
 }
 

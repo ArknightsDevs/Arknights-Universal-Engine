@@ -73,8 +73,8 @@ export const STAT_KEYS = Object.freeze({
   magic_resist_penetrate_fixed: 'resIgnoreFlat', hp_recovery_per_sec: 'hpRegen',
 });
 
-/** Blackboard keys of the attacks a skill makes (技能-5). */
-const ATTACK_KEYS = Object.freeze(['atk_scale', 'attack@atk_scale', 'times', 'attack@times', 'max_target', 'attack@max_target']);
+/** Blackboard keys of the attacks a skill makes (技能-5); one of them makes a skill with no duration a next-attack skill (技能-1). Content reads this list too. */
+export const ATTACK_KEYS = Object.freeze(['atk_scale', 'attack@atk_scale', 'times', 'attack@times', 'max_target', 'attack@max_target']);
 
 /** Why a skill may have ended on its own, so one that switches at its end may ask for the switch (职业-15). A switch or a move does not. */
 const OWN_END = new Set(['duration', 'instant', 'ammo', 'stopped']);
@@ -338,7 +338,7 @@ export function attackMods(w, c, op) {
   const kind = timingOf(w, c, op).kind;
   if (st.active && kind === 'passive' && behaviorOf(c, st.id) === GENERIC) return pushed(w, c, op, hitExtra(plain, defOf(c, op)));
   if (!st.active || kind === 'instant' || kind === 'passive') return plain;
-  const mods = withExtra(skillMods(defOf(c, op).bb, defOf(c, op).extra?.hitScale), defOf(c, op)), beh = behaviorOf(c, st.id);
+  const def = defOf(c, op), mods = withExtra(skillMods(def.bb, def.extra?.hitScale, def.extra?.scaleKey), def), beh = behaviorOf(c, st.id);
   return pushed(w, c, op, beh.attack ? beh.attack(contextOf(w, c, op), mods) : mods);
 }
 
@@ -379,14 +379,15 @@ function hitExtra(mods, def) {
 }
 
 /**
- * The attack keys of a blackboard as mods (技能-5). A plain `atk_scale` that 技能-14 claims (`hitScale` `'attack'`) is the
- * counter's or a burst's, not this attack's; `attack@atk_scale` still is. One argument keeps the old reading.
- * @param {Readonly<Record<string, number>>} bb @param {'attack'} [hitScale] @returns {AttackMods}
+ * The attack keys of a blackboard as mods (技能-5). The 倍率 is the blackboard's `scaleKey` when content says which key
+ * it is (`''`: none, the attack keeps 1); else `attack@atk_scale`, then the plain `atk_scale` — which 技能-14 may
+ * claim (`hitScale` `'attack'`) for the counter or a burst. One argument keeps the old reading.
+ * @param {Readonly<Record<string, number>>} bb @param {'attack'} [hitScale] @param {string} [scaleKey] @returns {AttackMods}
  */
-export function skillMods(bb, hitScale) {
-  const plain = hitScale === 'attack' ? undefined : bb.atk_scale;
+export function skillMods(bb, hitScale, scaleKey) {
+  const scale = scaleKey === undefined ? bb['attack@atk_scale'] ?? (hitScale === 'attack' ? undefined : bb.atk_scale) : bb[scaleKey];
   return {
-    scale: plain ?? bb['attack@atk_scale'] ?? 1, times: Math.max(1, bb.times ?? bb['attack@times'] ?? 1),
+    scale: scale ?? 1, times: Math.max(1, bb.times ?? bb['attack@times'] ?? 1),
     targets: Math.max(1, bb.max_target ?? bb['attack@max_target'] ?? 1), skill: true,
   };
 }

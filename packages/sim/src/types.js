@@ -142,7 +142,8 @@
  * A hit's status is a `HitStatus`; its modifiers' `flags` are the flags of that buff.
  * 技能-14, read from other sentences: `counter` while the skill runs, a `barrier` gained as it starts, `bursts` at the
  * start or the end, `selfStun` when it ends, `allyHeal` for a friendly unit. `hitScale` `'attack'` means a plain
- * `atk_scale` belongs to the counter or the burst, so the attack's scale is `attack@atk_scale`.
+ * `atk_scale` belongs to the counter or the burst, so the attack's scale is `attack@atk_scale`. `scaleKey` is the
+ * blackboard key the attack's 倍率 comes from when the description says which (技能-5): `''` for none, so it keeps 1.
  * 技能-15: no new attacks while it runs (`stopAttack`; its first `seconds` only, when given) or for `seconds` once it ends
  * (`stopAfter`); `costGain`, `cost` each `every` seconds while it runs, `steps` times (`plain`: those are the blackboard's
  * own `interval` and `cost`, so that `cost` is not also gained at the start); `selfLoss`, HP lost as it starts (`ratio` of
@@ -162,7 +163,7 @@
  *   stopAttack?: { seconds?: number }, stopAfter?: { seconds: number }, costGain?: { every: number, cost: number, steps: number, plain?: boolean },
  *   selfLoss?: { ratio: number, ofMax?: boolean },
  *   opening?: { where: 'attack' | 'blocked', most?: number, hit?: { scale: number, type: DamageType }, status: { key: import('./status.js').StatusKey, seconds: number }[] }[],
- *   hitScale?: 'attack' }} SkillExtra
+ *   hitScale?: 'attack', scaleKey?: string }} SkillExtra
  */
 /**
  * An enemy's skill (敌能-1): its name (prefabKey), first and later cooldowns in seconds, SP cost (spCost; 0 for none),
