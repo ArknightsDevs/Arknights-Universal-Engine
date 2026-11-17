@@ -1,5 +1,6 @@
 // What a skill's description does besides its attacks (docs/spec/skills.md 技能-14): a counter while it runs, a barrier
-// gained as it starts, a burst then or at the end, a self-stun at the end, a non-medic healing a friendly unit.
+// gained as it starts, a burst at the end — and at the start, 技能-16: strike.js —, a self-stun at the end, a non-medic healing a
+// friendly unit.
 // A skill id that already has its own behaviour is left alone (技能-6): doing it again would stack.
 import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
@@ -8,6 +9,7 @@ import { addBuff, makeBuff, removeBuff, stamp } from './buffs.js';
 import { heal, setShield } from './damage.js';
 import { dealEpFrom } from './elements.js';
 import { reachKeys } from './reach.js';
+import { strikeOn } from './strike.js';
 import { inflict } from './status.js';
 import { inKeys, rangeKeys, sortHealTargets } from './targeting.js';
 import { creditedDamage } from './traits.js';
@@ -17,7 +19,6 @@ import { creditedDamage } from './traits.js';
 /** @typedef {NonNullable<SkillDef['extra']>} Extra */
 /** @typedef {NonNullable<Extra['counter']>} Counter */
 /** @typedef {NonNullable<Extra['barrier']>} Barrier */
-/** @typedef {NonNullable<Extra['bursts']>[number]} Burst */
 /** @typedef {NonNullable<Extra['allyHeal']>} AllyHeal */
 
 /** Distance squared of 「周围」 when the description gives no tiles (技能-14): 1.5 × 1.5. */
@@ -31,19 +32,6 @@ const owned = (c, id) => !!(c.behaviors?.skills && Object.hasOwn(c.behaviors.ski
 
 /** @param {Content} c */
 const gridOf = (c) => ({ rows: c.level.height, cols: c.level.width });
-
-/** Enemies a burst reaches (技能-14): the stored cells, else the attack range now. Flying enemies stay in. @param {World} w @param {Content} c @param {Unit} op @param {Burst} area */
-function foesIn(w, c, op, area) {
-  const grid = gridOf(c);
-  const keys = area.where === 'cells' && area.range ? rangeKeys(grid, op, area.range) : reachKeys(c, op);
-  return w.units.filter((u) => u.kind === KIND.ENEMY && u.hp > 0 && inKeys(u, keys, grid));
-}
-
-/** One burst (技能-14): each enemy once, the operator's attack × the scale, not itself an attack. @param {World} w @param {Content} c @param {Unit} op @param {Burst} area */
-function burstAt(w, c, op, area) {
-  const amount = statsOf(op).atk * area.scale;
-  for (const e of foesIn(w, c, op, area)) creditedDamage(w, c, op, e, { type: area.type, amount, isAttack: false, isSkill: true });
-}
 
 /**
  * The barrier as the skill starts (技能-14), after the skill's own stat buff so the maximum HP already includes it.
@@ -170,14 +158,20 @@ function healAllies(w, c, op, h) {
   for (const u of pickAllies(w, c, op, h)) w.events.push({ type: 'heal', id: op.id, target: u.id, amount: heal(w, op, u, amount) });
 }
 
-/** Opening effects (技能-14): the barrier, a start burst, a heal that is not waiting for an attack. @param {World} w @param {Content} c @param {Unit} op */
+/**
+ * Opening effects (技能-14): the barrier, a start burst, a heal that is not waiting for an attack. Returns the seconds an instant
+ * skill stays running for because its start burst pulled an enemy (技能-16), else 0.
+ * @param {World} w @param {Content} c @param {Unit} op @returns {number}
+ */
 export function openSkillText(w, c, op) {
   const def = defOf(c, op);
-  if (!def || owned(c, def.id) || op.hp <= 0 || !def.extra) return;
+  if (!def || owned(c, def.id) || op.hp <= 0 || !def.extra) return 0;
   const x = def.extra;
+  let held = 0;
   if (x.barrier) giveBarrier(op, x.barrier);
-  for (const b of x.bursts ?? []) if (b.at === 'start') burstAt(w, c, op, b);
+  for (const b of x.bursts ?? []) if (b.at === 'start') held = Math.max(held, strikeOn(w, c, op, b));
   if (x.allyHeal?.on === 'start') healAllies(w, c, op, x.allyHeal);
+  return held;
 }
 
 /**
@@ -202,7 +196,7 @@ export function closeSkillText(w, c, op, reason) {
   removeBuff(op, 'counterCd');
   if (op.hp <= 0 || reason === 'death' || !def.extra) return;
   const x = def.extra;
-  for (const b of x.bursts ?? []) if (b.at === 'end') burstAt(w, c, op, b);
+  for (const b of x.bursts ?? []) if (b.at === 'end') strikeOn(w, c, op, b);
   if (x.selfStun) inflict(w, op, 'stun', { seconds: x.selfStun.seconds, src: op });
   if (x.barrier?.tied) removeBuff(op, 'skillBarrier');
 }

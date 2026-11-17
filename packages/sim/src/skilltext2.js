@@ -8,6 +8,7 @@ import { addBuff, count, makeBuff, removeBuff } from './buffs.js';
 import { targetsOf } from './combat.js';
 import { dealDamage } from './damage.js';
 import { reachKeys } from './reach.js';
+import { strikeOn } from './strike.js';
 import { inflict } from './status.js';
 import { hostile, inKeys } from './targeting.js';
 import { creditedDamage, gainCost } from './traits.js';
@@ -114,10 +115,25 @@ export function openSkillText2(w, c, op) {
   for (const o of x.opening ?? []) if (op.hp > 0) openOn(w, c, op, o);
 }
 
-/** Each frame of a running skill (技能-15): the costs that came due. @param {World} w @param {Content} c @param {Unit} op */
+/**
+ * The strikes of a running skill that come every so often (技能-16): the first `first` seconds after it started, then each `seconds`.
+ * @param {World} w @param {Content} c @param {Unit} op @param {Extra} x
+ */
+function volleys(w, c, op, x) {
+  const since = w.frame - /** @type {import('./types.js').SkillState} */ (op.skill).at;
+  for (const b of x.bursts ?? []) {
+    if (b.at !== 'every' || !b.every) continue;
+    const first = secondsToFrames(b.every.first), every = Math.max(1, secondsToFrames(b.every.seconds));
+    if (since >= first && (since - first) % every === 0) strikeOn(w, c, op, b);
+  }
+}
+
+/** Each frame of a running skill (技能-15, 技能-16): the costs that came due, the strikes that come every so often. @param {World} w @param {Content} c @param {Unit} op */
 export function tickSkillText2(w, c, op) {
-  const g = extraOf(c, op)?.costGain;
-  if (g && op.skill?.active) gainDue(w, c, op, g);
+  const x = extraOf(c, op);
+  if (!x || !op.skill?.active) return;
+  if (x.costGain) gainDue(w, c, op, x.costGain);
+  volleys(w, c, op, x);
 }
 
 /**

@@ -174,7 +174,7 @@ function hitTarget(w, c, src, t, load) {
  * facing (`along`), else away from it.
  * @param {World} w @param {Content} c @param {Unit} src @param {Unit} t @param {{ pull: boolean, force: number, along?: boolean }} d
  */
-function displaceOnHit(w, c, src, t, d) {
+export function displaceOnHit(w, c, src, t, d) {
   const [dr, dc] = dirVec(src.dir), at = { x: src.x, y: src.y }, tr = traitOf(c, src);
   if (!d.pull) { push(w, c, t, d.force, { from: at, ...(d.along ? { dir: { x: dc, y: dr } } : {}) }); return; }
   const far = tr.pullBoost && hypot(t.x - src.x, t.y - src.y) > tr.pullBoost.range ? tr.pullBoost.level : 0;

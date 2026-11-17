@@ -140,8 +140,15 @@
  * (`selfHeal`, a share of its maximum), the 元素损伤 each hit carries (`element`, `epScale` × its attack, or `epRatio` ×
  * the HP the hit took), a push or pull of 力度 `force` on each target (`displace`; along the operator's facing for `along`).
  * A hit's status is a `HitStatus`; its modifiers' `flags` are the flags of that buff.
- * 技能-14, read from other sentences: `counter` while the skill runs, a `barrier` gained as it starts, `bursts` at the
- * start or the end, `selfStun` when it ends, `allyHeal` for a friendly unit. `hitScale` `'attack'` means a plain
+ * 技能-14, read from other sentences: `counter` while the skill runs, a `barrier` gained as it starts, `selfStun` when it ends,
+ * `allyHeal` for a friendly unit, and `bursts`: hits on the enemies around the operator (技能-14, 技能-16) `at` the start or the end of the
+ * skill, or each `every.seconds` while it runs, the first one `every.first` seconds after it starts. A burst reaches the enemies in
+ * the cells of the skill's range or in the attack range (`where`), the first `most` of them (the farthest first for `order`; flying ones too
+ * in the attack range with `fly`), the ground ones only (`ground`) — or, with `around`, those within that many tiles of the nearest ground
+ * enemy in the attack range; each takes `times` hits (each of `type`, then of `then`; a ×`air` on a flying one, a share of its 防御
+ * ignored by `ignoreDef`), then a push or pull (`displace`), timed modifiers (`debuff`) and `status`es — those first when `first` is
+ * set, one only for an enemy that held the status `ifHas` before. A start burst with `hold` keeps its skill running for that many
+ * seconds once it has pulled an enemy (技能-16). `hitScale` `'attack'` means a plain
  * `atk_scale` belongs to the counter or the burst, so the attack's scale is `attack@atk_scale`. `scaleKey` is the
  * blackboard key the attack's 倍率 comes from when the description says which (技能-5): `''` for none, so it keeps 1.
  * 技能-15: no new attacks while it runs (`stopAttack`; its first `seconds` only, when given) or for `seconds` once it ends
@@ -157,7 +164,10 @@
  *   counter?: { scale: number, stat: 'atk' | 'def', type: DamageType, around?: boolean, ground?: boolean, cooldown?: number,
  *     element?: import('./elements.js').Element, epScale?: number, silence?: number },
  *   barrier?: { ratio: number, seconds: number, decay?: boolean, type?: 'phys', cap?: number, tied?: boolean },
- *   bursts?: { at: 'start' | 'end', scale: number, type: DamageType, where: 'attack' | 'cells', range?: Cell[] }[],
+ *   bursts?: { at: 'start' | 'end' | 'every', scale: number, type?: DamageType, where: 'attack' | 'cells', range?: Cell[], most?: number, order?: 'farthest', ground?: boolean,
+ *     every?: { seconds: number, first: number }, fly?: boolean, first?: boolean, around?: number, then?: DamageType, hold?: number,
+ *     times?: number, air?: number, ignoreDef?: { pct?: number, flat?: number }, status?: { key: import('./status.js').StatusKey, seconds: number, ifHas?: string }[],
+ *     debuff?: { seconds: number, mods: Record<string, number> }, displace?: { pull: boolean, force: number, along?: boolean } }[],
  *   selfStun?: { seconds: number },
  *   allyHeal?: { scale: number, all?: boolean, others?: boolean, on: 'attack' | 'start', below?: number, range?: Cell[] },
  *   stopAttack?: { seconds?: number }, stopAfter?: { seconds: number }, costGain?: { every: number, cost: number, steps: number, plain?: boolean },
@@ -199,6 +209,8 @@
  * @property {SkillAllies} [allies] what it gives the friendly units in its attack range while it runs (技能-11)
  * @property {AlchemyDef} [alchemy] the 炼金单元 it throws as it starts; it is then an instant skill (技能-13)
  * @property {'start' | 'end'} [doll] the skill switches a 傀儡师 to its 替身 as it starts, or after it ends on its own (职业-15)
+ * @property {true} [instant] its description says it hits the enemies around the operator as it starts, and that hit has taken its
+ *   attack keys: it is an instant skill, not a next-attack one (技能-16)
  */
 /**
  * What a skill's 炼金单元 does (技能-13). `at`: thrown at the enemies (the operator's target, else the farthest tile ahead in

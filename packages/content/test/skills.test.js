@@ -62,11 +62,11 @@ test('[技能-8] the attack range while a skill runs: its level range when the d
 test('[技能-9] what descriptions add, on real skills: blocked targets, 二连击 with 阻挡数 0, dodge, 防御力 0, a stun on hit, more targets, arts', async () => {
   const { loadTraining, operatorAt } = await import('../src/index.js');
   const at = async (/** @type {string} */ id, /** @type {number} */ skill) => /** @type {any} */ (operatorAt(await loadTraining(id), { elite: 2, level: 1, potential: 1, trust: 0, skill, skillLevel: 7 }).skill).extra;
-  const [sophia, spikes, chilc, acguad, red, f12yin, nian] = await Promise.all([at('char_265_sophia', 1), at('char_271_spikes', 0), at('char_4144_chilc', 1),
-    at('char_609_acguad', 1), at('char_144_red', 1), at('char_264_f12yin', 0), at('char_2014_nian', 0)]);
+  const [sophia, spikes, chilc, acguad, chen, f12yin, nian] = await Promise.all([at('char_265_sophia', 1), at('char_271_spikes', 0), at('char_4144_chilc', 1),
+    at('char_609_acguad', 1), at('char_010_chen', 0), at('char_264_f12yin', 0), at('char_2014_nian', 0)]);
   assert.deepEqual([sophia.attack.blocked, spikes.attack.times, spikes.mods.blockCntMul, acguad.mods.defMul, f12yin.attack.more, nian.attack.type], [true, 2, 0, 0, 1, 'arts']);
   assert.ok(chilc.mods.dodgePhys > 0, '获得{prob}的物理闪避');
-  assert.deepEqual(red.attack.hitStatus.key, 'stun');
+  assert.deepEqual(chen.attack.hitStatus.key, 'stun', '陈 S1: 令命中目标晕眩 on the next attack');
   assert.equal(def('skcom_atk_up[3]').extra, undefined, 'nothing it does not read');
 });
 
@@ -167,6 +167,8 @@ test('[技能-9] pushes and pulls from the real data: 拖拽至面前 a pull, �
     return /** @type {any} */ (operatorAt(t, { elite: t.phases.length - 1, level: 1, potential: 1, trust: 0, skill: s, skillLevel: 7 }).skill).extra;
   };
   const [cliff, shaw, croissant, swire] = await Promise.all([at('崖心', 0), at('阿消', 0), at('可颂', 1), at('琳琅诗怀雅', 2)]);
-  assert.deepEqual([cliff.attack.displace.pull, shaw.attack.displace.along, croissant.attack.displace.pull, croissant.attack.displace.along], [true, true, false, undefined]);
+  // 可颂 S2 hits the enemies around her as it starts (技能-16): its 弹开 is that strike's, not her attacks'
+  assert.deepEqual([cliff.attack.displace.pull, shaw.attack.displace.along, croissant.bursts[0].displace.pull, croissant.bursts[0].displace.along], [true, true, false, undefined]);
+  assert.equal(croissant.attack, undefined);
   assert.equal(swire?.attack?.displace, undefined, '琳琅诗怀雅 S3: 主动关闭技能时……推开');
 });

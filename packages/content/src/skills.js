@@ -10,6 +10,8 @@ import { hitStatusOf } from './hitstatus.js';
 import { scaleKeyOf, pushOnAttack } from './attackscale.js';
 import { batModsOf } from './batmode.js';
 import { namedStatMods } from './statkeys.js';
+import { strikeExtra, strikeNotes, instantOf, withoutStrikes } from './strike.js';
+import { repeatOf } from './repeats.js';
 
 /** @typedef {import('@aue/sim').SkillDef} SkillDef @typedef {import('@aue/sim').SkillBehavior} SkillBehavior */
 
@@ -39,13 +41,13 @@ export function skillDefOf(id, level) {
   const type = level.skillType;
   if (type !== 'AUTO' && type !== 'MANUAL' && type !== 'PASSIVE') throw new RangeError(`skill ${id}: unknown skillType ${type}`);
   const sp = /** @type {Record<string, 'time' | 'attack' | 'hurt'>} */ (SP_TYPES)[String(level.spData.spType)] ?? 'none';
-  const bb = Object.fromEntries(level.blackboard.map((b) => [b.key, b.value])), allies = alliesOf(level, bb);
+  const bb = Object.fromEntries(level.blackboard.map((b) => [b.key, b.value])), allies = alliesOf(level, bb), ex = strikeNotes(id, extraOf(level, ownMods(level, bb, allies.keys, id)));
   return {
     id, type, sp, cost: level.spData.spCost, init: level.spData.initSp, charges: Math.max(1, level.spData.maxChargeTime),
     duration: level.duration, ammo: level.durationType === 'AMMO', bb,
-    stoppable: level.stoppable ?? CLOSABLE.test(level.description ?? ''), ...rangeOf(level), ...extraOf(level, ownMods(level, bb, allies.keys, id)),
+    stoppable: level.stoppable ?? CLOSABLE.test(level.description ?? ''), ...rangeOf(level), ...ex,
     ...foreverOf(level), ...spendOf(level, bb), ...(allies.def ? { allies: allies.def } : {}), ...alchemyOf(level, bb),
-    ...dollSwitchOf(level),
+    ...dollSwitchOf(level), ...instantOf(level, bb, ex.extra),
   };
 }
 
@@ -232,6 +234,7 @@ function phraseOf(s, bb) {
   if (s === '同时攻击阻挡的所有敌人') return { attack: { blocked: true } };
   if ((m = /^(?:每次攻击)?额外攻击(一|两|1|2)(?:个|名)(?:目标|敌人)$/.exec(s))) return { attack: { more: COUNT[m[1]] } };
   if ((m = /^攻击变为(二|三|2|3)(?:连击|连射)$/.exec(s))) return { attack: { times: COUNT[m[1]] } };
+  if (repeatOf(s)) return { attack: { times: repeatOf(s) } };
   if (/^(?:普通攻击造成法术伤害|伤害类型变为法术|(?:每次)?攻击造成相当于攻击力\{(?:attack@)?atk_scale\}的法术伤害)$/.test(s)) return { attack: { type: 'arts' } };
   if ((m = /^(?:并)?获得\{prob\}的?物理(和法术)?闪避$/.exec(s)) && Number.isFinite(bb.prob)) return { mods: { dodgePhys: bb.prob, ...(m[1] ? { dodgeArts: bb.prob } : {}) } };
   if (s === '阻挡数变为0') return { mods: { blockCntMul: 0 } };
@@ -309,19 +312,25 @@ function extraOf(level, own) {
   const bb = Object.fromEntries(level.blackboard.map((b) => [b.key, b.value])), hit = hitDebuffOf(level, bb);
   // what closing the skill does (「主动关闭技能时……」) is not what its attacks do
   const said = plainOf(level).split(/[。；\n]/).filter((seg) => !/关闭技能时/.test(seg)).join('。');
-  const parts = said.split(/[，。；\n]/).map((s) => phraseOf(s.trim(), bb)).filter((p) => p !== null);
+  // the clauses a start strike took (技能-16) are what it does, not what the skill's attacks do
+  const kept = withoutStrikes(level, bb, said);
+  const parts = kept.split(/[，。；\n]/).map((s) => phraseOf(s.trim(), bb)).filter((p) => p !== null);
   const mods = Object.assign({ ...own, ...selfZeros(hit.keys) }, ...parts.map((p) => p.mods ?? {}));
   const flags = Object.assign({}, ...parts.map((p) => p.flags ?? {}));
   // 技能-14 and 技能-15 read the sentences 技能-9 leaves, on the same text (closing-skill segments already gone).
   const texts = textExtra(level, bb, said), texts2 = textExtra2(level, bb, said);
-  // kindOf gets the fields it gets from skillDefOf (what the level gives, and the text's heal of allies on attack), so the kind here is the skill's own
+  // kindOf gets the fields it gets from skillDefOf (what the level gives, the text's heal of allies on attack, a start strike
+  // that makes the skill instant), so the kind here is the skill's own
   const kind = skills.kindOf(/** @type {SkillDef} */ (/** @type {unknown} */ ({ type: level.skillType, ammo: level.durationType === 'AMMO', duration: level.duration, bb,
-    ...foreverOf(level), ...alchemyOf(level, bb), ...dollSwitchOf(level), extra: { ...texts, ...texts2 } })));
-  const attack = pushOnAttack(level, DISPLACE, Object.assign({}, ...parts.map((p) => p.attack ?? {}), hitStatusOf(said, bb, kind), hit.debuff ? { hitDebuff: hit.debuff } : {}));
+    ...foreverOf(level), ...alchemyOf(level, bb), ...dollSwitchOf(level), ...instantOf(level, bb, { ...texts, ...strikeExtra(level, bb, said, texts) }),
+    extra: { ...texts, ...texts2 } })));
+  const attack = pushOnAttack(level, DISPLACE, Object.assign({}, ...parts.map((p) => p.attack ?? {}), hitStatusOf(kept, bb, kind), hit.debuff ? { hitDebuff: hit.debuff } : {}));
   const has = (/** @type {object} */ o) => Object.keys(o).length > 0;
   const extra = { ...(has(mods) ? { mods } : {}), ...(has(flags) ? { flags } : {}), ...(has(attack) ? { attack } : {}), ...texts };
   Object.assign(extra, texts2);
-  Object.assign(extra, scaleKeyOf(level, bb, extra.hitScale === 'attack')); // 技能-5: which key is the attack's multiplier
+  Object.assign(extra, strikeExtra(level, bb, said, extra)); // 技能-16, on the same text
+  // 技能-5: which key is the attack's multiplier — after 技能-16, whose strike may take the plain atk_scale
+  Object.assign(extra, scaleKeyOf(level, bb, extra.hitScale === 'attack'));
   return has(extra) ? { extra } : {};
 }
 

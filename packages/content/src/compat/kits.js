@@ -122,7 +122,18 @@ export function withKitTrait(op, entry, level) {
   const kt = kitTraitOf(entry, level), t = traits.traitOfDef(op), added = moduleAdded(t);
   const over = /** @type {Partial<import('@aue/sim').TraitDef>} */ ({ ...(op.branch && Object.hasOwn(KIT_OWNED, op.branch) ? KIT_OWNED[op.branch] : {}), ...(added ? NO_MODULE_ADDITIONS : {}),
     ...attackFrom(kt ?? {}, t), ...modeFrom(kt ?? {}, t) });
-  return Object.keys(over).length ? { ...op, trait: { ...op.trait, ...over } } : op;
+  const kit = op.skill?.instant ? { ...op, skill: withoutInstant(op.skill) } : op;
+  return Object.keys(over).length ? { ...kit, trait: { ...op.trait, ...over } } : kit;
+}
+
+/**
+ * A skill record without `instant` (技能-16), the engine's reading of what its description does at its start: a kit's skill
+ * acts as its spec says, and its kind is the record's as it was before the engine read that sentence (技能-1, 兼容-5).
+ * @param {import('@aue/sim').SkillDef} skill @returns {import('@aue/sim').SkillDef}
+ */
+function withoutInstant(skill) {
+  const { instant: _instant, ...rest } = skill;
+  return rest;
 }
 
 /** Runs before every other handler of the same event. */

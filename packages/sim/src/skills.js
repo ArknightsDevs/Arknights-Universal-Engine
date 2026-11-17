@@ -82,7 +82,8 @@ const OWN_END = new Set(['duration', 'instant', 'ammo', 'stopped']);
 /**
  * A skill's kind (技能-1): passive; ammo; one that throws a 炼金单元 is instant (技能-13); with a duration, or running until it
  * is closed (技能-4); one that switches to the 替身 as it starts, with no duration, is instant — its attack keys belong to the
- * 替身, not a next attack (职业-15); a next-attack skill (no duration, attack keys, or 技能-14 heals an ally on the attack); instant.
+ * 替身, not a next attack (职业-15); one whose description hits the enemies around it as it starts is instant too: its attack
+ * keys are that hit's (技能-16); a next-attack skill (no duration, attack keys, or 技能-14 heals an ally on the attack); instant.
  * @param {SkillDef} def @returns {SkillKind}
  */
 export function kindOf(def) {
@@ -90,7 +91,7 @@ export function kindOf(def) {
   if (def.ammo) return 'ammo';
   if (def.alchemy) return 'instant';
   if (def.duration > 0 || def.forever) return 'duration';
-  if (def.doll === 'start') return 'instant';
+  if (def.doll === 'start' || def.instant) return 'instant';
   if (def.extra?.allyHeal?.on === 'attack') return 'next';
   return ATTACK_KEYS.some((k) => k in def.bb) ? 'next' : 'instant';
 }
@@ -223,14 +224,24 @@ export function activate(w, c, op, reason = 'auto', free = false) {
   talentSkillStart(w, c, op);
   behaviorOf(c, st.id).start?.(contextOf(w, c, op));
   holdFlags(op, def, kind);
-  openSkillText(w, c, op);
+  const held = openSkillText(w, c, op);
   openSkillText2(w, c, op);
   if (def.alchemy) throwAlchemy(w, c, op, def.alchemy);
   grantSummons(w, c, op, 'start');
   emit(w, 'skillStart', { unit: op, reason });
-  if (kind === 'instant') endSkill(w, c, op, 'instant');
+  if (kind === 'instant') settleInstant(w, c, op, held);
   // After an instant skill's own end, so that end is not the switch and this request is still there for the flush (职业-15).
   if (def.doll === 'start') st.dollPending = true;
+}
+
+/**
+ * An instant skill after it started (技能-4, 技能-16): over in its frame — unless its strike pulled an enemy and says how long it
+ * keeps the skill (`held` seconds): it then runs those seconds, with no SP back, and ends by its time.
+ * @param {World} w @param {Content} c @param {Unit} op @param {number} held
+ */
+function settleInstant(w, c, op, held) {
+  if (held > 0) /** @type {SkillState} */ (op.skill).dur = secondsToFrames(held);
+  else endSkill(w, c, op, 'instant');
 }
 
 /**

@@ -54,9 +54,9 @@ test('[技能-14] [技能-5] a burst at the start or the end; plain atk_scale is
   assert.deepEqual([yu.extra.bursts[0].at, yu.extra.bursts[0].type, yu.extra.bursts[0].scale, yu.extra.bursts[0].where, yu.extra.bursts[0].range.length], ['start', 'arts', 1, 'cells', 13], '余 S2 x-1');
   assert.equal(yu.extra.attack.type, 'arts', '普通攻击造成法术伤害 stays 技能-9');
   assert.deepEqual([texas.extra.bursts[0].scale, texas.extra.bursts[0].range.length, texas.extra.hitScale], [1.8, 9, 'attack'], '缄默德克萨斯 S2');
-  assert.equal(red.extra.attack.hitStatus.key, 'stun', '并使命中 stays a hit status');
+  assert.deepEqual([red.extra.attack, red.extra.bursts[0].status], [undefined, [{ key: 'stun', seconds: 2 }]], '并使命中目标晕眩 after the burst is the burst\'s (技能-16), not each attack\'s');
   assert.equal(red.extra.bursts[0].scale, 2, '红 S2');
-  assert.equal(waai.extra.attack.hitStatus.key, 'silence');
+  assert.deepEqual([waai.extra.attack, waai.extra.bursts[0].status], [undefined, [{ key: 'silence', seconds: 7 }]]);
   assert.equal(waai.extra.bursts[0].scale, 2.4, '槐琥 S2');
   assert.equal(phantom.extra.counter, undefined, '傀影 S3 root is not a counter');
   assert.equal(phantom.extra.bursts[0].scale, 2.4);

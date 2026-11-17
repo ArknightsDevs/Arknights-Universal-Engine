@@ -74,12 +74,12 @@ test('[技能-9] what is not the skill\'s attacks is not read as a status each h
     ['char_1034_jesca2', 2], // attack@extrabomb.stun: a key of a group
     ['char_4140_lasher', 1], ['char_242_otter', 1], // 发条羽兽的攻击、引爆机械水獭
     ['char_437_mizuki', 1], // 第一天赋额外攻击1个目标并附加…束缚
-    ['char_4026_vulpis', 1], // 若敌人已经处于停顿状态，则额外使敌人晕眩: only the 停顿
+    ['char_4026_vulpis', 1], // an instant skill: its 停顿 and the 晕眩 if already 停顿 are its start strike's (技能-16)
     ['char_1038_whitw2', 2], // 追上时使目标恐惧{attack@fear}秒并锁定其攻击: once, when the floating unit catches its target
   ];
   for (const [id, slot] of none) {
     const status = (await attackOf(/** @type {string} */ (id), /** @type {number} */ (slot)))?.hitStatus;
-    assert.equal(id === 'char_4026_vulpis' ? status?.key : status, id === 'char_4026_vulpis' ? 'sluggish' : undefined, `${id} S${Number(slot) + 1}`);
+    assert.equal(status, undefined, `${id} S${Number(slot) + 1}`);
   }
 });
 
@@ -141,7 +141,8 @@ test('[技能-9] the seconds on the main target: after the status in the same se
   assert.deepEqual(hit('攻击使命中的第一个目标浮空{attack@levitate}秒', bb), { key: 'levitate', seconds: 0, main: 2 });
   assert.deepEqual(hit('攻击非沉睡目标时使其沉睡{attack@sleep}秒', bb), { key: 'sleep', seconds: 5, unless: 'sleep' });
   assert.deepEqual(hit('每次攻击使目标陷入沉睡{attack@sleep}秒', bb), { key: 'sleep', seconds: 5 }, 'no unless without the words');
-  const near = read('对前方6名敌人造成攻击力{atk_scale}的物理伤害，使其{cold}秒内寒冷且隐匿失效', { atk_scale: 2, cold: 4 }, NEXT);
+  // with 凛御银灰二技能's `cost` (another operator's), which keeps 技能-16 from reading the damage as a start strike
+  const near = read('对前方6名敌人造成攻击力{atk_scale}的物理伤害，使其{cold}秒内寒冷且隐匿失效', { atk_scale: 2, cold: 4, cost: 11 }, NEXT);
   assert.deepEqual([near?.hitStatus, near?.hitDebuff], [{ key: 'cold', seconds: 4 }, { seconds: 4, mods: {}, flags: { unstealth: true } }]);
 });
 

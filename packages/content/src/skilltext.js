@@ -1,6 +1,6 @@
 // Sentences 技能-9 does not read (docs/spec/skills.md 技能-14): a counter while the skill runs, a barrier gained as it
-// starts, a burst at the start or the end, a self-stun when it ends, a non-medic healing a friendly unit. Bind-on-hit
-// is not one of them: no skill's own hits are described that way through `root` / `unmovable`.
+// starts, a burst at the end (the one at the start is 技能-16's, strike.js), a self-stun when it ends, a non-medic healing a
+// friendly unit. Bind-on-hit is not one of them: no skill's own hits are described that way through `root` / `unmovable`.
 import rangeTable from '../data/ranges.json' with { type: 'json' };
 
 /** @typedef {import('./skills.js').SkillLevel} SkillLevel */
@@ -17,7 +17,6 @@ const ELEMENT = Object.freeze(/** @type {Record<string, 'SANITY' | 'WATER' | 'FI
 const COUNTER = /^(?:每次)?受到(?:敌人的)?攻击时对(周围的地面敌人|周围的敌人|目标)造成(?:相当于)?[\s\S]*?(攻击力|防御力)\{atk_scale\}的(物理|法术|真实)伤害/u;
 /** A barrier the description gives someone else, or one that is not a shield gained at the start (技能-14): the whole text is left unread. */
 const BARRIER_SKIP = /损伤屏障|转化为屏障|逐渐流失|屏障被摧毁|再次获得屏障|装置|待部署区|使(?:所有)?目标获得|天赋附加|屏障获取效果/u;
-const START_BURST = /(?:部署后)?立即对周围所有敌人造成相当于攻击力\{atk_scale\}的(物理|法术|真实)伤害/u;
 const END_BURST = /技能结束时对(攻击范围内所有敌人|周围所有敌人)造成相当于攻击力\{atk_scale\}的(物理|法术|真实)伤害/u;
 
 /**
@@ -38,7 +37,7 @@ function clauses(text) {
 }
 
 /** The cells of a range id (技能-8's table), or none when the level has no such range. @param {string} id @returns {import('@aue/sim').SkillDef['range']} */
-function cellsOf(id) {
+export function cellsOf(id) {
   if (!id) return undefined;
   const cells = /** @type {Record<string, { row: number, col: number }[]>} */ (rangeTable.ranges)[id];
   return cells?.map((c) => ({ row: c.row, col: c.col }));
@@ -123,20 +122,19 @@ function barrierOf(text, bb, skillDur) {
   };
 }
 
-/** Where a burst lands (技能-14): the level's range when the words are 周围 and the level has one, else the attack range. @param {string} words @param {string} rangeId */
+/** Where an end burst lands (技能-14): the level's range when the words are 周围 and the level has one, else the attack range. @param {string} words @param {string} rangeId */
 function whereOf(words, rangeId) {
   if (words.startsWith('攻击范围')) return { where: /** @type {const} */ ('attack') };
   const range = cellsOf(rangeId);
   return range ? { where: /** @type {const} */ ('cells'), range } : { where: /** @type {const} */ ('attack') };
 }
 
-/** Start and end bursts (技能-14). The plain `atk_scale` is their scale. @param {string} text @param {Record<string, number>} bb @param {string} rangeId */
+/** End bursts (技能-14); the ones at the start are 技能-16's (strike.js). The plain `atk_scale` is their scale. @param {string} text @param {Record<string, number>} bb @param {string} rangeId */
 function burstsOf(text, bb, rangeId) {
   if (!(bb.atk_scale > 0)) return [];
   /** @type {NonNullable<Extra['bursts']>} */
   const out = [];
-  const start = START_BURST.exec(text), end = END_BURST.exec(text);
-  if (start) out.push({ at: 'start', scale: bb.atk_scale, type: DMG[start[1]], ...whereOf('周围所有敌人', rangeId) });
+  const end = END_BURST.exec(text);
   if (end) out.push({ at: 'end', scale: bb.atk_scale, type: DMG[end[2]], ...whereOf(end[1], rangeId) });
   return out;
 }
