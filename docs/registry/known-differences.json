@@ -462,5 +462,13 @@
     "stronghold": "v0.3.1 的 server/sim/grid.js：流场另加「可阻挡地面优先」——等长的路线里改走经过近战干员不能部署的地面格（地板、出怪点、保护目标等）更少、深水区不更多的一条；没有地穴与封闭的格边；所用的是战斗里实时的格子。",
     "reason": "引擎的寻路是官方的做法（寻路-1、寻路-2），可阻挡地面优先是 Stronghold 自己加的。随机地图上只有道路与高台时，路线点与固定提交的逐位相同，有地板时与它的官方指针相同（推断 INF-1180、INF-1181）。固定提交里唯一调用它的是酒神的诱导，只看路线点是否为空，能不能到只在封闭的格边上不同，所以对照里没有差异；对局里这一步目前也走不到。",
     "status": "有效"
+  },
+  {
+    "id": "DIF-0060",
+    "clause": "技能-9",
+    "ours": "技能的攻击使目标隐匿失效（凛御银灰二技能「使其{cold}秒内寒冷且隐匿失效」）时，给目标一个带标记 unstealth 的 Buff（键 hitDebuff:<干员 id>），不发 beforeStatus 事件，也不是状态。",
+    "stronghold": "v0.4.0 的 chess_char_5_14（凛御银灰）kit 对被技能命中的敌人 applyStatus(e, 'reveal', { duration: bb.cold })：reveal 是它的状态，差分对照的 statuses 里有 reveal。",
+    "reason": "官方的反隐不是异常状态（PRTS「异常效果」：隐匿免疫），引擎的状态目录里没有它（状态-5），兼容层只在 kit 给 Stronghold 的 reveal 时用同样标记的 Buff 代替（兼容-4）；原生技能直接给标记的 Buff。原生运行没有 beforeStatus，所以对照里 statuses 一行会报 reveal，目标上的标记在 unstealth 的 Buff 里。",
+    "status": "有效"
   }
 ]

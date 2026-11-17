@@ -6,6 +6,7 @@ import { skills } from '@aue/sim';
 import rangeTable from '../data/ranges.json' with { type: 'json' };
 import { textExtra } from './skilltext.js';
 import { textExtra2 } from './skilltext2.js';
+import { hitStatusOf } from './hitstatus.js';
 
 /** @typedef {import('@aue/sim').SkillDef} SkillDef @typedef {import('@aue/sim').SkillBehavior} SkillBehavior */
 
@@ -228,43 +229,22 @@ function phraseOf(s, bb) {
   if ((m = /^(?:每次攻击)?额外攻击(一|两|1|2)(?:个|名)(?:目标|敌人)$/.exec(s))) return { attack: { more: COUNT[m[1]] } };
   if ((m = /^攻击变为(二|三|2|3)(?:连击|连射)$/.exec(s))) return { attack: { times: COUNT[m[1]] } };
   if (/^(?:普通攻击造成法术伤害|伤害类型变为法术|(?:每次)?攻击造成相当于攻击力\{(?:attack@)?atk_scale\}的法术伤害)$/.test(s)) return { attack: { type: 'arts' } };
-  if ((m = /^(?:且|并)?(?:攻击(?:会)?使|(?:并)?(?:使|令)(?:命中|击中))目标(晕眩|停顿)\{((?:attack@)?(?:stun|sluggish))\}秒$/.exec(s)) && Number.isFinite(bb[m[2]])) {
-    return { attack: { hitStatus: { key: m[1] === '晕眩' ? 'stun' : 'sluggish', seconds: bb[m[2]] } } };
-  }
   if ((m = /^(?:并)?获得\{prob\}的?物理(和法术)?闪避$/.exec(s)) && Number.isFinite(bb.prob)) return { mods: { dodgePhys: bb.prob, ...(m[1] ? { dodgeArts: bb.prob } : {}) } };
   if (s === '阻挡数变为0') return { mods: { blockCntMul: 0 } };
   if (s === '防御力降至0') return { mods: { defMul: 0 } };
   if (UNDYING.test(s)) return { flags: { undying: true } };
-  return hitPhraseOf(s, bb);
-}
-
-/** A status's word in a description (技能-9). @type {Record<string, NonNullable<import('@aue/sim').skills.AttackMods['hitStatus']>['key']>} */
-const STATUS_WORD = { 晕眩: 'stun', 停顿: 'sluggish', 沉睡: 'sleep', 寒冷: 'cold', 恐惧: 'fear' };
-/** An element's 损伤 in a description (技能-9, 元素-1). @type {Record<string, NonNullable<import('@aue/sim').skills.AttackMods['element']>>} */
-const ELEMENT_WORD = { 神经: 'SANITY', 侵蚀: 'WATER', 灼燃: 'FIRE', 凋亡: 'DARK', 狂躁: 'ANGER' };
-
-/**
- * One sentence about what the skill's attacks do to their targets or to the operator (技能-9), or null: 失去特殊能力
- * (沉默), 寒冷, 沉睡 on each hit; a chance of a status; the operator's own HP back for each attack; the 元素损伤 each hit
- * carries (a share of its attack).
- * @param {string} s @param {Record<string, number>} bb
- * @returns {{ attack: NonNullable<NonNullable<SkillDef['extra']>['attack']> } | null}
- */
-function hitPhraseOf(s, bb) {
-  let m;
-  const has = (/** @type {string} */ k) => Number.isFinite(bb[k]);
-  if ((m = /^(?:攻击后?|并)?使?(?:命中)?目标失去特殊能力\{((?:attack@)?silence)\}秒$/.exec(s)) && has(m[1])) return { attack: { hitStatus: { key: 'silence', seconds: bb[m[1]] } } };
-  if ((m = /^攻击对目标造成\{((?:attack@)?cold)\}秒寒冷$/.exec(s)) && has(m[1])) return { attack: { hitStatus: { key: 'cold', seconds: bb[m[1]] } } };
-  if ((m = /^(?:下一?次攻击|攻击)使(?:敌人|目标)陷入沉睡\{((?:attack@)?sleep)\}秒$/.exec(s)) && has(m[1])) return { attack: { hitStatus: { key: 'sleep', seconds: bb[m[1]] } } };
-  if ((m = /^(?:另外还|每次攻击)?有\{((?:attack@)?prob)\}的?(?:概率|几率)使(?:目标|其)(晕眩|停顿|沉睡|寒冷|恐惧)\{((?:attack@)?(?:stun|sluggish|sleep|cold|fear))\}秒$/.exec(s))
-    && has(m[1]) && has(m[3])) return { attack: { hitStatus: { key: STATUS_WORD[m[2]], seconds: bb[m[3]], prob: bb[m[1]] } } };
   return effectPhraseOf(s, bb);
 }
+
+/** An element's 损伤 in a description (技能-9, 元素-1). @type {Record<string, NonNullable<import('@aue/sim').skills.AttackMods['element']>>} */
+const ELEMENT_WORD = { 神经: 'SANITY', 侵蚀: 'WATER', 灼燃: 'FIRE', 凋亡: 'DARK', 狂躁: 'ANGER' };
+/** 元素损伤 of a share of the damage the hit did (技能-9): 「附带造成法术伤害{ep_damage_ratio}的凋亡损伤」, 「并额外造成相当于物理伤害{…}的侵蚀损伤」. */
+const EP_OF_DAMAGE = /(?:附带造成|附带|额外造成|并造成)(?:相当于)?(?:法术|物理)?伤害\{((?:attack@)?ep_damage_ratio)\}的(神经|侵蚀|灼燃|凋亡|狂躁)损伤/u;
 
 /**
  * One sentence about what else the skill's attacks do (技能-9), or null: the operator's own HP back for each attack; a
  * push or pull of the blackboard's `force` (`attack@force`) on each target; the 元素损伤 each
- * hit carries.
+ * hit carries — a share of its attack, or of the damage it did.
  * @param {string} s @param {Record<string, number>} bb
  * @returns {{ attack: NonNullable<NonNullable<SkillDef['extra']>['attack']> } | null}
  */
@@ -276,6 +256,7 @@ function effectPhraseOf(s, bb) {
     const pull = /拖拽|牵引|拉至/.test(m[4]), along = !pull && !!(m[1] || m[3]);
     return { attack: { displace: { pull, force, ...(along ? { along: true } : {}) } } };
   }
+  if ((m = EP_OF_DAMAGE.exec(s)) && has(m[1])) return { attack: { element: ELEMENT_WORD[m[2]], epRatio: bb[m[1]] } };
   if ((m = /造成相当于攻击力\{(?:attack@)?atk_scale\}的(法术|物理)伤害并附带\{((?:attack@)?ep_damage_ratio)\}攻击力的(神经|侵蚀|灼燃|凋亡|狂躁)损伤$/.exec(s)) && has(m[2])) {
     return { attack: { element: ELEMENT_WORD[m[3]], epScale: bb[m[2]], ...(m[1] === '法术' ? { type: /** @type {const} */ ('arts') } : {}) } };
   }
@@ -327,11 +308,15 @@ function extraOf(level, own) {
   const parts = said.split(/[，。；\n]/).map((s) => phraseOf(s.trim(), bb)).filter((p) => p !== null);
   const mods = Object.assign({ ...own, ...selfZeros(hit.keys) }, ...parts.map((p) => p.mods ?? {}));
   const flags = Object.assign({}, ...parts.map((p) => p.flags ?? {}));
-  const attack = Object.assign({}, ...parts.map((p) => p.attack ?? {}), hit.debuff ? { hitDebuff: hit.debuff } : {});
+  // 技能-14 and 技能-15 read the sentences 技能-9 leaves, on the same text (closing-skill segments already gone).
+  const texts = textExtra(level, bb, said), texts2 = textExtra2(level, bb, said);
+  // kindOf gets the fields it gets from skillDefOf (what the level gives, and the text's heal of allies on attack), so the kind here is the skill's own
+  const kind = skills.kindOf(/** @type {SkillDef} */ (/** @type {unknown} */ ({ type: level.skillType, ammo: level.durationType === 'AMMO', duration: level.duration, bb,
+    ...foreverOf(level), ...alchemyOf(level, bb), ...dollSwitchOf(level), extra: { ...texts, ...texts2 } })));
+  const attack = Object.assign({}, ...parts.map((p) => p.attack ?? {}), hitStatusOf(said, bb, kind), hit.debuff ? { hitDebuff: hit.debuff } : {});
   const has = (/** @type {object} */ o) => Object.keys(o).length > 0;
-  // 技能-14 reads the sentences 技能-9 leaves, on the same text (closing-skill segments already gone).
-  const extra = { ...(has(mods) ? { mods } : {}), ...(has(flags) ? { flags } : {}), ...(has(attack) ? { attack } : {}), ...textExtra(level, bb, said) };
-  Object.assign(extra, textExtra2(level, bb, said)); // 技能-15, on the same text
+  const extra = { ...(has(mods) ? { mods } : {}), ...(has(flags) ? { flags } : {}), ...(has(attack) ? { attack } : {}), ...texts };
+  Object.assign(extra, texts2);
   return has(extra) ? { extra } : {};
 }
 

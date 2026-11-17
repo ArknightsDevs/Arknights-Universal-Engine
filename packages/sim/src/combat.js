@@ -115,8 +115,8 @@ export const pickTarget = (w, c, op) => targetsOf(w, c, op)[0] ?? null;
  * aftershock (职业-8) and chain (职业-11); whether the skill makes it, and which of its hits this is (钩子-3). `split`: the
  * share of the amount each of its hits takes, after the defences, and `later` marks the hits after the first (职业-3).
  * @typedef {{ type: import('./types.js').DamageType, amount: number, times: number, element: string, ep: number, splash?: import('./types.js').Splash | null,
- *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: { key: import('./status.js').StatusKey, seconds: number, value?: number, prob?: number } | null,
- *   hitDebuff?: { seconds: number, mods: Record<string, number> }, displace?: { pull: boolean, force: number, along?: boolean },
+ *   aftershock?: number, chain?: import('./types.js').Chain | null, ranged?: boolean, hitStatus?: import('./types.js').HitStatus | null, epRatio?: number,
+ *   hitDebuff?: { seconds: number, mods: Record<string, number>, flags?: Record<string, boolean> }, displace?: { pull: boolean, force: number, along?: boolean },
  *   skill?: boolean, hit?: 'splash' | 'chain' | 'aftershock', mark?: number, frozen?: number, packed?: { cnt: number, atk: number }, aftershocks?: number, ignoreDef?: number, ignoreSelect?: boolean,
  *   facScale?: number, plain?: number, atkMul?: number, vsBuff?: { key: string, scale: number }, split?: number, later?: boolean }} Load
  */
@@ -238,7 +238,8 @@ function oneHit(w, c, src, t, load) {
   if (op) traitDealt(w, c, op, t, { dmg, taken: dealt });
   if (dealt > 0) afterDamage(w, c, { src, t, dealt, ranged: !!load.ranged });
   if (op && alive && t.hp <= 0) traitKill(w, c, op, t);
-  if (el && load.ep > 0) dealEpFrom(w, t, el, load.ep * vsEp(w, c, src, t), { src, c });
+  const ep = load.ep + (load.epRatio ? dealt * load.epRatio : 0);
+  if (el && ep > 0) dealEpFrom(w, t, el, ep * vsEp(w, c, src, t), { src, c });
   if (alive && t.hp > 0) hitEffects(w, t, load, src);
   if (op && alive) traitHit(w, c, op, t);
   ridesOn(w, c, { src, t, load }, dmg, dealt);
@@ -246,25 +247,35 @@ function oneHit(w, c, src, t, load) {
 }
 
 /**
- * What a hit gives a target that is still up (状态-5, 技能-9): its status — at its chance when it has one —, its timed
- * modifiers.
+ * What a hit gives a target that is still up (状态-5, 技能-9): its status, its timed modifiers.
  * @param {World} w @param {Unit} t @param {Load} load @param {Unit | null} src
  */
 function hitEffects(w, t, load, src) {
-  const h = load.hitStatus;
-  if (h && !(h.prob !== undefined && draw(w) >= h.prob)) inflict(w, t, h.key, statusOf(h, src));
+  if (load.hitStatus) hitStatusOn(w, t, { h: load.hitStatus, main: !load.hit }, src);
   if (load.hitDebuff) debuffOnHit(t, load.hitDebuff, src);
 }
 
 /**
+ * The status a hit gives (技能-9): at its chance when it has one (one draw per hit); its `main` seconds on the attack's
+ * main target, its `seconds` on any other; not on a target that already holds the flag it names in `unless`.
+ * @param {World} w @param {Unit} t @param {{ h: import('./types.js').HitStatus, main: boolean }} hit @param {Unit | null} src
+ */
+function hitStatusOn(w, t, hit, src) {
+  const h = hit.h, seconds = hit.main && h.main !== undefined ? h.main : h.seconds;
+  if (h.prob !== undefined && draw(w) >= h.prob) return;
+  if (h.unless && statsOf(t).flags[h.unless]) return;
+  if (seconds > 0 || h.main === undefined) inflict(w, t, h.key, statusOf({ ...h, seconds }, src));
+}
+
+/**
  * A skill's modifiers on a target its hit reached, for some seconds (技能-9): one buff per source, `hitDebuff:<its id>`,
- * the time starting again at each hit.
- * @param {Unit} t @param {{ seconds: number, mods: Record<string, number> }} d @param {Unit | null} src
+ * the time starting again at each hit; the buff's flags when it has some.
+ * @param {Unit} t @param {{ seconds: number, mods: Record<string, number>, flags?: Record<string, boolean> }} d @param {Unit | null} src
  */
 function debuffOnHit(t, d, src) {
   const key = `hitDebuff:${src ? src.id : -1}`;
   removeBuff(t, key);
-  addBuff(t, makeBuff({ key, src: src ? src.id : -1, left: secondsToFrames(d.seconds), mods: d.mods }));
+  addBuff(t, makeBuff({ key, src: src ? src.id : -1, left: secondsToFrames(d.seconds), mods: d.mods, ...(d.flags ? { flags: d.flags } : {}) }));
 }
 
 /**
@@ -285,6 +296,12 @@ const atkOf = (a, pct) => (pct ? computeStats({ base: a.base, buffs: [...a.buffs
 const vsBuffOf = (mods) => (mods.vsBuff ? { vsBuff: mods.vsBuff } : {});
 
 /**
+ * The 元素损伤 of a share of the damage a hit did (技能-9), on a load; absent otherwise, so no hash changes. Outside loadOf,
+ * which has no room for one more branch. @param {AttackMods} mods
+ */
+const epRatioOf = (mods) => (mods.epRatio ? { epRatio: mods.epRatio } : {});
+
+/**
  * An enemy's chain on a load (敌能-142); an operator's comes from its trait in loadFor. Absent otherwise, so no hash
  * changes. Outside loadOf, which has no room for one more branch. @param {AttackMods} mods
  */
@@ -300,6 +317,7 @@ const loadOf = (a, mods) => {
   return {
     type: mods.type ?? a.base.dmgType, amount: plain * mods.scale * atkMul, times: mods.times, element: mods.element ?? '',
     ep: (mods.ep ?? 0) + (mods.epScale ? statsOf(a).atk * mods.epScale : 0),
+    ...epRatioOf(mods),
     ...(mods.hitStatus ? { hitStatus: mods.hitStatus } : {}), ...(mods.hitDebuff ? { hitDebuff: mods.hitDebuff } : {}), ...(mods.displace ? { displace: mods.displace } : {}), ...(mods.skill ? { skill: true } : {}), ...(mods.mark ? { mark: mods.mark } : {}),
     ...(mods.frozen ? { frozen: mods.frozen } : {}), ...(mods.ignoreDef ? { ignoreDef: mods.ignoreDef } : {}),
     ...vsBuffOf(mods),

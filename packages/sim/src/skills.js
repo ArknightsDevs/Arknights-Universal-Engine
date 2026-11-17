@@ -28,7 +28,7 @@ import { openSkillText2, tickSkillText2, closeSkillText2 } from './skilltext2.js
  * (`hits` hits spread over `duration` seconds, the k-th at k × duration ÷ hits, then `after` seconds of cooldown), the
  * tile splash's share on the others (`splashScale`, 敌能-26), hits without a projectile (`direct`) and a 倍率 on a
  * frozen target (`frozen`, 敌能-27); `mark`, a mark content gave this attack (钩子-3 beforeAttack); a skill's timed modifiers on
- * each target (`hitDebuff`), the operator's HP back after it (`selfHeal`), 元素损伤 of `epScale` × its attack (技能-9); the
+ * each target (`hitDebuff`), the operator's HP back after it (`selfHeal`), 元素损伤 of `epScale` × its attack or `epRatio` × the HP the hit took (技能-9); the
  * share of the targets' 防御 its hits ignore (`ignoreDef`, 攻击-4). `ignoreSelect` lets that attack's tile splash reach
  * 隐匿 and 起飞, and its hits are not refused for 起飞 (敌能-55); 无敌 still stops them. `facScale` is the 攻击力倍率 in place of
  * `scale` when that hit's target is a 守御-3 facility (敌能-122). `vsBuff`: a 倍率 × `scale` on a target that holds a
@@ -36,8 +36,8 @@ import { openSkillText2, tickSkillText2, closeSkillText2 } from './skilltext2.js
  * `chain`: an enemy's jumping chain (敌能-142, the 职业-11 chain on our side).
  * @typedef {{ scale: number, times: number, targets: number, skill: boolean, element?: import('./elements.js').Element, ep?: number, chain?: import('./types.js').Chain,
  *   type?: import('./types.js').DamageType, cross?: boolean, atkPct?: number, channel?: { hits: number, duration: number, after: number }, heal?: boolean, square?: boolean, blocked?: boolean, more?: number,
- *   hitStatus?: { key: import('./status.js').StatusKey, seconds: number, prob?: number }, mark?: number, splashScale?: number, direct?: boolean, frozen?: number, facScale?: number,
- *   hitDebuff?: { seconds: number, mods: Record<string, number> }, selfHeal?: number, epScale?: number,
+ *   hitStatus?: import('./types.js').HitStatus, mark?: number, splashScale?: number, direct?: boolean, frozen?: number, facScale?: number,
+ *   hitDebuff?: { seconds: number, mods: Record<string, number>, flags?: Record<string, boolean> }, selfHeal?: number, epScale?: number, epRatio?: number,
  *   displace?: { pull: boolean, force: number, along?: boolean }, ignoreDef?: number, splash?: import('./types.js').Splash, ignoreSelect?: boolean,
  *   vsBuff?: { key: string, scale: number } }} AttackMods
  */
@@ -374,7 +374,8 @@ function hitExtra(mods, def) {
   const a = def.extra?.attack;
   if (!a) return mods;
   return { ...mods, ...(a.hitStatus ? { hitStatus: a.hitStatus } : {}), ...(a.hitDebuff ? { hitDebuff: a.hitDebuff } : {}), ...(a.selfHeal ? { selfHeal: a.selfHeal } : {}),
-    ...(a.element && a.epScale ? { element: a.element, epScale: a.epScale } : {}), ...(a.displace ? { displace: a.displace } : {}) };
+    ...(a.element && a.epScale ? { element: a.element, epScale: a.epScale } : {}), ...(a.element && a.epRatio ? { element: a.element, epRatio: a.epRatio } : {}),
+    ...(a.displace ? { displace: a.displace } : {}) };
 }
 
 /**

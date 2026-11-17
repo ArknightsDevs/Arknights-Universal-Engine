@@ -128,11 +128,18 @@
  */
 
 /**
+ * A status each hit of an attack gives its target (技能-9): its `seconds`, at a chance `prob`; `main` seconds instead on the
+ * attack's main target (not on one splashed, shocked or jumped to; with `seconds` 0 only on that one); not on a target that
+ * already holds the flag `unless`; `value` its strength.
+ * @typedef {{ key: import('./status.js').StatusKey, seconds: number, prob?: number, main?: number, unless?: 'sleep', value?: number }} HitStatus
+ */
+/**
  * What a skill's description adds (技能-9, 技能-14): modifiers and flags while it runs; and for its attacks, every enemy the operator blocks
  * as targets, `more` targets than it would have, `times` hits, the damage type, a status each hit gives (at a chance
  * `prob`), modifiers each hit gives its target for some seconds (`hitDebuff`), the operator's own HP back for each attack
- * (`selfHeal`, a share of its maximum), the 元素损伤 each hit carries (`element`, `epScale` × its attack), a push or
- * pull of 力度 `force` on each target (`displace`; along the operator's facing for `along`).
+ * (`selfHeal`, a share of its maximum), the 元素损伤 each hit carries (`element`, `epScale` × its attack, or `epRatio` ×
+ * the HP the hit took), a push or pull of 力度 `force` on each target (`displace`; along the operator's facing for `along`).
+ * A hit's status is a `HitStatus`; its modifiers' `flags` are the flags of that buff.
  * 技能-14, read from other sentences: `counter` while the skill runs, a `barrier` gained as it starts, `bursts` at the
  * start or the end, `selfStun` when it ends, `allyHeal` for a friendly unit. `hitScale` `'attack'` means a plain
  * `atk_scale` belongs to the counter or the burst, so the attack's scale is `attack@atk_scale`.
@@ -143,8 +150,8 @@
  * (`most`: the first that many it would attack), or those it blocks — a hit of `scale` × its attack, then statuses. An
  * opening hit's plain `atk_scale` is claimed by `hitScale` too.
  * @typedef {{ mods?: Record<string, number>, flags?: Record<string, boolean>, attack?: { blocked?: boolean, more?: number, times?: number, type?: DamageType,
- *   hitStatus?: { key: import('./status.js').StatusKey, seconds: number, prob?: number }, hitDebuff?: { seconds: number, mods: Record<string, number> },
- *   selfHeal?: number, element?: import('./elements.js').Element, epScale?: number,
+ *   hitStatus?: HitStatus, hitDebuff?: { seconds: number, mods: Record<string, number>, flags?: Record<string, boolean> },
+ *   selfHeal?: number, element?: import('./elements.js').Element, epScale?: number, epRatio?: number,
  *   displace?: { pull: boolean, force: number, along?: boolean } },
  *   counter?: { scale: number, stat: 'atk' | 'def', type: DamageType, around?: boolean, ground?: boolean, cooldown?: number,
  *     element?: import('./elements.js').Element, epScale?: number, silence?: number },
