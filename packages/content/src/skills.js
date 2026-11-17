@@ -213,7 +213,7 @@ function ownMods(level, bb, others, id) {
     const shown = [...raw.matchAll(new RegExp(`\\{-?${k}(?::([^}]*))?\\}`, 'g'))];
     if (shown.length && shown.every((m) => !(m[1] ?? '').includes('%'))) Object.assign(mods, { [pct]: 0, [flat]: bb[k] });
   }
-  return Object.assign(mods, batModsOf(id, bb), namedStatMods(textOf(level), bb));
+  return Object.assign(mods, batModsOf(id, bb), namedStatMods(textOf(level), bb), writtenExtend(level, bb));
 }
 
 /** Chinese numerals of extra targets and hits (技能-9). */
@@ -330,23 +330,50 @@ const SELF_MOD = { def: 'defPct', move_speed: 'movePct', attack_speed: 'aspd', a
 /** The operator's own modifiers of keys a description gives its targets: 0 (技能-5, 技能-9). @param {string[]} keys */
 const selfZeros = (keys) => Object.fromEntries(keys.filter((k) => k in SELF_MOD).map((k) => [SELF_MOD[k], 0]));
 
-/** A description that says the attack range changes (技能-8). */
-const NEW_RANGE = /攻击范围(?:扩大|改变|缩小)/u;
+/**
+ * A description that says the attack range changes (技能-8): 攻击范围 or 攻击距离 (not 攻击范围内 or 攻击范围外), then in the
+ * same clause a word of change — 扩大 (also 更加扩大, 与溅射范围一起扩大), 增大, 改变, 改为, 缩小, 缩短, 加长, 延长 — or a
+ * written 「+N」. A 「+{key}」 is the blackboard's attack distance (技能-5), not this.
+ */
+const NEW_RANGE = /攻击(?:范围|距离)(?![内外])[^，。；\n]{0,12}?(?:扩大|增大|改变|改为|缩小|缩短|加长|延长|[+＋]\d)/u;
 /** A description that says the attack range reaches the whole map (技能-8). */
 const WHOLE_MAP = /攻击范围扩大至整个战场/u;
+/** The words after which a line is about a later use or a charged attack, not about the skill itself (技能-8). */
+const LATER = /第二次|蓄力|下次|及以后/u;
+/**
+ * The description of a level as it holds for its first use (技能-8): each line cut where it turns to a later use or a charge.
+ * What comes before the cut is the skill's own (「攻击范围扩大，……蓄力额外效果：……」), what comes after is not.
+ * @param {SkillLevel} level
+ */
+function firstUse(level) {
+  return textOf(level).split('\n').map((line) => { const at = line.search(LATER); return at < 0 ? line : line.slice(0, at); }).join('\n');
+}
 
 /**
  * A skill level's attack range while it runs (技能-8): the whole map when its description says so; the level's range
- * (range_table, 干员-8) when the description says the attack range grows, changes or shrinks; else none.
+ * (range_table, 干员-8) when the description says the attack range or distance grows, changes, shrinks or gets longer or
+ * shorter and the level has a range id; else none. What is said of a later use or a charge is not read: the range id is the
+ * range of the first use (or of none), and a kit that sets the range for the later ones would be shadowed by it.
  * @param {SkillLevel} level @returns {{ rangeAll?: true, range?: { row: number, col: number }[] }}
  */
 function rangeOf(level) {
-  const text = (level.description ?? '').replace(/<[^>]*>/g, '');
+  const text = firstUse(level);
   if (WHOLE_MAP.test(text)) return { rangeAll: true };
   if (!NEW_RANGE.test(text) || !level.rangeId) return {};
   const cells = /** @type {Record<string, { row: number, col: number }[]>} */ (rangeTable.ranges)[level.rangeId];
   if (!cells) throw new RangeError(`no range ${level.rangeId}`);
   return { range: cells };
+}
+
+/**
+ * 「攻击距离+N」 written as a number in a level with no range id and no `ability_range_forward_extend` (技能-8): the skill adds
+ * N to the attack distance (`rangeExtend`, as the blackboard's key does). What is said of a later use or a charge is not read.
+ * @param {SkillLevel} level @param {Record<string, number>} bb @returns {{ rangeExtend?: number }}
+ */
+function writtenExtend(level, bb) {
+  if (level.rangeId || Number.isFinite(bb.ability_range_forward_extend)) return {};
+  const m = /攻击距离[+＋](\d+)(?![\d.])/u.exec(firstUse(level));
+  return m ? { rangeExtend: Number(m[1]) } : {};
 }
 
 /** 生命回复 (skcom_heal_self): heals the operator for heal_scale of its maximum HP at once. @type {SkillBehavior} */

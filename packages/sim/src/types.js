@@ -613,7 +613,7 @@
  * road of at least `cnt` passable ground tiles `allyExtra`, `enemyExtra` more (部署-5), `powers`
  * its factions, `rangeTalents` its talents for the units in its attack range while it is on the field (部署-6),
  * `critTalents` its chances to strike harder (攻击-4), `timedTalents` its talents in time on the field (部署-7),
- * `deployTalents` what its talents do at its deployment (部署-8); from its seat's runes, `runeMods` its always-on buff
+ * `deployTalents` what its talents do at its deployment (部署-8), `skillTalents` the talent fields as they read while its skill runs (技能-17); from its seat's runes, `runeMods` its always-on buff
  * (符文-3), `probSp` its chances of SP on dealing damage (符文-4), `rangeSp` the SP it gives in its attack range (符文-5); a
  * carried unit's record (符文-6) what its deployment does (`carried`, 装置-6). A 轰隆隆先生 card carries `rumble` (装置-7), a
  * ball card `ballCard` (足球-14). A summon's record names its owner's key (`summoner`)
@@ -623,8 +623,15 @@
  *   range: Cell[], skill?: SkillDef, branch?: string, profession?: string, rarity?: number, trait?: Partial<TraitDef>, respawnTime?: number, char?: string, look?: string,
  *   talentBb?: Record<string, number>, talentMods?: Record<string, number>, talentTrait?: Partial<TraitDef>, fieldTalents?: TeamTalent[], fieldAspd?: { ally: number, enemy: number, cnt: number, allyExtra: number, enemyExtra: number },
  *   powers?: string[], rangeTalents?: RangeTalent[],
- *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[], summoner?: string, summon?: SummonDef,
+ *   critTalents?: CritTalent[], timedTalents?: TimedTalent[], deployTalents?: DeployTalent[], skillTalents?: SkillTalents, summoner?: string, summon?: SummonDef,
  *   runeMods?: Record<string, number>, probSp?: { prob: number, sp: number }[], rangeSp?: { sp: number, interval: number }, carried?: CarriedEffect, builder?: BuilderDef, rumble?: RumbleDef, ballCard?: boolean }} OperatorDef
+ */
+/**
+ * The talent fields of an operator that read differently while its skill runs (技能-17), each as it then reads: its in-range and
+ * chance talents, what its talents add to its trait (the lasting modifiers of its always-on talents as an `inSkill` entry of the
+ * trait's `whiles`). Only these three are read from it: the others (`timedTalents`, `deployTalents`, `fieldTalents`) are read
+ * from the record itself, so a skill that raised one would have no effect until the sim reads it too.
+ * @typedef {Pick<OperatorDef, 'talentTrait' | 'rangeTalents' | 'critTalents'>} SkillTalents
  */
 /**
  * A summon's card rules (召唤-3, 召唤-4): its limits on the field and held, what its owner's deployment adds (0: no card),

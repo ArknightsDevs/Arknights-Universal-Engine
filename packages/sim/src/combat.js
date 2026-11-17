@@ -41,6 +41,7 @@ import { palsyCut, epOnHit, healDotOn } from './talentelem.js';
 import { disarmed } from './disarm.js';
 import { healable, healHow } from './healthrough.js';
 import { strikes, swingLost } from './hookmore.js';
+import { talentsNow } from './skilltalents.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell @typedef {import('./attrs.js').Stats} Stats */
@@ -708,7 +709,7 @@ function chanceOf(w, c, op, k) {
 function critMods(w, c, op, mods) {
   let out = mods;
   if (mods.heal || healerNow(c, op)) return healMore(w, c, op, out);
-  for (const k of c.operators[op.key].critTalents ?? []) {
+  for (const k of talentsNow(c.operators[op.key], op).critTalents ?? []) {
     if (draw(w) >= chanceOf(w, c, op, k)) continue;
     out = k.pick ? picked(w, out, k.pick) : crit(op, out, k);
   }

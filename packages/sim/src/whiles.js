@@ -19,6 +19,7 @@ import { tileAt } from './level.js';
 import { rotateOffset } from './dir.js';
 import { shareTurn } from './talentaround.js';
 import { comboTurn, firstBlockTurn } from './talentfight.js';
+import { sameMods } from './skilltalents.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').WhileMods} WhileMods */
@@ -205,7 +206,7 @@ function perWhile(w, c, op, x, key) {
   const mods = Object.fromEntries(Object.entries(x.mods).map(([k, v]) => [k, v * n]));
   if (n === 0) { if (b) removeBuff(op, key); return; }
   if (!b) addBuff(op, makeBuff({ key, src: op.id, value: n, mods }));
-  else if (b.value !== n) retune(op, b, n, mods);
+  else if (b.value !== n || (c.operators[op.key].skillTalents && !sameMods(b.mods, mods))) retune(op, b, n, mods);
 }
 
 /**
@@ -230,8 +231,19 @@ export function traitWhiles(w, c, op) {
   for (let i = 0; i < list.length; i++) {
     const x = list[i], key = `while:${i}`;
     if (x.per) { perWhile(w, c, op, x, key); continue; }
-    const on = WHEN[x.when](w, c, op, x.value ?? 0, x), has = op.buffs.some((b) => b.key === key);
+    const on = WHEN[x.when](w, c, op, x.value ?? 0, x), has = op.buffs.find((b) => b.key === key);
     if (on && !has) addBuff(op, makeBuff({ key, src: op.id, mods: { ...x.mods }, ...(x.flags ? { flags: { ...x.flags } } : {}) }));
     else if (!on && has) removeBuff(op, key);
+    else if (on && has && c.operators[op.key].skillTalents && !sameMods(has.mods, x.mods)) retune(op, has, has.value, x.mods);
   }
+  if (c.operators[op.key].skillTalents) dropWhiles(op, list.length);
+}
+
+/**
+ * Takes back the buffs of the entries a trait no longer has (技能-17): the trait while a skill raises talents has more
+ * `whiles` entries than the plain one, and the buff of each outlasts the skill unless taken here.
+ * @param {Unit} op @param {number} n how many entries the trait has now
+ */
+function dropWhiles(op, n) {
+  for (const b of op.buffs.filter((x) => x.key.startsWith('while:') && Number(x.key.slice(6)) >= n)) removeBuff(op, b.key);
 }

@@ -9,6 +9,7 @@ import { draw } from './rng.js';
 import { reachKeys } from './reach.js';
 import { inKeys } from './targeting.js';
 import { traitOf } from './traits.js';
+import { tunedFor } from './skilltalents.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').FieldBuff} FieldBuff @typedef {import('./types.js').ShareGain} ShareGain */
@@ -58,7 +59,7 @@ export function fieldBuffs(w, c, src, ops, want) {
     for (const u of ops) {
       if (!buffFits(c, u, x)) continue;
       const mul = k * (x.double && (c.operators[u.key].powers ?? []).includes(x.double.power) ? x.double.mul : 1);
-      want.get(u)?.set(`fieldBuff:${src.id}:${i}`, { src: src.id, value: mul, mods: times(x.mods, mul), ...(x.flags ? { flags: x.flags } : {}) });
+      want.get(u)?.set(`fieldBuff:${src.id}:${i}`, { src: src.id, value: mul, mods: times(x.mods, mul), ...(x.flags ? { flags: x.flags } : {}), ...tunedFor(c.operators[src.key]) });
     }
   });
 }

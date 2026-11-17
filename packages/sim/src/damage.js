@@ -14,6 +14,7 @@ import { worksMul } from './works.js';
 import { inflict } from './status.js';
 import { damageFloor } from './talentmore.js';
 import { nonLethalCap } from './talentfight.js';
+import { traitOf } from './traits.js';
 import { stealthed, liftoffRefused } from './targeting.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff @typedef {import('./types.js').World} World */
@@ -259,7 +260,8 @@ const tracker = (u, key) => u.buffs.find((b) => b.key === key);
 function judged(w, u, src, c) {
   const t = tracker(u, 'lastJudged');
   if (t) stamp(t, w.frame);
-  const h = c && u.kind === KIND.OPERATOR ? c.operators[u.key]?.talentTrait?.hurt : undefined;
+  // through the trait, not the record: a skill that raises the talent (技能-17) changes what it heals while the skill runs
+  const h = c && u.kind === KIND.OPERATOR && c.operators[u.key] ? traitOf(c, u).hurt : undefined;
   if (!h || u.hp <= 0) return;
   if (h.heal) w.events.push({ type: 'heal', id: u.id, target: u.id, amount: heal(w, u, u, u.hp < h.heal.below * statsOf(u).maxHp ? h.heal.high : h.heal.low) });
   if (h.status && src && reachable(src)) inflict(w, src, h.status.key, { seconds: h.status.seconds, src: u });

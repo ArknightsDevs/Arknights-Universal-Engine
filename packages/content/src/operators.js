@@ -13,6 +13,7 @@ import { healParts } from './talentheal.js';
 import { fightParts } from './talentfight.js';
 import { lastParts } from './talentlast.js';
 import { dollOf } from './doll.js';
+import { risesOf, risenTalents, skillTalentsFrom, talentArea } from './talentscale.js';
 import rangeTable from '../data/ranges.json' with { type: 'json' };
 
 /** @typedef {import('@aue/sim').OperatorDef} OperatorDef */
@@ -217,7 +218,7 @@ function talentTraitOf(talents) {
  * kitted operator's record leaves them out (兼容-6, index.js withoutTalents): this list is what it strips, and
  * talentFields refuses a field that is not on it, so that a new talent field cannot be applied twice.
  */
-export const TALENT_FIELDS = Object.freeze(['talentBb', 'talentMods', 'fieldTalents', 'rangeTalents', 'critTalents', 'timedTalents', 'deployTalents', 'talentTrait', 'fieldAspd']);
+export const TALENT_FIELDS = Object.freeze(['talentBb', 'talentMods', 'fieldTalents', 'rangeTalents', 'critTalents', 'timedTalents', 'deployTalents', 'talentTrait', 'fieldAspd', 'skillTalents']);
 
 /**
  * The talent fields of an operator record (干员-6, 干员-9, 干员-11…干员-14, 干员-16…干员-19): the talents as they read for
@@ -225,10 +226,11 @@ export const TALENT_FIELDS = Object.freeze(['talentBb', 'talentMods', 'fieldTale
  * effects' modifiers as `talentMods`, the on-field team talents, the in-range, chance, timed and deployment talents, what
  * they add to the trait (`talentTrait`), and the attack speed it gives every unit while on the field (引星棘刺's 视界:
  * `attack_speed_ally`, `attack_speed_enemy`, doubled on straight roads of `cnt` tiles: 部署-5) — each only when there is one.
- * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod
+ * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @param {import('./talentscale.js').Rise[]} [rises] what the skill raises of the talents (技能-17)
  */
-function talentFields(t, b, mod) {
-  const talents = upgradedTalents(t, b, mod).map((c) => forSkill(c, b.skill)), { cost = 0, respawn_time: respawn = 0, ...talentBb } = alwaysOnBb(talents);
+function talentFields(t, b, mod, rises = []) {
+  const shown = upgradedTalents(t, b, mod).map((c) => forSkill(c, b.skill)), talents = rises.length ? risenTalents(shown, rises) : shown;
+  const { cost = 0, respawn_time: respawn = 0, ...talentBb } = alwaysOnBb(talents);
   const talentMods = alwaysModsOf(talents), talentTrait = talentTraitOf(talents);
   /** @type {[string, unknown[]][]} */
   const lists = [['fieldTalents', teamTalentsAt(t, b).field],
@@ -300,6 +302,19 @@ function withAlchemyTalents(skill, talents) {
 }
 
 /**
+ * The talent fields of an operator while its skill runs (技能-17): the talents read again with the numbers the skill level
+ * raises, what reads differently as `skillTalents`; none when the skill raises nothing that reads.
+ * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @param {import('./skills.js').SkillLevel | null} level
+ * @param {Record<string, unknown>} fields the talent fields as they read plain
+ * @returns {{ skillTalents?: Record<string, any> }}
+ */
+function skillTalentsOf(t, b, mod, level, fields) {
+  const rises = level ? risesOf(level) : [];
+  const risen = level && rises.length ? skillTalentsFrom(fields, talentFields(t, b, mod, rises).fields, talentArea(level)) : null;
+  return risen ? { skillTalents: risen } : {};
+}
+
+/**
  * A training's record (operatorAt) with the module level given: the operator's own, or what its owner's module gives a
  * summon (召唤-2).
  * @param {Training} t @param {Build} b @param {ModuleLevel | null} mod @param {string} [type] the module's type, for the branch trait (职业-7)
@@ -316,7 +331,7 @@ export function recordAt(t, b, mod, type) {
     name: t.name, position: t.position, profession: t.profession, branch: t.branch, powers: t.powers, rarity: t.rarity, range: moduleRangeAt(b, mod) ?? talentRange(upgradedTalents(t, b, mod), rangeTable.ranges) ?? phase.range, traitBb, hiddenBb: hiddenAt(b, mod), ...(mod && type ? { moduleType: type, moduleText: moduleTextAt(b, mod) } : {}),
     maxHp: s.maxHp, atk: s.atk, def: s.def, res: s.res, cost: Math.max(0, s.cost + cost), blockCnt: s.blockCnt, baseAttackTime: s.baseAttackTime,
     respawnTime: Math.max(0, s.respawnTime + respawn), aspd: s.aspd, tauntLevel: s.tauntLevel, massLevel: s.massLevel,
-    ...fields, ...(slot && level ? { skill: withAlchemyTalents(skillDefOf(slot.id, level), upgradedTalents(t, b, mod)) } : {}),
+    ...fields, ...skillTalentsOf(t, b, mod, level, fields), ...(slot && level ? { skill: withAlchemyTalents(skillDefOf(slot.id, level), upgradedTalents(t, b, mod)) } : {}),
   });
   // a 傀儡师's 替身: its own range, flying units, its attack and aura (职业-16)
   return rec.trait?.doll ? { ...rec, trait: { ...rec.trait, doll: { ...rec.trait.doll, ...dollOf(t, b, mod, traitBb) } } } : rec;

@@ -19,11 +19,13 @@ import { ELEMENTS, epOf } from './elements.js';
 import { holdsWhen } from './whiles.js';
 import { fieldBuffs, stackShare } from './talentaround.js';
 import { stayVuln } from './talentfight.js';
+import { talentsNow, sameMods, tunedFor } from './skilltalents.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Content} Content @typedef {import('./types.js').Unit} Unit */
 /**
- * What an aura gives one unit: its source, its strength (to see a change), its modifiers and flags; a 鼓舞's ratio.
- * @typedef {{ src: number, value: number, mods: Record<string, number>, flags?: Record<string, boolean>, ratio?: number }} Want
+ * What an aura gives one unit: its source, its strength (to see a change), its modifiers and flags; a 鼓舞's ratio; `tune`, that a
+ * change of its modifiers with the same strength is a change too (技能-17).
+ * @typedef {{ src: number, value: number, mods: Record<string, number>, flags?: Record<string, boolean>, ratio?: number, tune?: true }} Want
  */
 
 /** The keys of the aura buffs. */
@@ -230,14 +232,14 @@ function onArea(src, u, area, rotate = false) {
  * @param {World} w @param {Content} c @param {Unit} src @param {Unit[]} units @param {Map<Unit, Map<string, Want>>} want
  */
 function rangeTalents(w, c, src, units, want) {
-  const talents = c.operators[src.key].rangeTalents ?? [];
+  const d = c.operators[src.key], talents = talentsNow(d, src).rangeTalents ?? [];
   if (talents.length === 0) return;
   const grid = { rows: c.level.height, cols: c.level.width }, keys = reachKeys(c, src);
   talents.forEach((t, i) => {
     if ((t.srcWhen && !holdsWhen(w, c, src, t.srcWhen)) || (t.during !== undefined && w.frame - src.born >= secondsToFrames(t.during))) return;
     for (const u of units) {
       const there = t.area ? onArea(src, u, t.area, t.rotate) : inKeys(u, keys, grid);
-      if (there && rangeFits(w, c, src, t, u)) want.get(u)?.set(`range:${src.id}:${i}`, { src: src.id, value: 0, mods: t.mods, ...(t.flags ? { flags: t.flags } : {}) });
+      if (there && rangeFits(w, c, src, t, u)) want.get(u)?.set(`range:${src.id}:${i}`, { src: src.id, value: 0, mods: t.mods, ...(t.flags ? { flags: t.flags } : {}), ...tunedFor(d) });
     }
   });
 }
@@ -402,6 +404,6 @@ function sync(u, want) {
   for (const [key, x] of want) {
     const b = u.buffs.find((y) => y.key === key);
     if (!b) addBuff(u, makeBuff({ key, src: x.src, value: x.value, mods: x.mods, ...(x.flags ? { flags: x.flags } : {}) }));
-    else if (b.value !== x.value) retune(u, b, x.value, x.mods);
+    else if (b.value !== x.value || (x.tune && !sameMods(b.mods, x.mods))) retune(u, b, x.value, x.mods);
   }
 }

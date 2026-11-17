@@ -18,6 +18,7 @@ import { dealtSp } from './talentmore.js';
 import { fightKill, comboHit, afterNonLethal } from './talentfight.js';
 import { rangeKeys, inKeys } from './targeting.js';
 import { woundedInRange } from './chain.js';
+import { talentsNow } from './skilltalents.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').TraitDef} TraitDef @typedef {import('./types.js').OperatorDef} OperatorDef */
@@ -116,8 +117,8 @@ export function traitOfDef(d) {
   return trait;
 }
 
-/** A deployed operator's trait. @param {Content} c @param {Unit} op @returns {TraitDef} */
-export const traitOf = (c, op) => traitOfDef(c.operators[op.key]);
+/** A deployed operator's trait, with what its running skill changes of its talents (技能-17). @param {Content} c @param {Unit} op @returns {TraitDef} */
+export const traitOf = (c, op) => traitOfDef(talentsNow(c.operators[op.key], op));
 
 /** The key of the buff that holds a 傀儡师's phase (职业-15). */
 export const DOLL = 'doll';
