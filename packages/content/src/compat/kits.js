@@ -48,7 +48,7 @@ const KIT_OWNED = Object.freeze({ soulcaster: { summonBlockedScale: 1 } });
  */
 const NO_MODULE_ADDITIONS = Object.freeze({
   vs: [], far: null, crowd: null, packed: null, whiles: [], extraArts: 0, counterArts: 0, epRider: null, burstHit: null, spOn: null, payStack: null, auras: [],
-  summonBoost: null, secondLife: null, pushBoost: null, pullBoost: null, pullTrauma: null,
+  summonBoost: null, secondLife: null, pushBoost: null, pullBoost: null, pullTrauma: null, selfStatus: null,
 });
 
 /** Whether a trait has some of what modules add (NO_MODULE_ADDITIONS). @param {import('@aue/sim').TraitDef} t */

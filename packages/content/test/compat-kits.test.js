@@ -143,3 +143,10 @@ test('[兼容-5] a kitted operator follows its kit’s trait: no aftershock besi
   assert.deepEqual([moduled.trait?.whiles, moduled.trait?.vs, moduled.trait?.far, moduled.trait?.crowd, moduled.trait?.packed], [[], [], null, null, null],
     'a module\'s trait additions are its kit\'s (职业-17, 职业-18)');
 });
+
+test('[兼容-5] [职业-10] a kitted 疗养师 holds no 抵抗 from its WAH-X module: its kit gives its own', () => {
+  const op = /** @type {any} */ ({ name: 'x', position: 'RANGED', cost: 9, blockCnt: 1, baseAttackTime: 1, maxHp: 1, atk: 1, def: 0, res: 0, range: [] });
+  const entry = /** @type {any} */ ({ factory: () => ({ skills: [], trait: {} }), def: { raw: {} } });
+  const wah = withKitTrait({ ...op, branch: 'chain', trait: { selfStatus: { key: 'buffres', value: 0.5, seconds: -1 } } }, entry, { width: 6, height: 3 });
+  assert.equal(wah.trait?.selfStatus, null);
+});
