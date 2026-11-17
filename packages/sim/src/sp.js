@@ -41,9 +41,12 @@ export function timeSp(st, rate) {
   }
 }
 
-/** Starting the skill takes its cost; what is left over stays — the charges of a skill that holds more (技能-2, 技能-4). @param {SkillState} st */
-export function spendSp(st) {
-  st.sp -= st.cost;
+/**
+ * Starting the skill takes its cost; what is left over stays — the charges of a skill that holds more (技能-2, 技能-4) —, unless
+ * the skill takes all it holds (a skill with a 蓄力 part). @param {SkillState} st @param {boolean} [all]
+ */
+export function spendSp(st, all = false) {
+  st.sp = all ? 0 : st.sp - st.cost;
 }
 
 /** Sets the points, held to [0, the cap] (content that sets SP outright, 技能-2). @param {SkillState} st @param {number} n */

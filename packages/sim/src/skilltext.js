@@ -6,11 +6,11 @@
 import { secondsToFrames } from '@aue/math';
 import { KIND } from '@aue/schema';
 import { statsOf } from './attrs.js';
-import { addBuff, makeBuff, removeBuff, stamp } from './buffs.js';
+import { addBuff, count, makeBuff, removeBuff, retune, stamp } from './buffs.js';
 import { heal, setShield } from './damage.js';
 import { dealEpFrom } from './elements.js';
 import { reachKeys } from './reach.js';
-import { ownsSkill } from './skills.js';
+import { ownsSkill, statMods, STAT_KEYS } from './skills.js';
 import { strikeOn } from './strike.js';
 import { inflict } from './status.js';
 import { inKeys, rangeKeys, sortHealTargets } from './targeting.js';
@@ -33,9 +33,13 @@ const defOf = (c, op) => c.operators[op.key]?.skill ?? null;
 /** @param {Content} c */
 const gridOf = (c) => ({ rows: c.level.height, cols: c.level.width });
 
+/** The barrier's capacity steps down once a second (技能-14). */
+const DECAY_EVERY = secondsToFrames(1);
+
 /**
  * The barrier as the skill starts (技能-14), after the skill's own stat buff so the maximum HP already includes it.
- * Decay is linear in the total, every 0.5 s — not a share of what remains.
+ * A decaying one has a capacity that falls evenly to 0 over its seconds and is worked out once a second (see the
+ * `skillBarrierDecay` behaviour below).
  * @param {Unit} op @param {Barrier} b
  */
 function giveBarrier(op, b) {
@@ -46,13 +50,56 @@ function giveBarrier(op, b) {
   addBuff(op, makeBuff({
     key: 'skillBarrier', src: op.id, shield, shieldType: b.type === 'phys' ? 'phys' : '',
     left: b.seconds > 0 ? secondsToFrames(b.seconds) : -1, ...(b.tied ? { tag: 'tied' } : {}),
-    ...(decay ? { act: 'skillBarrierDecay', every: secondsToFrames(0.5), fixed: true, value: shield * 0.5 / b.seconds } : {}),
+    ...(decay ? { act: 'skillBarrierDecay', every: DECAY_EVERY, fixed: true, value: b.seconds } : {}),
   }));
 }
 
-/** The engine's barrier decay (技能-14). `value` is the amount that leaves every 0.5 s. */
+/**
+ * What is left of a decaying barrier's capacity after `step` seconds of its `seconds` (技能-14): the share of the total.
+ * @param {number} seconds @param {number} step
+ */
+const capacityAt = (seconds, step) => Math.max(0, 1 - step / seconds);
+
+/**
+ * One second of a barrier's decay (技能-14): its capacity — the total × `capacityAt` — steps down, and what is left of the
+ * barrier changes by the same share, as a barrier that took damage keeps its place in the capacity. `value` is the seconds it
+ * decays over, `n` the steps taken.
+ * @param {World} _w @param {Unit} u @param {Buff} b
+ */
+function decayBarrier(_w, u, b) {
+  const was = capacityAt(b.value, b.n);
+  count(b, 1);
+  if (was > 0) setShield(u, b, b.shield * capacityAt(b.value, b.n) / was);
+}
+
+/**
+ * A skill's bonus that wears off (技能-4): a buff `skillDecay` holds the part of the `decay` keys' modifiers that is gone — minus the
+ * skill's own modifier × (1 − what is left of the capacity) — so that, with the skill's buff, they are evenly down to 0 over the
+ * seconds, updated once a second.
+ * @param {World} _w @param {Unit} u @param {Buff} b @param {Content} [c]
+ */
+function decayStats(_w, u, b, c) {
+  const def = c ? defOf(c, u) : null, d = def?.extra?.decay;
+  count(b, 1);
+  if (!def || !d) return;
+  const own = { ...statMods(def.bb), ...def.extra?.mods }, gone = 1 - capacityAt(d.seconds, b.n), mods = /** @type {Record<string, number>} */ ({});
+  for (const k of d.keys) {
+    const name = /** @type {Record<string, string>} */ (STAT_KEYS)[k];
+    if (name in own) mods[name] = -own[name] * gone;
+  }
+  retune(u, b, b.value, mods);
+}
+
+/** The skill's bonus that wears off gets the buff that takes it away step by step (技能-4). @param {Unit} op */
+function startDecay(op) {
+  removeBuff(op, 'skillDecay');
+  addBuff(op, makeBuff({ key: 'skillDecay', src: op.id, act: 'skillStatDecay', every: DECAY_EVERY, fixed: true }));
+}
+
+/** The engine's decays: a barrier's (技能-14) and a skill's bonus's (技能-4). */
 export const SKILL_TEXT_BEHAVIORS = Object.freeze({
-  skillBarrierDecay: { tick: (/** @type {World} */ _w, /** @type {Unit} */ u, /** @type {Buff} */ b) => { setShield(u, b, b.shield - b.value); } },
+  skillBarrierDecay: { tick: decayBarrier },
+  skillStatDecay: { tick: decayStats },
 });
 
 /** Whether the counter is still waiting out `aoe_cd` (技能-14). @param {Unit} op @param {number} frame @param {number} cd */
@@ -169,6 +216,7 @@ export function openSkillText(w, c, op) {
   const x = def.extra;
   let held = 0;
   if (x.barrier) giveBarrier(op, x.barrier);
+  if (x.decay) startDecay(op);
   for (const b of x.bursts ?? []) if (b.at === 'start') held = Math.max(held, strikeOn(w, c, op, b));
   if (x.allyHeal?.on === 'start') healAllies(w, c, op, x.allyHeal);
   return held;
@@ -194,6 +242,7 @@ export function closeSkillText(w, c, op, reason) {
   const def = defOf(c, op);
   if (!def || ownsSkill(c, def.id)) return;
   removeBuff(op, 'counterCd');
+  removeBuff(op, 'skillDecay');
   if (op.hp <= 0 || reason === 'death' || !def.extra) return;
   const x = def.extra;
   for (const b of x.bursts ?? []) if (b.at === 'end') strikeOn(w, c, op, b);

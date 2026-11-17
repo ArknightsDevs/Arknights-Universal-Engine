@@ -22,7 +22,7 @@ import { ALLY_COLLIDER_RADIUS } from './constants.js';
 import { foeTargets, foeRank, foeAttack, foeHit, foeLanded, foeCancelHit, isFoeOf } from './foes.js';
 import { makeBuff, addBuff, removeBuff } from './buffs.js';
 import { tileOf } from './body.js';
-import { tickSkill, beforeAttack, attackMods, afterAttack } from './skills.js';
+import { tickSkill, beforeAttack, attackMods, afterAttack, ownsSkill } from './skills.js';
 import { skillCounter } from './skilltext.js';
 import { palsyInterrupts, inflict } from './status.js';
 import { draw } from './rng.js';
@@ -42,6 +42,7 @@ import { disarmed } from './disarm.js';
 import { healable, healHow } from './healthrough.js';
 import { strikes, swingLost } from './hookmore.js';
 import { talentsNow } from './skilltalents.js';
+import { unblockedScaleOf, chainNow, typeVsBlocked } from './lifted.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').Cell} Cell @typedef {import('./attrs.js').Stats} Stats */
@@ -368,7 +369,7 @@ function loadFor(w, c, a, t, load) {
   if (a.kind !== KIND.OPERATOR) return hit;
   const tr = traitOf(c, a);
   return {
-    ...hit, amount: hit.amount * traitScale(w, c, a, t) * funnelScale(w, c, a, t), splash: tr.skillSplash && inSkill(a) ? tr.skillSplash : tr.splash, aftershock: tr.aftershock, chain: tr.chain,
+    ...hit, amount: hit.amount * traitScale(w, c, a, t) * funnelScale(w, c, a, t), splash: tr.skillSplash && inSkill(a) ? tr.skillSplash : tr.splash, aftershock: tr.aftershock, chain: chainNow(a, tr), ...typeVsBlocked(w, c, a, t, ownsSkill),
     ...(tr.aftershocks !== 1 ? { aftershocks: tr.aftershocks } : {}),
     ...(tr.packed ? { packed: tr.packed } : {}),
     ...(tr.hitMul !== 1 ? { split: tr.hitMul } : {}),
@@ -383,7 +384,7 @@ function loadFor(w, c, a, t, load) {
 export function traitScale(w, c, a, t) {
   if (a.kind !== KIND.OPERATOR) return 1;
   const tr = traitOf(c, a), bySummon = tr.summonBlockedScale !== 1 && summonHeld(w, a)(t);
-  return (t.blockedBy !== a.id ? tr.unblockedScale : 1) * (bySummon ? tr.summonBlockedScale : 1) * zoneScale(c, a, t, tr);
+  return (t.blockedBy !== a.id ? unblockedScaleOf(a, tr) : 1) * (bySummon ? tr.summonBlockedScale : 1) * zoneScale(c, a, t, tr);
 }
 
 /**

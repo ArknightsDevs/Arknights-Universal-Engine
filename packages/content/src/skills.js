@@ -12,6 +12,10 @@ import { batModsOf } from './batmode.js';
 import { namedStatMods } from './statkeys.js';
 import { strikeExtra, strikeNotes, instantOf, withoutStrikes } from './strike.js';
 import { repeatOf } from './repeats.js';
+import { attackPhraseOf, otherSubject } from './attackphrase.js';
+import { skillNotes } from './skillnotes.js';
+import { passiveSeconds } from './passivetime.js';
+import { chargedOf } from './chargedskill.js';
 
 /** @typedef {import('@aue/sim').SkillDef} SkillDef @typedef {import('@aue/sim').SkillBehavior} SkillBehavior */
 
@@ -41,13 +45,13 @@ export function skillDefOf(id, level) {
   const type = level.skillType;
   if (type !== 'AUTO' && type !== 'MANUAL' && type !== 'PASSIVE') throw new RangeError(`skill ${id}: unknown skillType ${type}`);
   const sp = /** @type {Record<string, 'time' | 'attack' | 'hurt'>} */ (SP_TYPES)[String(level.spData.spType)] ?? 'none';
-  const bb = Object.fromEntries(level.blackboard.map((b) => [b.key, b.value])), allies = alliesOf(level, bb), ex = strikeNotes(id, extraOf(level, ownMods(level, bb, allies.keys, id)));
+  const bb = Object.fromEntries(level.blackboard.map((b) => [b.key, b.value])), allies = alliesOf(level, bb), ex = strikeNotes(id, skillNotes(id, bb, textOf(level), extraOf(level, ownMods(level, bb, allies.keys, id))));
   return {
     id, type, sp, cost: level.spData.spCost, init: level.spData.initSp, charges: Math.max(1, level.spData.maxChargeTime),
-    duration: level.duration, ammo: level.durationType === 'AMMO', bb,
+    duration: passiveSeconds(level, bb, plainOf(level)) || level.duration, ammo: level.durationType === 'AMMO', bb,
     stoppable: level.stoppable ?? CLOSABLE.test(level.description ?? ''), ...rangeOf(level), ...ex,
     ...foreverOf(level), ...spendOf(level, bb), ...(allies.def ? { allies: allies.def } : {}), ...alchemyOf(level, bb),
-    ...dollSwitchOf(level), ...instantOf(level, bb, ex.extra),
+    ...dollSwitchOf(level), ...instantOf(level, bb, ex.extra), ...chargedOf(level, bb),
   };
 }
 
@@ -227,15 +231,17 @@ const UNDYING = /^技能持续期间内干员的生命值(?:始终)?不会低于
 /**
  * One sentence of a description as what it adds (技能-9), or null for a sentence it does not read.
  * @param {string} s the sentence, its placeholders as {key} @param {Record<string, number>} bb
+ * @param {boolean} [others] an earlier clause of its sentence is about another unit (a summon): what it says of attacks is not the operator's
  * @returns {{ mods?: Record<string, number>, flags?: Record<string, boolean>, attack?: NonNullable<SkillDef['extra']>['attack'] } | null}
  */
-function phraseOf(s, bb) {
+function phraseOf(s, bb, others = false) {
   let m;
   if (s === '同时攻击阻挡的所有敌人') return { attack: { blocked: true } };
   if ((m = /^(?:每次攻击)?额外攻击(一|两|1|2)(?:个|名)(?:目标|敌人)$/.exec(s))) return { attack: { more: COUNT[m[1]] } };
   if ((m = /^攻击变为(二|三|2|3)(?:连击|连射)$/.exec(s))) return { attack: { times: COUNT[m[1]] } };
   if (repeatOf(s)) return { attack: { times: repeatOf(s) } };
-  if (/^(?:普通攻击造成法术伤害|伤害类型变为法术|(?:每次)?攻击造成相当于攻击力\{(?:attack@)?atk_scale\}的法术伤害)$/.test(s)) return { attack: { type: 'arts' } };
+  const own = others ? null : attackPhraseOf(s, bb);
+  if (own) return own;
   if ((m = /^(?:并)?获得\{prob\}的?物理(和法术)?闪避$/.exec(s)) && Number.isFinite(bb.prob)) return { mods: { dodgePhys: bb.prob, ...(m[1] ? { dodgeArts: bb.prob } : {}) } };
   if (s === '阻挡数变为0') return { mods: { blockCntMul: 0 } };
   if (s === '防御力降至0') return { mods: { defMul: 0 } };
@@ -314,7 +320,11 @@ function extraOf(level, own) {
   const said = plainOf(level).split(/[。；\n]/).filter((seg) => !/关闭技能时/.test(seg)).join('。');
   // the clauses a start strike took (技能-16) are what it does, not what the skill's attacks do
   const kept = withoutStrikes(level, bb, said);
-  const parts = kept.split(/[，。；\n]/).map((s) => phraseOf(s.trim(), bb)).filter((p) => p !== null);
+  // a clause of a sentence that starts with another unit (a summon) says what that unit does (技能-9)
+  const parts = kept.split(/[。；\n]/).flatMap((sentence) => {
+    const clauses = sentence.split('，');
+    return clauses.map((s, i) => phraseOf(s.trim(), bb, clauses.slice(0, i).some(otherSubject)));
+  }).filter((p) => p !== null);
   const mods = Object.assign({ ...own, ...selfZeros(hit.keys) }, ...parts.map((p) => p.mods ?? {}));
   const flags = Object.assign({}, ...parts.map((p) => p.flags ?? {}));
   // 技能-14 and 技能-15 read the sentences 技能-9 leaves, on the same text (closing-skill segments already gone).

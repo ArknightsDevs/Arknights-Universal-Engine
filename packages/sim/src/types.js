@@ -157,7 +157,7 @@
  * its HP, or of its maximum with `ofMax`); `opening`, what it does to enemies as it starts — those in its attack range
  * (`most`: the first that many it would attack), or those it blocks — a hit of `scale` × its attack, then statuses. An
  * opening hit's plain `atk_scale` is claimed by `hitScale` too.
- * @typedef {{ mods?: Record<string, number>, flags?: Record<string, boolean>, attack?: { blocked?: boolean, more?: number, times?: number, type?: DamageType,
+ * @typedef {{ mods?: Record<string, number>, flags?: Record<string, boolean>, attack?: { blocked?: boolean, more?: number, times?: number, type?: DamageType, typeBlocked?: DamageType,
  *   hitStatus?: HitStatus, hitDebuff?: { seconds: number, mods: Record<string, number>, flags?: Record<string, boolean> },
  *   selfHeal?: number, element?: import('./elements.js').Element, epScale?: number, epRatio?: number,
  *   displace?: { pull: boolean, force: number, along?: boolean } },
@@ -173,6 +173,7 @@
  *   stopAttack?: { seconds?: number }, stopAfter?: { seconds: number }, costGain?: { every: number, cost: number, steps: number, plain?: boolean },
  *   selfLoss?: { ratio: number, ofMax?: boolean },
  *   opening?: { where: 'attack' | 'blocked', most?: number, hit?: { scale: number, type: DamageType }, status: { key: import('./status.js').StatusKey, seconds: number }[] }[],
+ *   decay?: { seconds: number, keys: string[] },
  *   hitScale?: 'attack', scaleKey?: string }} SkillExtra
  */
 /**
@@ -211,6 +212,14 @@
  * @property {'start' | 'end'} [doll] the skill switches a 傀儡师 to its 替身 as it starts, or after it ends on its own (职业-15)
  * @property {true} [instant] its description says it hits the enemies around the operator as it starts, and that hit has taken its
  *   attack keys: it is an instant skill, not a next-attack one (技能-16)
+ * @property {SkillCharged} [charged] its 蓄力 part: what it does only when it starts with all its SP (技能-4)
+ */
+/**
+ * The 蓄力 part of a skill (技能-4): `keys` are the blackboard keys that only that part uses — the plain skill does not read
+ * them —; a charged start adds `mods` to the skill's modifiers, and `attack` in place of its own `scale`, `times` and status each
+ * hit gives; its seconds are `seconds` and its shots the blackboard's `ammo` key, when they are given.
+ * @typedef {{ keys: string[], mods?: Record<string, number>, attack?: { scale?: number, times?: number, hitStatus?: HitStatus }, seconds?: number,
+ *   ammo?: string }} SkillCharged
  */
 /**
  * What a skill's 炼金单元 does (技能-13). `at`: thrown at the enemies (the operator's target, else the farthest tile ahead in
@@ -923,6 +932,7 @@
  * @property {number} dur frames left of its duration, −1 for none
  * @property {number} ammo shots left of an ammo skill
  * @property {number} at the frame it started
+ * @property {true} [charged] it started with all its SP, so its 蓄力 part is in effect (技能-4)
  * @property {number} [spend] the deployment cost it takes to start (技能-10)
  * @property {boolean} [dollPending] set until this frame's flush when the skill has asked to switch to the 替身 (职业-15); absent otherwise, so a snapshot of a skill that never asked stays the same
  */

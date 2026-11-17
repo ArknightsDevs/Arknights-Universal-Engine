@@ -145,19 +145,27 @@ test('[技能-14] an enemy\'s attack takes the counter and does not recover SP w
   assert.equal(e.hp, 1e9 - statsOf(op).atk * 1.3);
 });
 
-test('[技能-14] a decaying barrier steps down every 0.5 s from the total, after the stat buff', () => {
+test('[技能-14] a decaying barrier: its capacity steps down once a second, after the stat buff, and what is left of it shrinks with the capacity', () => {
   const { w, c } = field(sk({ type: 'PASSIVE', sp: 'none', duration: -1, bb: { max_hp: 0.5 }, extra: { barrier: { ratio: 1.8, seconds: 10, decay: true } } }));
   const op = deploy(w, c);
   const b = barrier(op);
   assert.ok(b);
   assert.equal(statsOf(op).maxHp, 1500, 'max_hp is on before the shield');
-  assert.equal(b.shield, 1500 * 1.8);
-  assert.equal(b.value, b.shield * 0.5 / 10);
-  const full = b.shield;
-  run(w, c, 13);
-  assert.equal(b.shield, full, 'the deploy frame already counted as 1');
+  const total = 1500 * 1.8;
+  assert.equal(b.shield, total);
+  run(w, c, 28);
+  assert.equal(b.shield, total, 'the deploy frame already counted as 1');
   run(w, c, 1);
-  assert.equal(b.shield, full - b.value);
+  assert.ok(Math.abs(b.shield - total * 0.9) < 1e-9, 'the capacity is 9/10 of the total after the first second');
+  dealDamage(w, null, op, { type: 'true', amount: 600 }, c);
+  const hurt = total * 0.9 - 600;
+  assert.ok(Math.abs(b.shield - hurt) < 1e-9, 'the barrier took it');
+  run(w, c, 30);
+  assert.ok(Math.abs(b.shield - hurt * (0.8 / 0.9)) < 1e-9, 'a damaged barrier shrinks by the same share as its capacity, not by the same amount');
+  run(w, c, 30 * 8 - 1);
+  assert.ok(b.shield > 0 && op.buffs.includes(b), 'still there a frame before its last second ends');
+  run(w, c, 1);
+  assert.equal(barrier(op), undefined, 'the capacity is 0 after 10 seconds');
 });
 
 test('[技能-14] a barrier tied to the skill goes when it ends; one with its own seconds stays; physical ignores arts', () => {

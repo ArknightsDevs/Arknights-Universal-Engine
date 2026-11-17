@@ -15,6 +15,8 @@ import { restartCharge } from './modes.js';
 import { talentSkillEnd, talentSkillStart } from './talentfx.js';
 import { openSkillText, closeSkillText, healSkillAllies } from './skilltext.js';
 import { openSkillText2, tickSkillText2, closeSkillText2 } from './skilltext2.js';
+import { liftedFlags } from './lifted.js';
+import { chargeStart, chargedBb, chargedMods, chargedSeconds, chargedShots, chargedAttack } from './chargedskill.js';
 
 /** @typedef {import('./types.js').World} World @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Content} Content */
 /** @typedef {import('./types.js').SkillDef} SkillDef @typedef {import('./types.js').SkillState} SkillState */
@@ -153,15 +155,16 @@ export function ownsSkill(c, id) {
 const defOf = (c, op) => /** @type {SkillDef} */ (c.operators[op.key].skill);
 
 /**
- * The blackboard a skill's behaviour reads (技能-5, 技能-10): the record's — without `cost` for a skill that costs it to
- * start, whose `cost` is the price, not cost it gives.
- * @param {SkillDef} def @returns {Record<string, number>}
- * @param {Content} c
+ * The blackboard a skill's behaviour reads (技能-4, 技能-5, 技能-10): the record's — without `cost` for a skill that costs it to
+ * start, whose `cost` is the price, not cost it gives; without the keys of its 蓄力 part unless it started charged.
+ * @param {SkillDef} def @param {Content} c @param {SkillState | null} st
+ * @returns {Record<string, number>}
  */
-function bbOf(def, c) {
+function bbOf(def, c, st) {
+  const bb = def.charged ? chargedBb(def, st, ownsSkill(c, def.id)) : def.bb;
   // 技能-15: a cost gained bit by bit from the plain `cost` is not also gained at the start — unless the id has a behaviour of its own (技能-6), as 技能-15 then does nothing
-  if (def.extra?.costGain?.plain && !ownsSkill(c, def.id)) return Object.fromEntries(Object.entries(def.bb).filter(([k]) => k !== 'cost'));
-  return def.spend ? Object.fromEntries(Object.entries(def.bb).filter(([k]) => k !== 'cost')) : def.bb;
+  if (def.extra?.costGain?.plain && !ownsSkill(c, def.id)) return Object.fromEntries(Object.entries(bb).filter(([k]) => k !== 'cost'));
+  return def.spend ? Object.fromEntries(Object.entries(bb).filter(([k]) => k !== 'cost')) : bb;
 }
 /** @param {Content} c @param {string} id @returns {SkillBehavior} */
 const behaviorOf = (c, id) => (c.behaviors?.skills && Object.hasOwn(c.behaviors.skills, id) ? c.behaviors.skills[id] : GENERIC);
@@ -171,9 +174,9 @@ const behaviorOf = (c, id) => (c.behaviors?.skills && Object.hasOwn(c.behaviors.
  * @param {World} w @param {Content} c @param {Unit} op @returns {{ kind: SkillKind, seconds: number, ctx: SkillContext }}
  */
 function timingOf(w, c, op) {
-  const def = defOf(c, op), ctx = { ...actorContext(w, c, op, bbOf(def, c)), kind: kindOf(def), extra: def.extra?.mods ?? {} };
+  const def = defOf(c, op), ctx = { ...actorContext(w, c, op, bbOf(def, c, op.skill)), kind: kindOf(def), extra: { ...def.extra?.mods, ...chargedMods(def, op.skill) } };
   const t = behaviorOf(c, def.id).timing?.(ctx) ?? null;
-  return { kind: t?.kind ?? ctx.kind, seconds: t?.seconds ?? def.duration, ctx: { ...ctx, kind: t?.kind ?? ctx.kind } };
+  return { kind: t?.kind ?? ctx.kind, seconds: t?.seconds ?? chargedSeconds(def, op.skill) ?? def.duration, ctx: { ...ctx, kind: t?.kind ?? ctx.kind } };
 }
 
 /** @param {World} w @param {Content} c @param {Unit} op @returns {SkillContext} */
@@ -193,6 +196,7 @@ export function endSkill(w, c, op, reason = 'duration') {
   removeBuff(op, 'spendAtk');
   removeBuff(op, 'skillFlags');
   st.active = false; st.armed = false; st.dur = -1; st.ammo = 0;
+  delete st.charged;
   restartCharge(op);
   w.events.push({ type: 'skill', id: op.id, active: 0 });
   talentSkillEnd(w, c, op, reason);
@@ -229,19 +233,29 @@ export function setTimeLeft(st, frames) {
 const runFrames = (kind, seconds) => ((kind === 'duration' || kind === 'passive' || kind === 'ammo') && seconds > 0 && Number.isFinite(seconds) ? secondsToFrames(seconds) : -1);
 
 /**
+ * The shots an ammo skill holds as it starts (技能-4): the 蓄力 part's, else the blackboard's `attack@trigger_time`, `trigger_time`,
+ * `cnt`, else 1; and more by its holder's `ammoFlat` (部署-7).
+ * @param {Unit} op @param {SkillDef} def @param {SkillState} st
+ */
+function shotsOf(op, def, st) {
+  const base = chargedShots(def, st) ?? def.bb['attack@trigger_time'] ?? def.bb.trigger_time ?? def.bb.cnt ?? 1;
+  return Math.max(1, base) + Math.max(0, Math.floor(statsOf(op).sum.ammoFlat ?? 0));
+}
+
+/**
  * Starts a skill (技能-3, 技能-4): it takes its cost; by kind it lasts its duration, holds its ammo (more by its holder's
  * `ammoFlat`, summed: 部署-7), waits for the next attack, or acts at once and ends. The `skillStart` event (钩子-3) follows its behaviour's start, with why: `manual`,
  * `auto` or `deploy` (a passive skill). A free start (content's own, 技能-3) takes no cost.
  * @param {World} w @param {Content} c @param {Unit} op @param {string} [reason] @param {boolean} [free]
  */
 export function activate(w, c, op, reason = 'auto', free = false) {
-  const st = /** @type {SkillState} */ (op.skill), def = defOf(c, op), { kind, seconds } = timingOf(w, c, op);
-  if (!free) spendSp(st);
+  const st = /** @type {SkillState} */ (op.skill), def = defOf(c, op), takesAll = chargeStart(def, st, ownsSkill(c, def.id), free), { kind, seconds } = timingOf(w, c, op);
+  if (!free) spendSp(st, takesAll);
   if (!free && def.spend) payFor(w, c, op, def.spend);
   st.active = true; st.at = w.frame;
   st.armed = kind === 'next';
   st.dur = runFrames(kind, seconds);
-  st.ammo = kind === 'ammo' ? Math.max(1, def.bb['attack@trigger_time'] ?? def.bb.trigger_time ?? def.bb.cnt ?? 1) + Math.max(0, Math.floor(statsOf(op).sum.ammoFlat ?? 0)) : 0;
+  st.ammo = kind === 'ammo' ? shotsOf(op, def, st) : 0;
   w.events.push({ type: 'skill', id: op.id, active: 1 });
   talentSkillStart(w, c, op);
   behaviorOf(c, st.id).start?.(contextOf(w, c, op));
@@ -277,12 +291,15 @@ function settleInstant(w, c, op, held) {
 
 /**
  * The flags a skill's description gives while it runs (技能-9, e.g. 不死): a buff `skillFlags` from its start until it
- * ends, whatever its behaviour; none for a skill that does not run (instant, next attack).
+ * ends, whatever its behaviour; none for a skill that does not run (instant). A next-attack skill holds only what it lifts of
+ * its trait and, started charged, the modifiers its 蓄力 part adds (攻击距离+2, 技能-4): it has no buff of its own, and its
+ * attack lands while it is armed, which is when it ends.
  * @param {Unit} op @param {SkillDef} def @param {SkillKind} kind
  */
 function holdFlags(op, def, kind) {
-  const flags = def.extra?.flags;
-  if (flags && kind !== 'instant' && kind !== 'next') addBuff(op, makeBuff({ key: 'skillFlags', src: op.id, flags }));
+  const flags = def.extra?.flags, held = flags && kind === 'next' ? liftedFlags(flags) : flags;
+  const mods = kind === 'next' ? chargedMods(def, op.skill) : {};
+  if ((held || Object.keys(mods).length > 0) && kind !== 'instant') addBuff(op, makeBuff({ key: 'skillFlags', src: op.id, flags: held ?? undefined, mods }));
 }
 
 /**
@@ -380,7 +397,7 @@ export function attackMods(w, c, op) {
   const kind = timingOf(w, c, op).kind;
   if (st.active && kind === 'passive' && !ownsSkill(c, st.id)) return pushed(w, c, op, hitExtra(plain, defOf(c, op)));
   if (!st.active || kind === 'instant' || kind === 'passive') return plain;
-  const def = defOf(c, op), mods = withExtra(skillMods(def.bb, def.extra?.hitScale, def.extra?.scaleKey), def), beh = behaviorOf(c, st.id);
+  const def = defOf(c, op), mods = chargedAttack(def, st, withExtra(skillMods(bbOf(def, c, st), def.extra?.hitScale, def.extra?.scaleKey), def)), beh = behaviorOf(c, st.id);
   return pushed(w, c, op, beh.attack ? beh.attack(contextOf(w, c, op), mods) : mods);
 }
 
@@ -397,19 +414,19 @@ function pushed(w, c, op, mods) {
 
 /**
  * A skill's attack mods with what its description adds (技能-9): every blocked enemy as targets, more targets, hits
- * (unless the blackboard gives them), the damage type, a status each hit gives.
+ * (unless the blackboard gives them), a status each hit gives.
  * @param {AttackMods} mods @param {SkillDef} def @returns {AttackMods}
  */
 function withExtra(mods, def) {
   const a = def.extra?.attack;
   if (!a) return mods;
   const times = a.times && !('times' in def.bb) && !('attack@times' in def.bb) ? a.times : mods.times;
-  return hitExtra({ ...mods, times, ...(a.blocked ? { blocked: true } : {}), ...(a.more ? { more: a.more } : {}), ...(a.type ? { type: a.type } : {}) }, def);
+  return hitExtra({ ...mods, times, ...(a.blocked ? { blocked: true } : {}), ...(a.more ? { more: a.more } : {}) }, def);
 }
 
 /**
  * An attack's mods with what a skill's description says its hits do (技能-9): a status, timed modifiers on the target,
- * the operator's HP back, 元素损伤 — for every attack of a passive skill's operator too.
+ * the operator's HP back, 元素损伤, the damage type — for every attack of a passive skill's operator too.
  * @param {AttackMods} mods @param {SkillDef} def @returns {AttackMods}
  */
 function hitExtra(mods, def) {
@@ -417,7 +434,7 @@ function hitExtra(mods, def) {
   if (!a) return mods;
   return { ...mods, ...(a.hitStatus ? { hitStatus: a.hitStatus } : {}), ...(a.hitDebuff ? { hitDebuff: a.hitDebuff } : {}), ...(a.selfHeal ? { selfHeal: a.selfHeal } : {}),
     ...(a.element && a.epScale ? { element: a.element, epScale: a.epScale } : {}), ...(a.element && a.epRatio ? { element: a.element, epRatio: a.epRatio } : {}),
-    ...(a.displace ? { displace: a.displace } : {}) };
+    ...(a.displace ? { displace: a.displace } : {}), ...(a.type ? { type: a.type } : {}) };
 }
 
 /**
