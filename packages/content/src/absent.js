@@ -2,8 +2,9 @@
 // under a 指挥官指令, and “家族专用轿车”'s `DeathRattle` brings in 家族士兵, whom the level's data does not carry; the Dor
 // series' `Driver` gives SP to an inactive R-series power armour, a device no level has (敌能-163). So are 访问团持盾者's
 // and 访问团持盾长's `ColdShield`, `MeltShield` and their shape of `Shield`, which work in 封冻 areas and near a lit
-// 紧急供暖器, neither of which a level has (敌能-164). Each is covered in its shape and does nothing. `DeathRattle` has a
-// second shape that does act: the boats' `enemy_key`, whose crew goes on fighting (敌能-133, boats.js).
+// 紧急供暖器 (敌能-164), and 架桥船工's 施工 (`BuildBridge`) and the sailors' `MoveSpeedUp`, which need 悬索桥 terrain and
+// the 盐坨子炮 (敌能-165); no level has these. Each is covered in its shape and does nothing. `DeathRattle` has a second
+// shape that does act: the boats' `enemy_key`, whose crew goes on fighting (敌能-133, boats.js).
 
 import { boatShape, boatDeath } from './boats.js';
 
@@ -18,6 +19,9 @@ const exact = (bb, keys) => Object.keys(bb).length === keys.length && keys.every
 /** 访问团持盾者's and 访问团持盾长's `Shield` (敌能-164): `max_stack_cnt` and `min_stack_cnt` alone. @param {Record<string, unknown>} bb */
 export const visitorShield = (bb) => exact(bb, ['max_stack_cnt', 'min_stack_cnt']);
 
+/** 架桥船工's 施工 and the sailors' `MoveSpeedUp` (敌能-165): these keys, each a number, and no other. @type {Readonly<Record<string, readonly string[]>>} */
+const BRIDGE_KEYS = Object.freeze({ BuildBridge: ['bridge_duration', 'loop_duration', 'time_each_tile', 'interval', 'extra_skill_time'], MoveSpeedUp: ['move_speed', 'speed_up_duration'] });
+
 /** Whether a behaviour of this name is this file's, by its shape (关卡-2); any other name passes. @param {string} name @param {Record<string, unknown>} bb */
 export function absentOwns(name, bb) {
   if (name === 'ExtraPower') return Object.keys(bb).length === 1 && typeof bb.damage_resistance === 'number';
@@ -25,13 +29,14 @@ export function absentOwns(name, bb) {
   if (name === 'Driver') return exact(bb, ['sp']);
   if (name === 'ColdShield') return exact(bb, ['max_stack_cnt', 'def', 'interval', 'magic_resistance']);
   if (name === 'MeltShield') return exact(bb, ['interval']);
+  if (Object.hasOwn(BRIDGE_KEYS, name)) return exact(bb, BRIDGE_KEYS[name]);
   return true;
 }
 
 /**
  * The behaviours of this file, by name: the sedan's `DeathRattle` does nothing, the boats' brings their crew (敌能-133);
- * `ExtraPower`, `Driver`, `ColdShield` and `MeltShield` do nothing. 访问团's `Shield` goes to blockdamage.js's, which
- * finds no layers in its shape.
+ * `ExtraPower`, `Driver`, `ColdShield`, `MeltShield`, `BuildBridge` and `MoveSpeedUp` do nothing. 访问团's `Shield` goes
+ * to blockdamage.js's, which finds no layers in its shape.
  * @type {Readonly<Record<string, FoeBehavior>>}
  */
 export const absentBehaviors = Object.freeze({
@@ -40,4 +45,6 @@ export const absentBehaviors = Object.freeze({
   Driver: Object.freeze({}),
   ColdShield: Object.freeze({}),
   MeltShield: Object.freeze({}),
+  BuildBridge: Object.freeze({}),
+  MoveSpeedUp: Object.freeze({}),
 });
