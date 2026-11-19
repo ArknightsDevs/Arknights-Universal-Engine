@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { tinyContent } from '@aue/testkit';
-import { createWorld, step } from '../src/index.js';
+import { createWorld, step, bus } from '../src/index.js';
 import { makeEnemy } from '../src/units.js';
 import { applyStatus } from '../src/status.js';
 import { statsOf } from '../src/attrs.js';
@@ -117,6 +117,16 @@ test('[职业-11] a heal for damage: the most wounded operator in range takes th
   assert.deepEqual(ev.filter((e) => e.type === 'heal').map((e) => [e.id, e.target, e.amount]), [[guard.id, mate.id, 25]]);
   mate.hp = 1000;
   assert.equal(run(40).filter((e) => e.type === 'heal').length, 0);
+});
+
+test('[职业-11] the heal for a hit is settled as it lands, before its `damaged` event: before the heal for a hit that a `damaged` handler deals', () => {
+  const { w, c, foe, put, run } = arena((cc) => { cc.operators.guard.trait = { healOnHit: 0.5 }; });
+  const guard = put('guard', 1, 1), mate = put('g2', 1, 2), e = foe(1, 2);
+  let more = 0;
+  bus.on(w, 'damaged', (k) => { if (k.source === guard && k.target === e && more++ === 0) creditedDamage(w, c, guard, e, { type: 'true', amount: 20 }); });
+  mate.hp = mate.maxHp - 30;
+  const heals = run(2).filter((x) => x.type === 'heal').map((x) => [x.target, x.amount]);
+  assert.deepEqual(heals, [[mate.id, 25], [mate.id, 5]], 'the attack’s 50 × 0.5 first, then the hit its `damaged` dealt: 20 × 0.5, of which 5 were left to heal');
 });
 
 /** Heal events after `n`, as [healer, target, amount]. @param {import('../src/types.js').World} w @param {number} n */

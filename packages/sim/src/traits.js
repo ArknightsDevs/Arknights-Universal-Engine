@@ -341,11 +341,12 @@ export function traitKill(w, c, op, target) {
 
 /**
  * Deals damage as an operator's attack or skill and credits a kill to it (职业-5): the target had HP before and has
- * none after. Returns the HP taken.
+ * none after; its trait heals for it as it lands (`traitHeal`, 职业-11). Returns the HP taken.
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target @param {import('./damage.js').Damage} dmg
  */
 export function creditedDamage(w, c, op, target, dmg) {
   vsDamage(w, c, op, target, dmg);
+  dmg.traitHeal = true;
   const alive = target.hp > 0, taken = dealDamage(w, op, target, dmg, c);
   traitDealt(w, c, op, target, { dmg, taken });
   if (alive && target.hp <= 0) traitKill(w, c, op, target);
@@ -365,10 +366,23 @@ function healOnDamage(w, c, op, taken, share) {
 }
 
 /**
+ * The heal of a trait for a hit of its operator's own (`healOnHit`, 咒愈师, 职业-11), as the hit is applied: after the HP
+ * is taken and the `damageApplied` event, before the `damaged` event — so before the heal for a hit that a `damaged`
+ * handler deals —: one operator, by that share of the damage. 生命流失, a sourceless hit (伤害-7) and a hit on anyone
+ * but an enemy aside.
+ * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target @param {{ dmg: import('./damage.js').Damage, taken: number }} hit the hit and the HP it took
+ */
+export function healForHit(w, c, op, target, hit) {
+  if (!(hit.taken > 0) || hit.dmg.hpLoss || hit.dmg.sourceless || target.kind !== KIND.ENEMY || op.kind !== KIND.OPERATOR || op.hp <= 0) return;
+  const share = traitOf(c, op).healOnHit;
+  if (share > 0) healOnDamage(w, c, op, hit.taken, share);
+}
+
+/**
  * What a hit this operator dealt an enemy sets off (职业-9, 职业-11). A trait that heals itself for every hit
  * (`selfHealOn` 'damage', 武者) restores its `selfHeal` once for each hit of its that took HP from an enemy — any hit
- * with it as the source, an attack's or not. One that heals for the damage (`healOnHit`, 咒愈师) restores one operator
- * by that share of it. 生命流失 and a sourceless hit (伤害-7) aside, and so is a hit on anyone but an enemy. Such a hit
+ * with it as the source, an attack's or not; one that heals for the damage did so as the hit was applied (healForHit).
+ * 生命流失 and a sourceless hit (伤害-7) aside, and so is a hit on anyone but an enemy. Such a hit
  * is also a step of its talents' damage stacks (职业-25) and gives their SP for damage (职业-31); a run of hits counts
  * it, a blow that may not kill leaves 重伤 (职业-34).
  * @param {World} w @param {Content} c @param {Unit} op @param {Unit} target @param {{ dmg: import('./damage.js').Damage, taken: number }} hit the hit and the HP it took
@@ -377,7 +391,6 @@ export function traitDealt(w, c, op, target, hit) {
   if (!(hit.taken > 0) || hit.dmg.hpLoss || hit.dmg.sourceless || target.kind !== KIND.ENEMY || op.hp <= 0) return;
   const t = traitOf(c, op);
   if (t.selfHealOn === 'damage' && t.selfHeal > 0) w.events.push({ type: 'heal', id: op.id, target: op.id, amount: heal(w, op, op, t.selfHeal, { trait: true }) });
-  if (t.healOnHit > 0) healOnDamage(w, c, op, hit.taken, t.healOnHit);
   if (t.stacks.length) talentDealt(c, op, hit.dmg);
   if (t.talentSp.length) dealtSp(w, c, op);
   comboHit(w, c, op);

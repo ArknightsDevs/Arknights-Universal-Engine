@@ -14,7 +14,7 @@ import { worksMul } from './works.js';
 import { inflict } from './status.js';
 import { damageFloor } from './talentmore.js';
 import { nonLethalCap } from './talentfight.js';
-import { traitOf } from './traits.js';
+import { traitOf, healForHit } from './traits.js';
 import { stealthed, liftoffRefused } from './targeting.js';
 
 /** @typedef {import('./types.js').Unit} Unit @typedef {import('./types.js').Buff} Buff @typedef {import('./types.js').World} World */
@@ -49,6 +49,8 @@ import { stealthed, liftoffRefused } from './targeting.js';
  *   隐匿 or 无法选中
  * @property {boolean} [ignoreSelect] a ground enemy's hit still lands on a unit that took off (起飞, 敌能-55); 无敌 still stops it
  * @property {import('./types.js').VsScale[]} [foe] the target 倍率 that held before the hit, for after it (职业-28)
+ * @property {boolean} [traitHeal] its source's trait heals for it as it lands (职业-11, 咒愈师): an operator's attack hits
+ *   and its credited damage (traits.js `creditedDamage`) — settled once the HP is taken, before the `damaged` event
  */
 
 /** @typedef {{ defIgnorePct: number, defIgnoreFlat: number, resIgnorePct: number, resIgnoreFlat: number }} Penetration */
@@ -383,12 +385,13 @@ function countedLoss(flags, dmg, amount) {
  * Takes HP (伤害-9): never below 1 for an undying unit (不死; its maximum when below 1); at 0 or below the unit is at 0
  * and leaves the field at the end of the frame (帧-1) — unless a `fatal` handler prevents it (钩子-3): then it keeps 1 HP
  * (its maximum when below 1). A 特殊生命值 unit (敌能-39) loses 1 instead of `amount`, or 0 when its type filter rejects
- * the hit (敌能-43), except for 生命流失; the event and the return stay `amount`. Then the `damageApplied` event (not
- * for 生命流失) and the `damaged` event. The hit counts as its source's (the kill's), also when the events see none.
- * @param {World} w @param {Unit | null} src @param {Unit} t @param {number} amount @param {Damage} dmg
+ * the hit (敌能-43), except for 生命流失; the event and the return stay `amount`. Then what follows it being applied
+ * (applied) and the `damaged` event. The hit counts as its source's (the kill's), also when the events see none.
+ * @param {World} w @param {Unit} t @param {number} amount @param {Damage} dmg
+ * @param {{ src: Unit | null, c: import('./types.js').Content | undefined }} by its source, the content
  */
-function loseHp(w, src, t, amount, dmg) {
-  const seen = seenOf(src, dmg), s = statsOf(t), before = t.hp;
+function loseHp(w, t, amount, dmg, by) {
+  const src = by.src, seen = seenOf(src, dmg), s = statsOf(t), before = t.hp;
   const hurt = !dmg.hpLoss && amount > 0 ? tracker(t, 'lastHurt') : undefined;
   if (hurt) stamp(hurt, w.frame);
   t.hp -= countedLoss(s.flags, dmg, amount);
@@ -399,9 +402,22 @@ function loseHp(w, src, t, amount, dmg) {
     if (saved && t.hp < 1) t.hp = Math.min(1, statsOf(t).maxHp);
   }
   w.events.push({ type: 'hit', id: src ? src.id : -1, target: t.id, damage: amount });
-  if (!dmg.hpLoss && amount > 0 && hasHook(w, 'damageApplied')) emit(w, 'damageApplied', { source: seen, credit: src, target: t, dmg, kind: 'damage', amount, hpRemoved: Math.max(0, before - t.hp) });
+  applied(w, t, dmg, { src, seen, amount, removed: Math.max(0, before - t.hp), c: by.c });
   if (hasHook(w, 'damaged')) emit(w, 'damaged', { source: seen, credit: src, target: t, amount, type: dmg.type, dmg });
   return amount;
+}
+
+/**
+ * What follows a hit taking HP, before the `damaged` event (not for 生命流失): the `damageApplied` event (钩子-3), then
+ * its source's trait heal for it (`traitHeal`, given the content: 咒愈师, 职业-11).
+ * @param {World} w @param {Unit} t @param {Damage} dmg
+ * @param {{ src: Unit | null, seen: Unit | null, amount: number, removed: number, c: import('./types.js').Content | undefined }} x
+ */
+function applied(w, t, dmg, x) {
+  const { src, seen, amount } = x;
+  if (dmg.hpLoss || !(amount > 0)) return;
+  if (hasHook(w, 'damageApplied')) emit(w, 'damageApplied', { source: seen, credit: src, target: t, dmg, kind: 'damage', amount, hpRemoved: x.removed });
+  if (dmg.traitHeal && x.c && src) healForHit(w, x.c, src, t, { dmg, taken: amount });
 }
 
 /** A hit's fields the events show, filled in (钩子-3): `mul` 1, no `tags`, not cancelled, no penetration. @param {Damage} dmg */
@@ -561,7 +577,7 @@ function heldAbove(amount, hp, stopAt) {
 export function dealDamage(w, src, target, dmg, c) {
   if (target.hp <= 0) return 0;
   settle(dmg);
-  if (dmg.hpLoss) return loseHp(w, src, target, dmg.amount, dmg);
+  if (dmg.hpLoss) return loseHp(w, target, dmg.amount, dmg, { src, c });
   if (hitStops(w, src, target, dmg)) return 0;
   if (!dmg.noHurtSp) hurtSp(target);
   tallyTaken(target);
@@ -574,7 +590,7 @@ export function dealDamage(w, src, target, dmg, c) {
   if (final === null) return 0;
   amount = hpDamage(w, src, target, takeDamage(w, target, final, dmg, { src: seen, credit: src, tags: tagsOf(c, seen), ...(c ? { c } : {}) }), dmg);
   amount = heldAbove(amount, target.hp, dmg.stopAt);
-  return amount > 0 ? loseHp(w, src, target, amount, dmg) : 0;
+  return amount > 0 ? loseHp(w, target, amount, dmg, { src, c }) : 0;
 }
 
 /**

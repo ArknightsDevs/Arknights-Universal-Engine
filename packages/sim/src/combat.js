@@ -184,12 +184,15 @@ export function displaceOnHit(w, c, src, t, d) {
 }
 
 /**
- * A hit's damage on a target (damageOf), an operator's by its trait's 倍率 for the target (职业-17).
+ * A hit's damage on a target (damageOf), an operator's by its trait's 倍率 for the target (职业-17) and with its trait's
+ * heal for it as it lands (`traitHeal`, 职业-11).
  * @param {World} w @param {Content} c @param {Unit | null} op @param {Unit} t @param {Load} load
  */
 function hitDamage(w, c, op, t, load) {
   const dmg = damageOf(load, t);
-  if (op) vsDamage(w, c, op, t, dmg);
+  if (!op) return dmg;
+  vsDamage(w, c, op, t, dmg);
+  dmg.traitHeal = true;
   return dmg;
 }
 

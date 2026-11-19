@@ -36,7 +36,7 @@
 | `dodge` | 伤判效果里闪避了这次伤害时（伤害-8） | `source`、`target`、`dmg` |
 | `hpDamage` | 伤判效果之后、扣生命之前，剩下的伤害大于 0 时 | `source`、`credit`、`target`、`amount`（只能调低）、`dmg` |
 | `fatal` | 扣生命使它归零时（含生命流失） | `unit`、`source`、`credit`、`dmg`、`amount`、`prevented`：设为是时它留下 1 点生命（生命上限不足 1 时为上限） |
-| `damageApplied` | 扣生命之后、`damaged` 之前，造成了伤害的（生命流失没有，伤害为 0 的没有） | `source`（无来源的为空）、`credit`、`target`、`dmg`、`kind`（`damage`）、`amount`（进入扣生命的伤害）、`hpRemoved`（实际扣去的生命） |
+| `damageApplied` | 扣生命之后、`damaged` 之前，造成了伤害的（生命流失没有，伤害为 0 的没有）；咒愈师对这一下的治疗紧随其后（职业-11） | `source`（无来源的为空）、`credit`、`target`、`dmg`、`kind`（`damage`）、`amount`（进入扣生命的伤害）、`hpRemoved`（实际扣去的生命） |
 | `damaged` | 扣生命之后（含生命流失） | `source`、`credit`、`target`、`amount`、`type`、`dmg`。这四个伤害事件的 `credit` 是伤害记在谁名下：一般同 `source`；记在来源名下的无来源伤害（伤害-7）`source` 为空，`credit` 是来源 |
 | `heal` | 治疗算完倍率、回复生命之前（伤害-11） | `source`、`target`、`amount`（可改）、`trait`（是治疗者特性的自身回复时为真，职业-9） |
 | `beforeAttack` | 一次攻击锁定目标时（攻击-2 第 1 步） | `attacker`、`targets`（可换，留下仍在场、有生命的；为空时这次不攻击）、`isSkill`、`scale`（这次攻击的倍率再乘它，默认 1）、`mark`（内容给这次攻击的标记，整数，默认 0；随攻击和它的投射物带到 `attackHit`） |

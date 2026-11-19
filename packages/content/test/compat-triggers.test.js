@@ -136,6 +136,24 @@ test('[兼容-5] a heal skill, or one that asks for allies, starts when an injur
   assert.deepEqual(play({ ...heal, trigger: { rule: 'SKILL_RANGE', grid: [[0, -1]], allies: true } }, 0.2), [false, false], 'and one that is not on it is not asked for');
 });
 
+test('[兼容-5] [职业-2] a skill whose spec turns the attack into a heal makes a piece that is no healer heal the injured ally in its range, not the enemy before it', () => {
+  const m = arena({ siege: kitOf({ ...TIMED, trigger: 'NEVER', duration: 6, attack: { dmgType: 'heal' } }), texas: kitOf({}) }, { reach: 3 });
+  step(m.w, m.c, [DEPLOY.siege, DEPLOY.texas]);
+  for (let i = 0; i < 150; i++) step(m.w, m.c);
+  const texas = piece(m.b, 'texas');
+  const [siege, tex] = ['siege', 'texas'].map((k) => /** @type {any} */ (m.w.units.find((/** @type {any} */ u) => u.key === k)));
+  m.b.dealDamage({ source: m.b.enemies[0], target: texas, amount: texas.maxHp * 0.5, type: 'true' });
+  assert.ok(piece(m.b, 'siege').skill?.activate('manual', { free: true }));
+  /** @type {(string | number)[]} */
+  const healed = [];
+  let struck = 0;
+  bus.on(m.w, 'damaged', (k) => { if (k.source === siege) struck++; });
+  for (let i = 0; i < 120; i++) for (const e of step(m.w, m.c)) if (e.type === 'heal' && e.id === siege.id) healed.push(e.target);
+  assert.ok(healed.length > 0 && healed.every((id) => id === tex.id), `her attacks heal texas only (${healed})`);
+  assert.equal(struck, 0, 'and strike no enemy while the skill runs');
+  assert.deepEqual(m.b.errors, []);
+});
+
 test('[兼容-5] setTrigger changes the rule from then on, over the spec’s: its grid, none for an empty one; the spec’s allies and hpAtMost stay', () => {
   const m = arena({ siege: kitOf({ ...TIMED, trigger: 'NEVER' }) }, { waves: false });
   step(m.w, m.c, [DEPLOY.siege]);
