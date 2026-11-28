@@ -64,14 +64,15 @@ export class ShBuff {
  * and of what may be selected (`maxTargets`, `priority`, `allInRange`, `hitAllBlocked`, `canHitFly`, `groundOnly`, `hitSleep`,
  * `skipEnemy`, `rangeTiles`, `attackRangeRadius`; 索敌-2), which the layer's target helpers take from the profile a kit passes
  * them. A unit with a funnel (职业-12) also has `funnel` and `funnelMul` read (off when `funnelMul` is null), through the trait
- * behaviour (ShUnit.funnelOverride). `splashRadius` and `shockTimes` are not read here: a write of them is put on the unit
- * as the `profileShock` buff (shock.js, 职业-8). A write of any other field is kept, has no effect, and is recorded as a gap
- * (ShUnit.noteGap).
+ * behaviour (ShUnit.funnelOverride). `splashRadius` and `shockTimes` are not read off the profile object: a write of them
+ * is put on an operator piece's attacks as the `profileShock` buff when that attack can use it (shock.js, 职业-8). A write
+ * that cannot — no splash for the radius, no aftershock for the count, or the writer is an enemy — is a gap (noteGap),
+ * like any other field nothing reads.
  */
 const PROFILE_READ = Object.freeze(new Set(['maxTargets', 'priority', 'allInRange', 'hitAllBlocked', 'canHitFly', 'groundOnly', 'hitSleep', 'skipEnemy', 'rangeTiles', 'attackRangeRadius']));
 /** The profile fields the engine reads of a unit with a funnel. */
 const FUNNEL_FIELDS = Object.freeze(new Set(['funnel', 'funnelMul']));
-/** The profile fields a kit's write puts on the unit's attacks (shock.js): honoured on every unit, so not a gap. */
+/** Profile fields put on an operator piece's attack when that attack can use them (shock.js). */
 const SHOCK_FIELDS = Object.freeze(new Set(['splashRadius', 'shockTimes']));
 
 /**
@@ -393,7 +394,7 @@ export class ShUnit {
     // a kit that writes a field of it (`unit.profile.funnel = …`) keeps it
     return new Proxy(own, { set: (target, k, v) => {
       const key = /** @type {string} */ (k);
-      if (typeof k === 'string' && this.#unread(k) && !sameField(target[key], v)) this.noteGap(`profile.${k}`);
+      if (typeof k === 'string' && (this.#unread(k) || this.#shockGap(k)) && !sameField(target[key], v)) this.noteGap(`profile.${k}`);
       target[key] = v;
       (this.#profileSet ??= {})[key] = v;
       if (typeof k === 'string' && SHOCK_FIELDS.has(k)) this.applyShock();
@@ -402,6 +403,19 @@ export class ShUnit {
   }
   /** Whether a write to a profile field has no effect: nothing reads it (PROFILE_READ, SHOCK_FIELDS), the funnel's fields of a unit without a funnel. @param {string} k */
   #unread(k) { return !PROFILE_READ.has(k) && !SHOCK_FIELDS.has(k) && !(FUNNEL_FIELDS.has(k) && !!this.#traitData()?.funnel); }
+  /**
+   * A shock write that cannot reach an attack (兼容-4), so it is a gap like any other unread field. An enemy's attack
+   * never reads the buff. A piece needs a splash (its own, its skill's, or a fortress shot) for the radius and an
+   * aftershock for the count. A summon is an operator: the same test, on its trait.
+   * @param {string} k
+   */
+  #shockGap(k) {
+    if (!SHOCK_FIELDS.has(k)) return false;
+    if (this.#kind === 'enemy') return true;
+    const t = this.#traitData();
+    if (k === 'splashRadius') return !(t && (t.splash || t.skillSplash || t.fortress));
+    return !(t && t.aftershock > 0);
+  }
   /**
    * The splash radius and aftershock count a kit wrote, on the deployed unit (兼容-4). Off the field the profile keeps
    * them and the next deployment puts them on (kits.js bind).
@@ -434,14 +448,14 @@ export class ShUnit {
   /**
    * A kit may give the unit another profile (`unit.profile = { ...unit.profile, … }`); it stands for every deployment, null
    * takes it back. What the layer reads of it is the selection of targets (PROFILE_READ), and `splashRadius` / `shockTimes`
-   * (SHOCK_FIELDS, put on the unit while it stands). A field that is changed and not read — `hits`, `atkScale` — is kept,
-   * has no effect and is recorded once for the unit and field (noteGap).
+   * when that attack can use them (SHOCK_FIELDS, put on the unit while it stands). A shock write that cannot, and any
+   * other field that is changed and not read — `hits`, `atkScale` — is kept, has no effect and is recorded once (noteGap).
    * @param {Record<string, any> | null} v
    */
   set profile(v) {
     if (v && typeof v === 'object') {
       const now = this.profile;
-      for (const k of Object.keys(v)) if (this.#unread(k) && !sameField(now[k], v[k])) this.noteGap(`profile.${k}`);
+      for (const k of Object.keys(v)) if ((this.#unread(k) || this.#shockGap(k)) && !sameField(now[k], v[k])) this.noteGap(`profile.${k}`);
     }
     this.#profileSet = v && typeof v === 'object' ? { ...v } : null;
     this.applyShock();

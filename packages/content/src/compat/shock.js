@@ -5,25 +5,42 @@ import { buffs, traits } from '@aue/sim';
 /** @typedef {import('@aue/sim').Unit} Unit @typedef {import('@aue/sim').TraitDef} TraitDef */
 
 /**
- * A finite `splashRadius` ≥ 0, or null when the field is absent or not one.
+ * A finite number. The predicate is what `tsc` needs to narrow `unknown` (a kit may write anything).
+ * @param {unknown} v
+ * @returns {v is number}
+ */
+const finiteNum = (v) => typeof v === 'number' && Number.isFinite(v);
+
+/**
+ * A finite `splashRadius` ≥ 0, or null when the field is absent or not one. 0 is kept: the main splash uses it, and
+ * an aftershock widens it to 1 (职业-8, Stronghold's `splashRadius || 1`).
  * @param {Record<string, any> | null | undefined} set @returns {number | null}
  */
 function radiusOf(set) {
   if (!set || !Object.hasOwn(set, 'splashRadius')) return null;
   const v = set.splashRadius;
-  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
+  return finiteNum(v) && v >= 0 ? v : null;
 }
 
 /**
- * The engine's aftershock count for a finite `shockTimes` ≥ 0: max(1, ⌊shockTimes⌋ − 1), Stronghold's
- * `max(1, (shockTimes ?? 2) − 1)` for a number the kit wrote (server/sim/professions.js). Null when absent or not one.
+ * Engine aftershocks for one written `shockTimes` (Stronghold professions.js: `max(1, (shockTimes ?? 2) − 1)`).
+ * `null` and a negative number are 1. Anything else that is not a finite number ≥ 0 is not an override (a kit's
+ * empty restore). The result is at most {@link traits.SHOCK_COUNT_CAP}.
+ * @param {unknown} v @returns {number | null}
+ */
+function cappedCount(v) {
+  if (v === null || (finiteNum(v) && v < 0)) return 1;
+  if (!finiteNum(v)) return null;
+  return Math.min(traits.SHOCK_COUNT_CAP, Math.max(1, Math.floor(v) - 1));
+}
+
+/**
+ * The engine's aftershock count for a written `shockTimes`, or null when the field is absent.
  * @param {Record<string, any> | null | undefined} set @returns {number | null}
  */
 function countOf(set) {
   if (!set || !Object.hasOwn(set, 'shockTimes')) return null;
-  const v = set.shockTimes;
-  if (!(typeof v === 'number' && Number.isFinite(v) && v >= 0)) return null;
-  return Math.max(1, Math.floor(v) - 1);
+  return cappedCount(set.shockTimes);
 }
 
 /**

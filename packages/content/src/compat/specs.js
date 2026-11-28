@@ -238,6 +238,27 @@ function attackOf(spec, mods) {
  * generic one otherwise.
  * @type {Readonly<SkillBehavior>}
  */
+/**
+ * The spec's onEnd with `reason`, then the skill's buff goes (SPEC_BEHAVIOR.end, endSpecOnLeave).
+ * @param {{ b: any, p: any, spec: any }} r @param {string} reason
+ */
+function endSpec(r, reason) {
+  call(r.b, r.p, r.spec.onEnd, 'skill.onEnd', { reason });
+  r.b.removeBuff(r.p, 'skill');
+}
+
+/**
+ * A leaving unit's running kit skill (兼容-5): the engine's retreat and fall emit `skillEnd` with reason `death` without
+ * ending the skill, and Stronghold's _remove ends it with 'death'. Runs the spec's end once; false without a kit spec.
+ * @param {Unit} u @returns {boolean}
+ */
+export function endSpecOnLeave(u) {
+  const r = specOf(u);
+  if (!r) return false;
+  endSpec(r, 'death');
+  return true;
+}
+
 export const SPEC_BEHAVIOR = Object.freeze({
   /**
    * The running skill's range: the spec's `targeting.rangeGrid` (facing-right [row, col] offsets) as it is now — a kit
@@ -283,8 +304,7 @@ export const SPEC_BEHAVIOR = Object.freeze({
   end(ctx, reason) {
     const r = specOf(ctx.self);
     if (!r) { skills.GENERIC.end?.(ctx, reason); return; }
-    call(r.b, r.p, r.spec.onEnd, 'skill.onEnd', { reason });
-    r.b.removeBuff(r.p, 'skill');
+    endSpec(r, reason);
   },
   /** @param {any} ctx @param {any} mods */
   /**

@@ -7,7 +7,7 @@ import { register } from 'node:module';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { oracleDir, oneWave, spawnAt } from '@aue/testkit';
-import { createWorld, step, bus, status, traits } from '@aue/sim';
+import { createWorld, step, bus, status, traits, summons } from '@aue/sim';
 import { loadUnderGrid } from '../src/compat/grid.js';
 import { defOf } from '../src/compat/records.js';
 import { kitsBehaviors, withKitTrait } from '../src/compat/kits.js';
@@ -213,7 +213,7 @@ test('[兼容-4] [职业-8] a probe kit\'s splashRadius replaces a fortress rang
   expectCounts(again, mid.id, 0, 0, 1);
   expectCounts(again, far.id, 0, 0, 0);
   assert.equal(shockState(box.b, op)[2].value, 1.7);
-  assert.deepEqual(shockGaps(box.b), []);
+  assert.deepEqual(shockGaps(box.b).map((e) => e.label), ['profile.shockTimes']);
 });
 
 test('[兼容-4] [职业-8] shockTimes 1 is the trait\'s own one aftershock and leaves no profileShock buff', () => {
@@ -227,4 +227,139 @@ test('[兼容-4] [职业-8] shockTimes 1 is the trait\'s own one aftershock and 
   expectCounts(hit, foe.id, 1, 1, 0);
   mainAmount(hit, foe.id);
   assert.deepEqual(shockGaps(box.b), []);
+});
+
+/** Pays for the manual skill and starts it. @param {Box} box @param {any} op */
+function cast(box, op) {
+  op.skill.sp = op.skill.cost;
+  box.run(1, [[0, { type: 'skill', unit: op.id }]]);
+  assert.equal(op.skill.active, true);
+}
+
+/**
+ * Leaves and comes back after respawnTime 1 (30 frames). Retreat and a fall both emit `death` (兼容-5).
+ * @param {Box} box @param {any} op @param {'retreat' | 'fall'} how @param {string} key @returns {any}
+ */
+function leaveAndBack(box, op, how, key) {
+  if (how === 'retreat') box.run(1, [[0, { type: 'retreat', unit: op.id }]]);
+  else { op.hp = 0; box.run(1); }
+  assert.equal(box.unit(key), undefined);
+  box.run(40);
+  box.run(1, [[0, { type: 'deploy', op: key, row: 2, col: 1, dir: 0 }]]);
+  const back = box.unit(key);
+  assert.ok(back, 'redeployed');
+  return back;
+}
+
+/** 迷迭香 S2, then off the field and back: the profile is the trait's again, and the next S2 is not stacked on a leftover. @param {'retreat' | 'fall'} how */
+function rosmonAgain(how) {
+  const box = open('rosmon', bare(operatorAt(training, BUILD)), { factory, chess: true, def: defOf(ROS, training, BUILD) }, 4);
+  const foes = box.w.units.filter((/** @type {any} */ u) => u.key === 'slime');
+  const [main, near] = place(foes, [{ x: 4, y: 2 }, { x: 5, y: 3 }, { x: 4, y: 0 }, { x: 4, y: 2.4, fly: true }]);
+  box.run(1, [[0, { type: 'deploy', op: 'rosmon', row: 2, col: 1, dir: 0 }]]);
+  const op = box.unit('rosmon');
+  cast(box, op);
+  const on = shockState(box.b, op);
+  assert.deepEqual([on[0], on[1], on[2].value, on[2].n], [1.5, 4, 1.5, 3]);
+  const back = leaveAndBack(box, op, how, 'rosmon');
+  assert.equal(back.skill.active, false);
+  assert.deepEqual(shockState(box.b, back), [0.9, 2, null]);
+  box.log.length = 0;
+  const hit = frameHits(box.log, untilAttacks(box, main.id, 1)[0]);
+  expectCounts(hit, main.id, 1, 1, 0);
+  expectCounts(hit, near.id, 0, 0, 0);
+  cast(box, back);
+  const again = shockState(box.b, back);
+  assert.deepEqual([again[0], again[1], again[2].value, again[2].n], [1.5, 4, 1.5, 3]);
+  letEnd(box, back);
+  assert.deepEqual(shockState(box.b, back), [0.9, 2, null]);
+  assert.deepEqual(shockGaps(box.b), []);
+}
+
+test('[兼容-5] [兼容-4] 迷迭香 retreats during S2 and redeploys: the skill is off and the attack is the trait\'s one aftershock with no leftover splash; the next S2 is 1.5 and 4, not 2 more, and the end writes the trait back', () => {
+  rosmonAgain('retreat');
+});
+
+test('[兼容-5] [兼容-4] 迷迭香 falls during S2 and redeploys: the skill is off and the attack is the trait\'s one aftershock with no leftover splash; the next S2 is 1.5 and 4, not 2 more, and the end writes the trait back', () => {
+  rosmonAgain('fall');
+});
+
+/** A probe kit that writes the profile once, at install. @param {string} name @param {(u: any) => void} write */
+function probeKit(name, write) {
+  return { factory: () => ({ install(/** @type {any} */ _b, /** @type {any} */ u) { write(u); } }), def: { name, skill: null, raw: {} } };
+}
+
+test('[职业-8] [兼容-4] a written shockTimes far above any operator is 10 aftershocks, and the attack still settles', () => {
+  const box = open('bom', probeOp({ splash: { radius: 0.9, scale: 1, ground: true }, aftershock: 0.5 }), probeKit('bom', (u) => { u.profile.shockTimes = 100000; }), 1);
+  const foe = place(box.w.units.filter((/** @type {any} */ u) => u.key === 'slime'), [{ x: 3, y: 2 }])[0];
+  box.run(1, [[0, { type: 'deploy', op: 'bom', row: 2, col: 1, dir: 0 }]]);
+  const op = box.unit('bom'), st = shockState(box.b, op);
+  assert.equal(st[1], 100000);
+  assert.equal(st[2].n, traits.SHOCK_COUNT_CAP);
+  const hit = frameHits(box.log, untilAttacks(box, foe.id, 1)[0]);
+  expectCounts(hit, foe.id, 1, traits.SHOCK_COUNT_CAP, 0);
+});
+
+test('[职业-8] [兼容-4] splashRadius 0 keeps the main splash at 0 and the aftershock uses radius 1', () => {
+  // The dummy at (3, 2) is the only one in the one-tile range. 0.6 ahead is inside radius 1 and off that tile; 1.3 off the row is outside 1.
+  const box = open('bom', probeOp({ splash: { radius: 1, scale: 1, ground: true }, aftershock: 0.5 }), probeKit('bom', (u) => { u.profile.splashRadius = 0; }), 3);
+  const foes = box.w.units.filter((/** @type {any} */ u) => u.key === 'slime');
+  const [main, near, far] = place(foes, [{ x: 3, y: 2 }, { x: 3.6, y: 2 }, { x: 3, y: 3.3 }]);
+  box.run(1, [[0, { type: 'deploy', op: 'bom', row: 2, col: 1, dir: 0 }]]);
+  const op = box.unit('bom');
+  assert.equal(shockState(box.b, op)[2].value, 0);
+  const hit = frameHits(box.log, untilAttacks(box, main.id, 1)[0]);
+  expectCounts(hit, main.id, 1, 1, 0);
+  expectCounts(hit, near.id, 0, 1, 0);
+  expectCounts(hit, far.id, 0, 0, 0);
+});
+
+test('[兼容-4] [职业-8] a null shockTimes and a negative one are each one aftershock', () => {
+  const box = open('bom', probeOp({ splash: { radius: 0.9, scale: 1, ground: true }, aftershock: 0.5, aftershocks: 3 }), probeKit('bom', (u) => { u.profile.shockTimes = null; }), 1);
+  const foe = place(box.w.units.filter((/** @type {any} */ u) => u.key === 'slime'), [{ x: 3, y: 2 }])[0];
+  box.run(1, [[0, { type: 'deploy', op: 'bom', row: 2, col: 1, dir: 0 }]]);
+  const op = box.unit('bom'), none = shockState(box.b, op);
+  assert.equal(none[1], null);
+  assert.equal(none[2].n, 1);
+  const first = frameHits(box.log, untilAttacks(box, foe.id, 1)[0]);
+  expectCounts(first, foe.id, 1, 1, 0);
+  box.b.unitOf(op).profile.shockTimes = -4;
+  const neg = shockState(box.b, op);
+  assert.equal(neg[1], -4);
+  assert.equal(neg[2].n, 1);
+  const second = frameHits(box.log, untilAttacks(box, foe.id, 2)[1]);
+  expectCounts(second, foe.id, 1, 1, 0);
+});
+
+/** @param {ShBattle} b @returns {string[]} */
+const gapWho = (b) => shockGaps(b).map((e) => `${e.who}:${e.label}`);
+
+test('[兼容-4] an operator with neither splash nor an aftershock records both writes as gaps', () => {
+  const box = open('plain', probeOp({}), probeKit('plain', (u) => { u.profile.splashRadius = 1.2; u.profile.shockTimes = 4; }), 0);
+  assert.deepEqual(gapWho(box.b), ['plain:profile.splashRadius', 'plain:profile.shockTimes']);
+  assert.equal(shockGaps(box.b)[0].message, 'compat: profile.splashRadius is not provided yet');
+});
+
+test('[兼容-4] an enemy writing splashRadius and shockTimes records both as gaps', () => {
+  const box = open('plain', probeOp({}), probeKit('plain', () => {}), 1);
+  const slime = box.w.units.find((/** @type {any} */ u) => u.key === 'slime');
+  const e = box.b.unitOf(slime);
+  e.profile.splashRadius = 1.2;
+  e.profile.shockTimes = 4;
+  assert.equal(e.kind, 'enemy');
+  assert.deepEqual(gapWho(box.b), ['slime:profile.splashRadius', 'slime:profile.shockTimes']);
+});
+
+test('[兼容-4] a summon with neither splash nor an aftershock records both writes as gaps', () => {
+  const box = open('plain', probeOp({}), probeKit('plain', () => {}), 0);
+  box.run(1, [[0, { type: 'deploy', op: 'plain', row: 2, col: 1, dir: 0 }]]);
+  const owner = box.unit('plain');
+  box.c.operators.pup = probeOp({});
+  const pup = summons.spawnSummon(box.w, box.c, owner, 'pup', { row: 1, col: 1 });
+  assert.ok(pup, 'summon');
+  const token = box.b.unitOf(pup);
+  token.profile.splashRadius = 1.2;
+  token.profile.shockTimes = 4;
+  assert.equal(token.kind, 'token');
+  assert.deepEqual(gapWho(box.b), ['pup:profile.splashRadius', 'pup:profile.shockTimes']);
 });

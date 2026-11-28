@@ -7,7 +7,7 @@
 import { KIND, bus, reserveIds, traits } from '@aue/sim';
 import { ShBattle } from './battle.js';
 import { ShUnit, hurtAt } from './unit.js';
-import { battles, SPEC_BEHAVIOR, KIT_TRAIT_BEHAVIOR, onAttackHit, onAttackDone, onSpecHit, onBoomerangHit } from './specs.js';
+import { battles, SPEC_BEHAVIOR, KIT_TRAIT_BEHAVIOR, endSpecOnLeave, onAttackHit, onAttackDone, onSpecHit, onBoomerangHit } from './specs.js';
 import { KIT_BUFF, KIT_BUFF_BEHAVIOR, worldBattles } from './buffhooks.js';
 import { withGrid } from './grid.js';
 import { pieceLeft, pieceBack, keepFreeCuts } from './players.js';
@@ -152,6 +152,7 @@ export function kitsWorld(kits, seen, o = {}) {
     bus.on(w, 'deploy', (k) => keepFreeCuts(b, k.unit.owner), { priority: FIRST });
     bus.on(w, 'attack', (k) => { b.unitOf(k.attacker).lastAttackAt = b.time; }, { priority: FIRST });
     bus.on(w, 'damaged', (k) => { if (k.target && k.amount > 0) hurtAt.set(k.target, b.time); }, { priority: FIRST });
+    bus.on(w, 'skillEnd', (k) => endOnLeave(k.unit, k.reason), { priority: FIRST });
     bus.on(w, 'skillStart', (k) => { const s = b.pieces.get(`${k.unit.owner}|${k.unit.key}`)?.skill; if (s && !s.counted) s.activations++; if (s) s.counted = false; }, { priority: FIRST });
     bus.on(w, 'attackHit', onAttackHit);
     bus.on(w, 'attack', onAttackDone, { priority: FIRST });
@@ -268,6 +269,19 @@ function bind(b, u) {
   piece.skill?.applyCost();
   for (const spec of piece.persist) b.giveBuff(piece, spec);
   piece.applyShock();
+}
+
+/**
+ * A unit leaving with its kit skill still running (兼容-5). The engine's retreat and fall emit `skillEnd` with reason
+ * `death` while the skill is still active (deck.js withdraw, world.js announceDeath, summons.js) and do not end it.
+ * Stronghold's _remove ends it with 'death' (deploy.js 116–118), so the spec's onEnd runs on that one event and the
+ * skill's buff goes: what the skill wrote into the profile is written back before the next deployment. A skill the
+ * engine ends itself (endSkill) is already inactive when its `skillEnd` is emitted, so its onEnd never runs twice, and
+ * nothing is emitted again. A skill with no kit spec is left to the engine.
+ * @param {Unit} u @param {string} reason
+ */
+function endOnLeave(u, reason) {
+  if (reason === 'death' && u?.skill?.active) endSpecOnLeave(u);
 }
 
 /**

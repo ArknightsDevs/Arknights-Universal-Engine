@@ -386,6 +386,16 @@ function splashOf(w, t, s) {
 }
 
 /**
+ * Who a splash reaches on this hit (职业-8). An aftershock whose radius is 0 uses 1 — Stronghold's `splashRadius || 1`
+ * (professions.js) — while the main hit keeps 0, so it splashes no one off the point.
+ * @param {World} w @param {Unit} t @param {import('./types.js').Splash | null | undefined} s @param {Unit[]} around @param {boolean} shock
+ */
+function shockRing(w, t, s, around, shock) {
+  if (!shock || !s || s.radius > 0) return around;
+  return splashOf(w, t, { ...s, radius: 1 });
+}
+
+/**
  * An attack reaching its target (攻击-2, 攻击-3, 职业-8, 职业-17): the target takes the hits; with a splash every other
  * enemy around it takes them at the splash's share; an aftershock repeats both at its share of the amount. An attack
  * whose splash reaches enough enemies, the target's included, hits at the trait's 倍率 for that.
@@ -397,7 +407,7 @@ export function impact(w, c, src, t, load) {
   for (const k of load.aftershock ? [1, ...Array.from({ length: load.aftershocks ?? 1 }, () => /** @type {number} */ (load.aftershock))] : [1]) {
     const shock = k === 1 ? {} : { hit: /** @type {const} */ ('aftershock') };
     if (t.hp > 0) hitTarget(w, c, src, t, { ...load, amount: amount * k, ...shock });
-    for (const u of around) if (u.hp > 0) hitTarget(w, c, src, u, { ...load, amount: amount * k * (s?.scale ?? 1), hit: 'splash', ...shock });
+    for (const u of shockRing(w, t, s, around, k !== 1)) if (u.hp > 0) hitTarget(w, c, src, u, { ...load, amount: amount * k * (s?.scale ?? 1), hit: 'splash', ...shock });
   }
   if (load.chain) jumpHits(w, c, src, t, load);
 }

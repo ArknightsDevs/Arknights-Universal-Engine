@@ -244,6 +244,13 @@ export function funnelNow(w, c, op) {
  */
 export const SHOCK_BUFF = 'profileShock';
 
+/**
+ * Most aftershocks a profile override may ask for (职业-8, INF-1232). The most an operator reaches is 4: 迷迭香 S2
+ * adds `add_times` 2 to BOM-X `attack@times` 3 (shockTimes 5, four aftershocks). 10 leaves headroom so `impact`'s
+ * `Array.from` stays small when a kit writes a huge `shockTimes`. Stronghold's formula has no cap.
+ */
+export const SHOCK_COUNT_CAP = 10;
+
 /** The override buff, if the unit has one. @param {Unit} u @returns {import('./types.js').Buff | null} */
 function shockBuff(u) {
   return u.buffs.find((b) => b.key === SHOCK_BUFF) ?? null;
@@ -262,13 +269,15 @@ export function splashNow(a, splash) {
 
 /**
  * How many aftershocks an attack has (职业-8): when it already has one (`aftershock` > 0), a `profileShock` buff with
- * `n` ≥ 0 is that count. Otherwise the trait's count. A unit with no aftershock does not gain one.
+ * `n` ≥ 0 is that count, and not above {@link SHOCK_COUNT_CAP}. Otherwise the trait's count. A unit with no aftershock
+ * does not gain one. The trait's own count is not capped.
  * @param {Unit} a @param {number} aftershock @param {number} count @returns {number}
  */
 export function aftershockCount(a, aftershock, count) {
   if (!(aftershock > 0)) return count;
   const b = shockBuff(a);
-  return b && b.n >= 0 ? b.n : count;
+  if (!b || b.n < 0) return count;
+  return b.n > SHOCK_COUNT_CAP ? SHOCK_COUNT_CAP : b.n;
 }
 
 /**
