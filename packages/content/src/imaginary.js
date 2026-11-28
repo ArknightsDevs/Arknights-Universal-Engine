@@ -16,8 +16,8 @@ const SILT_KEYS = ['atk_scale', 'damage_scale', 'ep_damage_scale'];
 /** 自缚 while attached (敌能-161). A key nobody else uses, so removing it leaves another root alone. */
 const BIND = 'imaginaryBind';
 /**
- * 不进行普通攻击 (敌能-161). `applyWay` NONE still swings at the blocker (敌人攻击-1, 敌能-37), and silence drops only the
- * attachment, so this stays for the whole life of the shape.
+ * 不进行普通攻击 (敌能-161). `applyWay` NONE still swings at the blocker (敌人攻击-1, 敌能-37). The ability lines are ·
+ * and textFormat NORMAL, so silence drops neither this nor the attachment.
  */
 const QUIET = 'imaginaryQuiet';
 /** The page's 1000 of the same element when the host bursts (敌能-161). Not a blackboard key. */
@@ -36,26 +36,29 @@ export const siltShape = (bb) => exact(bb, SILT_KEYS);
 const ours = (u) => u.kind !== KIND.ENEMY && !(u.kind === KIND.DEVICE && u.base.hostile === true);
 
 /**
- * 蚀裂 hit (敌能-160): the 我方单位 behind a hit that brings its HP to 0 — the hit's source, or the unit it credits when
- * it has none — is the one its cloud is thrown at.
+ * 蚀裂 hit (敌能-160): the 我方单位 behind a hit that would bring its HP to 0 — the hit's source, or the unit it credits
+ * when it has none. `hpDamage` runs before 不死 and `fatal`, so the id is kept with this frame and used only when the
+ * fall is this same frame. A hit that does not actually drop it is not reused later.
  * @param {FoeContext} ctx @param {FoeHpDamage} hit @returns {void}
  */
 export function cloudHit(ctx, hit) {
   if (!cloudShape(ctx.bb) || hit.amount < ctx.self.hp) return;
   const by = hit.source ?? hit.credit;
   ctx.state.set('killer', by && ours(by) ? by.id : 0);
+  ctx.state.set('killerAt', ctx.frame);
 }
 
 /**
  * 蚀裂's cloud (敌能-160): knocked down and not silenced (死亡爆炸, as 敌能-58), at the 我方单位 that dealt the killing
- * hit while it is still on the field, else where it fell; at once. The zone ticks once a second, so `interval` must be
- * that one second; a different number is not placed.
+ * hit this frame while it is still on the field, else where it fell; at once. The zone ticks once a second, so
+ * `interval` must be that one second; a different number is not placed.
  * @param {FoeContext} ctx @returns {void}
  */
 export function cloudDeath(ctx) {
   const bb = ctx.bb, self = ctx.self;
   if (!cloudShape(bb) || bb.interval !== 1 || ctx.stats(self).flags.silence) return;
-  const id = ctx.state.get('killer'), at = (id > 0 ? ctx.unit(id) : null) ?? self;
+  const id = ctx.state.get('killerAt') === ctx.frame ? ctx.state.get('killer') : 0;
+  const at = (id > 0 ? ctx.unit(id) : null) ?? self;
   ctx.zone({
     x: at.x, y: at.y, radius: bb.projectile_range, life: bb.projectile_life_time, low: 0, high: 0,
     arts: ctx.stats(self).atk * bb.damage_atk_scale, air: true,
@@ -64,9 +67,6 @@ export function cloudDeath(ctx) {
 
 /** The buff key of this 淤困's attachment on its host (敌能-161). Two of them do not share a key. @param {FoeContext} ctx */
 const hostKey = (ctx) => `silt:${ctx.self.id}`;
-
-/** Talent silenced (敌能-161): the ability lines start with ·. @param {FoeContext} ctx */
-const silenced = (ctx) => ctx.stats(ctx.self).flags.silence === true;
 
 /** The standing 不进行普通攻击 (敌能-161). Put back if something else took the buff off. @param {FoeContext} ctx */
 function keepQuiet(ctx) {
@@ -107,14 +107,15 @@ function tickDot(ctx, host) {
 
 /**
  * 淤困 while its talent is the attachment (敌能-161). Block is seen at the turn's start (敌能-2), so the frame a block
- * begins is the next turn. Silence drops the attachment on that turn; a stun does not. 不进行普通攻击 is not part of that.
+ * begins is the next turn. The ability lines are · and textFormat NORMAL, so silence does not drop it. A stun does not.
+ * 不进行普通攻击 is separate from the attachment.
  * @param {FoeContext} ctx @returns {void}
  */
 export function siltTick(ctx) {
   if (!siltShape(ctx.bb)) return;
   keepQuiet(ctx);
   const host = ctx.blocker();
-  const stop = host === null || !(host.hp > 0) || silenced(ctx);
+  const stop = host === null || !(host.hp > 0);
   const same = !stop && ctx.state.get('host') === host.id;
   if (!same) dropHost(ctx);
   if (stop || host === null) return;
@@ -129,11 +130,11 @@ export function siltDeath(ctx) {
 
 /**
  * The host's 元素爆发 (敌能-161): 1000 of that element on the cross `around` returns. The host is beginning its burst,
- * so 元素-3 makes its own 1000 come to nothing; the others are dealt. Silence does not spread.
+ * so 元素-3 makes its own 1000 come to nothing; the others are dealt. textFormat NORMAL, so silence still spreads.
  * @param {FoeContext} ctx @param {ElementBurst} burst @returns {void}
  */
 export function siltBurst(ctx, burst) {
-  if (!siltShape(ctx.bb) || silenced(ctx)) return;
+  if (!siltShape(ctx.bb)) return;
   const id = ctx.state.get('host');
   if (!(id > 0) || burst.target.id !== id) return;
   const host = ctx.unit(id);

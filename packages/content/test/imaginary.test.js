@@ -213,6 +213,28 @@ test('[敌能-160] the unit of the killing hit, or the one it credits; where it 
   assert.equal(cloudAfter((box, g) => { status.applyStatus(box.e, 'silence', {}); kill(box, g); step(box.w, box.c); }), null, '死亡爆炸 is silenced');
 });
 
+test('[敌能-160] a hit kept by 不死 or fatal is not the fall; a later hole or setHp puts the cloud where it fell', () => {
+  for (const how of ['undying-hole', 'undying-hp', 'fatal-hp']) {
+    const box = opened();
+    deploy(box.w, box.c, [['guard', 1, 0]]);
+    const g = unitKey(box.w, 'guard');
+    if (how.startsWith('undying')) status.applyStatus(box.e, 'undying', {});
+    else bus.on(box.w, 'fatal', (k) => { k.prevented = true; });
+    damage.dealDamage(box.w, g, box.e, { type: 'true', amount: box.e.hp }, box.c);
+    step(box.w, box.c);
+    assert.equal(box.w.zones, undefined);
+    assert.equal(box.e.hp, 1);
+    if (how.startsWith('undying')) buffs.removeBuff(box.e, 'undying');
+    if (how.endsWith('hole')) box.c.level.tiles[1][3] = { key: 'tile_hole', height: 'LOWLAND', buildable: 'NONE', passable: 'ALL', side: 'ALL' };
+    else damage.setHp(box.e, 0);
+    step(box.w, box.c);
+    const z = /** @type {{ x: number, y: number } | undefined} */ (box.w.zones?.[0]);
+    assert.ok(z);
+    assert.deepEqual([z.x, z.y], [3, 1]);
+    assert.notDeepEqual([g.x, g.y], [3, 1]);
+  }
+});
+
 test('[敌能-160] knockDown, setHp and a fall each leave a cloud; a leak and a non-1 interval do not', () => {
   for (const how of [damage.knockDown, (/** @type {Unit} */ u) => { damage.setHp(u, 0); }]) {
     const box = opened();
@@ -371,7 +393,7 @@ test('[敌能-160] [合作-8] an intermission removes the enemy and leaves the c
   assert.equal(box.w.zones?.length, 1);
 });
 
-test('[敌能-161] [敌能-37] [敌人攻击-1] 淤困 never swings; the no-attack mark is on from the spawn and outlives the attachment', () => {
+test('[敌能-161] [敌能-37] [敌人攻击-1] 淤困 never swings; the no-attack mark is on from the spawn, and silence leaves it and the attachment', () => {
   const s = siltReady();
   const e = s.es[0];
   const q = buffOf(e, QUIET);
@@ -396,8 +418,8 @@ test('[敌能-161] [敌能-37] [敌人攻击-1] 淤困 never swings; the no-atta
   const quiet = step(s.w, s.c);
   assert.equal(attacks(quiet, e.id).length, 0);
   assert.ok(buffOf(e, QUIET));
-  assert.equal(buffOf(e, BIND), undefined);
-  assert.equal(buffOf(s.g, `silt:${e.id}`), undefined);
+  assert.equal(buffOf(e, BIND)?.flags.root, true);
+  assert.equal(buffOf(s.g, `silt:${e.id}`)?.mods.epTakenMul, 1.3);
 });
 
 test('[敌能-161] the first arts hit is 30 frames after the attach, at the current attack, and a physical hit is not multiplied', () => {
@@ -439,17 +461,24 @@ test('[敌能-161] retreat drops the attachment the same step; stunning the guar
   assert.ok(buffOf(s.es[0], QUIET));
 });
 
-test('[敌能-161] silence drops the attachment and a later block attaches again; a stun on 淤困 does not drop it; death and a dead host drop it the same step', () => {
-  const s = attach(siltReady());
-  const e = s.es[0], g = s.g;
-  status.applyStatus(e, 'silence', {});
-  step(s.w, s.c);
-  park(e, 2.4, 1.3);
-  buffs.removeBuff(e, 'silence');
-  step(s.w, s.c);
+test('[敌能-161] silence still attaches and the arts tick still lands; a stun on 淤困 does not drop it; death and a dead host drop it the same step', () => {
+  const quiet = siltReady();
+  status.applyStatus(quiet.es[0], 'silence', {});
+  const held = attach(quiet);
+  const e = held.es[0], g = held.g;
   assert.deepEqual([e.x, e.y], [2, 1]);
+  assert.equal(attacks(held.ev, e.id).length, 0);
   assert.equal(buffOf(e, BIND)?.flags.root, true);
   assert.equal(buffOf(g, `silt:${e.id}`)?.mods.epTakenMul, 1.3);
+  const tick = run(held.w, held.c, 30);
+  assert.deepEqual(hitsFrom(tick, e.id).map((x) => x.damage), [180]);
+  assert.equal(attacks(tick, e.id).length, 0);
+  const left = attach(siltReady());
+  status.applyStatus(left.es[0], 'silence', {});
+  const ev = step(left.w, left.c, [[0, { type: 'retreat', unit: left.g.id }]]);
+  assert.equal(attacks(ev, left.es[0].id).length, 0);
+  assert.equal(buffOf(left.es[0], BIND), undefined);
+  assert.ok(buffOf(left.es[0], QUIET));
   const stunned = attach(siltReady());
   status.applyStatus(stunned.es[0], 'stun', {});
   const pulsed = hitsFrom(run(stunned.w, stunned.c, 30), stunned.es[0].id);
@@ -559,14 +588,14 @@ test('[敌能-161] [敌能-2] [元素-3] a burst deals 1000 of that element on t
   assert.deepEqual(pick(unitKey(other.w, 's3')), []);
 });
 
-test('[敌能-161] silence does not spread; two attachments each spread 1000', () => {
+test('[敌能-161] silence still spreads; two attachments each spread 1000', () => {
   const quiet = burstField(attach(siltReady()), [['g2', 1, 1]]);
   const near = unitKey(quiet.w, 'g2');
   status.applyStatus(quiet.es[0], 'silence', {});
-  assert.equal(buffOf(quiet.g, `silt:${quiet.es[0].id}`)?.mods.epTakenMul, 1.3, 'no step yet, so the attachment is still lent');
-  const silenced = watch(quiet.w, quiet.g).filter((x) => x.id === quiet.es[0].id);
-  assert.deepEqual(silenced, []);
-  assert.equal(near.hp, near.maxHp);
+  step(quiet.w, quiet.c);
+  assert.equal(buffOf(quiet.g, `silt:${quiet.es[0].id}`)?.mods.epTakenMul, 1.3);
+  const silenced = watch(quiet.w, quiet.g).filter((x) => x.id === quiet.es[0].id && x.target === near.id);
+  assert.deepEqual(silenced.map((x) => x.amount), [1000]);
   const two = burstField(attach(siltReady(2)), [['g2', 1, 1]]);
   const mate = unitKey(two.w, 'g2');
   const seen = watch(two.w, two.g).filter((x) => x.target === mate.id);
