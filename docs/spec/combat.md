@@ -35,7 +35,7 @@
 
 内容可以改单位距下次攻击的帧数（重置或清空攻击冷却），不少于 0。
 
-- 来源：[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)「AOE伤害判定的本质逻辑」：「锁定人数」的攻击「在抬手时选取范围内的全体目标（不超过其攻击目标上限），并在攻击前摇结束时对这些目标造成伤害——即使目标已经离开攻击范围」，具有弹道的攻击「先选择单体目标或者地点发动攻击」；[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「跟随动画：技能的攻击间隔以一个Spine动画周期为准」；设计决定 [ADR 0014](../adr/0014-attack-windup-by-animation.md)（冷却到 0 开始攻击动画、在 OnAttack 时刻造成伤害或发射投射物、攻击间隔比动画短时按比例加速、命中前被打断则取消）、[ADR 0019](../adr/0019-operator-spine-source.md)（干员骨骼来源与帧数据核对）；攻击动画的选择、缺数据时的默认规则、技力计入的时刻为推断 INF-0049
+- 来源：[PRTS「作战机制」oldid=433935](https://prts.wiki/index.php?title=%E4%BD%9C%E6%88%98%E6%9C%BA%E5%88%B6&oldid=433935)「AOE伤害判定的本质逻辑」：「锁定人数」的攻击「在抬手时选取范围内的全体目标（不超过其攻击目标上限），并在攻击前摇结束时对这些目标造成伤害——即使目标已经离开攻击范围」，具有弹道的攻击「先选择单体目标或者地点发动攻击」；[PRTS「游戏数据基础」oldid=440563](https://prts.wiki/index.php?title=%E6%B8%B8%E6%88%8F%E6%95%B0%E6%8D%AE%E5%9F%BA%E7%A1%80&oldid=440563)「跟随动画：技能的攻击间隔以一个Spine动画周期为准」；设计决定 [ADR 0014](../adr/0014-attack-windup-by-animation.md)（冷却到 0 开始攻击动画、在 OnAttack 时刻造成伤害或发射投射物、攻击间隔比动画短时按比例加速、命中前被打断则取消）、[ADR 0019](../adr/0019-operator-spine-source.md)（干员骨骼来源与帧数据核对）；攻击动画的选择、缺数据时的默认规则、技力计入的时刻为推断 INF-0049；与 Stronghold 在 `onAboutToAttack` 之后重新取目标、没有目标则返回且不起冷却的差别见 DIF-0060
 
 ### 攻击-3 投射物
 
